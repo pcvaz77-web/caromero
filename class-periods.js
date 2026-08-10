@@ -58,6 +58,15 @@ document.addEventListener('DOMContentLoaded', () => {
   observer = new MutationObserver(drawGroups);
   drawGroups();
 
+  // Cada novo acesso inicia com todos os turnos fechados, inclusive em uma
+  // aba que permaneceu aberta após sair e entrar novamente.
+  new MutationObserver(() => {
+    if (!document.getElementById('app').classList.contains('hidden')) {
+      openShifts.clear();
+      drawGroups();
+    }
+  }).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
+
   const shiftField = document.createElement('div');
   shiftField.className = 'field class-shift';
   shiftField.innerHTML = `<label for="classShift">Turno</label><select id="classShift" required>${shifts.map(shift => `<option value="${shift}">${shift}</option>`).join('')}</select>`;
