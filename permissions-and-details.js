@@ -63,18 +63,21 @@ document.addEventListener('DOMContentLoaded', () => {
       return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><select ${admin ? 'disabled' : ''} onchange="setUserPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_all','Editar tudo',admin)}${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Editar “se possui Laudo”',admin)}</div></article>`;
     }).join('');
     document.getElementById('permissionsList').innerHTML = `<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
-    const applySearch = () => {
-      const query = document.getElementById('permissionSearch').value.trim().toLocaleLowerCase('pt-BR');
+    const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    window.filterPermissionUsers = value => {
+      const query = normalizeSearch(value).trim();
       let visible = 0;
       document.querySelectorAll('#permissionsList .perm').forEach(card => {
-        const matches = card.dataset.search.toLocaleLowerCase('pt-BR').includes(query);
-        card.hidden = !matches;
+        const matches = normalizeSearch(card.textContent).includes(query);
+        card.style.display = matches ? '' : 'none';
         if (matches) visible++;
       });
-      document.getElementById('permissionEmpty').classList.toggle('hidden', visible > 0);
+      document.getElementById('permissionEmpty').style.display = visible ? 'none' : 'block';
     };
-    document.getElementById('permissionSearch').oninput = applySearch;
-    document.getElementById('permissionSearchForm').onsubmit = event => { event.preventDefault(); applySearch(); };
+    const searchInput = document.getElementById('permissionSearch');
+    searchInput.oninput = () => window.filterPermissionUsers(searchInput.value);
+    searchInput.onkeyup = () => window.filterPermissionUsers(searchInput.value);
+    document.getElementById('permissionSearchForm').onsubmit = event => { event.preventDefault(); window.filterPermissionUsers(searchInput.value); };
     document.getElementById('permissionsModal').classList.remove('hidden');
   }
 
