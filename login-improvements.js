@@ -9,6 +9,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const hint = card.querySelector('.hint');
   let creatingAccount = false;
 
+  const credit = document.createElement('footer');
+  credit.className = 'brand-credit';
+  credit.innerHTML = '<span>Criado por: Professor Paulo Passos</span><span>Todos os direitos reservados</span>';
+  document.querySelector('.brand').appendChild(credit);
+
+  const creditStyle = document.createElement('style');
+  creditStyle.textContent = `
+    .brand { position:relative; }
+    .brand-credit { position:absolute; right:9vw; bottom:34px; left:9vw; display:flex; justify-content:space-between; gap:16px; color:#cbd9f4; font-size:12px; }
+    @media (max-width:800px) { .brand-credit { display:none; } }
+  `;
+  document.head.appendChild(creditStyle);
+
   const nameField = document.createElement('div');
   nameField.className = 'field hidden';
   nameField.id = 'nameField';
