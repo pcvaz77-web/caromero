@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
   let removePhoto = false;
+  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key];
 
   const controls = document.createElement('div');
   controls.className = 'photo-controls hidden';
@@ -33,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function setClassVisibility() {
-    const moving = document.getElementById('moveStudent').checked;
+    const moving = can('can_edit_class') && document.getElementById('moveStudent').checked;
     classField.classList.toggle('hidden', !moving);
     classSelect.required = moving;
   }
@@ -54,7 +55,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('report').value = student?.report || '';
     refreshPhotoPreview(student);
     controls.classList.toggle('hidden', !student);
-    moveField.classList.toggle('hidden', !student);
+    document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
+    document.getElementById('report').disabled = !!student && !can('can_edit_report');
+    photoInput.disabled = !!student && !can('can_edit_photo');
+    controls.classList.toggle('hidden', !student || !can('can_edit_photo'));
+    moveField.classList.toggle('hidden', !student || !can('can_edit_class'));
+    document.getElementById('moveStudent').checked = false;
+    document.getElementById('moveStudent').disabled = !!student && !can('can_edit_class');
     classField.classList.toggle('hidden', !!student);
     classSelect.required = !student;
     document.getElementById('studentModal').classList.remove('hidden');
