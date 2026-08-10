@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     #permissionsModal .modal { width:min(1160px, calc(100vw - 36px)); max-height:90vh; }
     #permissionsModal .form { padding:24px 28px 30px; }
-    .permission-search { width:100%; margin:0 0 18px; min-height:48px; }
+    .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
+    .permission-search { flex:1; min-height:48px; }
     #permissionsList { display:grid; gap:12px; }
     .perm { display:grid; grid-template-columns:minmax(230px,1fr) 130px auto; gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
     .permission-user b { display:block; font-size:15px; }
@@ -61,11 +62,19 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.profiles?.email || 'Usuário';
       return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><select ${admin ? 'disabled' : ''} onchange="setUserPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_all','Editar tudo',admin)}${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Editar “se possui Laudo”',admin)}</div></article>`;
     }).join('');
-    document.getElementById('permissionsList').innerHTML = `<input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail">${cards}`;
-    document.getElementById('permissionSearch').oninput = event => {
-      const query = event.target.value.trim().toLowerCase();
-      document.querySelectorAll('.perm').forEach(card => { card.hidden = !card.dataset.search.includes(query); });
+    document.getElementById('permissionsList').innerHTML = `<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
+    const applySearch = () => {
+      const query = document.getElementById('permissionSearch').value.trim().toLocaleLowerCase('pt-BR');
+      let visible = 0;
+      document.querySelectorAll('#permissionsList .perm').forEach(card => {
+        const matches = card.dataset.search.toLocaleLowerCase('pt-BR').includes(query);
+        card.hidden = !matches;
+        if (matches) visible++;
+      });
+      document.getElementById('permissionEmpty').classList.toggle('hidden', visible > 0);
     };
+    document.getElementById('permissionSearch').oninput = applySearch;
+    document.getElementById('permissionSearchForm').onsubmit = event => { event.preventDefault(); applySearch(); };
     document.getElementById('permissionsModal').classList.remove('hidden');
   }
 
