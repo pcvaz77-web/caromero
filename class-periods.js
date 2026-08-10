@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
   const shifts = ['Matutino', 'Vespertino', 'Noturno'];
-  const openShifts = new Set(['Matutino']);
+  const openShifts = new Set();
   const classList = document.getElementById('classList');
   const classForm = document.getElementById('classForm');
   const classModal = document.getElementById('classModal');
