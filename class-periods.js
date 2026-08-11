@@ -49,7 +49,13 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     });
     classList.querySelectorAll('[data-class-id]').forEach(button => {
-      button.onclick = () => window.selectClass(button.dataset.classId);
+      button.onclick = () => {
+        // No celular, feche o painel de turnos ao escolher uma turma para a
+        // lista de alunos ficar visível imediatamente.
+        if (window.matchMedia('(max-width: 800px)').matches) openShifts.clear();
+        window.selectClass(button.dataset.classId);
+        drawGroups();
+      };
     });
     observer.observe(classList, { childList: true });
     drawing = false;
