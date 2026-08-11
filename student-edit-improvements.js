@@ -147,6 +147,62 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingPhoto = null;
   let removePhoto = false;
   const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key];
+  const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
+  const setStudentPhoto = (studentId, url) => {
+    document.querySelectorAll('#list .student').forEach(card => {
+      if (studentIdFromCard(card) !== studentId) return;
+      const avatar = card.querySelector('.avatar');
+      if (avatar) avatar.innerHTML = `<img src="${url}" alt="">`;
+    });
+    if (detailStudentId === studentId) {
+      const avatar = document.querySelector('#studentDetails .detail-head .avatar');
+      if (avatar) avatar.innerHTML = `<img src="${url}" alt="">`;
+    }
+  };
+  const loadStudentPhoto = async student => {
+    if (!student?.photoPath || student.photoUrl || student.loadingPhoto) return;
+    student.loadingPhoto = true;
+    const { data } = await db.storage.from('student-photos').createSignedUrl(student.photoPath, 3600);
+    student.loadingPhoto = false;
+    if (!data?.signedUrl) return;
+    student.photoUrl = data.signedUrl;
+    setStudentPhoto(student.id, student.photoUrl);
+  };
+  let visiblePhotoObserver = null;
+  const observeVisiblePhotos = () => {
+    const cards = document.querySelectorAll('#list .student');
+    if (!('IntersectionObserver' in window)) {
+      cards.forEach(card => loadStudentPhoto(students.find(student => student.id === studentIdFromCard(card))));
+      return;
+    }
+    if (visiblePhotoObserver) visiblePhotoObserver.disconnect();
+    visiblePhotoObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      visiblePhotoObserver.unobserve(entry.target);
+      loadStudentPhoto(students.find(student => student.id === studentIdFromCard(entry.target)));
+    }), { rootMargin: '180px 0px' });
+    cards.forEach(card => visiblePhotoObserver.observe(card));
+  };
+  new MutationObserver(observeVisiblePhotos).observe(document.getElementById('list'), { childList: true });
+  window.load = async () => {
+    const [studentsResult, classesResult] = await Promise.all([
+      db.from('students').select('*').order('created_at', { ascending: false }),
+      db.from('classes').select('*').order('name')
+    ]);
+    if (studentsResult.error || classesResult.error) { toast('Atualize o banco de dados com o novo script de turmas.'); return; }
+    classes = classesResult.data || [];
+    const classNames = new Map(classes.map(item => [item.id, item.name]));
+    students = (studentsResult.data || []).map(item => ({
+      id: item.id,
+      name: item.full_name,
+      classId: item.class_id,
+      className: classNames.get(item.class_id) || item.class_name,
+      report: item.has_report === 'Sim' ? 'Laudo' : item.has_report === 'Não' ? '' : item.has_report,
+      photoPath: item.photo_path,
+      photoUrl: ''
+    }));
+    render();
+  };
 
   const controls = document.createElement('div');
   controls.className = 'photo-controls hidden';
