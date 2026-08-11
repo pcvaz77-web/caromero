@@ -125,8 +125,8 @@
   .student-detail-close {
     position: absolute;
     top: 10px;
-    right: auto;
-    left: 10px;
+    right: 10px;
+    left: auto;
     z-index: 2;
     width: 36px;
     height: 36px;
