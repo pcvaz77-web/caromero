@@ -1,10 +1,16 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': 'https://pcvaz77-web.github.io',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+
 const json = (body: Record<string, unknown>, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 
 async function movePhotosOwnedBy(
-  admin: ReturnType<typeof createClient>,
+  admin: any,
   ownerId: string,
 ) {
   const bucket = admin.storage.from('student-photos')
@@ -29,6 +35,7 @@ async function movePhotosOwnedBy(
 }
 
 Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (request.method !== 'POST') return json({ error: 'Método não permitido.' }, 405)
 
   const url = Deno.env.get('SUPABASE_URL')!
