@@ -41,7 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
-    .photo-picker { position:fixed; inset:0; z-index:10; display:grid; place-items:center; padding:20px; background:#10182880; }
+    .photo-picker { position:fixed; inset:0; z-index:30 !important; display:grid; place-items:center; padding:20px; background:#10182880; }
     .photo-picker-card { width:min(330px,100%); display:grid; gap:10px; padding:22px; border-radius:14px; background:#fff; box-shadow:0 20px 45px #0003; }
     .photo-picker-card b { font-size:18px; }
     .photo-picker-card span { color:var(--muted); font-size:14px; margin-bottom:4px; }
