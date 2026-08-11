@@ -76,9 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const applyObservationColors = () => {
     document.querySelectorAll('#list .pill').forEach(pill => {
-      const container = pill.parentElement;
-      if (container?.children.length === 1) container.remove();
-      else pill.remove();
+      pill.remove();
     });
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };
