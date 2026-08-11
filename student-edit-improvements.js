@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
     observationChoices.querySelectorAll('input').forEach(input => { input.disabled = !canEditObservations; });
-    clearObservations.classList.toggle('hidden', !canEditObservations || !student);
+    clearObservations.classList.toggle('hidden', permission.role !== 'admin' || !student);
     manageObservations.classList.toggle('hidden', permission.role !== 'admin');
     const photoDisabled = !!student && !can('can_edit_photo');
     photoInput.disabled = photoDisabled;
@@ -330,6 +330,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Observação excluída.');
   };
   clearObservations.onclick = () => {
+    if (permission.role !== 'admin') return;
     observationChoices.querySelectorAll('input:checked').forEach(input => { input.checked = false; });
     toast('As observações serão removidas ao salvar o aluno.');
   };
