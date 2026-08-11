@@ -192,4 +192,72 @@
   .login .forgot { margin-top: 10px !important; }
   .login .hint { margin-top: 12px !important; padding: 10px !important; }
   .login .subscription-login-link { min-height: 40px !important; margin-top: 9px !important; font-size: 13px !important; }
+
+  /* Login mobile: identificação limpa no topo e mensagem institucional no rodapé. */
+  .login {
+    position: relative !important;
+    display: block !important;
+    height: 100dvh !important;
+    background: #fff !important;
+    overflow: hidden !important;
+  }
+  .login::before {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 210px;
+    background: linear-gradient(145deg, #14203a, #294985);
+  }
+  .login .brand {
+    position: static !important;
+    display: block !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    color: var(--navy) !important;
+  }
+  .login .brand .logo {
+    position: absolute;
+    top: 28px;
+    left: 28px;
+    z-index: 2;
+    color: var(--navy) !important;
+  }
+  .login .brand h1 {
+    position: absolute;
+    right: 28px;
+    bottom: 82px;
+    left: 28px;
+    z-index: 2;
+    margin: 0 !important;
+    color: #fff !important;
+    font-size: 29px !important;
+    line-height: 1.12 !important;
+    letter-spacing: -1px !important;
+  }
+  .login .brand > p { display: none !important; }
+  .login .brand-credit {
+    position: absolute !important;
+    right: 28px !important;
+    bottom: 25px !important;
+    left: 28px !important;
+    z-index: 2 !important;
+    display: flex !important;
+    color: #d9e5ff !important;
+    font-size: 10px !important;
+  }
+  .login .access {
+    position: absolute;
+    top: 84px;
+    right: 0;
+    bottom: 210px;
+    left: 0;
+    z-index: 1;
+    display: grid !important;
+    place-items: center !important;
+    padding: 14px 22px !important;
+    background: transparent !important;
+  }
 }
