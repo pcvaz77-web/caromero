@@ -3,25 +3,41 @@ document.addEventListener('DOMContentLoaded', () => {
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
   const observations = [
-    'Tem Laudo',
-    'Sem Laudo (Dificuldade Grave)',
-    'Sem Laudo (Dificuldade Leve)',
-    'Não alfabetizado'
+    { value: '', label: 'Nenhum' },
+    { value: 'Tem Laudo', label: 'Tem Laudo' },
+    { value: 'Sem Laudo (Dificuldade Grave)', label: 'Sem Laudo (Dificuldade Grave)' },
+    { value: 'Sem Laudo (Dificuldade Leve)', label: 'Sem Laudo (Dificuldade Leve)' },
+    { value: 'Não alfabetizado', label: 'Não alfabetizado' }
   ];
   const normalizeObservation = value => ({
     'Laudo': 'Tem Laudo',
     'Dificuldade grave': 'Sem Laudo (Dificuldade Grave)',
     'Dificuldade leve': 'Sem Laudo (Dificuldade Leve)',
-    'Sim': 'Tem Laudo'
+    'Sim': 'Tem Laudo',
+    'Não': ''
   }[value] || value || '');
   const configureObservationField = id => {
     const select = document.getElementById(id);
     if (!select) return;
     select.closest('.field').querySelector('label').textContent = 'Observações do aluno';
-    select.innerHTML = observations.map(value => `<option value="${value}">${value}</option>`).join('');
+    select.innerHTML = observations.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
   };
   configureObservationField('report');
   configureObservationField('bulkReport');
+  const applyObservationColors = () => {
+    document.querySelectorAll('.pill').forEach(pill => {
+      const text = pill.textContent.trim();
+      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy');
+      const colorClass = {
+        'Tem Laudo': 'observation-report',
+        'Sem Laudo (Dificuldade Grave)': 'observation-severe',
+        'Sem Laudo (Dificuldade Leve)': 'observation-light',
+        'Não alfabetizado': 'observation-literacy'
+      }[text];
+      if (colorClass) pill.classList.add(colorClass);
+    });
+  };
+  new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
@@ -67,6 +83,10 @@ document.addEventListener('DOMContentLoaded', () => {
     .photo-picker-card b { font-size:18px; }
     .photo-picker-card span { color:var(--muted); font-size:14px; margin-bottom:4px; }
     .photo-picker-card .link { justify-self:center; padding:7px; }
+    .pill.observation-report { background:#fef3c7; color:#92400e; }
+    .pill.observation-severe { background:#fee4e2; color:#b42318; }
+    .pill.observation-light { background:#ffead5; color:#b54708; }
+    .pill.observation-literacy { background:#fce7f3; color:#9d174d; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
@@ -123,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
     classSelect.innerHTML = classOptions(student?.classId || selectedClassId || '');
     document.getElementById('fullName').value = student?.name || '';
     const selectedObservation = normalizeObservation(student?.report);
-    const observationIndex = observations.indexOf(selectedObservation);
+    const observationIndex = observations.findIndex(option => option.value === selectedObservation);
     document.getElementById('report').selectedIndex = observationIndex >= 0 ? observationIndex : 0;
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
