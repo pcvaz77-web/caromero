@@ -103,6 +103,16 @@
   .main { padding: 20px 14px 30px !important; }
   .top-actions { position: sticky; top: 0; z-index: 3; padding: 8px 0; background: var(--bg); }
   .top-actions .btn { min-height: 46px; }
-  #studentDetails { bottom: 18px !important; }
+  #studentDetails {
+    position: static !important;
+    width: 100% !important;
+    max-height: none !important;
+    margin: 0 0 18px !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+  }
+  #studentDetails .detail-head { display: grid !important; grid-template-columns: 110px minmax(0, 1fr); gap: 16px !important; align-items: center !important; }
+  #studentDetails .detail-head .avatar { width: 110px !important; height: 110px !important; }
+  #studentDetails .detail-head h3 { font-size: 20px !important; line-height: 1.15 !important; overflow-wrap: anywhere; }
   .toast { bottom: 18px !important; }
 }
