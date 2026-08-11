@@ -2,6 +2,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
+  const observations = [
+    'Tem Laudo',
+    'Sem Laudo (Dificuldade Grave)',
+    'Sem Laudo (Dificuldade Leve)',
+    'Não alfabetizado'
+  ];
+  const normalizeObservation = value => ({
+    'Laudo': 'Tem Laudo',
+    'Dificuldade grave': 'Sem Laudo (Dificuldade Grave)',
+    'Dificuldade leve': 'Sem Laudo (Dificuldade Leve)',
+    'Sim': 'Tem Laudo'
+  }[value] || value || '');
+  const configureObservationField = id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.closest('.field').querySelector('label').textContent = 'Observações do aluno';
+    select.innerHTML = observations.map(value => `<option value="${value}">${value}</option>`).join('');
+  };
+  configureObservationField('report');
+  configureObservationField('bulkReport');
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
@@ -102,7 +122,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modalTitle').textContent = student ? 'Editar aluno' : 'Adicionar aluno';
     classSelect.innerHTML = classOptions(student?.classId || selectedClassId || '');
     document.getElementById('fullName').value = student?.name || '';
-    document.getElementById('report').value = student?.report || '';
+    const selectedObservation = normalizeObservation(student?.report);
+    const observationIndex = observations.indexOf(selectedObservation);
+    document.getElementById('report').selectedIndex = observationIndex >= 0 ? observationIndex : 0;
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     document.getElementById('report').disabled = !!student && !can('can_edit_report');
