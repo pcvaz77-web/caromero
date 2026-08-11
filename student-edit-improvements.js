@@ -1,6 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
+  const photoActions = document.createElement('div');
+  photoActions.className = 'photo-source-actions';
+  photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
+  const cameraInput = document.createElement('input');
+  cameraInput.id = 'photoCamera';
+  cameraInput.type = 'file';
+  cameraInput.accept = 'image/*';
+  cameraInput.capture = 'environment';
+  cameraInput.className = 'photo-source-input';
+  photoInput.before(photoActions);
+  photoInput.after(cameraInput);
   const preview = document.getElementById('preview');
   const classSelect = document.getElementById('classId');
   const classField = classSelect.closest('.field');
@@ -11,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const controls = document.createElement('div');
   controls.className = 'photo-controls hidden';
-  controls.innerHTML = '<button type="button" class="btn secondary" id="changePhoto">Alterar foto</button><button type="button" class="btn danger-outline" id="removePhoto">Excluir foto</button>';
+  controls.innerHTML = '<button type="button" class="btn secondary" id="changePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="changePhotoCamera">Usar câmera</button><button type="button" class="btn danger-outline" id="removePhoto">Excluir foto</button>';
   photoInput.closest('.photo').appendChild(controls);
 
   const moveField = document.createElement('div');
@@ -22,6 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
+    .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
+    #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
@@ -82,7 +96,11 @@ document.addEventListener('DOMContentLoaded', () => {
     controls.classList.toggle('hidden', !student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     document.getElementById('report').disabled = !!student && !can('can_edit_report');
-    photoInput.disabled = !!student && !can('can_edit_photo');
+    const photoDisabled = !!student && !can('can_edit_photo');
+    photoInput.disabled = photoDisabled;
+    cameraInput.disabled = photoDisabled;
+    document.getElementById('choosePhoto').disabled = photoDisabled;
+    document.getElementById('takePhoto').disabled = photoDisabled;
     controls.classList.toggle('hidden', !student || !can('can_edit_photo'));
     moveField.classList.toggle('hidden', !student || !can('can_edit_class'));
     document.getElementById('moveStudent').checked = false;
@@ -93,14 +111,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('moveStudent').onchange = setClassVisibility;
+  document.getElementById('choosePhoto').onclick = () => photoInput.click();
+  document.getElementById('takePhoto').onclick = () => cameraInput.click();
   document.getElementById('changePhoto').onclick = () => photoInput.click();
+  document.getElementById('changePhotoCamera').onclick = () => cameraInput.click();
   document.getElementById('removePhoto').onclick = () => {
     pendingPhoto = null;
     photoInput.value = '';
+    cameraInput.value = '';
     removePhoto = true;
     preview.textContent = '👤';
   };
-  photoInput.onchange = async event => {
+  async function preparePhoto(event) {
     const image = event.target.files[0];
     if (!image) return;
     if (!image.type.startsWith('image/')) { toast('Escolha um arquivo de imagem.'); return; }
@@ -116,7 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
       pendingPhoto = null;
       toast('Não foi possível otimizar esta foto. Tente outra imagem.');
     }
-  };
+  }
+  photoInput.onchange = preparePhoto;
+  cameraInput.onchange = preparePhoto;
 
   window.editStudent = id => openStudentForm(students.find(student => student.id === id));
   document.getElementById('newStudent').onclick = () => openStudentForm();
