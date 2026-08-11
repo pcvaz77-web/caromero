@@ -58,14 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const applyObservationColors = () => {
     document.querySelectorAll('.pill').forEach(pill => {
       const text = pill.textContent.trim();
-      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom');
+      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4');
       const colorClass = {
         'Tem Laudo': 'observation-report',
         'Sem Laudo (Dificuldade Grave)': 'observation-severe',
         'Sem Laudo (Dificuldade Leve)': 'observation-light',
         'Não alfabetizado': 'observation-literacy'
-      }[text];
-      pill.classList.add(colorClass || 'observation-custom');
+      }[text] || `observation-custom-${[...text].reduce((total, char) => total + char.codePointAt(0), 0) % 5}`;
+      pill.classList.add(colorClass);
     });
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
@@ -118,7 +118,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-severe { background:#fee4e2; color:#b42318; }
     .pill.observation-light { background:#ffead5; color:#b54708; }
     .pill.observation-literacy { background:#fce7f3; color:#9d174d; }
-    .pill.observation-custom { background:#ede9fe; color:#5b21b6; }
+    .pill.observation-custom-0 { background:#ede9fe; color:#5b21b6; }
+    .pill.observation-custom-1 { background:#dbeafe; color:#1d4ed8; }
+    .pill.observation-custom-2 { background:#d1fae5; color:#047857; }
+    .pill.observation-custom-3 { background:#ffe4e6; color:#be123c; }
+    .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .manage-observations { margin-top:9px; }
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
