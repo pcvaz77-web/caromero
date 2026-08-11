@@ -39,6 +39,31 @@ document.addEventListener('DOMContentLoaded', () => {
     classSelect.required = moving;
   }
 
+  async function compressPhoto(source) {
+    const imageUrl = URL.createObjectURL(source);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const element = new Image();
+        element.onload = () => resolve(element);
+        element.onerror = reject;
+        element.src = imageUrl;
+      });
+      const limit = 800;
+      const scale = Math.min(1, limit / Math.max(image.naturalWidth, image.naturalHeight));
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.75));
+      if (!blob) throw new Error('Não foi possível otimizar a foto.');
+      return new File([blob], 'foto-aluno.jpg', { type: 'image/jpeg' });
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  }
+
   function openStudentForm(student) {
     if (!student && !classes.length) {
       toast('Cadastre uma turma antes de cadastrar alunos.');
@@ -75,15 +100,22 @@ document.addEventListener('DOMContentLoaded', () => {
     removePhoto = true;
     preview.textContent = '👤';
   };
-  photoInput.onchange = event => {
+  photoInput.onchange = async event => {
     const image = event.target.files[0];
     if (!image) return;
     if (!image.type.startsWith('image/')) { toast('Escolha um arquivo de imagem.'); return; }
-    pendingPhoto = image;
-    removePhoto = false;
-    const reader = new FileReader();
-    reader.onload = () => { preview.innerHTML = `<img src="${reader.result}" alt="">`; };
-    reader.readAsDataURL(image);
+    try {
+      pendingPhoto = await compressPhoto(image);
+      removePhoto = false;
+      const reader = new FileReader();
+      reader.onload = () => { preview.innerHTML = `<img src="${reader.result}" alt="">`; };
+      reader.readAsDataURL(pendingPhoto);
+      const reduction = Math.max(0, Math.round((1 - pendingPhoto.size / image.size) * 100));
+      toast(reduction ? `Foto otimizada: ${reduction}% menor.` : 'Foto preparada para envio.');
+    } catch {
+      pendingPhoto = null;
+      toast('Não foi possível otimizar esta foto. Tente outra imagem.');
+    }
   };
 
   window.editStudent = id => openStudentForm(students.find(student => student.id === id));
