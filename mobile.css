@@ -142,5 +142,26 @@
     font-size: 25px;
     line-height: 1;
   }
+  /* Janelas de cadastro e edição mais confortáveis no celular. */
+  .modal-bg { z-index: 20 !important; padding: 10px !important; align-items: center !important; }
+  .modal, .modal.small {
+    width: 100% !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 16px !important;
+  }
+  .modal-head { position: sticky !important; top: 0 !important; z-index: 2 !important; background: #fff !important; }
+  .modal .form { padding: 18px !important; }
+  .modal .photo { align-items: center !important; flex-wrap: wrap !important; }
+  .modal .preview {
+    width: 88px !important;
+    height: 88px !important;
+    flex: 0 0 88px !important;
+    border-radius: 50% !important;
+  }
+  .modal .preview img { width: 100% !important; height: 100% !important; object-fit: cover !important; }
+  .modal .photo input { min-width: 0 !important; flex: 1 1 160px !important; }
+  .modal .photo-controls { width: 100% !important; }
+  .modal .photo-controls .btn { flex: 1 !important; }
+  .modal .actions { position: sticky !important; bottom: -18px !important; z-index: 2 !important; }
   .toast { bottom: 18px !important; }
 }
