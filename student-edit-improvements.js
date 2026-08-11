@@ -129,39 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   new MutationObserver(formatDetailObservations).observe(document.getElementById('studentDetails'), { childList: true, subtree: true });
-  const detailsPanel = document.getElementById('studentDetails');
-  const resetDetailsPosition = () => {
-    detailsPanel.style.left = '';
-    detailsPanel.style.top = '';
-    detailsPanel.style.right = '';
-  };
-  let draggingDetails = false;
-  let dragOffsetX = 0;
-  let dragOffsetY = 0;
-  detailsPanel.addEventListener('mousedown', event => {
-    if (window.innerWidth <= 800 || !event.target.closest('.detail-head')) return;
-    const bounds = detailsPanel.getBoundingClientRect();
-    draggingDetails = true;
-    dragOffsetX = event.clientX - bounds.left;
-    dragOffsetY = event.clientY - bounds.top;
-    detailsPanel.classList.add('is-dragging');
-    event.preventDefault();
-  });
-  document.addEventListener('mousemove', event => {
-    if (!draggingDetails) return;
-    const maxLeft = Math.max(12, window.innerWidth - detailsPanel.offsetWidth - 12);
-    const maxTop = Math.max(12, window.innerHeight - detailsPanel.offsetHeight - 12);
-    detailsPanel.style.left = `${Math.min(maxLeft, Math.max(12, event.clientX - dragOffsetX))}px`;
-    detailsPanel.style.top = `${Math.min(maxTop, Math.max(12, event.clientY - dragOffsetY))}px`;
-    detailsPanel.style.right = 'auto';
-  });
-  document.addEventListener('mouseup', () => {
-    draggingDetails = false;
-    detailsPanel.classList.remove('is-dragging');
-  });
-  document.addEventListener('click', event => {
-    if (!event.target.closest('#studentDetails, .student')) resetDetailsPosition();
-  });
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
@@ -218,8 +185,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
     .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
-    #studentDetails .detail-head { cursor:grab; user-select:none; }
-    #studentDetails.is-dragging .detail-head { cursor:grabbing; }
     .observation-select-hidden { display:none !important; }
     .observation-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px; }
     .observation-choice { display:flex; align-items:center; gap:7px; margin:0; min-height:42px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:650; cursor:pointer; }
