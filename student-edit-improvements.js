@@ -18,17 +18,38 @@ document.addEventListener('DOMContentLoaded', () => {
     'Sim': 'Tem Laudo',
     'Não': ''
   }[value] || value || '');
+  const decodeObservations = value => {
+    if (!value) return [];
+    try {
+      const decoded = JSON.parse(value);
+      if (Array.isArray(decoded)) return decoded.map(normalizeObservation).filter(Boolean);
+    } catch {}
+    return [normalizeObservation(value)].filter(Boolean);
+  };
+  const encodeObservations = values => values.length ? JSON.stringify(values) : '';
   const configureObservationField = id => {
     const select = document.getElementById(id);
     if (!select) return;
     select.closest('.field').querySelector('label').textContent = 'Observações do aluno';
     select.innerHTML = observations.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
   };
-  configureObservationField('report');
-  configureObservationField('bulkReport');
   const reportField = document.getElementById('report').closest('.field');
   const bulkReport = document.getElementById('bulkReport');
   const bulkReportField = bulkReport.closest('.field');
+  const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
+  const reportSelect = document.getElementById('report');
+  const observationChoices = document.createElement('div');
+  observationChoices.className = 'observation-choices';
+  reportSelect.classList.add('observation-select-hidden');
+  reportField.appendChild(observationChoices);
+  const renderObservationChoices = (selected = []) => {
+    const selectedValues = new Set(selected);
+    observationChoices.innerHTML = observations.filter(option => option.value).map(option => `<label class="observation-choice"><input type="checkbox" value="${escapeHtml(option.value)}" ${selectedValues.has(option.value) ? 'checked' : ''}> <span>${escapeHtml(option.label)}</span></label>`).join('');
+  };
+  const selectedObservationValues = () => [...observationChoices.querySelectorAll('input:checked')].map(input => input.value);
+  configureObservationField('report');
+  configureObservationField('bulkReport');
+  renderObservationChoices();
   const manageObservations = document.createElement('button');
   manageObservations.type = 'button';
   manageObservations.className = 'link manage-observations hidden';
@@ -38,7 +59,6 @@ document.addEventListener('DOMContentLoaded', () => {
   observationManager.className = 'photo-picker hidden';
   observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Necessita acompanhamento"><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
   document.body.appendChild(observationManager);
-  const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const renderCustomObservations = () => {
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
@@ -53,11 +73,26 @@ document.addEventListener('DOMContentLoaded', () => {
     observationOptionsLoaded = true;
     configureObservationField('report');
     configureObservationField('bulkReport');
+    renderObservationChoices(selectedObservationValues());
     renderCustomObservations();
   }
   const applyObservationColors = () => {
     document.querySelectorAll('.pill').forEach(pill => {
-      const text = pill.textContent.trim();
+      const values = decodeObservations(pill.textContent.trim());
+      if (values.length > 1) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'observation-tags';
+        values.forEach(value => {
+          const tag = document.createElement('span');
+          tag.className = 'pill';
+          tag.textContent = value;
+          wrapper.appendChild(tag);
+        });
+        pill.replaceWith(wrapper);
+        return;
+      }
+      const text = values[0] || pill.textContent.trim();
+      pill.textContent = text;
       pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4');
       const colorClass = {
         'Tem Laudo': 'observation-report',
@@ -69,6 +104,27 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
+  const organizeDetailObservations = () => {
+    document.querySelectorAll('#studentDetails .detail-row').forEach(row => {
+      const heading = row.querySelector('b');
+      if (!heading || heading.textContent.trim() !== 'Informação' || row.dataset.observationsFormatted) return;
+      const raw = [...row.childNodes].filter(node => node !== heading).map(node => node.textContent).join('').trim();
+      const values = decodeObservations(raw);
+      if (values.length > 1) {
+        [...row.childNodes].filter(node => node !== heading).forEach(node => node.remove());
+        const tags = document.createElement('div');
+        tags.className = 'observation-tags';
+        values.forEach(value => { const tag = document.createElement('span'); tag.className = 'pill'; tag.textContent = value; tags.appendChild(tag); });
+        row.appendChild(tags);
+      } else if (values.length === 1) {
+        [...row.childNodes].filter(node => node !== heading).forEach(node => node.remove());
+        row.append(values[0]);
+      }
+      row.dataset.observationsFormatted = 'true';
+    });
+    applyObservationColors();
+  };
+  new MutationObserver(organizeDetailObservations).observe(document.getElementById('studentDetails'), { childList: true, subtree: true });
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
@@ -123,6 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-2 { background:#d1fae5; color:#047857; }
     .pill.observation-custom-3 { background:#ffe4e6; color:#be123c; }
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
+    .observation-tags { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+    .observation-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px; }
+    .observation-choice { display:flex; align-items:center; gap:7px; margin:0; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:650; }
+    .observation-choice input { width:auto; min-height:0; }
+    .observation-select-hidden { display:none !important; }
+    @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; } }
     .manage-observations { margin-top:9px; }
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
@@ -185,18 +247,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modalTitle').textContent = student ? 'Editar aluno' : 'Adicionar aluno';
     classSelect.innerHTML = classOptions(student?.classId || selectedClassId || '');
     document.getElementById('fullName').value = student?.name || '';
-    const selectedObservation = normalizeObservation(student?.report);
-    const observationIndex = observations.findIndex(option => option.value === selectedObservation);
-    const reportSelect = document.getElementById('report');
-    if (observationIndex >= 0) reportSelect.selectedIndex = observationIndex;
-    else if (selectedObservation) {
-      reportSelect.add(new Option(`${selectedObservation} (opção removida)`, selectedObservation, true, true));
-    } else reportSelect.selectedIndex = 0;
+    const currentObservations = decodeObservations(student?.report);
+    currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({ value, label: `${value} (opção removida)`, standard: true }));
+    renderObservationChoices(currentObservations);
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
-    document.getElementById('report').disabled = !canEditObservations;
+    observationChoices.querySelectorAll('input').forEach(input => { input.disabled = !canEditObservations; });
     manageObservations.classList.toggle('hidden', permission.role !== 'admin');
     const photoDisabled = !!student && !can('can_edit_photo');
     photoInput.disabled = photoDisabled;
@@ -241,8 +299,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await db.from('observation_options').insert({ label, display_order: observations.length }).select('id,label').single();
     if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
     observations.push({ id: data.id, value: data.label, label: data.label, standard: false });
+    const selected = selectedObservationValues();
     configureObservationField('report');
     configureObservationField('bulkReport');
+    renderObservationChoices(selected);
     renderCustomObservations();
     input.value = '';
     toast('Observação adicionada.');
@@ -255,8 +315,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.from('observation_options').delete().eq('id', option.id);
     if (error) { toast(error.message); return; }
     observations = observations.filter(item => item.id !== option.id);
+    const selected = selectedObservationValues().filter(value => value !== option.value);
     configureObservationField('report');
     configureObservationField('bulkReport');
+    renderObservationChoices(selected);
     renderCustomObservations();
     toast('Observação excluída.');
   };
@@ -315,7 +377,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (error) { toast('Não foi possível enviar a foto.'); return; }
     }
 
-    const row = { full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: document.getElementById('report').value, photo_path: photoPath };
+    const observationValues = can('can_edit_report') ? selectedObservationValues() : decodeObservations(old?.report);
+    const row = { full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: encodeObservations(observationValues), photo_path: photoPath };
     const result = id ? await db.from('students').update(row).eq('id', id) : await db.from('students').insert(row);
     if (result.error) { toast(result.error.message); return; }
     if ((pendingPhoto || removePhoto) && old?.photoPath) await db.storage.from('student-photos').remove([old.photoPath]);

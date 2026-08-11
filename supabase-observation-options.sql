@@ -30,9 +30,13 @@ using (exists (select 1 from public.user_permissions where user_id = auth.uid() 
 with check (exists (select 1 from public.user_permissions where user_id = auth.uid() and role = 'admin'));
 
 -- Permite que as observações adicionadas pelo administrador sejam salvas nos alunos.
+update public.students
+set has_report = jsonb_build_array(has_report)::text
+where coalesce(has_report, '') <> '' and left(ltrim(has_report), 1) <> '[';
+
 alter table public.students
 drop constraint if exists students_has_report_check;
 
 alter table public.students
 add constraint students_has_report_check
-check (has_report is null or char_length(has_report) <= 80);
+check (has_report is null or char_length(has_report) <= 500);
