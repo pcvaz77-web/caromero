@@ -18,6 +18,14 @@ document.addEventListener('DOMContentLoaded', () => {
     'Sim': 'Tem Laudo',
     'Não': ''
   }[value] || value || '');
+  const decodeObservations = value => {
+    if (!value) return [];
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return parsed.map(normalizeObservation).filter(Boolean);
+    } catch {}
+    return [normalizeObservation(value)].filter(Boolean);
+  };
   const configureObservationField = id => {
     const select = document.getElementById(id);
     if (!select) return;
@@ -55,20 +63,43 @@ document.addEventListener('DOMContentLoaded', () => {
     configureObservationField('bulkReport');
     renderCustomObservations();
   }
-  const applyObservationColors = () => {
-    document.querySelectorAll('.pill').forEach(pill => {
+  const observationColorClass = text => ({
+    'Tem Laudo': 'observation-report',
+    'Sem Laudo (Dificuldade Grave)': 'observation-severe',
+    'Sem Laudo (Dificuldade Leve)': 'observation-light',
+    'Não alfabetizado': 'observation-literacy'
+  }[text] || `observation-custom-${[...text].reduce((total, char) => total + char.codePointAt(0), 0) % 5}`);
+  const paintObservation = pill => {
       const text = pill.textContent.trim();
       pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4');
-      const colorClass = {
-        'Tem Laudo': 'observation-report',
-        'Sem Laudo (Dificuldade Grave)': 'observation-severe',
-        'Sem Laudo (Dificuldade Leve)': 'observation-light',
-        'Não alfabetizado': 'observation-literacy'
-      }[text] || `observation-custom-${[...text].reduce((total, char) => total + char.codePointAt(0), 0) % 5}`;
-      pill.classList.add(colorClass);
+      pill.classList.add(observationColorClass(text));
+  };
+  const applyObservationColors = () => {
+    document.querySelectorAll('#list .pill').forEach(pill => {
+      const container = pill.parentElement;
+      if (container?.children.length === 1) container.remove();
+      else pill.remove();
     });
+    document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
+  const formatDetailObservations = () => {
+    document.querySelectorAll('#studentDetails .detail-row').forEach(row => {
+      const heading = row.querySelector('b');
+      if (!heading || heading.textContent.trim() !== 'Informação' || row.dataset.formatted) return;
+      const raw = [...row.childNodes].filter(node => node !== heading).map(node => node.textContent).join('').trim();
+      const values = decodeObservations(raw);
+      [...row.childNodes].filter(node => node !== heading).forEach(node => node.remove());
+      if (values.length) {
+        const tags = document.createElement('div');
+        tags.className = 'detail-observation-tags';
+        values.forEach(value => { const tag = document.createElement('span'); tag.className = 'pill'; tag.textContent = value; paintObservation(tag); tags.appendChild(tag); });
+        row.appendChild(tags);
+      }
+      row.dataset.formatted = 'true';
+    });
+  };
+  new MutationObserver(formatDetailObservations).observe(document.getElementById('studentDetails'), { childList: true, subtree: true });
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
@@ -123,6 +154,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-2 { background:#d1fae5; color:#047857; }
     .pill.observation-custom-3 { background:#ffe4e6; color:#be123c; }
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
+    .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
+    .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
     .manage-observations { margin-top:9px; }
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
