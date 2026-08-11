@@ -166,17 +166,30 @@
   .toast { bottom: 18px !important; }
 
   /* Mantém a apresentação completa do CARÔMETRO também no login mobile. */
-  .login { display: block !important; min-height: 100vh !important; }
+  .login {
+    display: grid !important;
+    grid-template-rows: 45dvh 55dvh !important;
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+  }
   .login .brand {
     display: flex !important;
-    min-height: 430px !important;
-    padding: 44px 28px 74px !important;
+    min-height: 0 !important;
+    padding: 27px 28px 48px !important;
     justify-content: center !important;
   }
   .login .brand .logo { display: block !important; width: auto !important; padding: 0 !important; }
-  .login .brand h1 { margin: 34px 0 14px !important; font-size: clamp(38px, 12vw, 52px) !important; letter-spacing: -2px !important; }
-  .login .brand p { font-size: 16px !important; }
-  .login .brand-credit { display: flex !important; right: 28px !important; bottom: 24px !important; left: 28px !important; font-size: 11px !important; }
-  .login .access { min-height: auto !important; padding: 34px 22px 42px !important; }
+  .login .brand h1 { margin: 20px 0 10px !important; font-size: clamp(30px, 9vw, 40px) !important; letter-spacing: -1.5px !important; }
+  .login .brand p { font-size: 14px !important; line-height: 1.45 !important; }
+  .login .brand-credit { display: flex !important; right: 28px !important; bottom: 16px !important; left: 28px !important; font-size: 10px !important; }
+  .login .access { min-height: 0 !important; padding: 18px 22px !important; overflow: hidden !important; }
   .login .card { margin: 0 !important; }
+  .login .card h2 { font-size: 25px !important; margin-bottom: 4px !important; }
+  .login .sub { margin-bottom: 15px !important; font-size: 14px !important; }
+  .login .field { margin-bottom: 10px !important; }
+  .login input { min-height: 42px !important; padding: 9px 12px !important; }
+  .login .forgot { margin-top: 10px !important; }
+  .login .hint { margin-top: 12px !important; padding: 10px !important; }
+  .login .subscription-login-link { min-height: 40px !important; margin-top: 9px !important; font-size: 13px !important; }
 }
