@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
+  photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
   const photoActions = document.createElement('div');
   photoActions.className = 'photo-source-actions';
   photoActions.innerHTML = '<button type="button" class="btn secondary" id="choosePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="takePhoto">Usar câmera</button>';
