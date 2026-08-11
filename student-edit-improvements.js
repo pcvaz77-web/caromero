@@ -2,14 +2,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
-  const standardObservations = [
+  const fallbackObservations = [
     { value: '', label: 'Nenhum', standard: true },
     { value: 'Tem Laudo', label: 'Tem Laudo', standard: true },
     { value: 'Sem Laudo (Dificuldade Grave)', label: 'Sem Laudo (Dificuldade Grave)', standard: true },
     { value: 'Sem Laudo (Dificuldade Leve)', label: 'Sem Laudo (Dificuldade Leve)', standard: true },
     { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true }
   ];
-  let observations = [...standardObservations];
+  let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
   const normalizeObservation = value => ({
     'Laudo': 'Tem Laudo',
@@ -40,16 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const renderCustomObservations = () => {
-    const custom = observations.filter(option => !option.standard);
-    document.getElementById('customObservationList').innerHTML = custom.length
-      ? `<b>Opções adicionadas</b>${custom.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
-      : '<div class="meta">Nenhuma observação adicional cadastrada.</div>';
+    const managed = observations.filter(option => option.value && option.id);
+    document.getElementById('customObservationList').innerHTML = managed.length
+      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
+      : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
   async function loadObservationOptions() {
     if (observationOptionsLoaded) return;
     const { data, error } = await db.from('observation_options').select('id,label').order('display_order').order('created_at');
     if (error) return;
-    observations = [...standardObservations, ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false }))];
+    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false }))];
     observationOptionsLoaded = true;
     configureObservationField('report');
     configureObservationField('bulkReport');

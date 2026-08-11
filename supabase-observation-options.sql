@@ -8,6 +8,15 @@ create table if not exists public.observation_options (
 create unique index if not exists observation_options_label_unique
 on public.observation_options (lower(label));
 
+-- Torna as opções iniciais gerenciáveis pelo administrador.
+insert into public.observation_options (label, display_order)
+values
+  ('Tem Laudo', 1),
+  ('Sem Laudo (Dificuldade Grave)', 2),
+  ('Sem Laudo (Dificuldade Leve)', 3),
+  ('Não alfabetizado', 4)
+on conflict do nothing;
+
 alter table public.observation_options enable row level security;
 
 drop policy if exists "Authenticated users view observation options" on public.observation_options;
