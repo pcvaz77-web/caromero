@@ -104,13 +104,19 @@
   .top-actions { position: sticky; top: 0; z-index: 3; padding: 8px 0; background: var(--bg); }
   .top-actions .btn { min-height: 46px; }
   #studentDetails {
-    position: static !important;
-    width: 100% !important;
-    max-height: none !important;
-    margin: 0 0 18px !important;
+    position: fixed !important;
+    top: 50% !important;
+    right: 14px !important;
+    bottom: auto !important;
+    left: 14px !important;
+    z-index: 12 !important;
+    width: auto !important;
+    max-height: 72vh !important;
+    margin: 0 !important;
     padding: 20px !important;
-    box-shadow: none !important;
-    position: relative !important;
+    overflow: auto !important;
+    box-shadow: 0 18px 45px #10182855 !important;
+    transform: translateY(-50%) !important;
   }
   #studentDetails .detail-head { display: grid !important; grid-template-columns: 110px minmax(0, 1fr); gap: 16px !important; align-items: center !important; }
   #studentDetails .detail-head .avatar { width: 110px !important; height: 110px !important; }
