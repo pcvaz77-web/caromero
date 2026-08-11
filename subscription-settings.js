@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
+    .subscription-login-link { margin-top:12px; text-decoration:none; }
     .subscription-summary { display:flex; justify-content:space-between; gap:16px; align-items:center; background:#f4f7ff; border:1px solid #dbe5ff; border-radius:10px; padding:16px; margin-bottom:20px; }
     .subscription-summary b { font-size:17px; display:block; }
     .access-users { display:grid; gap:10px; }
@@ -24,6 +25,15 @@ document.addEventListener('DOMContentLoaded', () => {
   nav.className = 'settings-nav hidden';
   nav.innerHTML = '⚙ &nbsp; Configurações';
   side.insertBefore(nav, document.getElementById('signOut'));
+
+  const loginCard = document.querySelector('#login .card');
+  const subscribe = document.createElement('a');
+  subscribe.className = 'btn secondary full subscription-login-link';
+  subscribe.href = paymentUrl;
+  subscribe.target = '_blank';
+  subscribe.rel = 'noopener';
+  subscribe.textContent = 'Assinar CARÔMETRO — R$ 97/mês';
+  loginCard.querySelector('.hint').insertAdjacentElement('afterend', subscribe);
 
   const modal = document.createElement('div');
   modal.id = 'settingsModal';
