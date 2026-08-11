@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .subscription-login-link { margin-top:12px; text-decoration:none; }
     .subscription-summary { display:flex; justify-content:space-between; gap:16px; align-items:center; background:#f4f7ff; border:1px solid #dbe5ff; border-radius:10px; padding:16px; margin-bottom:20px; }
     .subscription-summary b { font-size:17px; display:block; }
+    .subscription-visibility { padding:12px; border:1px solid #dbe5ff; border-radius:9px; background:#f8faff; }
     .access-users { display:grid; gap:10px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
     .access-user .access-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -36,11 +37,23 @@ document.addEventListener('DOMContentLoaded', () => {
   subscribe.textContent = 'Assinar CARÔMETRO — R$ 97/mês';
   loginCard.querySelector('.hint').insertAdjacentElement('afterend', subscribe);
 
+  async function refreshSubscriptionButton() {
+    const { data, error } = await db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle();
+    // Enquanto a configuração ainda não existir, mantém a venda disponível.
+    subscribe.classList.toggle('hidden', !error && data?.show_subscription === false);
+    return !error && data ? data.show_subscription : true;
+  }
+  refreshSubscriptionButton();
+
   const modal = document.createElement('div');
   modal.id = 'settingsModal';
   modal.className = 'modal-bg hidden';
   modal.innerHTML = `<div class="modal"><div class="modal-head"><h3>Configurações da plataforma</h3><button class="close" type="button">×</button></div><div class="form"><div class="subscription-summary"><div><b>Assinatura CARÔMETRO — R$ 97,00/mês</b><span class="meta">A liberação é feita pelo administrador após confirmar o pagamento.</span></div><a class="btn primary" href="${paymentUrl}" target="_blank" rel="noopener">Abrir assinatura</a></div><h4 style="margin:0 0 7px">Acesso dos usuários</h4><p class="sub" style="margin:0 0 15px">Suspenda quem não deve acessar. Você pode reativar a qualquer momento.</p><div id="accessUsers" class="access-users"></div></div></div>`;
   document.body.appendChild(modal);
+  const subscriptionVisibility = document.createElement('label');
+  subscriptionVisibility.className = 'check subscription-visibility';
+  subscriptionVisibility.innerHTML = '<input id="showSubscriptionButton" type="checkbox"> Exibir botão de assinatura na página de login';
+  modal.querySelector('h4').before(subscriptionVisibility);
   modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
 
@@ -81,6 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openSettings() {
     const target = document.getElementById('accessUsers');
+    const showSubscription = await refreshSubscriptionButton();
+    document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
     const { data, error } = await db.from('user_permissions')
@@ -104,6 +119,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     toast(status === 'active' ? 'Acesso liberado.' : 'Acesso suspenso.');
     openSettings();
+  };
+  document.getElementById('showSubscriptionButton').onchange = async event => {
+    const show = event.target.checked;
+    const { error } = await db.from('platform_settings').update({ show_subscription:show, updated_at:new Date().toISOString() }).eq('id', true);
+    if (error) {
+      event.target.checked = !show;
+      toast('Execute primeiro a configuração de assinatura no Supabase.');
+      return;
+    }
+    await refreshSubscriptionButton();
+    toast(show ? 'Botão de assinatura exibido no login.' : 'Botão de assinatura ocultado do login.');
   };
   nav.onclick = openSettings;
   new MutationObserver(() => {
