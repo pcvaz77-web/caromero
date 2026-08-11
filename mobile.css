@@ -260,4 +260,41 @@
     padding: 14px 22px !important;
     background: transparent !important;
   }
+
+  /* Faixa institucional no topo e crédito discreto no rodapé. */
+  .login::before {
+    top: 0 !important;
+    bottom: auto !important;
+    height: 185px !important;
+  }
+  .login::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 46px;
+    background: #1b3157;
+  }
+  .login .brand .logo {
+    top: 25px !important;
+    color: #fff !important;
+  }
+  .login .brand h1 {
+    top: 91px !important;
+    bottom: auto !important;
+    font-size: 25px !important;
+    line-height: 1.15 !important;
+  }
+  .login .brand-credit {
+    right: 20px !important;
+    bottom: 13px !important;
+    left: 20px !important;
+    color: #e2ebff !important;
+  }
+  .login .access {
+    top: 185px !important;
+    bottom: 46px !important;
+    padding: 16px 22px !important;
+  }
 }
