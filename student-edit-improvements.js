@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
     .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
+    @media(min-width:801px) {
+      #studentDetails { left:50%; right:auto; top:50%; width:min(460px,calc(100vw - 40px)); max-height:calc(100vh - 40px); overflow:auto; transform:translate(-50%,-50%); }
+    }
     .observation-select-hidden { display:none !important; }
     .observation-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px; }
     .observation-choice { display:flex; align-items:center; gap:7px; margin:0; min-height:42px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:650; cursor:pointer; }
