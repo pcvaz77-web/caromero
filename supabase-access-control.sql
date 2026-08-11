@@ -15,3 +15,16 @@ alter table public.user_permissions
 update public.user_permissions
 set access_status = 'active'
 where role = 'admin';
+
+-- Permite avisar imediatamente o usuário que teve o acesso suspenso.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'user_permissions'
+  ) then
+    alter publication supabase_realtime add table public.user_permissions;
+  end if;
+end $$;

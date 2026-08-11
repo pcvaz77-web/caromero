@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const app = document.getElementById('app');
   const side = document.querySelector('.side');
   const originalShowApp = window.showApp;
+  let accessChannel;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -52,15 +53,30 @@ document.addEventListener('DOMContentLoaded', () => {
     error.classList.remove('hidden');
   }
 
+  async function suspendCurrentSession() {
+    if (!user || isAdmin()) return;
+    await db.auth.signOut();
+    displayAccessProblem('Seu acesso está suspenso. Fale com o administrador da plataforma.');
+  }
+
+  function watchAccessStatus() {
+    if (accessChannel) db.removeChannel(accessChannel);
+    accessChannel = db.channel(`platform-access-${user.id}`)
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_permissions', filter:`user_id=eq.${user.id}` }, payload => {
+        if (payload.new?.access_status === 'suspended') suspendCurrentSession();
+      })
+      .subscribe();
+  }
+
   window.showApp = async function () {
     await originalShowApp();
     if (!user) return;
     if (permission?.access_status === 'suspended' && !isAdmin()) {
-      await db.auth.signOut();
-      displayAccessProblem('Seu acesso está suspenso. Fale com o administrador da plataforma.');
+      await suspendCurrentSession();
       return;
     }
     nav.classList.toggle('hidden', !isAdmin());
+    watchAccessStatus();
   };
 
   async function openSettings() {
