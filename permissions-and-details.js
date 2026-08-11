@@ -32,6 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const canDelete = () => permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all;
   const canEdit = () => permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+  const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
+
+  function syncAddActions() {
+    ['newStudent', 'newBulk', 'newClass'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', !canAdd()));
+  }
 
   function syncStudentActions() {
     document.querySelectorAll('.student').forEach(card => {
@@ -51,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   new MutationObserver(syncStudentActions).observe(document.getElementById('list'), { childList:true });
   syncStudentActions();
+  new MutationObserver(syncAddActions).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
+  syncAddActions();
 
   async function openPermissions() {
     const { data, error } = await db.from('user_permissions').select('user_id,role,can_add_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,profiles(email,full_name)').order('updated_at');
@@ -60,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
-      return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><select ${admin ? 'disabled' : ''} onchange="setUserPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_all','Editar tudo (inclui excluir)',admin)}${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Editar “se possui Laudo”',admin)}</div></article>`;
+      return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><select ${admin ? 'disabled' : ''} onchange="setUserPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_all','Editar tudo: adicionar aluno/turma e excluir aluno',admin)}${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Editar “se possui Laudo”',admin)}</div></article>`;
     }).join('');
     document.getElementById('permissionsList').innerHTML = `<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
