@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   configureObservationField('report');
   configureObservationField('bulkReport');
+  const reportField = document.getElementById('report').closest('.field');
+  const bulkReport = document.getElementById('bulkReport');
+  const bulkReportField = bulkReport.closest('.field');
   const applyObservationColors = () => {
     document.querySelectorAll('.pill').forEach(pill => {
       const text = pill.textContent.trim();
@@ -147,7 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('report').selectedIndex = observationIndex >= 0 ? observationIndex : 0;
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
-    document.getElementById('report').disabled = !!student && !can('can_edit_report');
+    const canEditObservations = can('can_edit_report');
+    reportField.classList.toggle('hidden', !canEditObservations);
+    document.getElementById('report').disabled = !canEditObservations;
     const photoDisabled = !!student && !can('can_edit_photo');
     photoInput.disabled = photoDisabled;
     cameraInput.disabled = photoDisabled;
@@ -164,6 +169,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('moveStudent').onchange = setClassVisibility;
+  document.getElementById('newBulk').addEventListener('click', () => {
+    const canEditObservations = can('can_edit_report');
+    bulkReportField.classList.toggle('hidden', !canEditObservations);
+    bulkReport.disabled = !canEditObservations;
+    if (!canEditObservations) bulkReport.value = '';
+  });
   document.getElementById('choosePhoto').onclick = () => photoInput.click();
   document.getElementById('takePhoto').onclick = () => cameraInput.click();
   document.getElementById('changePhoto').onclick = () => photoPicker.classList.remove('hidden');
