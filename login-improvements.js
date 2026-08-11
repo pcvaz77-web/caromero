@@ -22,6 +22,31 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(creditStyle);
 
+  const passwordField = password.closest('.field');
+  passwordField.classList.add('password-field');
+  const passwordToggle = document.createElement('button');
+  passwordToggle.type = 'button';
+  passwordToggle.className = 'password-toggle';
+  passwordToggle.setAttribute('aria-label', 'Mostrar senha');
+  passwordToggle.setAttribute('aria-pressed', 'false');
+  passwordToggle.innerHTML = '&#128065;';
+  passwordField.appendChild(passwordToggle);
+
+  const passwordStyle = document.createElement('style');
+  passwordStyle.textContent = `
+    .password-field { position:relative; }
+    .password-field input { padding-right:50px; }
+    .password-toggle { position:absolute; right:8px; bottom:7px; width:34px; height:34px; border-radius:7px; color:#475467; background:transparent; font-size:19px; line-height:1; }
+    .password-toggle:hover, .password-toggle:focus { background:#eef3ff; color:var(--blue); }
+  `;
+  document.head.appendChild(passwordStyle);
+  passwordToggle.onclick = () => {
+    const visible = password.type === 'text';
+    password.type = visible ? 'password' : 'text';
+    passwordToggle.setAttribute('aria-label', visible ? 'Mostrar senha' : 'Ocultar senha');
+    passwordToggle.setAttribute('aria-pressed', String(!visible));
+  };
+
   const nameField = document.createElement('div');
   nameField.className = 'field hidden';
   nameField.id = 'nameField';
