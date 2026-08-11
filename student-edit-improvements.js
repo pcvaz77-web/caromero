@@ -11,13 +11,19 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
-  const normalizeObservation = value => ({
-    'Laudo': 'Tem Laudo',
-    'Dificuldade grave': 'Sem Laudo (Dificuldade Grave)',
-    'Dificuldade leve': 'Sem Laudo (Dificuldade Leve)',
-    'Sim': 'Tem Laudo',
-    'Não': ''
-  }[value] || value || '');
+  const normalizeObservation = value => {
+    try {
+      const parsed = JSON.parse(value);
+      if (Array.isArray(parsed)) return normalizeObservation(parsed[0]);
+    } catch {}
+    return ({
+      'Laudo': 'Tem Laudo',
+      'Dificuldade grave': 'Sem Laudo (Dificuldade Grave)',
+      'Dificuldade leve': 'Sem Laudo (Dificuldade Leve)',
+      'Sim': 'Tem Laudo',
+      'Não': ''
+    }[value] || value || '');
+  };
   const decodeObservations = value => {
     if (!value) return [];
     try {
@@ -220,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const observationIndex = observations.findIndex(option => option.value === selectedObservation);
     const reportSelect = document.getElementById('report');
     if (observationIndex >= 0) reportSelect.selectedIndex = observationIndex;
-    else if (selectedObservation) {
+    else if (selectedObservation && !selectedObservation.trim().startsWith('[')) {
       reportSelect.add(new Option(`${selectedObservation} (opção removida)`, selectedObservation, true, true));
     } else reportSelect.selectedIndex = 0;
     refreshPhotoPreview(student);
