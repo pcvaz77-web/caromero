@@ -2,13 +2,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
-  const observations = [
-    { value: '', label: 'Nenhum' },
-    { value: 'Tem Laudo', label: 'Tem Laudo' },
-    { value: 'Sem Laudo (Dificuldade Grave)', label: 'Sem Laudo (Dificuldade Grave)' },
-    { value: 'Sem Laudo (Dificuldade Leve)', label: 'Sem Laudo (Dificuldade Leve)' },
-    { value: 'Não alfabetizado', label: 'Não alfabetizado' }
+  const standardObservations = [
+    { value: '', label: 'Nenhum', standard: true },
+    { value: 'Tem Laudo', label: 'Tem Laudo', standard: true },
+    { value: 'Sem Laudo (Dificuldade Grave)', label: 'Sem Laudo (Dificuldade Grave)', standard: true },
+    { value: 'Sem Laudo (Dificuldade Leve)', label: 'Sem Laudo (Dificuldade Leve)', standard: true },
+    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true }
   ];
+  let observations = [...standardObservations];
+  let observationOptionsLoaded = false;
   const normalizeObservation = value => ({
     'Laudo': 'Tem Laudo',
     'Dificuldade grave': 'Sem Laudo (Dificuldade Grave)',
@@ -27,17 +29,43 @@ document.addEventListener('DOMContentLoaded', () => {
   const reportField = document.getElementById('report').closest('.field');
   const bulkReport = document.getElementById('bulkReport');
   const bulkReportField = bulkReport.closest('.field');
+  const manageObservations = document.createElement('button');
+  manageObservations.type = 'button';
+  manageObservations.className = 'link manage-observations hidden';
+  manageObservations.textContent = 'Gerenciar observações';
+  reportField.appendChild(manageObservations);
+  const observationManager = document.createElement('div');
+  observationManager.className = 'photo-picker hidden';
+  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Necessita acompanhamento"><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
+  document.body.appendChild(observationManager);
+  const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
+  const renderCustomObservations = () => {
+    const custom = observations.filter(option => !option.standard);
+    document.getElementById('customObservationList').innerHTML = custom.length
+      ? `<b>Opções adicionadas</b>${custom.map(option => `<div>${escapeHtml(option.label)}</div>`).join('')}`
+      : '<div class="meta">Nenhuma observação adicional cadastrada.</div>';
+  };
+  async function loadObservationOptions() {
+    if (observationOptionsLoaded) return;
+    const { data, error } = await db.from('observation_options').select('label').order('display_order').order('created_at');
+    if (error) return;
+    observations = [...standardObservations, ...(data || []).map(item => ({ value: item.label, label: item.label, standard: false }))];
+    observationOptionsLoaded = true;
+    configureObservationField('report');
+    configureObservationField('bulkReport');
+    renderCustomObservations();
+  }
   const applyObservationColors = () => {
     document.querySelectorAll('.pill').forEach(pill => {
       const text = pill.textContent.trim();
-      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy');
+      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom');
       const colorClass = {
         'Tem Laudo': 'observation-report',
         'Sem Laudo (Dificuldade Grave)': 'observation-severe',
         'Sem Laudo (Dificuldade Leve)': 'observation-light',
         'Não alfabetizado': 'observation-literacy'
       }[text];
-      if (colorClass) pill.classList.add(colorClass);
+      pill.classList.add(colorClass || 'observation-custom');
     });
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
@@ -90,6 +118,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-severe { background:#fee4e2; color:#b42318; }
     .pill.observation-light { background:#ffead5; color:#b54708; }
     .pill.observation-literacy { background:#fce7f3; color:#9d174d; }
+    .pill.observation-custom { background:#ede9fe; color:#5b21b6; }
+    .manage-observations { margin-top:9px; }
+    .observation-manager input { width:100%; }
+    .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
+    .custom-observation-list b { font-size:13px; }
+    .custom-observation-list div { padding:8px 10px; border-radius:7px; background:#f4f3ff; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
@@ -132,12 +166,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function openStudentForm(student) {
+  async function openStudentForm(student) {
     if (!student && !classes.length) {
       toast('Cadastre uma turma antes de cadastrar alunos.');
       document.getElementById('classModal').classList.remove('hidden');
       return;
     }
+    await loadObservationOptions();
     form.reset();
     pendingPhoto = null;
     removePhoto = false;
@@ -153,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
     document.getElementById('report').disabled = !canEditObservations;
+    manageObservations.classList.toggle('hidden', permission.role !== 'admin');
     const photoDisabled = !!student && !can('can_edit_photo');
     photoInput.disabled = photoDisabled;
     cameraInput.disabled = photoDisabled;
@@ -169,12 +205,39 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('moveStudent').onchange = setClassVisibility;
-  document.getElementById('newBulk').addEventListener('click', () => {
+  document.getElementById('newBulk').addEventListener('click', async () => {
+    await loadObservationOptions();
     const canEditObservations = can('can_edit_report');
     bulkReportField.classList.toggle('hidden', !canEditObservations);
     bulkReport.disabled = !canEditObservations;
     if (!canEditObservations) bulkReport.value = '';
   });
+  manageObservations.onclick = async () => {
+    await loadObservationOptions();
+    renderCustomObservations();
+    document.getElementById('newObservation').value = '';
+    observationManager.classList.remove('hidden');
+  };
+  document.getElementById('closeObservationManager').onclick = () => observationManager.classList.add('hidden');
+  observationManager.onclick = event => { if (event.target === observationManager) observationManager.classList.add('hidden'); };
+  document.getElementById('observationManagerForm').onsubmit = async event => {
+    event.preventDefault();
+    const input = document.getElementById('newObservation');
+    const label = input.value.trim().replace(/\s+/g, ' ');
+    if (!label) return;
+    if (observations.some(option => option.value.toLocaleLowerCase('pt-BR') === label.toLocaleLowerCase('pt-BR'))) {
+      toast('Essa observação já existe.');
+      return;
+    }
+    const { error } = await db.from('observation_options').insert({ label, display_order: observations.length });
+    if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
+    observations.push({ value: label, label, standard: false });
+    configureObservationField('report');
+    configureObservationField('bulkReport');
+    renderCustomObservations();
+    input.value = '';
+    toast('Observação adicionada.');
+  };
   document.getElementById('choosePhoto').onclick = () => photoInput.click();
   document.getElementById('takePhoto').onclick = () => cameraInput.click();
   document.getElementById('changePhoto').onclick = () => photoPicker.classList.remove('hidden');
