@@ -116,7 +116,8 @@
   #studentDetails .detail-head .avatar { width: 110px !important; height: 110px !important; }
   #studentDetails .detail-head h3 { font-size: 20px !important; line-height: 1.15 !important; overflow-wrap: anywhere; }
   .student {
-    grid-template-columns: 64px minmax(0, 1fr) auto !important;
+    grid-template-columns: 76px minmax(0, 1fr) auto !important;
+    gap: 14px !important;
     align-items: center !important;
   }
   .student .avatar { width: 64px !important; height: 64px !important; }
@@ -124,7 +125,8 @@
   .student-detail-close {
     position: absolute;
     top: 10px;
-    right: 10px;
+    right: auto;
+    left: 10px;
     z-index: 2;
     width: 36px;
     height: 36px;
