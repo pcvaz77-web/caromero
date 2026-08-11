@@ -164,4 +164,19 @@
   .modal .photo-controls .btn { flex: 1 !important; }
   .modal .actions { position: sticky !important; bottom: -18px !important; z-index: 2 !important; }
   .toast { bottom: 18px !important; }
+
+  /* Mantém a apresentação completa do CARÔMETRO também no login mobile. */
+  .login { display: block !important; min-height: 100vh !important; }
+  .login .brand {
+    display: flex !important;
+    min-height: 430px !important;
+    padding: 44px 28px 74px !important;
+    justify-content: center !important;
+  }
+  .login .brand .logo { display: block !important; width: auto !important; padding: 0 !important; }
+  .login .brand h1 { margin: 34px 0 14px !important; font-size: clamp(38px, 12vw, 52px) !important; letter-spacing: -2px !important; }
+  .login .brand p { font-size: 16px !important; }
+  .login .brand-credit { display: flex !important; right: 28px !important; bottom: 24px !important; left: 28px !important; font-size: 11px !important; }
+  .login .access { min-height: auto !important; padding: 34px 22px 42px !important; }
+  .login .card { margin: 0 !important; }
 }
