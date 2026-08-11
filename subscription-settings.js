@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .access-users { display:grid; gap:10px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
     .access-user .access-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .access-user .access-actions .btn { min-height:38px; }
     .access-active { color:#08784b; font-weight:700; }
     .access-suspended { color:#b42318; font-weight:700; }
     @media(max-width:800px) { .subscription-summary,.access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } }
@@ -112,12 +113,39 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.profiles?.email || 'Usuário';
       return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${active ? 'access-active' : 'access-suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</div></div><div class="access-actions">${admin ? '<span class="meta">Administrador principal</span>' : `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${active ? 'suspended' : 'active'}')">${active ? 'Suspender acesso' : 'Reativar acesso'}</button>`}</div></article>`;
     }).join('') || '<div class="empty">Nenhum usuário encontrado.</div>';
+    (data || []).forEach((item, index) => {
+      if (item.role === 'admin') return;
+      const email = item.profiles?.email || '';
+      const controls = target.querySelectorAll('.access-actions')[index];
+      if (!controls) return;
+      const cancel = document.createElement('button');
+      cancel.className = 'btn secondary';
+      cancel.textContent = 'Cancelar login';
+      cancel.onclick = () => window.manageUserAccount('cancel_login', item.user_id, email);
+      const remove = document.createElement('button');
+      remove.className = 'btn danger-outline';
+      remove.textContent = 'Excluir permanentemente';
+      remove.onclick = () => window.manageUserAccount('permanent_delete', item.user_id, email);
+      controls.append(cancel, remove);
+    });
   }
 
   window.setPlatformAccess = async (id, status) => {
     const { error } = await db.from('user_permissions').update({ access_status:status, updated_at:new Date().toISOString() }).eq('user_id', id);
     if (error) { toast(error.message); return; }
     toast(status === 'active' ? 'Acesso liberado.' : 'Acesso suspenso.');
+    openSettings();
+  };
+  window.manageUserAccount = async (action, id, email) => {
+    if (action === 'cancel_login') {
+      if (!confirm(`Cancelar o login de ${email}? A pessoa poderá criar outra conta usando este mesmo e-mail.`)) return;
+    } else {
+      const confirmation = prompt(`Para excluir permanentemente ${email}, digite o e-mail completo:`);
+      if (confirmation !== email) { toast('O e-mail não confere. A exclusão foi cancelada.'); return; }
+    }
+    const { data, error } = await db.functions.invoke('manage-user', { body:{ action, userId:id } });
+    if (error || data?.error) { toast(data?.error || error?.message || 'Não foi possível concluir a ação.'); return; }
+    toast(action === 'cancel_login' ? 'Login cancelado. O e-mail está liberado para novo cadastro.' : 'Usuário excluído permanentemente.');
     openSettings();
   };
   document.getElementById('showSubscriptionButton').onchange = async event => {
