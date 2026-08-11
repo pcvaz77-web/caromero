@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) return;
 
     const affected = students.filter(student => student.classId === cls.id);
+    const isAdmin = permission.role === 'admin';
+    if (affected.length && !isAdmin) {
+      toast('Somente administradores podem excluir uma turma que possui alunos cadastrados.');
+      return;
+    }
     const suffix = affected.length === 1 ? '' : 's';
     const message = affected.length
       ? `Excluir a turma ${cls.name} e também os ${affected.length} aluno${suffix} cadastrado${suffix}? Esta ação não pode ser desfeita.`
