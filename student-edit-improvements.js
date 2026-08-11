@@ -22,8 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const controls = document.createElement('div');
   controls.className = 'photo-controls hidden';
-  controls.innerHTML = '<button type="button" class="btn secondary" id="changePhoto">Escolher da galeria</button><button type="button" class="btn secondary" id="changePhotoCamera">Usar câmera</button><button type="button" class="btn danger-outline" id="removePhoto">Excluir foto</button>';
+  controls.innerHTML = '<button type="button" class="btn secondary" id="changePhoto">Editar foto</button><button type="button" class="btn danger-outline" id="removePhoto">Excluir foto</button>';
   photoInput.closest('.photo').appendChild(controls);
+
+  const photoPicker = document.createElement('div');
+  photoPicker.className = 'photo-picker hidden';
+  photoPicker.innerHTML = '<div class="photo-picker-card"><b>Editar foto</b><span>Como deseja adicionar a nova foto?</span><button type="button" class="btn primary" id="pickerCamera">Usar câmera</button><button type="button" class="btn secondary" id="pickerGallery">Escolher da galeria</button><button type="button" class="link" id="closePhotoPicker">Cancelar</button></div>';
+  document.body.appendChild(photoPicker);
 
   const moveField = document.createElement('div');
   moveField.className = 'field span move-class hidden';
@@ -36,6 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+    .photo-picker { position:fixed; inset:0; z-index:10; display:grid; place-items:center; padding:20px; background:#10182880; }
+    .photo-picker-card { width:min(330px,100%); display:grid; gap:10px; padding:22px; border-radius:14px; background:#fff; box-shadow:0 20px 45px #0003; }
+    .photo-picker-card b { font-size:18px; }
+    .photo-picker-card span { color:var(--muted); font-size:14px; margin-bottom:4px; }
+    .photo-picker-card .link { justify-self:center; padding:7px; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
@@ -93,7 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fullName').value = student?.name || '';
     document.getElementById('report').value = student?.report || '';
     refreshPhotoPreview(student);
-    controls.classList.toggle('hidden', !student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     document.getElementById('report').disabled = !!student && !can('can_edit_report');
     const photoDisabled = !!student && !can('can_edit_photo');
@@ -101,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cameraInput.disabled = photoDisabled;
     document.getElementById('choosePhoto').disabled = photoDisabled;
     document.getElementById('takePhoto').disabled = photoDisabled;
+    photoActions.classList.toggle('hidden', !!student || photoDisabled);
     controls.classList.toggle('hidden', !student || !can('can_edit_photo'));
     moveField.classList.toggle('hidden', !student || !can('can_edit_class'));
     document.getElementById('moveStudent').checked = false;
@@ -113,8 +123,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('moveStudent').onchange = setClassVisibility;
   document.getElementById('choosePhoto').onclick = () => photoInput.click();
   document.getElementById('takePhoto').onclick = () => cameraInput.click();
-  document.getElementById('changePhoto').onclick = () => photoInput.click();
-  document.getElementById('changePhotoCamera').onclick = () => cameraInput.click();
+  document.getElementById('changePhoto').onclick = () => photoPicker.classList.remove('hidden');
+  document.getElementById('pickerCamera').onclick = () => { photoPicker.classList.add('hidden'); cameraInput.click(); };
+  document.getElementById('pickerGallery').onclick = () => { photoPicker.classList.add('hidden'); photoInput.click(); };
+  document.getElementById('closePhotoPicker').onclick = () => photoPicker.classList.add('hidden');
+  photoPicker.onclick = event => { if (event.target === photoPicker) photoPicker.classList.add('hidden'); };
   document.getElementById('removePhoto').onclick = () => {
     pendingPhoto = null;
     photoInput.value = '';
