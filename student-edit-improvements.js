@@ -42,14 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderCustomObservations = () => {
     const custom = observations.filter(option => !option.standard);
     document.getElementById('customObservationList').innerHTML = custom.length
-      ? `<b>Opções adicionadas</b>${custom.map(option => `<div>${escapeHtml(option.label)}</div>`).join('')}`
+      ? `<b>Opções adicionadas</b>${custom.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
       : '<div class="meta">Nenhuma observação adicional cadastrada.</div>';
   };
   async function loadObservationOptions() {
     if (observationOptionsLoaded) return;
-    const { data, error } = await db.from('observation_options').select('label').order('display_order').order('created_at');
+    const { data, error } = await db.from('observation_options').select('id,label').order('display_order').order('created_at');
     if (error) return;
-    observations = [...standardObservations, ...(data || []).map(item => ({ value: item.label, label: item.label, standard: false }))];
+    observations = [...standardObservations, ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false }))];
     observationOptionsLoaded = true;
     configureObservationField('report');
     configureObservationField('bulkReport');
@@ -123,7 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
-    .custom-observation-list div { padding:8px 10px; border-radius:7px; background:#f4f3ff; }
+    .custom-observation-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
+    .delete-custom-observation { padding:5px 7px; border-radius:6px; background:#fff; border:1px solid #fecdca; color:var(--danger); font-size:12px; font-weight:700; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
@@ -182,7 +183,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fullName').value = student?.name || '';
     const selectedObservation = normalizeObservation(student?.report);
     const observationIndex = observations.findIndex(option => option.value === selectedObservation);
-    document.getElementById('report').selectedIndex = observationIndex >= 0 ? observationIndex : 0;
+    const reportSelect = document.getElementById('report');
+    if (observationIndex >= 0) reportSelect.selectedIndex = observationIndex;
+    else if (selectedObservation) {
+      reportSelect.add(new Option(`${selectedObservation} (opção removida)`, selectedObservation, true, true));
+    } else reportSelect.selectedIndex = 0;
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     const canEditObservations = can('can_edit_report');
@@ -229,14 +234,27 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Essa observação já existe.');
       return;
     }
-    const { error } = await db.from('observation_options').insert({ label, display_order: observations.length });
+    const { data, error } = await db.from('observation_options').insert({ label, display_order: observations.length }).select('id,label').single();
     if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
-    observations.push({ value: label, label, standard: false });
+    observations.push({ id: data.id, value: data.label, label: data.label, standard: false });
     configureObservationField('report');
     configureObservationField('bulkReport');
     renderCustomObservations();
     input.value = '';
     toast('Observação adicionada.');
+  };
+  document.getElementById('customObservationList').onclick = async event => {
+    const button = event.target.closest('.delete-custom-observation');
+    if (!button) return;
+    const option = observations.find(item => item.id === button.dataset.id);
+    if (!option || !confirm(`Excluir a observação “${option.label}”? Os alunos já cadastrados continuarão com esse registro até ele ser alterado.`)) return;
+    const { error } = await db.from('observation_options').delete().eq('id', option.id);
+    if (error) { toast(error.message); return; }
+    observations = observations.filter(item => item.id !== option.id);
+    configureObservationField('report');
+    configureObservationField('bulkReport');
+    renderCustomObservations();
+    toast('Observação excluída.');
   };
   document.getElementById('choosePhoto').onclick = () => photoInput.click();
   document.getElementById('takePhoto').onclick = () => cameraInput.click();
