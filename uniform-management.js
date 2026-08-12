@@ -30,6 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
   const pending = student => student?.uniform_pending || '';
   const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
+  let classStudents = [];
+  let classStudentsRequest = 0;
 
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -84,10 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
     // A tela de Uniforme deve manter todos os alunos da turma juntos e em
     // ordem alfabética, independentemente da data em que foram cadastrados.
-    const visible = records.filter(item => {
+    const visible = classStudents.filter(item => {
       const type = pending(item);
-      const belongsToClass = item.classId === classId || (!!selectedClass && String(item.className || '').trim() === String(selectedClass.name || '').trim());
-      if (!belongsToClass || (query && !item.name.toLocaleLowerCase('pt-BR').includes(query))) return false;
+      if (query && !item.name.toLocaleLowerCase('pt-BR').includes(query)) return false;
       if (view === 'all') return true;
       if (view === 'pending') return !!type;
       return type === view;
@@ -98,16 +99,49 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
     setTimeout(paintStudentCards, 0);
   }
-  async function open() { modal.classList.remove('hidden'); await load(); render(); }
+  async function loadClassStudents() {
+    const classId = get('uniformClass').value;
+    const requestId = ++classStudentsRequest;
+    classStudents = [];
+    render();
+    if (!classId) return;
+    const { data, error } = await db.from('students')
+      .select('id,full_name,class_id,class_name,uniform_pending')
+      .eq('class_id', classId)
+      .order('full_name', { ascending:true });
+    if (requestId !== classStudentsRequest) return;
+    if (error) { toast('Não foi possível carregar os alunos desta turma.'); return; }
+    classStudents = (data || []).map(item => ({
+      id: item.id,
+      name: item.full_name,
+      classId: item.class_id,
+      className: item.class_name,
+      uniform_pending: item.uniform_pending
+    }));
+    render();
+  }
+  async function open() {
+    modal.classList.remove('hidden');
+    await load();
+    classOptions();
+    await loadClassStudents();
+  }
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
-  ['uniformClass','uniformView'].forEach(id => get(id).onchange = render); get('uniformSearch').oninput = render;
+  get('uniformClass').onchange = loadClassStudents;
+  get('uniformView').onchange = render;
+  get('uniformSearch').oninput = render;
   get('uniformList').onchange = async event => {
     const select = event.target.closest('.uniform-select'); if (!select || !isAdmin()) return;
     const row = select.closest('.uniform-row'); const type = select.value;
     select.disabled = true;
     const { error } = await db.from('students').update({ uniform_pending:type || null }).eq('id', row.dataset.id);
     if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
-    toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.'); await load(); render();
+    toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.');
+    await load();
+    await loadClassStudents();
   };
-  document.addEventListener('carometro:uniform-refresh', () => { if (!modal.classList.contains('hidden')) render(); else paintStudentCards(); });
+  document.addEventListener('carometro:uniform-refresh', () => {
+    if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
+    else paintStudentCards();
+  });
 });
