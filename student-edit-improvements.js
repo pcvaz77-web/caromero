@@ -456,10 +456,17 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal { padding:12px; align-items:center; }
       #studentModal .modal { width:min(720px, 100%); height:min(760px, calc(100dvh - 24px)); max-height:none; display:flex; flex-direction:column; }
       #studentModal .modal-head { flex:none; }
-      #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+      #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding-top:16px; padding-bottom:16px; }
       #studentModal .grid { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
       #studentModal .student-observations-field { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:0; }
-      #studentModal .observation-choices { flex:1; min-height:0; max-height:none; overflow-y:auto; padding-right:6px; }
+      #studentModal .photo { margin-bottom:12px; }
+      #studentModal .photo .preview { width:78px; height:78px; }
+      #studentModal .photo .meta { display:none; }
+      #studentModal .move-class { padding:9px 11px; }
+      #studentModal .move-class .meta { display:none; }
+      #studentModal .manage-observations { min-height:36px; margin:5px 0 7px; padding:7px 10px; }
+      #studentModal .observation-choices { flex:1; min-height:min(150px, 25dvh); max-height:none; overflow-y:auto; padding-right:6px; }
+      #studentModal .clear-observations { margin-top:6px; }
       #studentModal .actions { flex:none; }
       .photo-picker { padding:24px; }
       .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
