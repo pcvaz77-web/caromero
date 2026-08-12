@@ -204,8 +204,13 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openCounselorManager();
   };
 
-  new MutationObserver(drawCounselorLabels).observe(document.getElementById('classList'), { childList:true });
-  new MutationObserver(drawCounselorLabels).observe(document.getElementById('studentDetails'), { childList:true, subtree:true });
+  // Acrescenta o conselheiro sempre que a lista ou o card forem redesenhados.
+  // Assim a etiqueta não depende do intervalo de atualização do navegador.
+  const baseRender = render;
+  render = (...args) => {
+    baseRender(...args);
+    drawCounselorLabels();
+  };
   refreshAssignments();
   setInterval(refreshAssignments, 4000);
 });
