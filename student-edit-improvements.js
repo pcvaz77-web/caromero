@@ -566,6 +566,43 @@ document.addEventListener('DOMContentLoaded', () => {
     bulkReport.disabled = !canEditObservations;
     if (!canEditObservations) bulkReport.value = '';
   });
+  let bulkSaving = false;
+  document.getElementById('bulkForm').onsubmit = async event => {
+    event.preventDefault();
+    if (bulkSaving) return;
+    const classId = document.getElementById('bulkClassId').value;
+    const cls = classes.find(item => item.id === classId);
+    const names = document.getElementById('bulkNames').value
+      .split(/\r?\n|;/)
+      .map(name => name.replace(/^[•·\-–]\s*/, '').trim())
+      .filter(name => name.length >= 3);
+    if (!cls) { toast('Selecione a turma que receberá os alunos.'); return; }
+    if (!names.length) { toast('Cole ao menos um nome por linha.'); return; }
+    if (names.length > 100) { toast('Cole até 100 nomes por vez.'); return; }
+
+    const submit = document.querySelector('#bulkForm button[type="submit"]');
+    bulkSaving = true;
+    if (submit) { submit.disabled = true; submit.textContent = 'Salvando alunos…'; }
+    try {
+      const rows = names.map(fullName => ({
+        full_name: fullName,
+        class_id: classId,
+        class_name: cls.name,
+        has_report: bulkReport.disabled ? '' : bulkReport.value,
+        photo_path: null
+      }));
+      const { data, error } = await db.from('students').insert(rows).select('id,class_id');
+      if (error) { toast(error.message); return; }
+      const saved = (data || []).filter(item => item.class_id === classId).length;
+      if (saved !== rows.length) { toast('O cadastro não foi confirmado por completo. Nenhuma turma foi excluída. Tente novamente.'); return; }
+      document.getElementById('bulkModal').classList.add('hidden');
+      await load();
+      toast(`${saved} aluno${saved === 1 ? '' : 's'} cadastrado${saved === 1 ? '' : 's'} na turma ${cls.name}.`);
+    } finally {
+      bulkSaving = false;
+      if (submit) { submit.disabled = false; submit.textContent = 'Cadastrar alunos'; }
+    }
+  };
   manageObservations.onclick = async () => {
     await loadObservationOptions();
     renderCustomObservations();

@@ -1,10 +1,25 @@
 document.addEventListener('DOMContentLoaded', () => {
   let refreshTimer;
+  let refreshing = false;
+  let refreshQueued = false;
+  const runRefresh = async () => {
+    if (refreshing) { refreshQueued = true; return; }
+    if (document.getElementById('app').classList.contains('hidden')) return;
+    refreshing = true;
+    try { await load(); }
+    finally {
+      refreshing = false;
+      if (refreshQueued) {
+        refreshQueued = false;
+        runRefresh();
+      }
+    }
+  };
   const refreshData = () => {
     clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => {
-      if (!document.getElementById('app').classList.contains('hidden')) load();
-    }, 120);
+    // Um cadastro em lote gera diversos eventos. Agrupe-os em uma única
+    // atualização para não alternar a lista entre respostas parciais.
+    refreshTimer = setTimeout(runRefresh, 350);
   };
 
   db.auth.getUser().then(({ data: { user: signedInUser } }) => {
