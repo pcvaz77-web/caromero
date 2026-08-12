@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .counselor-label { margin-left:7px; vertical-align:middle; }
     .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
     .toast { z-index:100 !important; }
-    @media (max-width:800px), (hover:none) and (pointer:coarse) { .counselor-entry, .counselor-modal { display:none !important; } }
+    @media (max-width:800px) { .counselor-entry, .counselor-modal { display:none !important; } }
   `;
   document.head.appendChild(style);
 
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.openCounselorManager = async () => {
-    if (permission.role !== 'admin' || window.matchMedia('(max-width:800px), (hover:none) and (pointer:coarse)').matches) return;
+    if (permission.role !== 'admin' || window.matchMedia('(max-width:800px)').matches) return;
     const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
       db.from('user_permissions').select('user_id,profiles(email,full_name)'),
       db.from('class_counselors').select('*')
@@ -198,5 +198,6 @@ document.addEventListener('DOMContentLoaded', () => {
   permissionListObserver.observe(document.getElementById('permissionsList'), { childList:true });
   new MutationObserver(drawCounselorLabels).observe(document.getElementById('classList'), { childList:true });
   new MutationObserver(drawCounselorLabels).observe(document.getElementById('studentDetails'), { childList:true, subtree:true });
+  refreshAssignments();
   setInterval(refreshAssignments, 4000);
 });
