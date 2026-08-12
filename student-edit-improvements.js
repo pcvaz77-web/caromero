@@ -450,6 +450,16 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentModal .modal { max-height:calc(100dvh - 24px); overflow:hidden; }
     #studentModal .observation-choices { overscroll-behavior:contain; touch-action:pan-y; }
     @media (min-width:801px) {
+      /* Em computadores a janela também permanece fixa: somente as opções
+         de observação usam a área de rolagem, sem esconder os botões finais. */
+      #studentModal { padding:12px; align-items:center; }
+      #studentModal .modal { width:min(720px, 100%); height:min(760px, calc(100dvh - 24px)); max-height:none; display:flex; flex-direction:column; }
+      #studentModal .modal-head { flex:none; }
+      #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+      #studentModal .grid { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
+      #studentModal .student-observations-field { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:0; }
+      #studentModal .observation-choices { flex:1; min-height:0; max-height:none; overflow-y:auto; padding-right:6px; }
+      #studentModal .actions { flex:none; }
       .photo-picker { padding:24px; }
       .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
     }
