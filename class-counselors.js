@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let assignments = [];
   let ownAssignments = [];
   let registeredUsers = [];
+  let editingCounselorId = null;
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
 
   const style = document.createElement('style');
@@ -21,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .counselor-list { display:grid; gap:9px; margin-top:22px; }
     .counselor-item { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px; border:1px solid var(--line); border-radius:9px; }
     .counselor-item b { display:block; }
+    .counselor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .counselor-label { margin-left:7px; vertical-align:middle; }
     .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
     @media (max-width:800px), (hover:none) and (pointer:coarse) { .counselor-entry, .counselor-modal { display:none !important; } }
@@ -79,6 +81,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (previous !== JSON.stringify(assignments)) { render(); drawCounselorLabels(); }
   }
 
+  function resetCounselorForm() {
+    editingCounselorId = null;
+    const form = document.getElementById('counselorForm');
+    form.reset();
+    form.querySelector('[type="submit"]').textContent = 'Salvar conselheiro';
+    document.getElementById('counselorPermissionArea').classList.remove('hidden');
+    document.getElementById('counselorAccountHint').textContent = 'Selecione um usuário cadastrado para liberar permissões.';
+  }
+
   function renderManager() {
     const classSelect = document.getElementById('counselorClass');
     classSelect.innerHTML = '<option value="" selected disabled>Selecione a turma</option>' + classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
@@ -88,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const person = registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id);
       const currentClass = classes.find(classItem => classItem.id === item.class_id);
       const registered = !!item.counselor_user_id;
-      return `<article class="counselor-item"><div><b>${escapeHtml(counselorName(person || item))}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${registered ? escapeHtml(assignmentText(item)) : 'Sem conta — registro da turma'}</div></div><button class="delete" type="button" data-counselor-id="${item.id}">Remover</button></article>`;
+      return `<article class="counselor-item"><div><b>${escapeHtml(counselorName(person || item))}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${registered ? escapeHtml(assignmentText(item)) : 'Sem conta — registro da turma'}</div></div><div class="counselor-actions"><button class="btn secondary" type="button" data-edit-counselor-id="${item.id}">Editar</button><button class="delete" type="button" data-counselor-id="${item.id}">Excluir</button></div></article>`;
     }).join('') : '<div class="empty">Nenhum conselheiro cadastrado.</div>';
   }
 
@@ -102,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     registeredUsers = users || [];
     assignments = dataAssignments || [];
     renderManager();
+    resetCounselorForm();
     document.getElementById('counselorUser').oninput = () => {
       const value = document.getElementById('counselorUser').value.trim();
       const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
@@ -124,19 +136,41 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!counselorFields.some(([key]) => row[key])) { toast('Selecione ao menos uma permissão.'); return; }
     } else {
       row.counselor_name = typedName;
+      row.counselor_user_id = null;
+      counselorFields.forEach(([key]) => { row[key] = false; });
     }
-    const { error } = await db.from('class_counselors').upsert(row, { onConflict:'counselor_user_id,class_id' });
+    const request = editingCounselorId
+      ? db.from('class_counselors').update(row).eq('id', editingCounselorId)
+      : selectedUser
+        ? db.from('class_counselors').upsert(row, { onConflict:'counselor_user_id,class_id' })
+        : db.from('class_counselors').insert(row);
+    const { error } = await request;
     if (error) { toast(error.message); return; }
-    toast('Conselheiro salvo.');
+    toast(editingCounselorId ? 'Conselheiro atualizado.' : 'Conselheiro salvo.');
     window.openCounselorManager();
   };
 
   document.getElementById('counselorList').onclick = async event => {
+    const editButton = event.target.closest('[data-edit-counselor-id]');
+    if (editButton) {
+      const item = assignments.find(assignment => assignment.id === editButton.dataset.editCounselorId);
+      if (!item) return;
+      editingCounselorId = item.id;
+      document.getElementById('counselorUser').value = counselorName(registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id) || item);
+      document.getElementById('counselorClass').value = item.class_id;
+      const registered = !!item.counselor_user_id;
+      document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered);
+      counselorFields.forEach(([key]) => { document.querySelector(`#counselorPermissions input[name="${key}"]`).checked = !!item[key]; });
+      document.getElementById('counselorAccountHint').textContent = registered ? 'Edite as permissões para esta turma.' : 'Sem conta: este registro não libera acesso ao sistema.';
+      document.querySelector('#counselorForm [type="submit"]').textContent = 'Salvar alterações';
+      document.getElementById('counselorForm').scrollIntoView({ behavior:'smooth', block:'start' });
+      return;
+    }
     const button = event.target.closest('[data-counselor-id]');
-    if (!button || !confirm('Remover este conselheiro da turma?')) return;
+    if (!button || !confirm('Excluir este conselheiro da turma?')) return;
     const { error } = await db.from('class_counselors').delete().eq('id', button.dataset.counselorId);
     if (error) { toast(error.message); return; }
-    toast('Conselheiro removido.');
+    toast('Conselheiro excluído.');
     window.openCounselorManager();
   };
 
