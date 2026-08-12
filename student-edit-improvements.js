@@ -123,6 +123,13 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
     return [normalizeObservation(value)].filter(Boolean);
   };
+  const syncLaudoCount = () => {
+    document.getElementById('reports').textContent = students.filter(student => {
+      try { return JSON.parse(student.report || '[]').includes('Tem Laudo'); }
+      catch { return student.report === 'Tem Laudo' || student.report === 'Laudo'; }
+    }).length;
+  };
+  new MutationObserver(syncLaudoCount).observe(document.getElementById('list'), { childList:true });
   const configureObservationField = id => {
     const select = document.getElementById(id);
     if (!select) return;
