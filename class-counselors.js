@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'counselorModal';
   modal.className = 'modal-bg counselor-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Conselheiro cadastrado</label><input id="counselorUser" list="counselorUsers" required placeholder="Digite o nome do usuário"><datalist id="counselorUsers"></datalist></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Nome do conselheiro</label><input id="counselorUser" list="counselorUsers" required placeholder="Digite ou selecione um usuário"><datalist id="counselorUsers"></datalist><div id="counselorAccountHint" class="meta">Selecione um usuário cadastrado para liberar permissões.</div></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><div id="counselorPermissionArea"><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
   document.body.appendChild(modal);
 
   const closeManager = () => modal.classList.add('hidden');
@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeManager(); };
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
-  const counselorName = item => item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
+  const counselorName = item => item.counselor_name?.trim() || item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
   const assignmentText = item => counselorFields.filter(([key]) => item[key]).map(([, label]) => label).join(' · ') || 'Sem permissão selecionada';
 
   async function refreshAssignments() {
@@ -57,7 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('counselorList').innerHTML = assignments.length ? assignments.map(item => {
       const person = registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id);
       const currentClass = classes.find(classItem => classItem.id === item.class_id);
-      return `<article class="counselor-item"><div><b>${escapeHtml(counselorName(person || {}))}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${escapeHtml(assignmentText(item))}</div></div><button class="delete" type="button" data-counselor-id="${item.id}">Remover</button></article>`;
+      const registered = !!item.counselor_user_id;
+      return `<article class="counselor-item"><div><b>${escapeHtml(counselorName(person || item))}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${registered ? escapeHtml(assignmentText(item)) : 'Sem conta — registro da turma'}</div></div><button class="delete" type="button" data-counselor-id="${item.id}">Remover</button></article>`;
     }).join('') : '<div class="empty">Nenhum conselheiro cadastrado.</div>';
   }
 
@@ -71,6 +72,12 @@ document.addEventListener('DOMContentLoaded', () => {
     registeredUsers = users || [];
     assignments = dataAssignments || [];
     renderManager();
+    document.getElementById('counselorUser').oninput = () => {
+      const value = document.getElementById('counselorUser').value.trim();
+      const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
+      document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered && !!value);
+      document.getElementById('counselorAccountHint').textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
+    };
     modal.classList.remove('hidden');
   };
 
@@ -78,10 +85,15 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     const typedName = document.getElementById('counselorUser').value.trim();
     const selectedUser = registeredUsers.find(item => counselorName(item) === typedName || item.profiles?.email === typedName);
-    if (!selectedUser) { toast('Selecione um usuário já cadastrado.'); return; }
-    const row = { counselor_user_id:selectedUser.user_id, class_id:document.getElementById('counselorClass').value };
-    counselorFields.forEach(([key]) => { row[key] = document.querySelector(`#counselorPermissions input[name="${key}"]`).checked; });
-    if (!counselorFields.some(([key]) => row[key])) { toast('Selecione ao menos uma permissão.'); return; }
+    if (!typedName || typedName.length < 3) { toast('Informe o nome do conselheiro.'); return; }
+    const row = { class_id:document.getElementById('counselorClass').value };
+    if (selectedUser) {
+      row.counselor_user_id = selectedUser.user_id;
+      counselorFields.forEach(([key]) => { row[key] = document.querySelector(`#counselorPermissions input[name="${key}"]`).checked; });
+      if (!counselorFields.some(([key]) => row[key])) { toast('Selecione ao menos uma permissão.'); return; }
+    } else {
+      row.counselor_name = typedName;
+    }
     const { error } = await db.from('class_counselors').upsert(row, { onConflict:'counselor_user_id,class_id' });
     if (error) { toast(error.message); return; }
     toast('Conselheiro salvo.');
