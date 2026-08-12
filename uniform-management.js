@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = () => permission?.role === 'admin';
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
-  const pending = student => student.uniform_pending || '';
+  const pending = student => student?.uniform_pending || '';
   const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
 
   function paintStudentCards() {
