@@ -34,8 +34,23 @@ document.addEventListener('DOMContentLoaded', () => {
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
       const existing = card.querySelector('.uniform-card-label');
-      // A lista permanece limpa: a pendência aparece somente no card aberto.
+      const student = students.find(item => item.id === studentId(card));
+      const type = pending(student);
+      const meta = card.querySelector(':scope > div:nth-child(2) .meta');
+      if (!meta) return;
+      if (!type) {
+        existing?.remove();
+        if (!meta.textContent.trim()) meta.textContent = 'Cadastro individual';
+        return;
+      }
+      if (existing?.textContent === labels[type]) return;
       existing?.remove();
+      // A etiqueta substitui "Cadastro individual", sem ocupar uma linha extra.
+      if (meta.textContent.trim() === 'Cadastro individual') meta.textContent = '';
+      const tag = document.createElement('span');
+      tag.className = 'representative-label uniform-card-label uniform-pending';
+      tag.textContent = labels[type];
+      meta.appendChild(tag);
     });
     const detail = students.find(item => item.id === detailStudentId);
     const existing = document.querySelector('#studentDetails .uniform-detail-row');
