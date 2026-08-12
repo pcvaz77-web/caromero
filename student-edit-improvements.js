@@ -428,12 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
-    .observation-manager-overlay { align-items:start; overflow-y:auto; }
+    .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:block; height:100dvh; padding:20px; overflow-y:scroll; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
     .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:none; overflow:visible; margin:24px auto; }
     .observation-manager-overlay .custom-observation-list { max-height:none; overflow:visible; padding-right:0; }
     @media (min-width:801px) {
       .photo-picker { padding:24px; }
       .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
+    }
+    @media (max-width:800px) {
+      .observation-manager-overlay { padding:12px; }
+      .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; margin:0 auto 24px; }
     }
   `;
   document.head.appendChild(style);
