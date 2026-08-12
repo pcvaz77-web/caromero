@@ -428,16 +428,20 @@ document.addEventListener('DOMContentLoaded', () => {
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
-    .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:block; height:100dvh; padding:20px; overflow-y:scroll; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
-    .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:none; overflow:visible; margin:24px auto; }
+    /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
+    .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
+    .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:calc(100dvh - 40px); overflow:hidden; margin:0; }
     .observation-manager-overlay .custom-observation-list { max-height:45vh; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; padding-right:5px; }
+    #studentModal { overscroll-behavior:none; touch-action:manipulation; }
+    #studentModal .modal { max-height:calc(100dvh - 24px); overflow:hidden; }
+    #studentModal .observation-choices { overscroll-behavior:contain; touch-action:pan-y; }
     @media (min-width:801px) {
       .photo-picker { padding:24px; }
       .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
     }
     @media (max-width:800px) {
       .observation-manager-overlay { padding:12px; }
-      .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; margin:0 auto 24px; }
+      .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; max-height:calc(100dvh - 24px); margin:0; }
       .observation-manager-overlay .custom-observation-list { max-height:42dvh; }
     }
   `;
