@@ -129,8 +129,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     const check = (item, key, label, admin) => `<label class="check"><input ${admin ? 'disabled' : ''} type="checkbox" ${item[key] ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...(data || [])].sort((first, second) => {
-      const permissionOrder = Number(hasGrantedPermission(second)) - Number(hasGrantedPermission(first));
-      if (permissionOrder) return permissionOrder;
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
       const secondName = second.profiles?.full_name?.trim() || second.profiles?.email || '';
       return firstName.localeCompare(secondName, 'pt-BR', { sensitivity:'base' });
