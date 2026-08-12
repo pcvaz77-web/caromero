@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .student > :nth-child(4) { display:none; }
       #studentDetails { width:320px; }
     }
+    @media (max-width:1150px) {
+      #list .student { border-bottom:1px solid #edf0f4 !important; }
+      #list .student:last-child { border-bottom:0 !important; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -51,7 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const id = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
       if (!id) return;
       let actions = card.querySelector('.actions-small');
-      if (!actions && (canEdit() || canDelete())) { actions = document.createElement('div'); actions.className = 'actions-small'; card.appendChild(actions); }
+      if (!actions && (canEdit() || canDelete())) {
+        const placeholder = card.lastElementChild;
+        actions = placeholder?.tagName === 'DIV' && !placeholder.textContent.trim() ? placeholder : document.createElement('div');
+        actions.className = 'actions-small';
+        if (!actions.parentElement) card.appendChild(actions);
+      }
       if (!actions) return;
       const edit = actions.querySelector('.edit');
       const remove = actions.querySelector('.delete');
