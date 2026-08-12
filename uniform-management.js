@@ -15,7 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const style = document.createElement('style');
   style.textContent = `
-    #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; }
+    #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:20px; overscroll-behavior:none; }.uniform-dialog { width:min(930px,100%); height:min(720px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; overflow:hidden; }
     .uniform-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:15px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:10px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:12px; font-weight:700; }.uniform-summary b { font-size:24px; color:#b42318; }
     .uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 22px 22px; }
@@ -86,19 +86,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }).sort((a,b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity:'base' }));
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
       const type = pending(item);
-      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${isAdmin() ? `<div class="uniform-action"><select class="uniform-select"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select><button class="btn primary uniform-save" type="button">Salvar</button></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${isAdmin() ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
     setTimeout(paintStudentCards, 0);
   }
   async function open() { modal.classList.remove('hidden'); await load(); render(); }
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
   ['uniformClass','uniformView'].forEach(id => get(id).onchange = render); get('uniformSearch').oninput = render;
-  get('uniformList').onclick = async event => {
-    const button = event.target.closest('.uniform-save'); if (!button || !isAdmin()) return;
-    const row = button.closest('.uniform-row'); const type = row.querySelector('.uniform-select').value;
-    button.disabled = true; button.textContent = 'Salvando…';
+  get('uniformList').onchange = async event => {
+    const select = event.target.closest('.uniform-select'); if (!select || !isAdmin()) return;
+    const row = select.closest('.uniform-row'); const type = select.value;
+    select.disabled = true;
     const { error } = await db.from('students').update({ uniform_pending:type || null }).eq('id', row.dataset.id);
-    if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); button.disabled = false; button.textContent = 'Salvar'; return; }
+    if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
     toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.'); await load(); render();
   };
   document.addEventListener('carometro:uniform-refresh', () => { if (!modal.classList.contains('hidden')) render(); else paintStudentCards(); });
