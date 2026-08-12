@@ -202,6 +202,28 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4');
       pill.classList.add(observationColorClass(text));
   };
+  const ensureStudentEditActions = () => {
+    const canEditStudent = permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+    if (!canEditStudent) return;
+    document.querySelectorAll('#list .student').forEach(card => {
+      const match = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/);
+      if (!match) return;
+      let actions = card.querySelector('.actions-small');
+      if (!actions) {
+        const placeholder = card.lastElementChild;
+        actions = placeholder?.tagName === 'DIV' && !placeholder.textContent.trim() ? placeholder : document.createElement('div');
+        actions.className = 'actions-small';
+        if (!actions.parentElement) card.appendChild(actions);
+      }
+      if (actions.querySelector('.edit')) return;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'edit';
+      edit.textContent = 'Editar';
+      edit.onclick = event => { event.stopPropagation(); window.editStudent(match[1]); };
+      actions.appendChild(edit);
+    });
+  };
   const applyObservationColors = () => {
     const representatives = [];
     document.querySelectorAll('#list .pill').forEach(pill => {
@@ -214,6 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.remove();
     });
     if (representatives.length) document.getElementById('list').prepend(...representatives);
+    ensureStudentEditActions();
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
