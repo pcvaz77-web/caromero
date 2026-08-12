@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal .modal-head { flex:none; padding:15px 20px 13px; }
       #studentModal .modal-head h3 { font-size:19px; }
       #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:13px 20px 14px; }
-      #studentModal .photo { display:grid; grid-template-columns:76px minmax(0,1fr); grid-template-areas:"preview info" "preview controls"; align-items:center; gap:5px 12px; margin-bottom:9px; }
+      #studentModal .photo { display:grid; grid-template-columns:90px minmax(0,1fr); grid-template-areas:"preview info" "preview controls"; align-items:center; gap:5px 12px; margin-bottom:9px; }
       #studentModal .photo .preview { grid-area:preview; width:62px; height:62px; }
       #studentModal .photo > div:not(.preview):not(.photo-controls) { grid-area:info; }
       #studentModal .photo label { margin:0; font-size:13px; }
