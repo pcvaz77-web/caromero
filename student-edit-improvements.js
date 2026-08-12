@@ -2,14 +2,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const welcome = document.createElement('p');
   welcome.id = 'welcomeGreeting';
   welcome.className = 'welcome-greeting';
-  welcome.textContent = 'Boas-vindas!';
+  const greetingForCurrentTime = () => {
+    const hour = new Date().getHours();
+    return hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  };
+  const formatGreeting = name => name ? `${greetingForCurrentTime()}, ${name}!` : `${greetingForCurrentTime()}!`;
+  welcome.textContent = formatGreeting('');
   document.querySelector('.top > div').prepend(welcome);
   const showWelcomeGreeting = async () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     const { data: userProfile } = await db.from('profiles').select('full_name').eq('id', signedInUser.id).maybeSingle();
     const fullName = userProfile?.full_name?.trim() || signedInUser.user_metadata?.full_name?.trim() || signedInUser.email?.split('@')[0] || '';
-    welcome.textContent = fullName ? `Boas-vindas, ${fullName}!` : 'Boas-vindas!';
+    welcome.textContent = formatGreeting(fullName);
   };
   showWelcomeGreeting();
   new MutationObserver(() => {
@@ -76,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     const { error: profileError } = await db.from('profiles').upsert({ id: signedInUser.id, full_name: name, email: signedInUser.email }, { onConflict: 'id' });
     if (profileError) { toast(profileError.message); return; }
-    welcome.textContent = `Boas-vindas, ${name}!`;
+    welcome.textContent = formatGreeting(name);
     closeProfileDrawer();
     toast(email !== signedInUser.email ? 'Alterações salvas. Confirme o novo e-mail pela mensagem recebida.' : 'Alterações salvas.');
   };
