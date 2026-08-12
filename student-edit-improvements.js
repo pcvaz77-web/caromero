@@ -305,7 +305,8 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
-    #profileNav { margin-top:auto; }
+    .nav { display:flex; flex-direction:column; gap:8px; }
+    #profileNav { margin:0; }
     .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
     .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
     .profile-drawer.open { transform:translateX(0); }
@@ -318,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .profile-drawer-footer { padding:18px 24px 24px; border-top:1px solid var(--line); }
     #studentsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
     #studentsNav:hover, #studentsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
-    @media(max-width:800px) { #profileNav { margin:0 0 0 8px; } .profile-drawer { width:min(390px,92vw); } }
+    @media(max-width:800px) { #profileNav { margin:0; } .profile-drawer { width:min(390px,92vw); } }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
