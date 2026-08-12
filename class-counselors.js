@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .counselor-entry { margin-left:auto; }
-    .counselor-modal { z-index:28; }
+    .counselor-modal { z-index:100; }
     .counselor-modal .modal { width:min(840px,100%); }
     .counselor-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
     .counselor-permissions { display:grid; grid-template-columns:repeat(2,1fr); gap:9px; margin:14px 0; }
@@ -250,6 +250,16 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshAssignments();
     window.openCounselorManager();
   };
+
+  // Acionamento de reserva para toques no botão do administrador em celulares.
+  document.addEventListener('click', event => {
+    const button = event.target.closest('#openCounselors');
+    if (!button || permission.role !== 'admin') return;
+    event.preventDefault();
+    event.stopPropagation();
+    document.getElementById('permissionsModal')?.classList.add('hidden');
+    window.openCounselorManager();
+  });
 
   // Acrescenta o conselheiro sempre que a lista ou o card forem redesenhados.
   // Assim a etiqueta não depende do intervalo de atualização do navegador.

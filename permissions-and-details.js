@@ -138,9 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
     const counselorManager = `<section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Cadastre, edite ou exclua conselheiros e as permissões por turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section>`;
     document.getElementById('permissionsList').innerHTML = `${counselorManager}<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
-    document.getElementById('openCounselors').onclick = async () => {
+    document.getElementById('openCounselors').onclick = event => {
+      event.preventDefault();
+      event.stopPropagation();
       if (typeof window.openCounselorManager !== 'function') { toast('O gerenciador está sendo carregado. Tente novamente em alguns segundos.'); return; }
-      await window.openCounselorManager();
+      document.getElementById('permissionsModal').classList.add('hidden');
+      window.openCounselorManager();
     };
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     window.filterPermissionUsers = value => {
