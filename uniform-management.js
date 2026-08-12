@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const detail = students.find(item => item.id === detailStudentId);
     const existing = document.querySelector('#studentDetails .uniform-detail-row');
     if (!pending(detail)) { existing?.remove(); return; }
-    if (existing) { existing.querySelector('.uniform-card-label').textContent = labels[pending(detail)]; return; }
+    if (existing) { const tag = existing.querySelector('.uniform-card-label'); if (tag) tag.textContent = labels[pending(detail)]; return; }
     const row = document.createElement('div');
     row.className = 'detail-row uniform-detail-row';
     row.innerHTML = '<b>Uniforme</b>';
@@ -68,16 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if ([...select.options].some(item => item.value === current)) select.value = current;
   }
   function render() {
-    classOptions(); paintStudentCards();
+    classOptions();
     const records = students;
     get('pendingUniform').textContent = records.filter(item => pending(item) === 'uniform').length;
     get('pendingShoes').textContent = records.filter(item => pending(item) === 'shoes').length;
     get('pendingBoth').textContent = records.filter(item => pending(item) === 'both').length;
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
+    const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
     const visible = records.filter(item => {
       const type = pending(item);
-      if (item.classId !== classId || (query && !item.name.toLocaleLowerCase('pt-BR').includes(query))) return false;
+      const belongsToClass = item.classId === classId || (!!selectedClass && String(item.className || '').trim() === String(selectedClass.name || '').trim());
+      if (!belongsToClass || (query && !item.name.toLocaleLowerCase('pt-BR').includes(query))) return false;
       if (view === 'all') return true;
       if (view === 'pending') return !!type;
       return type === view;
@@ -86,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const type = pending(item);
       return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${isAdmin() ? `<div class="uniform-action"><select class="uniform-select"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select><button class="btn primary uniform-save" type="button">Salvar</button></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
+    setTimeout(paintStudentCards, 0);
   }
   async function open() { modal.classList.remove('hidden'); await load(); render(); }
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
