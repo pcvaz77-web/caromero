@@ -1,4 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const welcome = document.createElement('p');
+  welcome.id = 'welcomeGreeting';
+  welcome.className = 'welcome-greeting';
+  welcome.textContent = 'Boas-vindas!';
+  document.querySelector('.top > div').prepend(welcome);
+  const showWelcomeGreeting = async () => {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) return;
+    const { data: userProfile } = await db.from('profiles').select('full_name').eq('id', signedInUser.id).maybeSingle();
+    const fullName = userProfile?.full_name?.trim() || signedInUser.user_metadata?.full_name?.trim() || signedInUser.email?.split('@')[0] || '';
+    welcome.textContent = fullName ? `Boas-vindas, ${fullName}!` : 'Boas-vindas!';
+  };
+  showWelcomeGreeting();
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
@@ -234,6 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
+    .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
