@@ -12,6 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     welcome.textContent = fullName ? `Boas-vindas, ${fullName}!` : 'Boas-vindas!';
   };
   showWelcomeGreeting();
+  new MutationObserver(() => {
+    if (!document.getElementById('app').classList.contains('hidden')) showWelcomeGreeting();
+  }).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
   const legacySignOut = document.getElementById('signOut');
   legacySignOut.classList.add('hidden');
   const profileButton = document.createElement('button');
