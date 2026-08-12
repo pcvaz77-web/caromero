@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .counselor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .counselor-label { margin-left:7px; vertical-align:middle; }
     .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
+    .counselor-title-label { margin-left:10px; vertical-align:middle; font-size:13px; letter-spacing:0; }
     .toast { z-index:100 !important; }
     @media (max-width:800px) { .counselor-entry, .counselor-modal { display:none !important; } }
   `;
@@ -74,7 +75,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const tag = document.createElement('span');
     tag.className = 'representative-label observation-custom-4 counselor-label';
     tag.textContent = labelText;
-    row.appendChild(tag);
+      row.appendChild(tag);
+  };
+
+  const drawCounselorTitle = () => {
+    const title = document.getElementById('pageTitle');
+    const selectedClass = classes.find(item => item.id === selectedClassId);
+    if (!title || !selectedClass) return;
+    const names = counselorNamesForClass(selectedClass.id);
+    title.textContent = selectedClass.name;
+    if (!names.length) return;
+    const tag = document.createElement('span');
+    tag.className = 'representative-label observation-custom-4 counselor-title-label';
+    tag.textContent = `Conselheiro ${names.join(' · ')}`;
+    title.appendChild(tag);
   };
 
   async function refreshAssignments() {
@@ -96,6 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (previous !== JSON.stringify(assignments)) render();
     drawCounselorLabels();
+    drawCounselorTitle();
   }
 
   function resetCounselorForm() {
@@ -210,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
   render = (...args) => {
     baseRender(...args);
     drawCounselorLabels();
+    drawCounselorTitle();
   };
   refreshAssignments();
   setInterval(refreshAssignments, 4000);
