@@ -281,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const preview = document.getElementById('preview');
   const classSelect = document.getElementById('classId');
   const classField = classSelect.closest('.field');
+  classField.classList.add('move-target-class');
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
   let removePhoto = false;
@@ -512,6 +513,17 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentModal .form, #studentModal .grid, #studentModal .student-observations-field { min-height:0 !important; overflow:hidden !important; }
     #studentModal .observation-choices { flex:1 1 auto !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
     #studentModal .actions { position:relative; z-index:2; flex:none; margin-top:8px; padding-top:8px; background:#fff; }
+    #studentModal .move-class { min-height:36px; padding:5px 8px; }
+    #studentModal .move-class .check { gap:6px; font-size:12px; }
+    @media (min-width:801px) {
+      /* Ao transferir, a turma escolhida ocupa a mesma linha da confirmação. */
+      #studentModal .grid { display:grid !important; grid-template-columns:minmax(0, 1fr) 220px; align-content:start; gap:0 10px; }
+      #studentModal .grid > .span, #studentModal .grid > .student-observations-field { grid-column:1 / -1; }
+      #studentModal .move-class { grid-column:1; align-self:center; margin-bottom:6px; padding:5px 8px; }
+      #studentModal .move-target-class { grid-column:2; align-self:center; margin:0 0 6px; }
+      #studentModal .move-target-class.move-target-active label { display:none; }
+      #studentModal .move-target-class.move-target-active select { min-height:38px; padding:7px 9px; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -523,6 +535,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setClassVisibility() {
     const moving = can('can_edit_class') && document.getElementById('moveStudent').checked;
     classField.classList.toggle('hidden', !moving);
+    classField.classList.toggle('move-target-active', moving);
     classSelect.required = moving;
   }
 
