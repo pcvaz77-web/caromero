@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
     .permission-search { flex:1; min-height:48px; }
     #permissionsList { display:grid; gap:12px; }
-    .perm { display:grid; grid-template-columns:minmax(230px,1fr) auto 130px auto; gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
+    .perm { display:grid; grid-template-columns:minmax(230px,1fr) auto auto; gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
     .permission-user b { display:block; font-size:15px; }
     .permission-user .meta { margin-top:4px; }
     .permission-basic { display:flex; flex-wrap:wrap; gap:10px; }
@@ -45,6 +45,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const canDelete = () => permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all;
   const canEdit = () => permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
+  const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report'];
+  const permissionLabel = item => item.role === 'admin' ? 'Administrador' : (permissionFields.some(key => item[key]) ? 'Acesso de Editor' : 'Visualizador');
+
+  function applyCurrentPermission(nextPermission) {
+    if (!nextPermission) return;
+    permission = nextPermission.role === 'admin' ? { ...nextPermission, can_add_students:true, can_edit_students:true } : nextPermission;
+    const admin = permission.role === 'admin';
+    document.getElementById('roleLabel').textContent = permissionLabel(permission);
+    document.getElementById('permissionsNav').classList.toggle('hidden', !admin);
+    syncAddActions();
+    render();
+    syncStudentActions();
+  }
+
+  async function refreshCurrentPermission() {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
+    const { data } = await db.from('user_permissions').select('*').eq('user_id', signedInUser.id).maybeSingle();
+    if (!data) return;
+    if (permission.role !== data.role || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data)) applyCurrentPermission(data);
+  }
 
   function syncAddActions() {
     ['newStudent', 'newBulk', 'newClass'].forEach(id => document.getElementById(id)?.classList.toggle('hidden', !canAdd()));
@@ -84,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
-      return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><select ${admin ? 'disabled' : ''} onchange="setUserPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}</div></article>`;
+      return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}</div></article>`;
     }).join('');
     document.getElementById('permissionsList').innerHTML = `<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -107,9 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.setUserPermission = async (id, key, value) => {
     const update = { [key]: value, updated_at:new Date().toISOString() };
-    if (key === 'role' && value === 'viewer') Object.assign(update, { can_add_students:false, can_delete_students:false, can_edit_all:false, can_edit_photo:false, can_edit_name:false, can_edit_class:false, can_edit_report:false });
     const { error } = await db.from('user_permissions').update(update).eq('user_id',id);
     if (error) toast(error.message); else { toast('Permissão atualizada.'); openPermissions(); }
   };
   document.getElementById('permissionsNav').onclick = openPermissions;
+  db.auth.getUser().then(({ data: { user: signedInUser } }) => {
+    if (!signedInUser) return;
+    if (db.channel) db.channel(`permission-${signedInUser.id}`).on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_permissions', filter:`user_id=eq.${signedInUser.id}` }, refreshCurrentPermission).subscribe();
+  });
+  setInterval(refreshCurrentPermission, 4000);
 });
