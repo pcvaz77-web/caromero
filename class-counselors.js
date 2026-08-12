@@ -162,7 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderManager() {
     const classSelect = document.getElementById('counselorClass');
     classSelect.innerHTML = '<option value="" selected disabled>Selecione a turma</option>' + classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
-    document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário com conta</option>' + registeredUsers.map(item => `<option value="${item.user_id}">${escapeHtml(counselorName(item))}${item.profiles?.email ? ` — ${escapeHtml(item.profiles.email)}` : ''}</option>`).join('') + '<option value="external">Conselheiro sem conta</option>';
+    const sortedUsers = [...registeredUsers].sort((first, second) => counselorName(first).localeCompare(counselorName(second), 'pt-BR', { sensitivity:'base' }));
+    document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário</option>' + sortedUsers.map(item => `<option value="${item.user_id}">${escapeHtml(counselorName(item))}</option>`).join('') + '<option value="external">Conselheiro sem conta</option>';
     document.getElementById('counselorPermissions').innerHTML = counselorFields.map(([key, label]) => `<label class="check"><input type="checkbox" name="${key}"> ${label}</label>`).join('');
     document.getElementById('counselorList').innerHTML = assignments.length ? assignments.map(item => {
       const person = registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id);
