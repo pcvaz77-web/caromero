@@ -12,6 +12,62 @@ document.addEventListener('DOMContentLoaded', () => {
     welcome.textContent = fullName ? `Boas-vindas, ${fullName}!` : 'Boas-vindas!';
   };
   showWelcomeGreeting();
+  const legacySignOut = document.getElementById('signOut');
+  legacySignOut.classList.add('hidden');
+  const profileButton = document.createElement('button');
+  profileButton.id = 'profileNav';
+  profileButton.type = 'button';
+  profileButton.textContent = '◉  Meu Perfil';
+  document.querySelector('.nav').appendChild(profileButton);
+  const profileDrawer = document.createElement('aside');
+  profileDrawer.id = 'profileDrawer';
+  profileDrawer.className = 'profile-drawer';
+  profileDrawer.innerHTML = `<div class="profile-drawer-head"><div><p class="eyebrow">Minha conta</p><h2>Meu Perfil</h2></div><button type="button" class="close" id="closeProfileDrawer" aria-label="Fechar">×</button></div><form id="profileForm" class="profile-form"><div class="profile-user"><div class="profile-user-mark" id="profileInitial">U</div><div><b id="profileCurrentName">Usuário</b><div class="meta" id="profileCurrentEmail"></div></div></div><div class="field"><label for="profileName">Nome</label><input id="profileName" autocomplete="name" required maxlength="100"></div><div class="field"><label for="profileEmail">E-mail</label><input id="profileEmail" type="email" autocomplete="email" required></div><div class="field"><label for="profilePassword">Nova senha</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Deixe em branco para manter a atual"><div class="meta">Mínimo de 6 caracteres.</div></div><button class="btn primary full" type="submit">Salvar alterações</button></form><div class="profile-drawer-footer"><button type="button" class="btn danger-outline full" id="profileSignOut">Sair da conta</button></div>`;
+  const profileBackdrop = document.createElement('div');
+  profileBackdrop.id = 'profileBackdrop';
+  profileBackdrop.className = 'profile-backdrop hidden';
+  document.body.append(profileBackdrop, profileDrawer);
+  const closeProfileDrawer = () => {
+    profileDrawer.classList.remove('open');
+    profileBackdrop.classList.add('hidden');
+  };
+  const openProfileDrawer = async () => {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) return;
+    const { data: currentProfile } = await db.from('profiles').select('full_name,email').eq('id', signedInUser.id).maybeSingle();
+    const fullName = currentProfile?.full_name?.trim() || signedInUser.user_metadata?.full_name?.trim() || signedInUser.email?.split('@')[0] || '';
+    const currentEmail = signedInUser.email || currentProfile?.email || '';
+    document.getElementById('profileName').value = fullName;
+    document.getElementById('profileEmail').value = currentEmail;
+    document.getElementById('profilePassword').value = '';
+    document.getElementById('profileCurrentName').textContent = fullName || 'Usuário';
+    document.getElementById('profileCurrentEmail').textContent = currentEmail;
+    document.getElementById('profileInitial').textContent = (fullName || currentEmail || 'U').trim().charAt(0).toUpperCase();
+    profileBackdrop.classList.remove('hidden');
+    profileDrawer.classList.add('open');
+  };
+  profileButton.onclick = openProfileDrawer;
+  document.getElementById('closeProfileDrawer').onclick = closeProfileDrawer;
+  profileBackdrop.onclick = closeProfileDrawer;
+  document.getElementById('profileSignOut').onclick = () => legacySignOut.click();
+  document.getElementById('profileForm').onsubmit = async event => {
+    event.preventDefault();
+    const name = document.getElementById('profileName').value.trim();
+    const email = document.getElementById('profileEmail').value.trim();
+    const password = document.getElementById('profilePassword').value;
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser || !name || !email) return;
+    const update = { data: { full_name: name } };
+    if (email !== signedInUser.email) update.email = email;
+    if (password) update.password = password;
+    const { error } = await db.auth.updateUser(update);
+    if (error) { toast(error.message); return; }
+    const { error: profileError } = await db.from('profiles').upsert({ id: signedInUser.id, full_name: name, email: signedInUser.email }, { onConflict: 'id' });
+    if (profileError) { toast(profileError.message); return; }
+    welcome.textContent = `Boas-vindas, ${name}!`;
+    closeProfileDrawer();
+    toast(email !== signedInUser.email ? 'Alterações salvas. Confirme o novo e-mail pela mensagem recebida.' : 'Alterações salvas.');
+  };
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
@@ -248,6 +304,18 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
+    #profileNav { margin-top:auto; }
+    .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
+    .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
+    .profile-drawer.open { transform:translateX(0); }
+    .profile-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:26px 24px 18px; border-bottom:1px solid var(--line); }
+    .profile-drawer-head .eyebrow { margin:0 0 4px; }
+    .profile-drawer-head h2 { margin:0; font-size:24px; }
+    .profile-form { flex:1; overflow:auto; padding:22px 24px; }
+    .profile-user { display:flex; align-items:center; gap:12px; padding:14px; margin-bottom:22px; border-radius:11px; background:#f4f7ff; }
+    .profile-user-mark { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:#dce6ff; color:#315dbb; font-weight:850; }
+    .profile-drawer-footer { padding:18px 24px 24px; border-top:1px solid var(--line); }
+    @media(max-width:800px) { #profileNav { margin-top:0; } .profile-drawer { width:min(390px,92vw); } }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
