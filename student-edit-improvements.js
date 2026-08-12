@@ -428,6 +428,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
+    @media (min-width:801px) {
+      .photo-picker { padding:24px; }
+      .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); max-height:calc(100vh - 48px); grid-template-rows:auto auto auto auto minmax(0,1fr) auto; overflow:hidden; }
+      .observation-manager .custom-observation-list { min-height:0; max-height:none; overflow-y:auto; padding-right:5px; }
+    }
   `;
   document.head.appendChild(style);
 
