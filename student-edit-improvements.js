@@ -326,11 +326,16 @@ document.addEventListener('DOMContentLoaded', () => {
     cards.forEach(card => visiblePhotoObserver.observe(card));
   };
   new MutationObserver(observeVisiblePhotos).observe(document.getElementById('list'), { childList: true });
+  let latestLoadRequest = 0;
   window.load = async () => {
+    const requestId = ++latestLoadRequest;
     const [studentsResult, classesResult] = await Promise.all([
       db.from('students').select('*').order('created_at', { ascending: false }),
       db.from('classes').select('*').order('name')
     ]);
+    // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
+    // deixe uma resposta antiga substituir a lista mais recente na tela.
+    if (requestId !== latestLoadRequest) return;
     if (studentsResult.error || classesResult.error) { toast('Atualize o banco de dados com o novo script de turmas.'); return; }
     classes = classesResult.data || [];
     const classNames = new Map(classes.map(item => [item.id, item.name]));

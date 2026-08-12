@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
       : `Excluir a turma ${cls.name}? Esta ação não pode ser desfeita.`;
     if (!confirm(message)) return;
 
+    const typedName = prompt(`Para confirmar a exclusão, digite exatamente o nome da turma: ${cls.name}`);
+    if (typedName !== cls.name) {
+      toast('Exclusão cancelada. O nome da turma não foi confirmado.');
+      return;
+    }
+
     deleteButton.disabled = true;
     try {
       // Remove first the dependent records. This also works when the database
