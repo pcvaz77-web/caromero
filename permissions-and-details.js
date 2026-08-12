@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const canDelete = () => permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all;
-  const canEdit = () => permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+  const canEdit = () => permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
 
   function syncAddActions() {

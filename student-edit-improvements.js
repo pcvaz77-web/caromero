@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.classList.add(observationColorClass(text));
   };
   const ensureStudentEditActions = () => {
-    const canEditStudent = permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+    const canEditStudent = permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
     if (!canEditStudent) return;
     document.querySelectorAll('#list .student').forEach(card => {
       const match = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/);
@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
   let removePhoto = false;
-  const can = key => permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission[key];
+  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key];
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
