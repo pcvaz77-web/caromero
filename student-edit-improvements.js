@@ -451,13 +451,14 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal .modal-head { flex:none; padding:15px 20px 13px; }
       #studentModal .modal-head h3 { font-size:19px; }
       #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:13px 20px 14px; }
-      #studentModal .photo { display:grid; grid-template-columns:62px minmax(0,1fr); grid-template-areas:"preview info" "preview controls"; align-items:center; gap:5px 10px; margin-bottom:9px; }
+      #studentModal .photo { display:grid; grid-template-columns:76px minmax(0,1fr); grid-template-areas:"preview info" "preview controls"; align-items:center; gap:5px 12px; margin-bottom:9px; }
       #studentModal .photo .preview { grid-area:preview; width:62px; height:62px; }
       #studentModal .photo > div:not(.preview):not(.photo-controls) { grid-area:info; }
       #studentModal .photo label { margin:0; font-size:13px; }
       #studentModal .photo .meta { display:none; }
-      #studentModal .photo-controls, #studentModal .photo-source-actions { grid-area:controls; gap:6px; margin:0; flex-wrap:nowrap; }
-      #studentModal .photo-controls .btn, #studentModal .photo-source-actions .btn { min-height:33px; padding:6px 9px; font-size:12px; white-space:nowrap; }
+      #studentModal .photo-controls { grid-area:controls; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); width:100%; min-width:0; gap:6px; margin:0; }
+      #studentModal .photo-source-actions { gap:6px; margin:0; flex-wrap:nowrap; }
+      #studentModal .photo-controls .btn, #studentModal .photo-source-actions .btn { width:100%; min-width:0; min-height:33px; padding:6px 5px; font-size:12px; white-space:nowrap; }
       #studentModal .grid { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
       #studentModal .field { margin-bottom:8px; }
       #studentModal .field label { margin-bottom:4px; }
