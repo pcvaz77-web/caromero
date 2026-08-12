@@ -346,9 +346,16 @@ document.addEventListener('DOMContentLoaded', () => {
       className: classNames.get(item.class_id) || item.class_name,
       report: item.has_report === 'Sim' ? 'Laudo' : item.has_report === 'Não' ? '' : item.has_report,
       photoPath: item.photo_path,
+      uniform_received: item.uniform_received,
+      shoes_received: item.shoes_received,
+      uniform_size: item.uniform_size,
+      shoe_size: item.shoe_size,
+      uniform_received_at: item.uniform_received_at,
+      uniform_notes: item.uniform_notes,
       photoUrl: ''
     }));
     render();
+    document.dispatchEvent(new Event('carometro:uniform-refresh'));
   };
 
   const controls = document.createElement('div');
