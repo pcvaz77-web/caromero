@@ -509,7 +509,9 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentModal .photo .preview { width:clamp(72px, 12vw, 82px) !important; height:clamp(72px, 12vw, 82px) !important; }
     #studentModal .photo .meta, #studentModal .move-class .meta { display:none !important; }
     #studentModal .manage-observations { width:auto; min-height:0; margin:3px 0 5px; padding:2px 0; border:0; border-radius:0; background:transparent; }
-    #studentModal .observation-choices { min-height:min(125px, 22dvh) !important; max-height:none !important; }
+    #studentModal .form, #studentModal .grid, #studentModal .student-observations-field { min-height:0 !important; overflow:hidden !important; }
+    #studentModal .observation-choices { flex:1 1 auto !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
+    #studentModal .actions { position:relative; z-index:2; flex:none; margin-top:8px; padding-top:8px; background:#fff; }
   `;
   document.head.appendChild(style);
 
