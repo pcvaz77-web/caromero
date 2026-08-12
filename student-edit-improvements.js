@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const profileButton = document.createElement('button');
   profileButton.id = 'profileNav';
   profileButton.type = 'button';
-  profileButton.textContent = '◉  Meu Perfil';
+  profileButton.innerHTML = '<span class="profile-nav-desktop">◉ &nbsp; Meu Perfil</span><span class="profile-nav-mobile"><span class="profile-nav-avatar"><span></span></span><span>Meu Perfil</span></span>';
   document.querySelector('.nav').appendChild(profileButton);
   const profileDrawer = document.createElement('aside');
   profileDrawer.id = 'profileDrawer';
@@ -307,6 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
     .nav { display:flex; flex-direction:column; gap:8px; }
     #profileNav { margin:0; }
+    .profile-nav-mobile { display:none; }
     .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
     .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
     .profile-drawer.open { transform:translateX(0); }
@@ -319,7 +320,17 @@ document.addEventListener('DOMContentLoaded', () => {
     .profile-drawer-footer { padding:18px 24px 24px; border-top:1px solid var(--line); }
     #studentsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
     #studentsNav:hover, #studentsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
-    @media(max-width:800px) { #profileNav { margin:0; } .profile-drawer { width:min(390px,92vw); } }
+    @media(max-width:800px) {
+      .side .nav { flex-direction:row; align-items:center; gap:8px; }
+      .side .nav #studentsNav, .side .nav #permissionsNav { flex:1 1 0 !important; min-width:0; }
+      .side .nav #profileNav { flex:0 0 68px !important; min-height:58px; margin:0; padding:4px 0 !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+      #profileNav .profile-nav-desktop { display:none; }
+      #profileNav .profile-nav-mobile { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; line-height:1; font-weight:750; white-space:nowrap; }
+      .profile-nav-avatar { width:29px; height:29px; position:relative; display:block; overflow:hidden; border-radius:50%; background:linear-gradient(145deg,#4ecdf1,#2f6fd7); }
+      .profile-nav-avatar::before { content:''; position:absolute; top:5px; left:10px; width:9px; height:9px; border-radius:50%; background:#f6f8fc; }
+      .profile-nav-avatar span { position:absolute; bottom:-5px; left:5px; width:19px; height:16px; border-radius:50% 50% 0 0; background:#f6f8fc; }
+      .profile-drawer { width:min(390px,92vw); }
+    }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
