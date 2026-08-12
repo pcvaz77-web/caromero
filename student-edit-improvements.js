@@ -203,11 +203,13 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.classList.add(observationColorClass(text));
   };
   const ensureStudentEditActions = () => {
-    const canEditStudent = permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
-    if (!canEditStudent) return;
     document.querySelectorAll('#list .student').forEach(card => {
       const match = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/);
       if (!match) return;
+      const student = students.find(item => item.id === match[1]);
+      const counselor = window.counselorRightsForClass?.(student?.classId);
+      const canEditStudent = permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report || counselor?.can_edit_all || counselor?.can_edit_photo || counselor?.can_edit_name || counselor?.can_edit_report;
+      if (!canEditStudent) return;
       let actions = card.querySelector('.actions-small');
       if (!actions) {
         const placeholder = card.lastElementChild;
@@ -274,7 +276,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
   let removePhoto = false;
-  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key];
+  let activeCounselorRights = null;
+  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key] || activeCounselorRights?.can_edit_all || activeCounselorRights?.[key];
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -461,6 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     await loadObservationOptions();
+    activeCounselorRights = student ? window.counselorRightsForClass?.(student.classId) || null : null;
     form.reset();
     pendingPhoto = null;
     removePhoto = false;
@@ -485,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('takePhoto').disabled = photoDisabled;
     photoActions.classList.toggle('hidden', !!student || photoDisabled);
     controls.classList.toggle('hidden', !student || !can('can_edit_photo'));
-    moveField.classList.toggle('hidden', !student || !can('can_edit_class'));
+    moveField.classList.toggle('hidden', !student || !can('can_edit_class') || !!activeCounselorRights);
     document.getElementById('moveStudent').checked = false;
     document.getElementById('moveStudent').disabled = !!student && !can('can_edit_class');
     classField.classList.toggle('hidden', !!student);

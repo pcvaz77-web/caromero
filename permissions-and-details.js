@@ -45,6 +45,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const canDelete = () => permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all;
   const canEdit = () => permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+  const canEditStudent = student => {
+    if (canEdit()) return true;
+    const counselor = window.counselorRightsForClass?.(student?.classId);
+    return !!(counselor?.can_edit_all || counselor?.can_edit_photo || counselor?.can_edit_name || counselor?.can_edit_report);
+  };
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
   const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report'];
   const permissionLabel = item => item.role === 'admin' ? 'Administrador' : (permissionFields.some(key => item[key]) ? 'Acesso de Editor' : 'Visualizador');
@@ -77,8 +82,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.student').forEach(card => {
       const id = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
       if (!id) return;
+      const student = students.find(item => item.id === id);
+      const studentCanEdit = canEditStudent(student);
       let actions = card.querySelector('.actions-small');
-      if (!actions && (canEdit() || canDelete())) {
+      if (!actions && (studentCanEdit || canDelete())) {
         const placeholder = card.lastElementChild;
         actions = placeholder?.tagName === 'DIV' && !placeholder.textContent.trim() ? placeholder : document.createElement('div');
         actions.className = 'actions-small';
@@ -87,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!actions) return;
       const edit = actions.querySelector('.edit');
       const remove = actions.querySelector('.delete');
-      if (edit) edit.hidden = !canEdit();
+      if (edit) edit.hidden = !studentCanEdit;
       if (remove) remove.hidden = !canDelete();
       if (canDelete() && !remove) { const button = document.createElement('button'); button.className = 'delete'; button.textContent = 'Excluir'; button.onclick = event => { event.stopPropagation(); window.deleteStudent(id); }; actions.appendChild(button); }
     });
