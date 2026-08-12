@@ -23,13 +23,18 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentDetails .detail-head h3 { font-size:24px; }
     #studentDetails .detail-row { font-size:16px; padding:15px 0; }
     @media (max-width:800px) {
-      #permissionsModal .modal { width:100%; }
-      #permissionsModal .form { padding:18px; }
+      #permissionsModal { padding:10px; align-items:start; overflow:auto; }
+      #permissionsModal .modal { width:100%; max-height:calc(100vh - 20px); margin:auto 0; }
+      #permissionsModal .form { padding:16px; }
       .counselor-management { align-items:stretch; flex-direction:column; }
       .counselor-management .btn { width:100%; }
-      .perm { grid-template-columns:1fr; gap:12px; padding:15px; }
-      .permission-basic { gap:8px; }
-      .edit-rights { grid-column:auto; grid-template-columns:1fr 1fr; padding-top:12px; }
+      .permission-search-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-bottom:12px; }
+      .permission-search { min-width:0; min-height:42px; padding:9px 11px; font-size:14px; }
+      .permission-search-form .btn { min-height:42px; padding:9px 12px; font-size:13px; }
+      .perm { grid-template-columns:1fr; gap:10px; padding:13px; min-width:0; }
+      .permission-primary, .permission-basic, .edit-rights { display:grid; grid-template-columns:1fr; gap:7px; min-width:0; }
+      .edit-rights { grid-column:auto; padding-top:10px; }
+      .permission-primary .check, .permission-basic .check, .edit-rights .check { min-height:36px; padding:8px 10px; font-size:12px; line-height:1.25; overflow-wrap:anywhere; }
       #studentDetails { width:auto; padding:20px; }
       #studentDetails .detail-head .avatar { width:116px; height:116px; font-size:28px; }
     }
