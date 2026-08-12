@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let registeredUsers = [];
   let editingCounselorId = null;
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
+  window.counselorHasEditPermission = () => ownAssignments.some(item => counselorFields.some(([key]) => !!item[key]));
 
   const style = document.createElement('style');
   style.textContent = `
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .counselor-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .counselor-label { margin-left:7px; vertical-align:middle; }
     .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
+    .toast { z-index:100 !important; }
     @media (max-width:800px), (hover:none) and (pointer:coarse) { .counselor-entry, .counselor-modal { display:none !important; } }
   `;
   document.head.appendChild(style);
@@ -43,16 +45,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
   const counselorName = item => item.counselor_name?.trim() || item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
   const assignmentText = item => counselorFields.filter(([key]) => item[key]).map(([, label]) => label).join(' · ') || 'Sem permissão selecionada';
+  const hasCounselorPermission = item => counselorFields.some(([key]) => !!item[key]);
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
   const drawCounselorLabels = () => {
     document.querySelectorAll('#classList button').forEach(button => {
-      button.querySelector('.counselor-label')?.remove();
       const classId = button.getAttribute('onclick')?.match(/selectClass\('([^']+)'\)/)?.[1];
       const names = counselorNamesForClass(classId);
-      if (!names.length) return;
+      const existing = button.querySelector('.counselor-label');
+      if (!names.length) { existing?.remove(); return; }
+      const labelText = `Conselheiro ${names.join(' · ')}`;
+      if (existing?.textContent === labelText) return;
+      existing?.remove();
       const tag = document.createElement('span');
       tag.className = 'representative-label observation-custom-4 counselor-label';
-      tag.textContent = `Conselheiro ${names.join(' · ')}`;
+      tag.textContent = labelText;
       button.appendChild(tag);
     });
     const student = students.find(item => item.id === detailStudentId);
@@ -78,6 +84,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const previous = JSON.stringify(assignments);
     assignments = data || [];
     ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
+    const counselorCanEdit = ownAssignments.some(hasCounselorPermission);
+    if (permission.role !== 'admin' && !Object.keys(permission).some(key => key.startsWith('can_') && permission[key])) {
+      document.getElementById('roleLabel').textContent = counselorCanEdit ? 'Acesso de Editor' : 'Visualizador';
+    }
     if (previous !== JSON.stringify(assignments)) { render(); drawCounselorLabels(); }
   }
 
@@ -133,7 +143,6 @@ document.addEventListener('DOMContentLoaded', () => {
       row.counselor_user_id = selectedUser.user_id;
       row.counselor_name = counselorName(selectedUser);
       counselorFields.forEach(([key]) => { row[key] = document.querySelector(`#counselorPermissions input[name="${key}"]`).checked; });
-      if (!counselorFields.some(([key]) => row[key])) { toast('Selecione ao menos uma permissão.'); return; }
     } else {
       row.counselor_name = typedName;
       row.counselor_user_id = null;

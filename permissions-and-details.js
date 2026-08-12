@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
   const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report'];
-  const permissionLabel = item => item.role === 'admin' ? 'Administrador' : (permissionFields.some(key => item[key]) ? 'Acesso de Editor' : 'Visualizador');
+  const permissionLabel = item => item.role === 'admin' ? 'Administrador' : (permissionFields.some(key => item[key]) || (item.user_id === user?.id && window.counselorHasEditPermission?.()) ? 'Acesso de Editor' : 'Visualizador');
   const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 
   function applyCurrentPermission(nextPermission) {
