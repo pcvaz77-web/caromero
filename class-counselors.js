@@ -35,7 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
     .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
     .counselor-title-label { margin-left:10px; vertical-align:middle; font-size:13px; letter-spacing:0; }
     .toast { z-index:100 !important; }
-    @media (max-width:800px) { .counselor-entry, .counselor-modal { display:none !important; } }
+    @media (max-width:800px) {
+      .counselor-modal { padding:10px; align-items:start; overflow:auto; }
+      .counselor-modal .modal { width:100%; max-height:calc(100vh - 20px); margin:auto 0; }
+      .counselor-modal .modal-head { padding:17px; align-items:flex-start; }
+      .counselor-modal .form { padding:17px; }
+      .counselor-form-grid, .counselor-permissions { grid-template-columns:1fr; gap:10px; }
+      .counselor-item { align-items:flex-start; flex-direction:column; gap:10px; }
+      .counselor-actions { width:100%; justify-content:stretch; }
+      .counselor-actions button { flex:1; }
+      .counselor-modal .actions { position:sticky; bottom:0; background:#fff; padding:14px 0 2px; }
+      .counselor-modal .actions .btn { flex:1; }
+    }
   `;
   document.head.appendChild(style);
 
@@ -161,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.openCounselorManager = async () => {
-    if (permission.role !== 'admin' || window.matchMedia('(max-width:800px)').matches) return;
+    if (permission.role !== 'admin') return;
     try {
       const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
         db.from('user_permissions').select('user_id,profiles(email,full_name)'),

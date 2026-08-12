@@ -25,6 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
     @media (max-width:800px) {
       #permissionsModal .modal { width:100%; }
       #permissionsModal .form { padding:18px; }
+      .counselor-management { align-items:stretch; flex-direction:column; }
+      .counselor-management .btn { width:100%; }
       .perm { grid-template-columns:1fr; gap:12px; padding:15px; }
       .permission-basic { gap:8px; }
       .edit-rights { grid-column:auto; grid-template-columns:1fr 1fr; padding-top:12px; }
