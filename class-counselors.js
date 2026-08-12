@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     editingCounselorId = null;
     const form = document.getElementById('counselorForm');
     form.reset();
-    form.querySelector('[type="submit"]').textContent = 'Salvar conselheiro';
+    form.querySelector('button.primary').textContent = 'Salvar conselheiro';
     document.getElementById('counselorPermissionArea').classList.remove('hidden');
     document.getElementById('counselorAccountHint').textContent = 'Selecione um usuário cadastrado para liberar permissões.';
   }
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered);
       counselorFields.forEach(([key]) => { document.querySelector(`#counselorPermissions input[name="${key}"]`).checked = !!item[key]; });
       document.getElementById('counselorAccountHint').textContent = registered ? 'Edite as permissões para esta turma.' : 'Sem conta: este registro não libera acesso ao sistema.';
-      document.querySelector('#counselorForm [type="submit"]').textContent = 'Salvar alterações';
+      document.querySelector('#counselorForm button.primary').textContent = 'Salvar alterações';
       document.getElementById('counselorForm').scrollIntoView({ behavior:'smooth', block:'start' });
       return;
     }
