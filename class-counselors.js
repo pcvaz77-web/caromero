@@ -101,10 +101,14 @@ document.addEventListener('DOMContentLoaded', () => {
   function resetCounselorForm() {
     editingCounselorId = null;
     const form = document.getElementById('counselorForm');
+    if (!form) return;
     form.reset();
-    form.querySelector('button.primary').textContent = 'Salvar conselheiro';
-    document.getElementById('counselorPermissionArea').classList.remove('hidden');
-    document.getElementById('counselorAccountHint').textContent = 'Selecione um usuário cadastrado para liberar permissões.';
+    const saveButton = form.querySelector('button.primary');
+    if (saveButton) saveButton.textContent = 'Salvar conselheiro';
+    const permissionArea = document.getElementById('counselorPermissionArea');
+    if (permissionArea) permissionArea.classList.remove('hidden');
+    const accountHint = document.getElementById('counselorAccountHint');
+    if (accountHint) accountHint.textContent = 'Selecione um usuário cadastrado para liberar permissões.';
   }
 
   function renderManager() {
@@ -133,11 +137,14 @@ document.addEventListener('DOMContentLoaded', () => {
       drawCounselorLabels();
       renderManager();
       resetCounselorForm();
-      document.getElementById('counselorUser').oninput = () => {
-        const value = document.getElementById('counselorUser').value.trim();
+      const counselorInput = document.getElementById('counselorUser');
+      if (!counselorInput) { toast('Não foi possível preparar o formulário de conselheiros.'); return; }
+      counselorInput.oninput = () => {
+        const value = counselorInput.value.trim();
         const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
-        document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered && !!value);
-        document.getElementById('counselorAccountHint').textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
+        document.getElementById('counselorPermissionArea')?.classList.toggle('hidden', !registered && !!value);
+        const accountHint = document.getElementById('counselorAccountHint');
+        if (accountHint) accountHint.textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
       };
       modal.classList.remove('hidden');
     } catch (error) {
