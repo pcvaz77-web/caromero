@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'counselorModal';
   modal.className = 'modal-bg counselor-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Nome do conselheiro</label><input id="counselorUser" list="counselorUsers" required placeholder="Digite ou selecione um usuário"><datalist id="counselorUsers"></datalist><div id="counselorAccountHint" class="meta">Selecione um usuário cadastrado para liberar permissões.</div></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><div id="counselorPermissionArea"><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Nome do conselheiro</label><select id="counselorUser" required></select><input id="counselorExternalName" class="hidden" maxlength="120" placeholder="Digite o nome do conselheiro"><div id="counselorAccountHint" class="meta">Escolha um usuário com conta para liberar permissões.</div></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><div id="counselorPermissionArea"><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
   document.body.appendChild(modal);
 
   const closeManager = () => modal.classList.add('hidden');
@@ -154,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (saveButton) saveButton.textContent = 'Salvar conselheiro';
     const permissionArea = document.getElementById('counselorPermissionArea');
     if (permissionArea) permissionArea.classList.remove('hidden');
+    document.getElementById('counselorExternalName')?.classList.add('hidden');
     const accountHint = document.getElementById('counselorAccountHint');
     if (accountHint) accountHint.textContent = 'Selecione um usuário cadastrado para liberar permissões.';
   }
@@ -161,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderManager() {
     const classSelect = document.getElementById('counselorClass');
     classSelect.innerHTML = '<option value="" selected disabled>Selecione a turma</option>' + classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
-    document.getElementById('counselorUsers').innerHTML = registeredUsers.map(item => `<option value="${escapeHtml(counselorName(item))}" data-id="${item.user_id}">${escapeHtml(item.profiles?.email || '')}</option>`).join('');
+    document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário com conta</option>' + registeredUsers.map(item => `<option value="${item.user_id}">${escapeHtml(counselorName(item))}${item.profiles?.email ? ` — ${escapeHtml(item.profiles.email)}` : ''}</option>`).join('') + '<option value="external">Conselheiro sem conta</option>';
     document.getElementById('counselorPermissions').innerHTML = counselorFields.map(([key, label]) => `<label class="check"><input type="checkbox" name="${key}"> ${label}</label>`).join('');
     document.getElementById('counselorList').innerHTML = assignments.length ? assignments.map(item => {
       const person = registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id);
@@ -186,10 +187,10 @@ document.addEventListener('DOMContentLoaded', () => {
       resetCounselorForm();
       const counselorInput = document.getElementById('counselorUser');
       if (!counselorInput) { toast('Não foi possível preparar o formulário de conselheiros.'); return; }
-      counselorInput.oninput = () => {
-        const value = counselorInput.value.trim();
-        const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
-        document.getElementById('counselorPermissionArea')?.classList.toggle('hidden', !registered && !!value);
+      counselorInput.onchange = () => {
+        const registered = registeredUsers.some(item => item.user_id === counselorInput.value);
+        document.getElementById('counselorExternalName')?.classList.toggle('hidden', counselorInput.value !== 'external');
+        document.getElementById('counselorPermissionArea')?.classList.toggle('hidden', counselorInput.value === 'external');
         const accountHint = document.getElementById('counselorAccountHint');
         if (accountHint) accountHint.textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
       };
@@ -201,8 +202,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('counselorForm').onsubmit = async event => {
     event.preventDefault();
-    const typedName = document.getElementById('counselorUser').value.trim();
-    const selectedUser = registeredUsers.find(item => counselorName(item) === typedName || item.profiles?.email === typedName);
+    const userChoice = document.getElementById('counselorUser').value;
+    const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
+    const typedName = selectedUser ? counselorName(selectedUser) : document.getElementById('counselorExternalName').value.trim();
     if (!typedName || typedName.length < 3) { toast('Informe o nome do conselheiro.'); return; }
     const row = { class_id:document.getElementById('counselorClass').value };
     if (selectedUser) {
@@ -232,7 +234,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = assignments.find(assignment => assignment.id === editButton.dataset.editCounselorId);
       if (!item) return;
       editingCounselorId = item.id;
-      document.getElementById('counselorUser').value = counselorName(registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id) || item);
+      document.getElementById('counselorUser').value = item.counselor_user_id || 'external';
+      document.getElementById('counselorExternalName').value = item.counselor_user_id ? '' : counselorName(item);
+      document.getElementById('counselorExternalName').classList.toggle('hidden', !!item.counselor_user_id);
       document.getElementById('counselorClass').value = item.class_id;
       const registered = !!item.counselor_user_id;
       document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered);
