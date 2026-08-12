@@ -12,6 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastLoadError = '';
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
   window.counselorHasEditPermission = () => ownAssignments.some(item => counselorFields.some(([key]) => !!item[key]));
+  window.isCounselorUser = () => ownAssignments.length > 0;
+  window.counselorAccessLabel = () => ownAssignments.length ? (window.counselorHasEditPermission() ? 'Acesso de Editor' : 'Visualizador') : null;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -104,9 +106,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const previous = JSON.stringify(assignments);
     assignments = data || [];
     ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
-    const counselorCanEdit = ownAssignments.some(hasCounselorPermission);
-    if (permission.role !== 'admin' && !Object.keys(permission).some(key => key.startsWith('can_') && permission[key])) {
-      document.getElementById('roleLabel').textContent = counselorCanEdit ? 'Acesso de Editor' : 'Visualizador';
+    const counselorLabel = window.counselorAccessLabel();
+    if (permission.role !== 'admin' && counselorLabel) {
+      document.getElementById('roleLabel').textContent = counselorLabel;
     }
     if (previous !== JSON.stringify(assignments)) render();
     drawCounselorLabels();

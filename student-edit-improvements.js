@@ -208,7 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!match) return;
       const student = students.find(item => item.id === match[1]);
       const counselor = window.counselorRightsForClass?.(student?.classId);
-      const canEditStudent = permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report || counselor?.can_edit_all || counselor?.can_edit_photo || counselor?.can_edit_name || counselor?.can_edit_report;
+      const restrictedCounselor = permission.role !== 'admin' && !!window.isCounselorUser?.();
+      const canEditStudent = restrictedCounselor
+        ? !!(counselor?.can_edit_all || counselor?.can_edit_photo || counselor?.can_edit_name || counselor?.can_edit_report)
+        : permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report || counselor?.can_edit_all || counselor?.can_edit_photo || counselor?.can_edit_name || counselor?.can_edit_report;
       if (!canEditStudent) return;
       let actions = card.querySelector('.actions-small');
       if (!actions) {
@@ -277,7 +280,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingPhoto = null;
   let removePhoto = false;
   let activeCounselorRights = null;
-  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key] || activeCounselorRights?.can_edit_all || activeCounselorRights?.[key];
+  const can = key => {
+    if (permission.role !== 'admin' && window.isCounselorUser?.()) return !!(activeCounselorRights?.can_edit_all || activeCounselorRights?.[key]);
+    return permission.role === 'admin' || permission.can_edit_all || permission[key] || activeCounselorRights?.can_edit_all || activeCounselorRights?.[key];
+  };
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
