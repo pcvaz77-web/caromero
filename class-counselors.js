@@ -14,6 +14,10 @@ document.addEventListener('DOMContentLoaded', () => {
   window.counselorHasEditPermission = () => ownAssignments.some(item => counselorFields.some(([key]) => !!item[key]));
   window.isCounselorUser = () => ownAssignments.length > 0;
   window.counselorAccessLabel = () => ownAssignments.length ? (window.counselorHasEditPermission() ? 'Acesso de Editor' : 'Visualizador') : null;
+  const counselorCanEditStudent = student => {
+    const rights = window.counselorRightsForClass(student?.classId);
+    return !!(rights?.can_edit_all || rights?.can_edit_photo || rights?.can_edit_name || rights?.can_edit_report);
+  };
 
   const style = document.createElement('style');
   style.textContent = `
@@ -93,6 +97,20 @@ document.addEventListener('DOMContentLoaded', () => {
     title.appendChild(tag);
   };
 
+  const enforceCounselorInterface = () => {
+    if (permission.role === 'admin' || !window.isCounselorUser()) return;
+    ['newStudent', 'newBulk', 'newClass', 'deleteClass'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    document.querySelectorAll('#list .student').forEach(card => {
+      const studentId = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
+      const student = students.find(item => item.id === studentId);
+      const allowed = counselorCanEditStudent(student);
+      const edit = card.querySelector('.edit');
+      const remove = card.querySelector('.delete');
+      if (edit) edit.hidden = !allowed;
+      if (remove) remove.hidden = true;
+    });
+  };
+
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
@@ -113,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (previous !== JSON.stringify(assignments)) render();
     drawCounselorLabels();
     drawCounselorTitle();
+    enforceCounselorInterface();
   }
 
   function resetCounselorForm() {
@@ -228,6 +247,16 @@ document.addEventListener('DOMContentLoaded', () => {
     baseRender(...args);
     drawCounselorLabels();
     drawCounselorTitle();
+    enforceCounselorInterface();
+  };
+  const baseEditStudent = window.editStudent;
+  window.editStudent = id => {
+    const student = students.find(item => item.id === id);
+    if (permission.role !== 'admin' && window.isCounselorUser() && !counselorCanEditStudent(student)) {
+      toast('Você só pode editar alunos das turmas em que é conselheiro.');
+      return;
+    }
+    baseEditStudent(id);
   };
   refreshAssignments();
   setInterval(refreshAssignments, 4000);

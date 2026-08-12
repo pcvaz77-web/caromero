@@ -44,6 +44,8 @@ begin
 end;
 $$;
 
+-- Remove políticas antigas permissivas, que poderiam continuar valendo em paralelo.
+drop policy if exists "Authenticated users can update students" on public.students;
 drop policy if exists "Allowed users edit students" on public.students;
 create policy "Allowed users edit students" on public.students for update to authenticated
   using (
@@ -63,6 +65,7 @@ create policy "Allowed users edit students" on public.students for update to aut
     )
   );
 
+drop policy if exists "Authenticated users can add students" on public.students;
 drop policy if exists "Allowed users add students" on public.students;
 create policy "Allowed users add students" on public.students for insert to authenticated
   with check (
@@ -73,6 +76,7 @@ create policy "Allowed users add students" on public.students for insert to auth
     )
   );
 
+drop policy if exists "Authenticated users can delete students" on public.students;
 drop policy if exists "Allowed users delete students" on public.students;
 create policy "Allowed users delete students" on public.students for delete to authenticated
   using (
