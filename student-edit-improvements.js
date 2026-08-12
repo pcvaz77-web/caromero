@@ -191,6 +191,10 @@ document.addEventListener('DOMContentLoaded', () => {
     renderObservationChoices(selected);
     renderCustomObservations();
   }
+  document.addEventListener('carometro:observations-changed', () => {
+    observationOptionsLoaded = false;
+    loadObservationOptions();
+  });
   const observationColorClass = text => ({
     'Tem Laudo': 'observation-report',
     'Sem Laudo (Dificuldade Grave)': 'observation-severe',

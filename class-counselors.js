@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawCounselorTitle();
     enforceCounselorInterface();
   }
+  window.refreshCounselorAssignments = refreshAssignments;
 
   function resetCounselorForm() {
     editingCounselorId = null;
