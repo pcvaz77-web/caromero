@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   profileDrawer.id = 'profileDrawer';
   profileDrawer.className = 'profile-drawer';
   profileDrawer.innerHTML = `<div class="profile-drawer-head"><div><p class="eyebrow">Minha conta</p><h2>Meu Perfil</h2></div><button type="button" class="close" id="closeProfileDrawer" aria-label="Fechar">×</button></div><form id="profileForm" class="profile-form"><div class="profile-user"><div class="profile-user-mark" id="profileInitial">U</div><div><b id="profileCurrentName">Usuário</b><div class="meta" id="profileCurrentEmail"></div></div></div><div class="field"><label for="profileName">Nome</label><input id="profileName" autocomplete="name" required maxlength="100"></div><div class="field"><label for="profileEmail">E-mail</label><input id="profileEmail" type="email" autocomplete="email" required></div><div class="field"><label for="profilePassword">Nova senha</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Deixe em branco para manter a atual"><div class="meta">Mínimo de 6 caracteres.</div></div><button class="btn primary full" type="submit">Salvar alterações</button></form><div class="profile-drawer-footer"><button type="button" class="btn danger-outline full" id="profileSignOut">Sair da conta</button></div>`;
+  document.getElementById('profilePassword').closest('.field').insertAdjacentHTML('beforebegin', '<div class="field"><label for="profileCurrentPassword">Senha atual</label><input id="profileCurrentPassword" type="password" autocomplete="current-password" placeholder="Informe para trocar a senha"></div>');
   const profileBackdrop = document.createElement('div');
   profileBackdrop.id = 'profileBackdrop';
   profileBackdrop.className = 'profile-backdrop hidden';
@@ -39,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const currentEmail = signedInUser.email || currentProfile?.email || '';
     document.getElementById('profileName').value = fullName;
     document.getElementById('profileEmail').value = currentEmail;
+    document.getElementById('profileCurrentPassword').value = '';
     document.getElementById('profilePassword').value = '';
     document.getElementById('profileCurrentName').textContent = fullName || 'Usuário';
     document.getElementById('profileCurrentEmail').textContent = currentEmail;
@@ -55,12 +57,18 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     const name = document.getElementById('profileName').value.trim();
     const email = document.getElementById('profileEmail').value.trim();
+    const currentPassword = document.getElementById('profileCurrentPassword').value;
     const password = document.getElementById('profilePassword').value;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || !name || !email) return;
     const update = { data: { full_name: name } };
     if (email !== signedInUser.email) update.email = email;
-    if (password) update.password = password;
+    if (password) {
+      if (!currentPassword) { toast('Informe sua senha atual para definir uma nova senha.'); return; }
+      const { error: currentPasswordError } = await db.auth.signInWithPassword({ email: signedInUser.email, password: currentPassword });
+      if (currentPasswordError) { toast('A senha atual informada não está correta.'); return; }
+      update.password = password;
+    }
     const { error } = await db.auth.updateUser(update);
     if (error) { toast(error.message); return; }
     const { error: profileError } = await db.from('profiles').upsert({ id: signedInUser.id, full_name: name, email: signedInUser.email }, { onConflict: 'id' });
@@ -322,8 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentsNav:hover, #studentsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
     @media(max-width:800px) {
       .side .nav { flex-direction:row; align-items:center; gap:8px; }
-      .side .nav #studentsNav, .side .nav #permissionsNav { flex:1 1 0 !important; min-width:0; }
-      .side .nav #profileNav { flex:0 0 68px !important; min-height:58px; margin:0; padding:4px 0 !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
+      .side .nav #studentsNav { flex:0 1 135px !important; min-width:0; }
+      .side .nav #permissionsNav { flex:1 1 0 !important; min-width:0; }
+      .side .nav #profileNav { flex:0 0 68px !important; min-height:58px; margin-left:auto; padding:4px 0 !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
       #profileNav .profile-nav-desktop { display:none; }
       #profileNav .profile-nav-mobile { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; line-height:1; font-weight:750; white-space:nowrap; }
       .profile-nav-avatar { width:29px; height:29px; position:relative; display:block; overflow:hidden; border-radius:50%; background:linear-gradient(145deg,#4ecdf1,#2f6fd7); }
@@ -331,6 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .profile-nav-avatar span { position:absolute; bottom:-5px; left:5px; width:19px; height:16px; border-radius:50% 50% 0 0; background:#f6f8fc; }
       .profile-drawer { width:min(390px,92vw); }
     }
+    @media(max-width:340px) { .side .nav { gap:6px; } .side .nav #studentsNav { flex-basis:115px !important; } .side .nav #profileNav { flex-basis:62px !important; } }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
