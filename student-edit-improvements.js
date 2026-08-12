@@ -147,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
   configureObservationField('report');
   configureObservationField('bulkReport');
   const reportField = document.getElementById('report').closest('.field');
+  reportField.classList.add('student-observations-field');
   const bulkReport = document.getElementById('bulkReport');
   const bulkReportField = bulkReport.closest('.field');
   const manageObservations = document.createElement('button');
@@ -443,6 +444,34 @@ document.addEventListener('DOMContentLoaded', () => {
       .observation-manager-overlay { padding:12px; }
       .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; max-height:calc(100dvh - 24px); margin:0; }
       .observation-manager-overlay .custom-observation-list { max-height:42dvh; }
+
+      /* Formulário compacto: só a lista de observações rola. */
+      #studentModal { padding:12px; align-items:center; }
+      #studentModal .modal { width:100%; height:calc(100dvh - 24px); max-height:none; display:flex; flex-direction:column; }
+      #studentModal .modal-head { flex:none; padding:15px 20px 13px; }
+      #studentModal .modal-head h3 { font-size:19px; }
+      #studentModal .form { flex:1; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:13px 20px 14px; }
+      #studentModal .photo { display:grid; grid-template-columns:62px minmax(0,1fr); grid-template-areas:"preview info" "preview controls"; align-items:center; gap:5px 10px; margin-bottom:9px; }
+      #studentModal .photo .preview { grid-area:preview; width:62px; height:62px; }
+      #studentModal .photo > div:not(.preview):not(.photo-controls) { grid-area:info; }
+      #studentModal .photo label { margin:0; font-size:13px; }
+      #studentModal .photo .meta { display:none; }
+      #studentModal .photo-controls, #studentModal .photo-source-actions { grid-area:controls; gap:6px; margin:0; flex-wrap:nowrap; }
+      #studentModal .photo-controls .btn, #studentModal .photo-source-actions .btn { min-height:33px; padding:6px 9px; font-size:12px; white-space:nowrap; }
+      #studentModal .grid { flex:1; min-height:0; display:flex; flex-direction:column; gap:0; }
+      #studentModal .field { margin-bottom:8px; }
+      #studentModal .field label { margin-bottom:4px; }
+      #studentModal #fullName { min-height:42px; padding:9px 11px; }
+      #studentModal .move-class { padding:9px 10px; }
+      #studentModal .move-class .check { font-size:13px; }
+      #studentModal .move-class .meta { margin-top:3px; font-size:12px; line-height:1.3; }
+      #studentModal .student-observations-field { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:0; }
+      #studentModal .student-observations-field > label { font-size:16px; }
+      #studentModal .manage-observations { margin:3px 0 6px; }
+      #studentModal .observation-choices { flex:1; min-height:0; max-height:none; margin-top:0; padding-right:4px; }
+      #studentModal .observation-choice { min-height:38px; padding:7px 9px; font-size:12px; }
+      #studentModal .actions { flex:none; padding-top:9px; }
+      #studentModal .actions .btn { min-height:39px; padding:8px 11px; }
     }
   `;
   document.head.appendChild(style);
