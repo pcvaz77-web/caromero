@@ -82,6 +82,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
     const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
+    // A tela de Uniforme deve manter todos os alunos da turma juntos e em
+    // ordem alfabética, independentemente da data em que foram cadastrados.
     const visible = records.filter(item => {
       const type = pending(item);
       const belongsToClass = item.classId === classId || (!!selectedClass && String(item.className || '').trim() === String(selectedClass.name || '').trim());
@@ -89,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (view === 'all') return true;
       if (view === 'pending') return !!type;
       return type === view;
-    });
+    }).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
       const type = pending(item);
       return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${isAdmin() ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
