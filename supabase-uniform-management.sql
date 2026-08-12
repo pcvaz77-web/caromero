@@ -7,7 +7,8 @@ alter table public.students
   add column if not exists uniform_size text,
   add column if not exists shoe_size text,
   add column if not exists uniform_received_at date,
-  add column if not exists uniform_notes text;
+  add column if not exists uniform_notes text,
+  add column if not exists uniform_pending text check (uniform_pending in ('uniform', 'shoes', 'both'));
 
 alter table public.students replica identity full;
 
@@ -32,7 +33,8 @@ begin
     or old.uniform_size is distinct from new.uniform_size
     or old.shoe_size is distinct from new.shoe_size
     or old.uniform_received_at is distinct from new.uniform_received_at
-    or old.uniform_notes is distinct from new.uniform_notes then
+    or old.uniform_notes is distinct from new.uniform_notes
+    or old.uniform_pending is distinct from new.uniform_pending then
     raise exception 'Somente administradores podem alterar o controle de uniforme';
   end if;
 

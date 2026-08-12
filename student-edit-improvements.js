@@ -352,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
       shoe_size: item.shoe_size,
       uniform_received_at: item.uniform_received_at,
       uniform_notes: item.uniform_notes,
+      uniform_pending: item.uniform_pending,
       photoUrl: ''
     }));
     render();
