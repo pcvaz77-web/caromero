@@ -28,11 +28,18 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentDetails { width:auto; padding:20px; }
       #studentDetails .detail-head .avatar { width:116px; height:116px; font-size:28px; }
     }
+    @media (min-width:801px) and (max-width:1150px) {
+      .side { width:210px; }
+      .main { margin-left:210px; padding:30px 26px; }
+      .student { grid-template-columns:48px minmax(140px,1fr) 82px 120px; gap:10px; }
+      .student > :nth-child(4) { display:none; }
+      #studentDetails { width:320px; }
+    }
   `;
   document.head.appendChild(style);
 
   const canDelete = () => permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all;
-  const canEdit = () => permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
+  const canEdit = () => permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report;
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
 
   function syncAddActions() {

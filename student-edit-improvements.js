@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
   let removePhoto = false;
-  const can = key => permission.role === 'admin' || permission.can_edit_all || permission[key];
+  const can = key => permission.role === 'admin' || permission.role === 'editor' || permission.can_edit_all || permission[key];
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
