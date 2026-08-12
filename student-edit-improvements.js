@@ -24,6 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
       'Não': ''
     }[value] || value || '');
   };
+  const hasRepresentativeObservation = value => {
+    try { return Array.isArray(JSON.parse(value)) && JSON.parse(value).includes('Representante de turma'); }
+    catch { return value === 'Representante de turma'; }
+  };
   const decodeObservationValues = value => {
     if (!value) return [];
     try {
@@ -106,9 +110,17 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.classList.add(observationColorClass(text));
   };
   const applyObservationColors = () => {
+    const representatives = [];
     document.querySelectorAll('#list .pill').forEach(pill => {
+      const studentCard = pill.closest('.student');
+      if (studentCard && hasRepresentativeObservation(pill.textContent.trim())) {
+        representatives.push(studentCard);
+        const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
+        if (meta) meta.innerHTML = '<span class="representative-label observation-custom-4">Representante de turma</span>';
+      }
       pill.remove();
     });
+    if (representatives.length) document.getElementById('list').prepend(...representatives);
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };
   new MutationObserver(applyObservationColors).observe(document.getElementById('list'), { childList: true, subtree: true });
@@ -239,6 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-2 { background:#d1fae5; color:#047857; }
     .pill.observation-custom-3 { background:#ffe4e6; color:#be123c; }
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
+    .representative-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; font-size:12px; font-weight:750; }
+    .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
     .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
     .observation-select-hidden { display:none !important; }
