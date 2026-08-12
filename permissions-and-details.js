@@ -6,12 +6,13 @@ document.addEventListener('DOMContentLoaded', () => {
     .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
     .permission-search { flex:1; min-height:48px; }
     #permissionsList { display:grid; gap:12px; }
-    .perm { display:grid; grid-template-columns:minmax(230px,1fr) auto auto; gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
+    .perm { display:grid; grid-template-columns:minmax(230px,1fr) minmax(170px,.72fr) minmax(220px,1fr); gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
     .permission-user b { display:block; font-size:15px; }
     .permission-user .meta { margin-top:4px; }
-    .permission-basic { display:flex; flex-wrap:wrap; gap:10px; }
-    .permission-primary .check { padding:10px 12px; border-radius:8px; background:#e8efff; color:#214dba; }
-    .edit-rights { grid-column:1 / -1; display:grid; grid-template-columns:repeat(5, minmax(132px, 1fr)); gap:9px; padding-top:15px; border-top:1px solid var(--line); }
+    .permission-basic { display:flex; flex-wrap:wrap; gap:8px; }
+    .permission-primary .check, .permission-basic .check { min-height:42px; padding:10px 12px; border:1px solid #d9e2f4; border-radius:8px; background:#f7f9fc; }
+    .permission-primary .check { background:#e8efff; color:#214dba; }
+    .edit-rights { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(132px, 1fr)); gap:9px; padding-top:15px; border-top:1px solid var(--line); }
     .edit-rights .check { align-items:flex-start; padding:9px; border-radius:8px; background:#f7f9fc; font-size:12px; }
     .edit-rights .check:has(input:checked) { background:#e8efff; color:#214dba; }
     #studentDetails { width:460px; padding:28px; }
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const canAdd = () => permission.role === 'admin' || permission.can_add_students || permission.can_edit_all;
   const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report'];
   const permissionLabel = item => item.role === 'admin' ? 'Administrador' : (permissionFields.some(key => item[key]) ? 'Acesso de Editor' : 'Visualizador');
+  const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 
   function applyCurrentPermission(nextPermission) {
     if (!nextPermission) return;
@@ -98,10 +100,17 @@ document.addEventListener('DOMContentLoaded', () => {
   syncAddActions();
 
   async function openPermissions() {
-    const { data, error } = await db.from('user_permissions').select('user_id,role,can_add_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,profiles(email,full_name)').order('updated_at');
+    const { data, error } = await db.from('user_permissions').select('user_id,role,can_add_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
     const check = (item, key, label, admin) => `<label class="check"><input ${admin ? 'disabled' : ''} type="checkbox" ${item[key] ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
-    const cards = (data || []).map(item => {
+    const sortedUsers = [...(data || [])].sort((first, second) => {
+      const permissionOrder = Number(hasGrantedPermission(second)) - Number(hasGrantedPermission(first));
+      if (permissionOrder) return permissionOrder;
+      const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
+      const secondName = second.profiles?.full_name?.trim() || second.profiles?.email || '';
+      return firstName.localeCompare(secondName, 'pt-BR', { sensitivity:'base' });
+    });
+    const cards = sortedUsers.map(item => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
