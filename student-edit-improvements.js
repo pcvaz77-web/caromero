@@ -433,7 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .observation-choice input { width:auto; min-height:0; }
     .clear-observations { margin-top:9px; color:var(--danger); }
     @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; max-height:35dvh; } }
-    .manage-observations { margin-top:9px; }
+    .manage-observations { width:100%; min-height:42px; margin:11px 0; padding:10px 12px; border:1px solid #dbe4f5; border-radius:9px; background:#f8faff; text-align:left; }
+    .manage-observations:hover, .manage-observations:focus { background:#eef4ff; border-color:#b9cdf8; }
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
@@ -491,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal .move-class .meta { margin-top:3px; font-size:12px; line-height:1.3; }
       #studentModal .student-observations-field { flex:1; min-height:0; display:flex; flex-direction:column; margin-bottom:0; }
       #studentModal .student-observations-field > label { font-size:16px; }
-      #studentModal .manage-observations { margin:3px 0 6px; }
+      #studentModal .manage-observations { min-height:38px; margin:5px 0 8px; padding:8px 10px; }
       #studentModal .observation-choices { flex:1; min-height:0; max-height:none; margin-top:0; padding-right:4px; }
       #studentModal .observation-choice { min-height:38px; padding:7px 9px; font-size:12px; }
       #studentModal .actions { flex:none; padding-top:9px; }
