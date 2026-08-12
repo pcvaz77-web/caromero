@@ -166,7 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('permissionsNav').onclick = openPermissions;
   db.auth.getUser().then(({ data: { user: signedInUser } }) => {
     if (!signedInUser) return;
-    if (db.channel) db.channel(`permission-${signedInUser.id}`).on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_permissions', filter:`user_id=eq.${signedInUser.id}` }, refreshCurrentPermission).subscribe();
+    if (db.channel) db.channel(`permission-live-${signedInUser.id}`).on(
+      'postgres_changes',
+      { event:'UPDATE', schema:'public', table:'user_permissions', filter:`user_id=eq.${signedInUser.id}` },
+      () => { refreshCurrentPermission(); }
+    ).subscribe();
   });
   setInterval(refreshCurrentPermission, 4000);
 });

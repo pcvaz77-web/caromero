@@ -258,6 +258,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     baseEditStudent(id);
   };
+  db.auth.getUser().then(({ data: { user: signedInUser } }) => {
+    if (!signedInUser || !db.channel) return;
+    db.channel(`counselor-live-${signedInUser.id}`).on(
+      'postgres_changes',
+      { event:'*', schema:'public', table:'class_counselors', filter:`counselor_user_id=eq.${signedInUser.id}` },
+      () => { refreshAssignments(); }
+    ).subscribe();
+  });
   refreshAssignments();
   setInterval(refreshAssignments, 4000);
 });
