@@ -33,18 +33,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
-      const student = students.find(item => item.id === studentId(card));
       const existing = card.querySelector('.uniform-card-label');
-      const type = pending(student);
-      if (!type) { existing?.remove(); return; }
-      const meta = card.querySelector(':scope > div:nth-child(2) .meta');
-      if (!meta) return;
-      if (existing?.textContent === labels[type]) return;
+      // A lista permanece limpa: a pendência aparece somente no card aberto.
       existing?.remove();
-      const tag = document.createElement('span');
-      tag.className = 'representative-label uniform-card-label uniform-pending';
-      tag.textContent = labels[type];
-      meta.appendChild(tag);
     });
     const detail = students.find(item => item.id === detailStudentId);
     const existing = document.querySelector('#studentDetails .uniform-detail-row');
