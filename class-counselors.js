@@ -6,8 +6,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_edit_report', 'Editar observações']
   ];
   let assignments = [];
+  let ownAssignments = [];
   let registeredUsers = [];
-  window.counselorRightsForClass = classId => assignments.find(item => item.class_id === classId) || null;
+  window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -20,6 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .counselor-list { display:grid; gap:9px; margin-top:22px; }
     .counselor-item { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:13px; border:1px solid var(--line); border-radius:9px; }
     .counselor-item b { display:block; }
+    .counselor-label { margin-left:7px; vertical-align:middle; }
+    .class-list .counselor-label { margin:5px 0 0; font-size:11px; white-space:normal; }
     @media (max-width:800px), (hover:none) and (pointer:coarse) { .counselor-entry, .counselor-modal { display:none !important; } }
   `;
   document.head.appendChild(style);
@@ -38,15 +41,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
   const counselorName = item => item.counselor_name?.trim() || item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
   const assignmentText = item => counselorFields.filter(([key]) => item[key]).map(([, label]) => label).join(' · ') || 'Sem permissão selecionada';
+  const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
+  const drawCounselorLabels = () => {
+    document.querySelectorAll('#classList button').forEach(button => {
+      button.querySelector('.counselor-label')?.remove();
+      const classId = button.getAttribute('onclick')?.match(/selectClass\('([^']+)'\)/)?.[1];
+      const names = counselorNamesForClass(classId);
+      if (!names.length) return;
+      const tag = document.createElement('span');
+      tag.className = 'representative-label observation-custom-4 counselor-label';
+      tag.textContent = `Conselheiro ${names.join(' · ')}`;
+      button.appendChild(tag);
+    });
+    const student = students.find(item => item.id === detailStudentId);
+    const row = document.querySelector('#studentDetails .detail-row');
+    if (!student || !row || row.querySelector('b')?.textContent.trim() !== 'Turma') return;
+    const names = counselorNamesForClass(student.classId);
+    const existing = row.querySelector('.counselor-label');
+    if (!names.length) { existing?.remove(); return; }
+    const labelText = `Conselheiro ${names.join(' · ')}`;
+    if (existing?.textContent === labelText) return;
+    existing?.remove();
+    const tag = document.createElement('span');
+    tag.className = 'representative-label observation-custom-4 counselor-label';
+    tag.textContent = labelText;
+    row.appendChild(tag);
+  };
 
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
-    const { data, error } = await db.from('class_counselors').select('*').eq('counselor_user_id', signedInUser.id);
+    const { data, error } = await db.from('class_counselors').select('*');
     if (error) return;
     const previous = JSON.stringify(assignments);
     assignments = data || [];
-    if (previous !== JSON.stringify(assignments)) render();
+    ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
+    if (previous !== JSON.stringify(assignments)) { render(); drawCounselorLabels(); }
   }
 
   function renderManager() {
@@ -89,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const row = { class_id:document.getElementById('counselorClass').value };
     if (selectedUser) {
       row.counselor_user_id = selectedUser.user_id;
+      row.counselor_name = counselorName(selectedUser);
       counselorFields.forEach(([key]) => { row[key] = document.querySelector(`#counselorPermissions input[name="${key}"]`).checked; });
       if (!counselorFields.some(([key]) => row[key])) { toast('Selecione ao menos uma permissão.'); return; }
     } else {
@@ -122,5 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.prepend(button);
   });
   permissionListObserver.observe(document.getElementById('permissionsList'), { childList:true });
+  new MutationObserver(drawCounselorLabels).observe(document.getElementById('classList'), { childList:true });
+  new MutationObserver(drawCounselorLabels).observe(document.getElementById('studentDetails'), { childList:true, subtree:true });
   setInterval(refreshAssignments, 4000);
 });
