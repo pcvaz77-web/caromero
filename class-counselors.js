@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
       registeredUsers = users || [];
       assignments = dataAssignments || [];
+      drawCounselorLabels();
       renderManager();
       resetCounselorForm();
       document.getElementById('counselorUser').oninput = () => {
@@ -167,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await request;
     if (error) { toast(error.message); return; }
     toast(editingCounselorId ? 'Conselheiro atualizado.' : 'Conselheiro salvo.');
+    await refreshAssignments();
     window.openCounselorManager();
   };
 
@@ -191,22 +193,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.from('class_counselors').delete().eq('id', button.dataset.counselorId);
     if (error) { toast(error.message); return; }
     toast('Conselheiro excluído.');
+    await refreshAssignments();
     window.openCounselorManager();
   };
 
-  const permissionListObserver = new MutationObserver(() => {
-    if (permission.role !== 'admin' || document.getElementById('openCounselors')) return;
-    const list = document.getElementById('permissionsList');
-    if (!list.children.length) return;
-    const button = document.createElement('button');
-    button.id = 'openCounselors';
-    button.type = 'button';
-    button.className = 'btn secondary counselor-entry';
-    button.textContent = 'Conselheiros de turma';
-    button.addEventListener('click', () => window.openCounselorManager());
-    list.prepend(button);
-  });
-  permissionListObserver.observe(document.getElementById('permissionsList'), { childList:true });
   new MutationObserver(drawCounselorLabels).observe(document.getElementById('classList'), { childList:true });
   new MutationObserver(drawCounselorLabels).observe(document.getElementById('studentDetails'), { childList:true, subtree:true });
   refreshAssignments();

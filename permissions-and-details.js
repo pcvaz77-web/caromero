@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', () => {
     #permissionsModal .form { padding:24px 28px 30px; }
     .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
     .permission-search { flex:1; min-height:48px; }
+    .counselor-management { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:15px 16px; border:1px solid #cbdcff; background:#f5f8ff; border-radius:11px; }
+    .counselor-management b { display:block; }
     #permissionsList { display:grid; gap:12px; }
     .perm { display:grid; grid-template-columns:minmax(230px,1fr) minmax(170px,.72fr) minmax(220px,1fr); gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
     .permission-user b { display:block; font-size:15px; }
@@ -123,7 +125,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.profiles?.email || 'Usuário';
       return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ''}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}</div></article>`;
     }).join('');
-    document.getElementById('permissionsList').innerHTML = `<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
+    const counselorManager = `<section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Cadastre, edite ou exclua conselheiros e as permissões por turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section>`;
+    document.getElementById('permissionsList').innerHTML = `${counselorManager}<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
+    document.getElementById('openCounselors').onclick = async () => {
+      if (typeof window.openCounselorManager !== 'function') { toast('O gerenciador está sendo carregado. Tente novamente em alguns segundos.'); return; }
+      await window.openCounselorManager();
+    };
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     window.filterPermissionUsers = value => {
       const query = normalizeSearch(value).trim();
