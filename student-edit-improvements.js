@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
   manageObservations.textContent = 'Gerenciar observações';
   reportField.appendChild(manageObservations);
   const observationManager = document.createElement('div');
-  observationManager.className = 'photo-picker hidden';
+  observationManager.className = 'photo-picker observation-manager-overlay hidden';
   observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Necessita acompanhamento"><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
@@ -428,10 +428,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
+    .observation-manager-overlay { align-items:start; overflow-y:auto; }
+    .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:none; overflow:visible; margin:24px auto; }
+    .observation-manager-overlay .custom-observation-list { max-height:none; overflow:visible; padding-right:0; }
     @media (min-width:801px) {
       .photo-picker { padding:24px; }
-      .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); max-height:calc(100vh - 48px); grid-template-rows:auto auto auto auto minmax(0,1fr) auto; overflow:hidden; }
-      .observation-manager .custom-observation-list { min-height:0; max-height:none; overflow-y:auto; padding-right:5px; }
+      .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
     }
   `;
   document.head.appendChild(style);
