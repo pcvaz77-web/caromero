@@ -49,7 +49,8 @@ document.addEventListener('DOMContentLoaded', () => {
   profileButton.onclick = openProfileDrawer;
   document.getElementById('closeProfileDrawer').onclick = closeProfileDrawer;
   profileBackdrop.onclick = closeProfileDrawer;
-  document.getElementById('profileSignOut').onclick = () => legacySignOut.click();
+  legacySignOut.addEventListener('click', closeProfileDrawer);
+  document.getElementById('profileSignOut').onclick = () => { closeProfileDrawer(); legacySignOut.click(); };
   document.getElementById('profileForm').onsubmit = async event => {
     event.preventDefault();
     const name = document.getElementById('profileName').value.trim();
