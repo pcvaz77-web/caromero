@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let ownAssignments = [];
   let registeredUsers = [];
   let editingCounselorId = null;
+  let lastLoadError = '';
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
   window.counselorHasEditPermission = () => ownAssignments.some(item => counselorFields.some(([key]) => !!item[key]));
 
@@ -80,7 +81,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     const { data, error } = await db.from('class_counselors').select('*');
-    if (error) return;
+    if (error) {
+      if (lastLoadError !== error.message) toast(`Não foi possível carregar os conselheiros: ${error.message}`);
+      lastLoadError = error.message;
+      return;
+    }
+    lastLoadError = '';
     const previous = JSON.stringify(assignments);
     assignments = data || [];
     ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
@@ -88,7 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (permission.role !== 'admin' && !Object.keys(permission).some(key => key.startsWith('can_') && permission[key])) {
       document.getElementById('roleLabel').textContent = counselorCanEdit ? 'Acesso de Editor' : 'Visualizador';
     }
-    if (previous !== JSON.stringify(assignments)) { render(); drawCounselorLabels(); }
+    if (previous !== JSON.stringify(assignments)) render();
+    drawCounselorLabels();
   }
 
   function resetCounselorForm() {
@@ -115,22 +122,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.openCounselorManager = async () => {
     if (permission.role !== 'admin' || window.matchMedia('(max-width:800px)').matches) return;
-    const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
-      db.from('user_permissions').select('user_id,profiles(email,full_name)'),
-      db.from('class_counselors').select('*')
-    ]);
-    if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
-    registeredUsers = users || [];
-    assignments = dataAssignments || [];
-    renderManager();
-    resetCounselorForm();
-    document.getElementById('counselorUser').oninput = () => {
-      const value = document.getElementById('counselorUser').value.trim();
-      const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
-      document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered && !!value);
-      document.getElementById('counselorAccountHint').textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
-    };
-    modal.classList.remove('hidden');
+    try {
+      const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
+        db.from('user_permissions').select('user_id,profiles(email,full_name)'),
+        db.from('class_counselors').select('*')
+      ]);
+      if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
+      registeredUsers = users || [];
+      assignments = dataAssignments || [];
+      renderManager();
+      resetCounselorForm();
+      document.getElementById('counselorUser').oninput = () => {
+        const value = document.getElementById('counselorUser').value.trim();
+        const registered = registeredUsers.some(item => counselorName(item) === value || item.profiles?.email === value);
+        document.getElementById('counselorPermissionArea').classList.toggle('hidden', !registered && !!value);
+        document.getElementById('counselorAccountHint').textContent = registered ? 'Usuário com conta: escolha as permissões para a turma.' : 'Sem conta: será apenas um registro do conselheiro na turma, sem acesso ao sistema.';
+      };
+      modal.classList.remove('hidden');
+    } catch (error) {
+      toast(`Não foi possível abrir os conselheiros: ${error.message || 'erro inesperado'}`);
+    }
   };
 
   document.getElementById('counselorForm').onsubmit = async event => {
@@ -192,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.type = 'button';
     button.className = 'btn secondary counselor-entry';
     button.textContent = 'Conselheiros de turma';
-    button.onclick = window.openCounselorManager;
+    button.addEventListener('click', () => window.openCounselorManager());
     list.prepend(button);
   });
   permissionListObserver.observe(document.getElementById('permissionsList'), { childList:true });
