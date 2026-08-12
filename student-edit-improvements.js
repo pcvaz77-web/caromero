@@ -414,11 +414,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
     .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
     .observation-select-hidden { display:none !important; }
-    .observation-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:8px; }
+    .observation-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:38vh; margin-top:8px; padding-right:5px; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
     .observation-choice { display:flex; align-items:center; gap:7px; margin:0; min-height:42px; padding:9px 10px; border:1px solid var(--line); border-radius:8px; font-size:13px; font-weight:650; cursor:pointer; }
     .observation-choice input { width:auto; min-height:0; }
     .clear-observations { margin-top:9px; color:var(--danger); }
-    @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; } }
+    @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; max-height:35dvh; } }
     .manage-observations { margin-top:9px; }
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .move-class .check { font-size:14px; }
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:block; height:100dvh; padding:20px; overflow-y:scroll; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
     .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:none; overflow:visible; margin:24px auto; }
-    .observation-manager-overlay .custom-observation-list { max-height:none; overflow:visible; padding-right:0; }
+    .observation-manager-overlay .custom-observation-list { max-height:45vh; overflow-y:auto; overscroll-behavior:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; padding-right:5px; }
     @media (min-width:801px) {
       .photo-picker { padding:24px; }
       .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 48px)); }
@@ -438,6 +438,7 @@ document.addEventListener('DOMContentLoaded', () => {
     @media (max-width:800px) {
       .observation-manager-overlay { padding:12px; }
       .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; margin:0 auto 24px; }
+      .observation-manager-overlay .custom-observation-list { max-height:42dvh; }
     }
   `;
   document.head.appendChild(style);
