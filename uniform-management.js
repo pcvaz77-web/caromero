@@ -99,11 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render() {
     classOptions();
-    // Com uma turma aberta, o painel acompanha imediatamente os alunos que
-    // estão visíveis nela. Sem turma selecionada, mostra o total geral.
-    const records = classStudents && get('uniformClass').value
-      ? classStudents
-      : (uniformRecords.length ? uniformRecords : students);
+    // Os contadores são sempre gerais; os filtros abaixo servem apenas para
+    // definir quais alunos aparecem na lista.
+    const records = uniformRecords.length ? uniformRecords : students;
     get('pendingUniform').textContent = records.filter(item => pending(item) === 'uniform').length;
     get('pendingShoes').textContent = records.filter(item => pending(item) === 'shoes').length;
     get('pendingBoth').textContent = records.filter(item => pending(item) === 'both').length;
