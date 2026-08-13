@@ -181,7 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestId = ++classStudentsRequest;
     classStudents = null;
     render();
-    if (!classId) return;
+    // Carregue sempre o conjunto completo antes de decidir a turma exibida.
+    // Assim os contadores e as etiquetas usam a mesma fonte de dados que
+    // funciona ao selecionar uma turma, inclusive com o filtro vazio.
     const { data, error } = await db.from('students')
       .select('id,full_name,class_id,class_name,uniform_pending,uniform_received,shoes_received')
       .order('full_name', { ascending:true });
@@ -192,6 +194,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalizeClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
     const targetName = normalizeClassName(classes.find(item => item.id === classId)?.name);
     syncUniformState(data || []);
+    if (!classId) {
+      classStudents = [];
+      render();
+      return;
+    }
     classStudents = (data || [])
       .filter(item => item.class_id === classId || normalizeClassName(item.class_name) === targetName)
       .map(item => ({
