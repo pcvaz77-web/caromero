@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const canViewOccurrences = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_view_occurrences || permission?.can_register_occurrences || permission?.can_edit_occurrences || permission?.can_delete_occurrences));
   const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
   const canRegisterOccurrence = () => hasOccurrencePermission('can_register_occurrences');
-  const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_edit_occurrences'));
-  const canDeleteOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_delete_occurrences'));
+  const canEditOccurrence = item => isAdmin() || hasOccurrencePermission('can_edit_occurrences');
+  const canDeleteOccurrence = item => isAdmin() || hasOccurrencePermission('can_delete_occurrences');
   const escape = value => { const node = document.createElement('span'); node.textContent = value || ''; return node.innerHTML; };
   const today = () => new Date().toISOString().slice(0, 10);
   const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
