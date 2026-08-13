@@ -346,6 +346,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(backdrop);
   const menuButton = topbar.querySelector('.mobile-menu-toggle');
   const setMenuOpen = open => {
+    // O ícone do menu também é sempre uma saída segura de janelas abertas.
+    // Assim Configurações nunca impede a navegação para outra função.
+    if (open) ['settingsModal', 'permissionsModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
     document.body.classList.toggle('mobile-menu-open', open);
     menuButton.setAttribute('aria-expanded', String(open));
     menuButton.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
