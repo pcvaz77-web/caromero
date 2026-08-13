@@ -35,6 +35,10 @@ document.addEventListener('DOMContentLoaded', () => {
         window.refreshCounselorAssignments?.();
         refreshData();
       })
+      .on('postgres_changes', { event:'*', schema:'public', table:'student_occurrences' }, () => {
+        document.dispatchEvent(new Event('carometro:occurrences-changed'));
+        refreshData();
+      })
       .subscribe();
   });
 });
