@@ -151,7 +151,6 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_view_uniform', 'Visualizar Uniforme'],
     ['can_edit_uniform', 'Editar Uniforme e material'],
     ['can_mark_all_uniform_received', 'Marcar todos como receberam'],
-    ['can_register_occurrences', 'Registrar Ocorrência'],
     ['can_edit_occurrences', 'Editar todas as ocorrências'],
     ['can_delete_occurrences', 'Excluir todas as ocorrências']
   ];

@@ -28,7 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const isCoordinator = () => !!permission?.is_coordinator;
   const canViewOccurrences = () => true;
   const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
-  const canRegisterOccurrence = () => hasOccurrencePermission('can_register_occurrences');
+  // Registrar e consultar Ocorrências são funções padrão de todo professor.
+  // As permissões avançadas de coordenador só ampliam a edição/exclusão de
+  // registros feitos por outras pessoas.
+  const canRegisterOccurrence = () => !!user?.id;
   const isOccurrenceAuthor = item => !!item?.created_by && item.created_by === user?.id;
   const canEditOccurrence = item => isOccurrenceAuthor(item) || isAdmin() || hasOccurrencePermission('can_edit_occurrences');
   const canDeleteOccurrence = item => isOccurrenceAuthor(item) || isAdmin() || hasOccurrencePermission('can_delete_occurrences');
