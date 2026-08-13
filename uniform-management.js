@@ -10,18 +10,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'uniformModal';
   modal.className = 'modal-bg uniform-modal hidden';
-  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Uniforme</h3><div class="meta">Consulte a situação por turno, turma ou aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div></div><section class="uniform-shift-section" aria-label="Contagem por turno"><span class="uniform-shift-title">Contagem por turno</span><div id="uniformShiftSummary" class="uniform-shift-summary"></div></section><div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button">✓ Marcar todos como receberam</button></div><div class="uniform-controls"><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select><select id="uniformClass"><option value="">Todas as turmas</option></select><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></section>`;
+  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Uniforme</h3><div class="meta">Consulte a situação por turno, turma ou aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div><div><span>Sem material</span><b id="pendingMaterial">0</b></div></div><section class="uniform-shift-section" aria-label="Contagem por turno"><span class="uniform-shift-title">Contagem por turno</span><div id="uniformShiftSummary" class="uniform-shift-summary"></div></section><div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button">✓ Marcar todos como receberam</button></div><div class="uniform-controls"><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select><select id="uniformClass"><option value="">Todas as turmas</option></select><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option><option value="material">Somente sem material</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></section>`;
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
   style.textContent = `
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:12px 20px; overscroll-behavior:none; }.uniform-dialog { width:min(1040px,100%); height:min(960px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); min-height:0; display:flex; flex-direction:column; overflow:hidden; }.uniform-dialog .modal-head { position:relative!important; top:auto!important; flex:none; }
-    .uniform-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:10px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:7px 9px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:11px; font-weight:700; }.uniform-summary b { font-size:20px; color:#b42318; }
-    .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(3,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }
+    .uniform-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:7px 9px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:11px; font-weight:700; }.uniform-summary b { font-size:20px; color:#b42318; }
+    .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }
     .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:430px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
-    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-summary { padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:5px; font-size:9px; }.uniform-shift-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }.uniform-shift-card { display:block; min-width:0; padding:6px 4px; text-align:center; }.uniform-shift-card b { margin:0 0 4px; font-size:10px; }.uniform-shift-values { gap:2px; }.uniform-shift-values span { font-size:8px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:15px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-columns { display:none; }.uniform-list { min-height:220px; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; } }
+    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-statuses { display:flex; flex-wrap:wrap; gap:5px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:5px; font-size:9px; }.uniform-shift-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }.uniform-shift-card { display:block; min-width:0; padding:6px 3px; text-align:center; }.uniform-shift-card b { margin:0 0 4px; font-size:10px; }.uniform-shift-values { gap:1px; }.uniform-shift-values span { font-size:7px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:14px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-columns { display:none; }.uniform-list { min-height:190px; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; } }
   `;
   document.head.appendChild(style);
 
@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return { allowed:!!permission?.can_mark_all_uniform_received, classId:null, ids:null };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
-  const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
+  const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
   const shifts = ['Matutino', 'Vespertino', 'Noturno'];
   const shiftForClass = classId => classes.find(item => item.id === classId)?.shift || 'Matutino';
   const shiftForStudent = student => {
@@ -74,6 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (needsShoes) return 'shoes';
     return '';
   };
+  const materialPending = student => {
+    const stored = student?.id ? canonicalUniformState.get(student.id) : null;
+    const source = stored ? { ...student, ...stored } : student;
+    return source?.material_received === false || source?.material_received === 'false';
+  };
+  const statusesFor = student => {
+    const status = pending(student);
+    return [...(status ? [status] : []), ...(materialPending(student) ? ['material'] : [])];
+  };
   const studentId = card => card.dataset.studentId || card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   let classStudents = null;
   let classStudentsRequest = 0;
@@ -91,22 +100,25 @@ document.addEventListener('DOMContentLoaded', () => {
     // visualizar. A resposta exclusiva de Uniforme pode chegar incompleta ou
     // antes de uma alteração recente; use-a apenas antes da carga principal.
     const source = students.length ? students : records;
-    const totals = { uniform:0, shoes:0, both:0 };
+    const totals = { uniform:0, shoes:0, both:0, material:0 };
     source.forEach(student => {
       const status = pending(student);
       if (status) totals[status] += 1;
+      if (materialPending(student)) totals.material += 1;
     });
     get('pendingUniform').textContent = totals.uniform;
     get('pendingShoes').textContent = totals.shoes;
     get('pendingBoth').textContent = totals.both;
+    get('pendingMaterial').textContent = totals.material;
     get('uniformShiftSummary').innerHTML = shifts.map(shift => {
-      const shiftTotals = { uniform:0, shoes:0, both:0 };
+      const shiftTotals = { uniform:0, shoes:0, both:0, material:0 };
       source.forEach(student => {
         if (shiftForStudent(student) !== shift) return;
         const status = pending(student);
         if (status) shiftTotals[status] += 1;
+        if (materialPending(student)) shiftTotals.material += 1;
       });
-      return `<article class="uniform-shift-card"><b>${shift}</b><div class="uniform-shift-values"><span>Sem uniforme<strong>${shiftTotals.uniform}</strong></span><span>Sem tênis<strong>${shiftTotals.shoes}</strong></span><span>Sem os dois<strong>${shiftTotals.both}</strong></span></div></article>`;
+      return `<article class="uniform-shift-card"><b>${shift}</b><div class="uniform-shift-values"><span>Uniforme<strong>${shiftTotals.uniform}</strong></span><span>Tênis<strong>${shiftTotals.shoes}</strong></span><span>Os dois<strong>${shiftTotals.both}</strong></span><span>Material<strong>${shiftTotals.material}</strong></span></div></article>`;
     }).join('');
   }
 
@@ -127,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
       student.uniform_pending = state.uniform_pending || '';
       student.uniform_received = state.uniform_received;
       student.shoes_received = state.shoes_received;
+      student.material_received = state.material_received;
     });
     updateUniformSummary();
     classStudents?.forEach(student => {
@@ -135,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       student.uniform_pending = state.uniform_pending || '';
       student.uniform_received = state.uniform_received;
       student.shoes_received = state.shoes_received;
+      student.material_received = state.material_received;
     });
     // Recrie a lista e o card com o estado de Uniforme que acabou de chegar.
     // Isso evita que uma renderização anterior (sem esses campos) deixe de
@@ -144,14 +158,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function refreshUniformState({ renderWhenOpen = true } = {}) {
     const requestId = ++uniformStateRequest;
-    const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received');
+    const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received,material_received');
     if (requestId !== uniformStateRequest) return false;
     if (error) {
       // Sem a coluna no banco, não há como calcular nem mostrar a situação.
       // Avise de forma explícita, em vez de deixar contadores silenciosamente em zero.
       if (!uniformStateErrorShown) {
         uniformStateErrorShown = true;
-        toast(error.message.includes('uniform_pending')
+        toast(error.message.includes('material_received')
+          ? 'Execute o novo script supabase-uniform-material.sql no Supabase para ativar o controle de material.'
+          : error.message.includes('uniform_pending')
           ? 'O controle de Uniforme ainda não foi instalado no banco. Execute o arquivo supabase-uniform-management.sql.'
           : `Não foi possível atualizar o Uniforme: ${error.message}`);
       }
@@ -198,14 +214,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // ordem alfabética, independentemente da data em que foram cadastrados.
     const visible = classStudents.filter(item => {
       const type = pending(item);
+      const missingMaterial = materialPending(item);
       if (query && !item.name.toLocaleLowerCase('pt-BR').includes(query)) return false;
       if (view === 'all') return true;
-      if (view === 'pending') return !!type;
+      if (view === 'pending') return !!type || missingMaterial;
+      if (view === 'material') return missingMaterial;
       return type === view;
     }).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
-      const type = pending(item);
-      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${canRegisterUniform(item) ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
+      const type = pending(item), missingMaterial = materialPending(item), statuses = statusesFor(item);
+      const statusHtml = statuses.length ? `<div class="uniform-statuses">${statuses.map(status => `<span class="uniform-status pending">${labels[status]}</span>`).join('')}</div>` : '<span class="uniform-status received">✓ Recebeu</span>';
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${statusHtml}</div>${canRegisterUniform(item) ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme e tênis"><option value="" ${!type ? 'selected' : ''}>Uniforme e tênis: recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select><select class="material-select" aria-label="Registrar situação de material"><option value="" ${!missingMaterial ? 'selected' : ''}>Material: recebeu</option><option value="material" ${missingMaterial ? 'selected' : ''}>Não recebeu material</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
     setTimeout(paintStudentCards, 0);
   }
@@ -250,26 +269,27 @@ document.addEventListener('DOMContentLoaded', () => {
   get('uniformView').onchange = render;
   get('uniformSearch').oninput = render;
   get('uniformList').onchange = async event => {
-    const select = event.target.closest('.uniform-select'); if (!select) return;
+    const select = event.target.closest('.uniform-select, .material-select'); if (!select) return;
     const row = select.closest('.uniform-row'); const student = classStudents?.find(item => item.id === row.dataset.id) || students.find(item => item.id === row.dataset.id);
     if (!canRegisterUniform(student)) return;
+    const isMaterial = select.classList.contains('material-select');
     const type = select.value;
     select.disabled = true;
-    const nextState = {
-      uniform_pending: type || null,
-      uniform_received: type !== 'uniform' && type !== 'both',
-      shoes_received: type !== 'shoes' && type !== 'both'
-    };
+    const nextState = isMaterial
+      ? { material_received:type !== 'material' }
+      : {
+          uniform_pending: type || null,
+          uniform_received: type !== 'uniform' && type !== 'both',
+          shoes_received: type !== 'shoes' && type !== 'both'
+        };
     const { error } = await db.from('students').update(nextState).eq('id', row.dataset.id);
-    if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
+    if (error) { toast(error.message.includes('material_received') ? 'Execute o script supabase-uniform-material.sql no Supabase.' : error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
     // Atualização imediata: contadores, lista e etiqueta não dependem de uma
     // nova abertura da janela nem de uma atualização posterior da página.
-    const newStatus = type || '';
     const updateLocalStatus = item => {
       if (item?.id !== row.dataset.id) return;
-      item.uniform_pending = newStatus;
-      item.uniform_received = nextState.uniform_received;
-      item.shoes_received = nextState.shoes_received;
+      Object.assign(item, nextState);
+      if (!isMaterial) item.uniform_pending = type || '';
     };
     students.forEach(updateLocalStatus);
     classStudents?.forEach(updateLocalStatus);
@@ -278,9 +298,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // mais voltar e desfazer apenas o contador deste aluno.
     uniformStateRequest += 1;
     locallyUpdatedUniformIds.add(row.dataset.id);
-    canonicalUniformState.set(row.dataset.id, { id:row.dataset.id, ...nextState });
+    canonicalUniformState.set(row.dataset.id, { id:row.dataset.id, ...(canonicalUniformState.get(row.dataset.id) || {}), ...nextState, ...(!isMaterial ? { uniform_pending:type || '' } : {}) });
     window.uniformStateByStudent ||= new Map();
-    window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
+    window.uniformStateByStudent.set(row.dataset.id, canonicalUniformState.get(row.dataset.id));
     updateUniformSummary();
     render();
     toast(type ? 'Pendência registrada.' : 'Aluno marcado como recebeu.');
@@ -290,10 +310,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!access.allowed) return;
     const targetIsClass = Array.isArray(access.ids);
     if (targetIsClass && !access.ids.length) { toast('Selecione uma turma com alunos para usar esta ação.'); return; }
-    if (!confirm(targetIsClass ? 'Marcar todos os alunos desta turma como receberam uniforme e tênis?' : 'Marcar todos os alunos como receberam uniforme e tênis?')) return;
+    if (!confirm(targetIsClass ? 'Marcar todos os alunos desta turma como receberam uniforme, tênis e material?' : 'Marcar todos os alunos como receberam uniforme, tênis e material?')) return;
     const button = get('markAllUniformReceived');
     button.disabled = true;
-    const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true };
+    const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true, material_received:true };
     const { error } = await db.rpc('mark_all_uniform_received', { target_class_id:access.classId || null });
     if (error) {
       button.disabled = false;
@@ -305,6 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
       item.uniform_pending = '';
       item.uniform_received = true;
       item.shoes_received = true;
+      item.material_received = true;
     };
     const affectedIds = targetIsClass ? new Set(access.ids) : null;
     const markAffectedReceived = item => { if (!affectedIds || affectedIds.has(item?.id)) markReceived(item); };
@@ -333,7 +354,8 @@ document.addEventListener('DOMContentLoaded', () => {
       id:student.id,
       uniform_pending:student.uniform_pending,
       uniform_received:student.uniform_received,
-      shoes_received:student.shoes_received
+      shoes_received:student.shoes_received,
+      material_received:student.material_received
     })), { preserveLocal:true });
     if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
   });

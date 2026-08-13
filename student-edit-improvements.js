@@ -345,7 +345,7 @@ document.addEventListener('DOMContentLoaded', () => {
       db.from('classes').select('*').order('name'),
       // A lista principal precisa da mesma fonte de Uniforme que a janela de
       // controle usa. Não deixe as etiquetas dependerem de uma carga posterior.
-      db.from('students').select('id,uniform_pending,uniform_received,shoes_received')
+      db.from('students').select('id,uniform_pending,uniform_received,shoes_received,material_received')
     ]);
     // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
     // deixe uma resposta antiga substituir a lista mais recente na tela.
@@ -364,6 +364,7 @@ document.addEventListener('DOMContentLoaded', () => {
       photoPath: item.photo_path,
       uniform_received: uniformStateById.get(item.id)?.uniform_received ?? item.uniform_received,
       shoes_received: uniformStateById.get(item.id)?.shoes_received ?? item.shoes_received,
+      material_received: uniformStateById.get(item.id)?.material_received ?? item.material_received,
       uniform_size: item.uniform_size,
       shoe_size: item.shoe_size,
       uniform_received_at: item.uniform_received_at,
