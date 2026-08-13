@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const coordinatorModal = document.createElement('div');
   coordinatorModal.id = 'coordinatorModal';
   coordinatorModal.className = 'modal-bg coordinator-modal hidden';
-  coordinatorModal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Coordenadores</h3><div class="meta">Somente coordenadores podem receber permissões avançadas.</div></div><button class="close" type="button" aria-label="Fechar">×</button></div><div class="form"><div class="coordinator-form-grid"><div class="field"><label for="coordinatorUser">Usuário cadastrado</label><select id="coordinatorUser"><option value="">Selecione um usuário</option></select></div><button id="addCoordinator" type="button" class="btn primary">Adicionar coordenador</button></div><div id="coordinatorList" class="coordinator-list"></div></div></div>`;
+  coordinatorModal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Coordenadores</h3><div class="meta">Somente coordenadores podem receber permissões avançadas.</div></div><button class="close" type="button" aria-label="Fechar">×</button></div><div class="form"><div class="hint">Um usuário que já é conselheiro de turma não pode ser selecionado como coordenador. Isso evita conflitos entre as permissões por turma e as permissões avançadas.</div><div class="coordinator-form-grid"><div class="field"><label for="coordinatorUser">Usuário cadastrado</label><select id="coordinatorUser"><option value="">Selecione um usuário</option></select></div><button id="addCoordinator" type="button" class="btn primary">Adicionar coordenador</button></div><div id="coordinatorList" class="coordinator-list"></div></div></div>`;
   document.body.appendChild(coordinatorModal);
   coordinatorModal.querySelector('.close').onclick = () => coordinatorModal.classList.add('hidden');
   coordinatorModal.onclick = event => { if (event.target === coordinatorModal) coordinatorModal.classList.add('hidden'); };
@@ -170,15 +170,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openCoordinatorManager() {
     if (permission.role !== 'admin') return;
-    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,profiles(email,full_name)').order('updated_at');
-    if (error) { toast(error.message); return; }
+    const [{ data, error }, { data: counselorAssignments, error: counselorError }] = await Promise.all([
+      db.from('user_permissions').select('user_id,role,is_coordinator,profiles(email,full_name)').order('updated_at'),
+      db.from('class_counselors').select('counselor_user_id')
+    ]);
+    if (error || counselorError) { toast((error || counselorError).message); return; }
     const users = [...(data || [])].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
       const secondName = second.profiles?.full_name?.trim() || second.profiles?.email || '';
       return firstName.localeCompare(secondName, 'pt-BR', { sensitivity:'base' });
     });
     const nameFor = item => item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
-    const available = users.filter(item => item.role !== 'admin' && !item.is_coordinator);
+    const counselorIds = new Set((counselorAssignments || []).map(item => item.counselor_user_id).filter(Boolean));
+    const available = users.filter(item => item.role !== 'admin' && !item.is_coordinator && !counselorIds.has(item.user_id));
     const coordinators = users.filter(item => item.role !== 'admin' && item.is_coordinator);
     document.getElementById('coordinatorUser').innerHTML = '<option value="">Selecione um usuário</option>' + available.map(item => `<option value="${item.user_id}">${esc(nameFor(item))}</option>`).join('');
     document.getElementById('coordinatorPermissions').classList.add('hidden');
@@ -190,6 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('addCoordinator').onclick = async () => {
     const id = document.getElementById('coordinatorUser').value;
     if (!id) { toast('Selecione um usuário cadastrado.'); return; }
+    const { data: counselorRecord, error: counselorError } = await db.from('class_counselors').select('id').eq('counselor_user_id', id).limit(1);
+    if (counselorError) { toast(counselorError.message); return; }
+    if (counselorRecord?.length) { toast('Este usuário já é conselheiro de turma e não pode ser coordenador. Remova primeiro o vínculo de conselheiro.'); return; }
     const selectedRights = Object.fromEntries(permissionFields.map(key => [key, !!document.querySelector(`[data-coordinator-permission="${key}"]`)?.checked]));
     const { error } = await db.from('user_permissions').update({ is_coordinator:true, ...selectedRights, updated_at:new Date().toISOString() }).eq('user_id', id);
     if (error) { toast(error.message); return; }

@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'counselorModal';
   modal.className = 'modal-bg counselor-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Nome do conselheiro</label><select id="counselorUser" required></select><input id="counselorExternalName" class="hidden" maxlength="120" placeholder="Digite o nome do conselheiro"><div id="counselorAccountHint" class="meta">Escolha um usuário com conta para liberar permissões.</div></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><div id="counselorPermissionArea"><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Conselheiros de turma</h3><div class="meta">Permissões limitadas apenas à turma escolhida.</div></div><button class="close" type="button" id="closeCounselors">×</button></div><div class="form"><div class="hint">Usuários que já são coordenadores não podem ser conselheiros. Isso evita que permissões avançadas entrem em conflito com as permissões restritas à turma.</div><form id="counselorForm"><div class="counselor-form-grid"><div class="field"><label for="counselorUser">Nome do conselheiro</label><select id="counselorUser" required></select><input id="counselorExternalName" class="hidden" maxlength="120" placeholder="Digite o nome do conselheiro"><div id="counselorAccountHint" class="meta">Escolha um usuário com conta para liberar permissões.</div></div><div class="field"><label for="counselorClass">Turma</label><select id="counselorClass" required></select></div></div><div id="counselorPermissionArea"><label>Permissões para esta turma</label><div id="counselorPermissions" class="counselor-permissions"></div></div><div class="actions"><button type="button" class="btn secondary" id="cancelCounselor">Cancelar</button><button class="btn primary">Salvar conselheiro</button></div></form><div id="counselorList" class="counselor-list"></div></div></div>`;
   document.body.appendChild(modal);
 
   const closeManager = () => modal.classList.add('hidden');
@@ -169,7 +169,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderManager() {
     const classSelect = document.getElementById('counselorClass');
     classSelect.innerHTML = '<option value="" selected disabled>Selecione a turma</option>' + classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
-    const sortedUsers = [...registeredUsers].sort((first, second) => counselorName(first).localeCompare(counselorName(second), 'pt-BR', { sensitivity:'base' }));
+    const sortedUsers = registeredUsers
+      .filter(item => !item.is_coordinator && item.role !== 'admin')
+      .sort((first, second) => counselorName(first).localeCompare(counselorName(second), 'pt-BR', { sensitivity:'base' }));
     document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário</option>' + sortedUsers.map(item => `<option value="${item.user_id}">${escapeHtml(counselorName(item))}</option>`).join('') + '<option value="external">Conselheiro sem conta</option>';
     document.getElementById('counselorPermissions').innerHTML = counselorFields.map(([key, label]) => `<label class="check"><input type="checkbox" name="${key}"> ${label}</label>`).join('');
     document.getElementById('counselorList').innerHTML = assignments.length ? assignments.map(item => {
@@ -184,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (permission.role !== 'admin') return;
     try {
       const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
-        db.from('user_permissions').select('user_id,profiles(email,full_name)'),
+        db.from('user_permissions').select('user_id,role,is_coordinator,profiles(email,full_name)'),
         db.from('class_counselors').select('*')
       ]);
       if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
@@ -214,6 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
     const typedName = selectedUser ? counselorName(selectedUser) : document.getElementById('counselorExternalName').value.trim();
     if (!typedName || typedName.length < 3) { toast('Informe o nome do conselheiro.'); return; }
+    if (selectedUser?.is_coordinator || selectedUser?.role === 'admin') { toast('Este usuário é coordenador e não pode ser conselheiro. As permissões avançadas e por turma não podem ser combinadas.'); return; }
     const row = { class_id:document.getElementById('counselorClass').value };
     if (selectedUser) {
       row.counselor_user_id = selectedUser.user_id;
