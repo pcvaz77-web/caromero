@@ -124,6 +124,24 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(navigationStyle);
 
+  // Proteção adicional para o menu responsivo. Usar o atributo `hidden`, e
+  // não apenas uma classe de estilo, impede que regras de layout revelem
+  // botões exclusivos do administrador para usuários comuns.
+  const syncAdminOnlyNavigation = () => {
+    if (!window.matchMedia('(max-width:1100px)').matches) return;
+    const hideAdminCommands = permission?.role !== 'admin';
+    ['permissionsNav', 'settingsNav'].forEach(id => {
+      const button = document.getElementById(id);
+      if (!button) return;
+      if (button.hidden !== hideAdminCommands) button.hidden = hideAdminCommands;
+      if (button.classList.contains('hidden') !== hideAdminCommands) button.classList.toggle('hidden', hideAdminCommands);
+      button.setAttribute('aria-hidden', String(hideAdminCommands));
+    });
+  };
+  document.addEventListener('carometro:permission-refresh', syncAdminOnlyNavigation);
+  new MutationObserver(syncAdminOnlyNavigation).observe(document.querySelector('.side'), { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
+  setTimeout(syncAdminOnlyNavigation, 0);
+
   // No celular o perfil selecionado fica acima da lista. Assim ele não cobre
   // fotos e nomes enquanto a pessoa navega pelos alunos.
   const detail = document.getElementById('studentDetails');
