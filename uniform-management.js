@@ -96,47 +96,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return pending(source);
   }
 
-  function paintStudentCards() {
-    document.querySelectorAll('#list .student').forEach(card => {
-      const existing = card.querySelector('.uniform-card-label');
-      const type = uniformStatusFor(studentId(card));
-      const meta = card.querySelector(':scope > div:nth-child(2) .meta');
-      if (!meta) return;
-      if (!type) {
-        existing?.remove();
-        if (!meta.textContent.trim()) meta.textContent = 'Cadastro individual';
-        return;
-      }
-      if (existing?.textContent === labels[type]) return;
-      existing?.remove();
-      // A etiqueta substitui "Cadastro individual", sem ocupar uma linha extra.
-      if (meta.textContent.trim() === 'Cadastro individual') meta.textContent = '';
-      const tag = document.createElement('span');
-      tag.className = 'representative-label uniform-card-label uniform-pending';
-      tag.textContent = labels[type];
-      meta.appendChild(tag);
-    });
-    // No card de detalhes, preserve "Perfil do aluno" e mostre a situação
-    // de uniforme em uma informação própria dentro do card.
-    const detail = { uniform_pending: uniformStatusFor(detailStudentId) };
-    const existing = document.querySelector('#studentDetails .uniform-detail-row');
-    if (!pending(detail)) { existing?.remove(); return; }
-    if (existing) {
-      const tag = existing.querySelector('.uniform-card-label');
-      if (tag) tag.textContent = labels[pending(detail)];
-      return;
-    }
-    const row = document.createElement('div');
-    row.className = 'detail-row uniform-detail-row';
-    row.innerHTML = '<b>Uniforme</b>';
-    const tag = document.createElement('span');
-    tag.className = 'representative-label uniform-card-label uniform-pending';
-    tag.textContent = labels[pending(detail)];
-    row.appendChild(tag);
-    document.getElementById('studentDetails').appendChild(row);
-  }
-  new MutationObserver(() => setTimeout(paintStudentCards, 0)).observe(get('list'), { childList:true, subtree:true });
-  new MutationObserver(() => setTimeout(paintStudentCards, 0)).observe(get('studentDetails'), { childList:true, subtree:true });
+  // As etiquetas de situação ficam exclusivamente dentro desta tela.
+  // A lista de alunos e o card de detalhes mantêm suas informações próprias.
+  function paintStudentCards() {}
 
   function classOptions() {
     const select = get('uniformClass'); const current = select.value;
