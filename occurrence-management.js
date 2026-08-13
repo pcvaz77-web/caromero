@@ -246,6 +246,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   get('saveOccurrence').onclick = save;
   get('occurrenceText').oninput = () => { get('occurrenceTextCount').textContent = `${get('occurrenceText').value.length}/500`; };
+  get('occurrenceText').onkeydown = event => {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    // O campo de descrição aceita parágrafos; Enter nunca dispara salvamento.
+    event.preventDefault();
+    const input = get('occurrenceText');
+    if (input.value.length >= 500) return;
+    input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
+    input.dispatchEvent(new Event('input', { bubbles:true }));
+  };
   ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = refreshHistory; });
   get('occurrenceSearchClass').onchange = refreshHistory;
   let nameSearchTimer;
