@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (needsShoes) return 'shoes';
     return '';
   };
-  const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
+  const studentId = card => card.dataset.studentId || card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   let classStudents = null;
   let classStudentsRequest = 0;
   let uniformRecords = [];
@@ -237,6 +237,9 @@ document.addEventListener('DOMContentLoaded', () => {
     students.forEach(updateLocalStatus);
     classStudents?.forEach(updateLocalStatus);
     uniformRecords.forEach(updateLocalStatus);
+    // A lista e o card principal renderizam a etiqueta diretamente a partir
+    // do estado do aluno. Recrie-os agora, na mesma interação do select.
+    window.render?.();
     render();
     paintStudentCards();
     toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.');
@@ -266,6 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     classStudents?.forEach(markReceived);
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
+    window.render?.();
     render();
     paintStudentCards();
     button.disabled = false;
