@@ -80,24 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
     syncUniformState(data || []);
   }
 
-  // O carregamento principal pode ser disparado por várias telas (login,
-  // edição, atualização em tempo real). Encapsulá-lo garante que a situação
-  // global de uniforme seja atualizada em todas elas, sem depender da turma
-  // escolhida nem de um MutationObserver chegar em determinada ordem.
-  const loadStudents = window.load;
-  if (typeof loadStudents === 'function') {
-    window.load = async (...args) => {
-      const result = await loadStudents(...args);
-      await refreshUniformState();
-      if (!modal.classList.contains('hidden')) render();
-      return result;
-    };
-  }
   function uniformStatusFor(studentId) {
-    // A lista principal traz todos os alunos, inclusive quando nenhuma turma
-    // está selecionada no controle de Uniforme.
-    const source = students.find(item => item.id === studentId)
-      || uniformRecords.find(item => item.id === studentId)
+    // O retorno específico de Uniforme é a fonte autoritativa. A lista
+    // principal pode terminar de carregar depois dele e conter estado antigo.
+    const source = uniformRecords.find(item => item.id === studentId)
+      || students.find(item => item.id === studentId)
       || classStudents?.find(item => item.id === studentId);
     return pending(source);
   }
@@ -154,9 +141,10 @@ document.addEventListener('DOMContentLoaded', () => {
     get('markAllUniformReceived').classList.toggle('hidden', !isAdmin());
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
-    get('pendingUniform').textContent = students.filter(item => pending(item) === 'uniform').length;
-    get('pendingShoes').textContent = students.filter(item => pending(item) === 'shoes').length;
-    get('pendingBoth').textContent = students.filter(item => pending(item) === 'both').length;
+    const globalStudents = uniformRecords.length ? uniformRecords : students;
+    get('pendingUniform').textContent = globalStudents.filter(item => pending(item) === 'uniform').length;
+    get('pendingShoes').textContent = globalStudents.filter(item => pending(item) === 'shoes').length;
+    get('pendingBoth').textContent = globalStudents.filter(item => pending(item) === 'both').length;
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
     const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
@@ -289,4 +277,21 @@ document.addEventListener('DOMContentLoaded', () => {
       else paintStudentCards();
     });
   });
+
+  // Este arquivo é carregado antes dos aprimoramentos que definem a versão
+  // final de window.load. Aguarde o fim dos listeners de inicialização e só
+  // então envolva a função definitiva; desse modo login, edição e realtime
+  // sempre atualizam o estado global de Uniforme antes de redesenhar a tela.
+  setTimeout(() => {
+    const finalLoad = window.load;
+    if (typeof finalLoad !== 'function' || finalLoad.__uniformWrapped) return;
+    const wrappedLoad = async (...args) => {
+      const result = await finalLoad(...args);
+      await refreshUniformState();
+      if (!modal.classList.contains('hidden')) render();
+      return result;
+    };
+    wrappedLoad.__uniformWrapped = true;
+    window.load = wrappedLoad;
+  }, 0);
 });
