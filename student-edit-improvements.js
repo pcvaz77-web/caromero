@@ -372,7 +372,9 @@ document.addEventListener('DOMContentLoaded', () => {
       photoUrl: ''
     }));
     render();
-    document.dispatchEvent(new Event('carometro:uniform-refresh'));
+    // Ponto único de sincronização: recursos adicionais devem ouvir este
+    // evento, sem substituir window.load nem iniciar uma carga concorrente.
+    document.dispatchEvent(new CustomEvent('carometro:data-loaded', { detail:{ requestId } }));
   };
 
   const controls = document.createElement('div');

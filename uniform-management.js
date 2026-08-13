@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let classStudentsRequest = 0;
   let uniformRecords = [];
   let canonicalUniformState = new Map();
+  let locallyUpdatedUniformIds = new Set();
   let uniformStateRequest = 0;
   let uniformStateErrorShown = false;
 
@@ -92,15 +93,19 @@ document.addEventListener('DOMContentLoaded', () => {
     get('pendingBoth').textContent = totals.both;
   }
 
-  function syncUniformState(records) {
+  function syncUniformState(records, { preserveLocal = false } = {}) {
     uniformRecords = records || [];
     const stateByStudent = new Map(uniformRecords.map(item => [item.id, item]));
-    stateByStudent.forEach((state, id) => canonicalUniformState.set(id, { id, ...state }));
+    stateByStudent.forEach((state, id) => {
+      if (preserveLocal && locallyUpdatedUniformIds.has(id)) return;
+      canonicalUniformState.set(id, { id, ...state });
+      if (!preserveLocal) locallyUpdatedUniformIds.delete(id);
+    });
     // Exponha a fonte canônica por aluno para a lista e o card principal.
     // Dessa forma uma etiqueta nunca usa uma cópia antiga do objeto do aluno.
     window.uniformStateByStudent = new Map(canonicalUniformState);
     students.forEach(student => {
-      const state = stateByStudent.get(student.id);
+      const state = canonicalUniformState.get(student.id) || stateByStudent.get(student.id);
       if (!state) return;
       student.uniform_pending = state.uniform_pending || '';
       student.uniform_received = state.uniform_received;
@@ -108,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     updateUniformSummary();
     classStudents?.forEach(student => {
-      const state = stateByStudent.get(student.id);
+      const state = canonicalUniformState.get(student.id) || stateByStudent.get(student.id);
       if (!state) return;
       student.uniform_pending = state.uniform_pending || '';
       student.uniform_received = state.uniform_received;
@@ -252,6 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Invalida qualquer consulta iniciada antes desta alteração. Ela não pode
     // mais voltar e desfazer apenas o contador deste aluno.
     uniformStateRequest += 1;
+    locallyUpdatedUniformIds.add(row.dataset.id);
     canonicalUniformState.set(row.dataset.id, { id:row.dataset.id, ...nextState });
     window.uniformStateByStudent ||= new Map();
     window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
@@ -287,7 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
     classStudents?.forEach(markAffectedReceived);
     uniformStateRequest += 1;
     students.forEach(item => {
-      if (!affectedIds || affectedIds.has(item?.id)) canonicalUniformState.set(item.id, { id:item.id, ...nextState });
+      if (!affectedIds || affectedIds.has(item?.id)) {
+        locallyUpdatedUniformIds.add(item.id);
+        canonicalUniformState.set(item.id, { id:item.id, ...nextState });
+      }
     });
     window.uniformStateByStudent = new Map(canonicalUniformState);
     // Atualização visual imediata: não espere uma consulta, evento em tempo
@@ -297,29 +306,19 @@ document.addEventListener('DOMContentLoaded', () => {
     button.disabled = false;
     toast(targetIsClass ? 'Todos os alunos da turma foram marcados como receberam.' : 'Todos os alunos foram marcados como receberam.');
   };
-  document.addEventListener('carometro:uniform-refresh', () => {
-    refreshUniformState().then(() => {
-      if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
-      else paintStudentCards();
-    });
+  document.addEventListener('carometro:data-loaded', () => {
+    // O carregamento principal já trouxe os campos de Uniforme. Reutilize-o
+    // em vez de iniciar uma segunda consulta que possa chegar fora de ordem.
+    syncUniformState(students.map(student => ({
+      id:student.id,
+      uniform_pending:student.uniform_pending,
+      uniform_received:student.uniform_received,
+      shoes_received:student.shoes_received
+    })), { preserveLocal:true });
+    if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
   });
   document.addEventListener('carometro:permission-refresh', () => {
     if (!modal.classList.contains('hidden')) render();
   });
 
-  // Este arquivo é carregado antes dos aprimoramentos que definem a versão
-  // final de window.load. Aguarde o fim dos listeners de inicialização e só
-  // então envolva a função definitiva; desse modo login, edição e realtime
-  // sempre atualizam o estado global de Uniforme antes de redesenhar a tela.
-  setTimeout(() => {
-    const finalLoad = window.load;
-    if (typeof finalLoad !== 'function' || finalLoad.__uniformWrapped) return;
-    const wrappedLoad = async (...args) => {
-      const result = await finalLoad(...args);
-      await refreshUniformState({ renderWhenOpen:false });
-      return result;
-    };
-    wrappedLoad.__uniformWrapped = true;
-    window.load = wrappedLoad;
-  }, 0);
 });

@@ -307,16 +307,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal.classList.contains('hidden')) refreshHistory();
   });
 
-  setTimeout(() => {
-    const previousLoad = window.load;
-    if (typeof previousLoad !== 'function' || previousLoad.__occurrencesWrapped) return;
-    const wrappedLoad = async (...args) => {
-      const result = await previousLoad(...args);
-      await refreshLabelState();
-      if (!modal.classList.contains('hidden')) { fillClasses(); fillSearchClasses(); fillStudents(); await refreshHistory(); }
-      return result;
-    };
-    wrappedLoad.__occurrencesWrapped = true;
-    window.load = wrappedLoad;
-  }, 0);
+  document.addEventListener('carometro:data-loaded', async () => {
+    // Recursos adicionais recebem a conclusão da carga central sem encadear
+    // wrappers em window.load, o que evita respostas fora de ordem.
+    await refreshLabelState();
+    if (!modal.classList.contains('hidden')) {
+      fillClasses();
+      fillSearchClasses();
+      fillStudents();
+      await refreshHistory();
+    }
+  });
 });
