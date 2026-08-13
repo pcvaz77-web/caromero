@@ -241,7 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (studentCard && hasRepresentativeObservation(pill.textContent.trim())) {
         representatives.push(studentCard);
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
-        if (meta) meta.innerHTML = '<span class="representative-label observation-custom-4">Representante de turma</span>';
+        if (meta) {
+          // A marcação de representante ocupa o mesmo espaço abaixo do nome.
+          // Preserve a etiqueta de Uniforme já calculada para que ela não
+          // desapareça em alunos que possuem as duas informações.
+          const uniformLabel = meta.querySelector('.uniform-card-label')?.cloneNode(true);
+          meta.innerHTML = '<span class="representative-label observation-custom-4">Representante de turma</span>';
+          if (uniformLabel) {
+            meta.appendChild(document.createTextNode(' '));
+            meta.appendChild(uniformLabel);
+          }
+        }
       }
       pill.remove();
     });
