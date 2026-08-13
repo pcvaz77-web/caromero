@@ -120,6 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
     @media (max-width:800px) {
       .side .nav { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
       .side .nav #profileNav { grid-column:auto !important; }
+      .class-list {
+        display:grid !important;
+        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+        overflow:visible !important;
+      }
+      .shift-group { width:100% !important; }
+      .shift-tab { width:100% !important; justify-content:center !important; padding:9px 5px !important; }
     }
   `;
   document.head.appendChild(navigationStyle);
