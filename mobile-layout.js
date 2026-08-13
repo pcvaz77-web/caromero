@@ -291,6 +291,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       .side .nav button.hidden,
       .side .nav .settings-nav.hidden { display:none !important; }
+      .side .nav #studentsNav { display:none !important; }
       .side .nav #profileNav { order:-1; }
       #profileNav .profile-nav-desktop { display:inline !important; }
       #profileNav .profile-nav-mobile { display:none !important; }
@@ -306,13 +307,16 @@ document.addEventListener('DOMContentLoaded', () => {
       .class-head { display:none !important; }
       .class-list {
         display:grid !important;
-        grid-template-columns:repeat(3,minmax(0,1fr)) !important;
+        grid-template-columns:repeat(4,minmax(118px,1fr)) !important;
         gap:8px !important;
-        overflow:visible !important;
+        overflow-x:auto !important;
+        overflow-y:hidden !important;
         max-height:none !important;
         padding:0 !important;
+        scrollbar-width:none !important;
       }
-      .shift-group { position:relative !important; width:100% !important; margin:0 !important; }
+      .class-list::-webkit-scrollbar { display:none; }
+      .shift-group { position:relative !important; width:auto !important; margin:0 !important; }
       .shift-tab {
         width:100% !important;
         min-height:42px !important;
@@ -323,6 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         color:#fff !important;
         font-size:12px !important;
       }
+      .all-students-tab { white-space:nowrap !important; }
       .shift-tab[aria-expanded="true"] { background:#38527e !important; }
       .shift-classes {
         position:absolute !important;

@@ -33,7 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
     drawing = true;
     observer?.disconnect();
     const selected = selectedClassId;
-    classList.innerHTML = shifts.map(shift => {
+    const allStudentsButton = `<button type="button" class="shift-tab all-students-tab ${selected ? '' : 'active'}" data-all-students>Todos os alunos</button>`;
+    classList.innerHTML = allStudentsButton + shifts.map(shift => {
       const items = classes.filter(item => (item.shift || 'Matutino') === shift);
       const isOpen = openShifts.has(shift);
       const buttons = items.length
@@ -41,12 +42,18 @@ document.addEventListener('DOMContentLoaded', () => {
         : '<div class="shift-empty">Nenhuma turma.</div>';
       return `<div class="shift-group"><button type="button" class="shift-tab" data-shift="${shift}" aria-expanded="${isOpen}">${shift}<span class="arrow">⌄</span></button><div class="shift-classes" ${isOpen ? '' : 'hidden'}>${buttons}</div></div>`;
     }).join('');
-    classList.querySelectorAll('.shift-tab').forEach(button => {
+    classList.querySelectorAll('.shift-tab[data-shift]').forEach(button => {
       button.onclick = () => {
         const shift = button.dataset.shift;
         if (openShifts.has(shift)) openShifts.delete(shift); else openShifts.add(shift);
         drawGroups();
       };
+    });
+    classList.querySelector('[data-all-students]')?.addEventListener('click', () => {
+      selectedClassId = null;
+      detailStudentId = null;
+      window.render();
+      drawGroups();
     });
     classList.querySelectorAll('[data-class-id]').forEach(button => {
       button.onclick = () => {
