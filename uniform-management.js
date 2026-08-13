@@ -19,8 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .uniform-modal { z-index:110; padding:20px; overscroll-behavior:none; }.uniform-dialog { width:min(930px,100%); height:min(720px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; overflow:hidden; }
     .uniform-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:15px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:10px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:12px; font-weight:700; }.uniform-summary b { font-size:24px; color:#b42318; }
     .uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 22px 22px; }
-    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:5px; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; } }
+    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; }.uniform-card-label { font-size:11px; } }
   `;
   document.head.appendChild(style);
 
@@ -34,25 +34,54 @@ document.addEventListener('DOMContentLoaded', () => {
   let classStudentsRequest = 0;
   let uniformRecords = [];
   let uniformStateRequest = 0;
+  let uniformStateErrorShown = false;
 
   function syncUniformState(records) {
     uniformRecords = records || [];
     const statusByStudent = new Map(uniformRecords.map(item => [item.id, item.uniform_pending || '']));
     students.forEach(student => {
-      if (statusByStudent.has(student.id)) student.uniform_pending = statusByStudent.get(student.id);
+      student.uniform_pending = statusByStudent.get(student.id) || '';
     });
     paintStudentCards();
   }
   async function refreshUniformState() {
     const requestId = ++uniformStateRequest;
     const { data, error } = await db.from('students').select('id,uniform_pending');
-    if (requestId !== uniformStateRequest || error) return;
+    if (requestId !== uniformStateRequest) return;
+    if (error) {
+      // Sem a coluna no banco, não há como calcular nem mostrar a situação.
+      // Avise de forma explícita, em vez de deixar contadores silenciosamente em zero.
+      if (!uniformStateErrorShown) {
+        uniformStateErrorShown = true;
+        toast(error.message.includes('uniform_pending')
+          ? 'O controle de Uniforme ainda não foi instalado no banco. Execute o arquivo supabase-uniform-management.sql.'
+          : `Não foi possível atualizar o Uniforme: ${error.message}`);
+      }
+      return;
+    }
+    uniformStateErrorShown = false;
     syncUniformState(data || []);
   }
+
+  // O carregamento principal pode ser disparado por várias telas (login,
+  // edição, atualização em tempo real). Encapsulá-lo garante que a situação
+  // global de uniforme seja atualizada em todas elas, sem depender da turma
+  // escolhida nem de um MutationObserver chegar em determinada ordem.
+  const loadStudents = window.load;
+  if (typeof loadStudents === 'function') {
+    window.load = async (...args) => {
+      const result = await loadStudents(...args);
+      await refreshUniformState();
+      if (!modal.classList.contains('hidden')) render();
+      return result;
+    };
+  }
   function uniformStatusFor(studentId) {
-    const source = uniformRecords.find(item => item.id === studentId)
-      || classStudents?.find(item => item.id === studentId)
-      || students.find(item => item.id === studentId);
+    // A lista principal traz todos os alunos, inclusive quando nenhuma turma
+    // está selecionada no controle de Uniforme.
+    const source = students.find(item => item.id === studentId)
+      || uniformRecords.find(item => item.id === studentId)
+      || classStudents?.find(item => item.id === studentId);
     return pending(source);
   }
 
@@ -76,10 +105,16 @@ document.addEventListener('DOMContentLoaded', () => {
       tag.textContent = labels[type];
       meta.appendChild(tag);
     });
+    // No card de detalhes, preserve "Perfil do aluno" e mostre a situação
+    // de uniforme em uma informação própria dentro do card.
     const detail = { uniform_pending: uniformStatusFor(detailStudentId) };
     const existing = document.querySelector('#studentDetails .uniform-detail-row');
     if (!pending(detail)) { existing?.remove(); return; }
-    if (existing) { const tag = existing.querySelector('.uniform-card-label'); if (tag) tag.textContent = labels[pending(detail)]; return; }
+    if (existing) {
+      const tag = existing.querySelector('.uniform-card-label');
+      if (tag) tag.textContent = labels[pending(detail)];
+      return;
+    }
     const row = document.createElement('div');
     row.className = 'detail-row uniform-detail-row';
     row.innerHTML = '<b>Uniforme</b>';
@@ -101,10 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     classOptions();
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
-    const records = uniformRecords.length ? uniformRecords : students;
-    get('pendingUniform').textContent = records.filter(item => pending(item) === 'uniform').length;
-    get('pendingShoes').textContent = records.filter(item => pending(item) === 'shoes').length;
-    get('pendingBoth').textContent = records.filter(item => pending(item) === 'both').length;
+    get('pendingUniform').textContent = students.filter(item => pending(item) === 'uniform').length;
+    get('pendingShoes').textContent = students.filter(item => pending(item) === 'shoes').length;
+    get('pendingBoth').textContent = students.filter(item => pending(item) === 'both').length;
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
     const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
@@ -154,7 +188,11 @@ document.addEventListener('DOMContentLoaded', () => {
   async function open() {
     modal.classList.remove('hidden');
     await load();
+    // Mesmo sem selecionar turma, consulte todos os alunos antes de montar
+    // os três contadores e as etiquetas da lista/cards.
+    await refreshUniformState();
     classOptions();
+    render();
     await loadClassStudents();
   }
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
