@@ -25,10 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
-  const isCounselor = () => !isAdmin() && !!window.isCounselorUser?.();
-  // As permissões de Ocorrência do conselheiro são globais: se liberadas em
-  // qualquer vínculo dele, valem para registrar em todas as turmas.
-  const hasOccurrencePermission = key => isAdmin() || (isCounselor() ? !!window.counselorHasPermission?.(key) : !!permission?.[key]);
+  const isCoordinator = () => !!permission?.is_coordinator;
+  const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
   const canRegisterOccurrence = () => hasOccurrencePermission('can_register_occurrences');
   const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_edit_occurrences'));
   const canDeleteOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_delete_occurrences'));

@@ -27,24 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
-  const isCounselor = () => !isAdmin() && !!window.isCounselorUser?.();
+  const isCoordinator = () => !!permission?.is_coordinator;
+  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
   const canRegisterUniform = student => {
     if (isAdmin()) return true;
-    if (isCounselor()) {
-      const rights = window.counselorRightsForClass?.(student?.classId);
-      return !!(rights?.can_edit_all || rights?.can_edit_uniform);
-    }
-    return !!(permission?.can_edit_all || permission?.can_edit_uniform);
+    return isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform);
   };
   const bulkUniformAccess = () => {
     if (isAdmin()) return { allowed:true, ids:null };
-    if (isCounselor()) {
-      const classId = get('uniformClass').value;
-      const rights = window.counselorRightsForClass?.(classId);
-      const allowed = !!classId && !!rights?.can_mark_all_uniform_received;
-      return { allowed, classId, ids:(classStudents || []).map(item => item.id) };
-    }
-    return { allowed:!!permission?.can_mark_all_uniform_received, classId:null, ids:null };
+    return { allowed:isCoordinator() && !!permission?.can_mark_all_uniform_received, classId:null, ids:null };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
@@ -247,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (requestId === classStudentsRequest) render();
   }
   async function open() {
+    if (!canAccessUniform()) { toast('O administrador precisa liberar o acesso ao Uniforme para este coordenador.'); return; }
     // Garanta que a lista principal e os dados exclusivos de Uniforme estejam
     // atualizados antes de exibir os totais. Assim a janela nunca abre em 0
     // por estar usando uma cópia antiga do carregamento anterior.
@@ -263,6 +255,12 @@ document.addEventListener('DOMContentLoaded', () => {
       uniformButton.disabled = false;
     }
   }
+  const syncUniformNavigation = () => {
+    const allowed = canAccessUniform();
+    uniformButton.classList.toggle('hidden', !allowed);
+    uniformButton.hidden = !allowed;
+    if (!allowed) modal.classList.add('hidden');
+  };
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
   get('uniformShift').onchange = () => { classOptions(); loadClassStudents(); };
   get('uniformClass').onchange = loadClassStudents;
@@ -360,7 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
   });
   document.addEventListener('carometro:permission-refresh', () => {
+    syncUniformNavigation();
     if (!modal.classList.contains('hidden')) render();
   });
+  new MutationObserver(syncUniformNavigation).observe(get('app'), { attributes:true, attributeFilter:['class'] });
+  setTimeout(syncUniformNavigation, 0);
 
 });
