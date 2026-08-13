@@ -3,7 +3,9 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_edit_all', 'Editar tudo'],
     ['can_edit_photo', 'Editar foto'],
     ['can_edit_name', 'Editar nome'],
-    ['can_edit_report', 'Editar observações']
+    ['can_edit_report', 'Editar observações'],
+    ['can_edit_uniform', 'Registrar uniforme'],
+    ['can_mark_all_uniform_received', 'Marcar todos como receberam']
   ];
   let assignments = [];
   let ownAssignments = [];

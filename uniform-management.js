@@ -26,6 +26,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
+  const isCounselor = () => !isAdmin() && !!window.isCounselorUser?.();
+  const canRegisterUniform = student => {
+    if (isAdmin()) return true;
+    if (isCounselor()) {
+      const rights = window.counselorRightsForClass?.(student?.classId);
+      return !!(rights?.can_edit_all || rights?.can_edit_uniform);
+    }
+    return !!(permission?.can_edit_all || permission?.can_edit_uniform);
+  };
+  const bulkUniformAccess = () => {
+    if (isAdmin()) return { allowed:true, ids:null };
+    if (isCounselor()) {
+      const classId = get('uniformClass').value;
+      const rights = window.counselorRightsForClass?.(classId);
+      const allowed = !!classId && !!rights?.can_mark_all_uniform_received;
+      return { allowed, classId, ids:(classStudents || []).map(item => item.id) };
+    }
+    return { allowed:!!permission?.can_mark_all_uniform_received, classId:null, ids:null };
+  };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
   const pending = student => {
@@ -107,7 +126,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render() {
     classOptions();
-    get('markAllUniformReceived').classList.toggle('hidden', !isAdmin());
+    const bulkAccess = bulkUniformAccess();
+    get('markAllUniformReceived').classList.toggle('hidden', !bulkAccess.allowed);
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
     const globalStudents = uniformRecords.length ? uniformRecords : students;
@@ -129,7 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
       const type = pending(item);
-      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${isAdmin() ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${type ? `<span class="uniform-status pending">${labels[type]}</span>` : '<span class="uniform-status received">✓ Recebeu</span>'}</div>${canRegisterUniform(item) ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme"><option value="" ${!type ? 'selected' : ''}>Recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
     setTimeout(paintStudentCards, 0);
   }
@@ -184,8 +204,10 @@ document.addEventListener('DOMContentLoaded', () => {
   get('uniformView').onchange = render;
   get('uniformSearch').oninput = render;
   get('uniformList').onchange = async event => {
-    const select = event.target.closest('.uniform-select'); if (!select || !isAdmin()) return;
-    const row = select.closest('.uniform-row'); const type = select.value;
+    const select = event.target.closest('.uniform-select'); if (!select) return;
+    const row = select.closest('.uniform-row'); const student = classStudents?.find(item => item.id === row.dataset.id) || students.find(item => item.id === row.dataset.id);
+    if (!canRegisterUniform(student)) return;
+    const type = select.value;
     select.disabled = true;
     const nextState = {
       uniform_pending: type || null,
@@ -218,12 +240,15 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadClassStudents();
   };
   get('markAllUniformReceived').onclick = async () => {
-    if (!isAdmin()) return;
-    if (!confirm('Marcar todos os alunos como receberam uniforme e tênis?')) return;
+    const access = bulkUniformAccess();
+    if (!access.allowed) return;
+    const targetIsClass = Array.isArray(access.ids);
+    if (targetIsClass && !access.ids.length) { toast('Selecione uma turma com alunos para usar esta ação.'); return; }
+    if (!confirm(targetIsClass ? 'Marcar todos os alunos desta turma como receberam uniforme e tênis?' : 'Marcar todos os alunos como receberam uniforme e tênis?')) return;
     const button = get('markAllUniformReceived');
     button.disabled = true;
     const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true };
-    const { error } = await db.from('students').update(nextState).not('id', 'is', null);
+    const { error } = await db.rpc('mark_all_uniform_received', { target_class_id:access.classId || null });
     if (error) {
       button.disabled = false;
       toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message);
@@ -235,9 +260,11 @@ document.addEventListener('DOMContentLoaded', () => {
       item.uniform_received = true;
       item.shoes_received = true;
     };
-    students.forEach(markReceived);
-    uniformRecords.forEach(markReceived);
-    classStudents?.forEach(markReceived);
+    const affectedIds = targetIsClass ? new Set(access.ids) : null;
+    const markAffectedReceived = item => { if (!affectedIds || affectedIds.has(item?.id)) markReceived(item); };
+    students.forEach(markAffectedReceived);
+    uniformRecords.forEach(markAffectedReceived);
+    classStudents?.forEach(markAffectedReceived);
     window.uniformStateByStudent = new Map(students.map(item => [item.id, item]));
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
@@ -245,13 +272,16 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
     paintStudentCards();
     button.disabled = false;
-    toast('Todos os alunos foram marcados como receberam.');
+    toast(targetIsClass ? 'Todos os alunos da turma foram marcados como receberam.' : 'Todos os alunos foram marcados como receberam.');
   };
   document.addEventListener('carometro:uniform-refresh', () => {
     refreshUniformState().then(() => {
       if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
       else paintStudentCards();
     });
+  });
+  document.addEventListener('carometro:permission-refresh', () => {
+    if (!modal.classList.contains('hidden')) render();
   });
 
   // Este arquivo é carregado antes dos aprimoramentos que definem a versão
