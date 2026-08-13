@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .coordinator-management { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:15px 16px; border:1px solid #b9d4ff; background:#eef5ff; border-radius:11px; }
     .coordinator-management b { display:block; }
     .coordinator-modal { z-index:105; }.coordinator-modal .modal { width:min(720px,100%); }.coordinator-form-grid { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px; align-items:end; }.coordinator-list { display:grid; gap:9px; margin-top:20px; }.coordinator-item { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px; border:1px solid var(--line); border-radius:9px; }.coordinator-badge { display:inline-flex; margin-top:5px; padding:4px 8px; border-radius:99px; background:#e8efff; color:#214dba; font-size:11px; font-weight:800; }
+    .coordinator-permissions { margin-top:15px; padding:16px; border:1px solid #cbdcff; background:#f7f9ff; border-radius:11px; }.coordinator-permissions h4 { margin:0 0 5px; font-size:15px; }.coordinator-permission-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:13px; }.coordinator-permission-options .check { align-items:flex-start; min-height:40px; padding:9px 10px; border:1px solid #d9e2f4; background:#fff; border-radius:8px; font-size:12px; line-height:1.25; }.coordinator-permission-options .check:has(input:checked) { background:#e8efff; color:#214dba; }
+    .advanced-permissions { border:1px solid #cbdcff; background:#f7f9ff; border-radius:12px; padding:14px; }.advanced-permissions summary { list-style:none; display:flex; justify-content:space-between; align-items:center; gap:12px; cursor:pointer; font-weight:800; color:#1f3d78; }.advanced-permissions summary::-webkit-details-marker { display:none; }.advanced-permissions summary::after { content:'⌄'; font-size:20px; }.advanced-permissions[open] summary::after { content:'⌃'; }.advanced-permissions .advanced-content { display:grid; gap:12px; padding-top:14px; }.permissions-heading { margin:8px 0 0; font-size:15px; }.permissions-heading .meta { margin-top:3px; }
     #permissionsList { display:grid; gap:12px; }
     .perm { display:grid; grid-template-columns:minmax(230px,1fr) minmax(170px,.72fr) minmax(220px,1fr); gap:16px; align-items:center; padding:18px; border:1px solid var(--line); border-radius:12px; }
     .permission-user b { display:block; font-size:15px; }
@@ -33,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .counselor-management .btn { width:100%; }
       .coordinator-management { align-items:stretch; flex-direction:column; }
       .coordinator-management .btn { width:100%; }
-      .coordinator-modal { padding:10px; align-items:start; overflow:auto; }.coordinator-modal .modal { width:100%; max-height:calc(100vh - 20px); margin:auto 0; }.coordinator-modal .form { padding:16px; }.coordinator-form-grid { grid-template-columns:1fr; gap:8px; }.coordinator-item { align-items:flex-start; flex-direction:column; }.coordinator-item .btn { width:100%; }
+      .coordinator-modal { padding:10px; align-items:start; overflow:auto; }.coordinator-modal .modal { width:100%; max-height:calc(100vh - 20px); margin:auto 0; }.coordinator-modal .form { padding:16px; }.coordinator-form-grid { grid-template-columns:1fr; gap:8px; }.coordinator-item { align-items:flex-start; flex-direction:column; }.coordinator-item .btn { width:100%; }.coordinator-permission-options { grid-template-columns:1fr; }
       .permission-search-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px; margin-bottom:12px; }
       .permission-search { min-width:0; min-height:42px; padding:9px 11px; font-size:14px; }
       .permission-search-form .btn { min-height:42px; padding:9px 12px; font-size:13px; }
@@ -137,6 +139,34 @@ document.addEventListener('DOMContentLoaded', () => {
   coordinatorModal.querySelector('.close').onclick = () => coordinatorModal.classList.add('hidden');
   coordinatorModal.onclick = event => { if (event.target === coordinatorModal) coordinatorModal.classList.add('hidden'); };
 
+  const coordinatorPermissionOptions = [
+    ['can_edit_all', 'Editar tudo'],
+    ['can_add_students', 'Adicionar alunos e turmas'],
+    ['can_delete_students', 'Excluir alunos e turmas'],
+    ['can_edit_photo', 'Editar somente foto'],
+    ['can_edit_name', 'Editar somente nome'],
+    ['can_edit_class', 'Mudar aluno de turma'],
+    ['can_edit_report', 'Editar observações do aluno'],
+    ['can_view_uniform', 'Visualizar Uniforme'],
+    ['can_edit_uniform', 'Editar Uniforme e material'],
+    ['can_mark_all_uniform_received', 'Marcar todos como receberam'],
+    ['can_view_occurrences', 'Visualizar Ocorrências'],
+    ['can_register_occurrences', 'Registrar Ocorrência'],
+    ['can_edit_occurrences', 'Editar todas as ocorrências'],
+    ['can_delete_occurrences', 'Excluir todas as ocorrências']
+  ];
+  coordinatorModal.querySelector('.form').insertAdjacentHTML('beforeend', `<section id="coordinatorPermissions" class="coordinator-permissions hidden"><h4>Permissões avançadas</h4><div class="meta">Escolha exatamente o que este coordenador poderá fazer.</div><div id="coordinatorPermissionOptions" class="coordinator-permission-options"></div></section>`);
+  const renderCoordinatorPermissionOptions = () => {
+    const id = document.getElementById('coordinatorUser').value;
+    const area = document.getElementById('coordinatorPermissions');
+    const button = document.getElementById('addCoordinator');
+    area.classList.toggle('hidden', !id);
+    button.disabled = !id;
+    if (!id) { document.getElementById('coordinatorPermissionOptions').innerHTML = ''; return; }
+    document.getElementById('coordinatorPermissionOptions').innerHTML = coordinatorPermissionOptions.map(([key, label]) => `<label class="check"><input type="checkbox" data-coordinator-permission="${key}"> ${label}</label>`).join('');
+  };
+  document.getElementById('coordinatorUser').onchange = renderCoordinatorPermissionOptions;
+
   async function openCoordinatorManager() {
     if (permission.role !== 'admin') return;
     const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,profiles(email,full_name)').order('updated_at');
@@ -150,16 +180,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const available = users.filter(item => item.role !== 'admin' && !item.is_coordinator);
     const coordinators = users.filter(item => item.role !== 'admin' && item.is_coordinator);
     document.getElementById('coordinatorUser').innerHTML = '<option value="">Selecione um usuário</option>' + available.map(item => `<option value="${item.user_id}">${esc(nameFor(item))}</option>`).join('');
-    document.getElementById('addCoordinator').disabled = !available.length;
+    document.getElementById('coordinatorPermissions').classList.add('hidden');
+    document.getElementById('coordinatorPermissionOptions').innerHTML = '';
+    document.getElementById('addCoordinator').disabled = true;
     document.getElementById('coordinatorList').innerHTML = coordinators.length ? coordinators.map(item => `<article class="coordinator-item"><div><b>${esc(nameFor(item))}</b><div class="meta">${esc(item.profiles?.email || '')}</div><span class="coordinator-badge">Coordenador</span></div><button type="button" class="btn danger-outline" data-remove-coordinator="${item.user_id}">Remover coordenador</button></article>`).join('') : '<div class="empty">Nenhum coordenador cadastrado.</div>';
     coordinatorModal.classList.remove('hidden');
   }
   document.getElementById('addCoordinator').onclick = async () => {
     const id = document.getElementById('coordinatorUser').value;
     if (!id) { toast('Selecione um usuário cadastrado.'); return; }
-    const { error } = await db.from('user_permissions').update({ is_coordinator:true, updated_at:new Date().toISOString() }).eq('user_id', id);
+    const selectedRights = Object.fromEntries(permissionFields.map(key => [key, !!document.querySelector(`[data-coordinator-permission="${key}"]`)?.checked]));
+    const { error } = await db.from('user_permissions').update({ is_coordinator:true, ...selectedRights, updated_at:new Date().toISOString() }).eq('user_id', id);
     if (error) { toast(error.message); return; }
-    toast('Coordenador adicionado. Agora libere as permissões avançadas necessárias.');
+    toast('Coordenador adicionado com as permissões avançadas escolhidas.');
     openCoordinatorManager();
   };
   document.getElementById('coordinatorList').onclick = async event => {
@@ -185,12 +218,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
-      if (!isCoordinator(item)) return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Visualizador</div></div><div class="meta">Torne este usuário coordenador para liberar permissões avançadas.</div></article>`;
-      return `<article class="perm" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_view_occurrences','Visualizar Ocorrências',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
+      if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Visualizador</div></div><div class="meta">Torne este usuário coordenador para liberar permissões avançadas.</div></article>`;
+      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_view_occurrences','Visualizar Ocorrências',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
     const counselorManager = `<section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Cadastre, edite ou exclua conselheiros e as permissões por turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section>`;
-    document.getElementById('permissionsList').innerHTML = `${coordinatorManager}${counselorManager}<form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div>`;
+    const advancedPermissions = `<details class="advanced-permissions"><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}${counselorManager}<div id="advancedCoordinatorCards"></div></div></details>`;
+    document.getElementById('permissionsList').innerHTML = `${advancedPermissions}<section><div class="permissions-heading"><b>Permissões gerais</b><div class="meta">Usuários cadastrados e seus acessos atuais.</div></div><form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div></section>`;
+    const advancedCardTarget = document.getElementById('advancedCoordinatorCards');
+    document.querySelectorAll('#permissionsList .perm[data-permission-scope="advanced"]').forEach(card => advancedCardTarget.appendChild(card));
     document.getElementById('openCoordinators').onclick = event => { event.preventDefault(); event.stopPropagation(); openCoordinatorManager(); };
     document.getElementById('openCounselors').onclick = event => {
       event.preventDefault();
