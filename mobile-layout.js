@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     @media (max-width:800px) {
       .side .nav { grid-template-columns:repeat(2,minmax(0,1fr)) !important; }
-      .side .nav #profileNav { grid-column:1 / -1 !important; }
+      .side .nav #profileNav { grid-column:auto !important; }
     }
   `;
   document.head.appendChild(navigationStyle);
