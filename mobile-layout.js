@@ -137,18 +137,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const syncAdminOnlyNavigation = () => {
     if (!window.matchMedia('(max-width:1100px)').matches) return;
     const hideAdminCommands = permission?.role !== 'admin';
-    ['permissionsNav', 'settingsNav'].forEach(id => {
+    const canViewUniform = permission?.role === 'admin' || (!!permission?.is_coordinator && !!(permission?.can_edit_all || permission?.can_view_uniform || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
+    const syncButton = (id, hidden) => {
       const button = document.getElementById(id);
       if (!button) return;
-      if (button.hidden !== hideAdminCommands) button.hidden = hideAdminCommands;
-      if (button.classList.contains('hidden') !== hideAdminCommands) button.classList.toggle('hidden', hideAdminCommands);
-      if (hideAdminCommands) button.style.setProperty('display', 'none', 'important');
+      if (button.hidden !== hidden) button.hidden = hidden;
+      if (button.classList.contains('hidden') !== hidden) button.classList.toggle('hidden', hidden);
+      if (hidden) button.style.setProperty('display', 'none', 'important');
       else button.style.removeProperty('display');
-      button.setAttribute('aria-hidden', String(hideAdminCommands));
-    });
+      button.setAttribute('aria-hidden', String(hidden));
+    };
+    ['permissionsNav', 'settingsNav'].forEach(id => syncButton(id, hideAdminCommands));
+    // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do
+    // menu em um perfil de professor(a), mesmo que a tela móvel seja aberta.
+    syncButton('uniformNav', !canViewUniform);
   };
   document.addEventListener('carometro:permission-refresh', syncAdminOnlyNavigation);
   new MutationObserver(syncAdminOnlyNavigation).observe(document.querySelector('.side'), { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
+  new MutationObserver(syncAdminOnlyNavigation).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
   setTimeout(syncAdminOnlyNavigation, 0);
 
   // No celular o perfil selecionado fica acima da lista. Assim ele não cobre
