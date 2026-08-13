@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
   const pending = student => student?.uniform_pending || '';
   const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
-  let classStudents = [];
+  let classStudents = null;
   let classStudentsRequest = 0;
 
   function paintStudentCards() {
@@ -84,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
     const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
+    if (classStudents === null) { get('uniformList').innerHTML = '<div class="uniform-empty">Carregando alunos da turma…</div>'; return; }
     // A tela de Uniforme deve manter todos os alunos da turma juntos e em
     // ordem alfabética, independentemente da data em que foram cadastrados.
     const visible = classStudents.filter(item => {
@@ -102,22 +103,27 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadClassStudents() {
     const classId = get('uniformClass').value;
     const requestId = ++classStudentsRequest;
-    classStudents = [];
+    classStudents = null;
     render();
     if (!classId) return;
     const { data, error } = await db.from('students')
       .select('id,full_name,class_id,class_name,uniform_pending')
-      .eq('class_id', classId)
       .order('full_name', { ascending:true });
     if (requestId !== classStudentsRequest) return;
-    if (error) { toast('Não foi possível carregar os alunos desta turma.'); return; }
-    classStudents = (data || []).map(item => ({
-      id: item.id,
-      name: item.full_name,
-      classId: item.class_id,
-      className: item.class_name,
-      uniform_pending: item.uniform_pending
-    }));
+    if (error) { classStudents = []; render(); toast('Não foi possível carregar os alunos desta turma.'); return; }
+    // Há cadastros antigos que guardam somente o nome da turma. Considerar o
+    // identificador e o nome impede que esses alunos fiquem fora do Uniforme.
+    const normalizeClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
+    const targetName = normalizeClassName(classes.find(item => item.id === classId)?.name);
+    classStudents = (data || [])
+      .filter(item => item.class_id === classId || normalizeClassName(item.class_name) === targetName)
+      .map(item => ({
+        id: item.id,
+        name: item.full_name,
+        classId: item.class_id,
+        className: classes.find(cls => cls.id === item.class_id)?.name || item.class_name,
+        uniform_pending: item.uniform_pending
+      }));
     render();
   }
   async function open() {
