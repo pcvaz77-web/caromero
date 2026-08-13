@@ -135,6 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!button) return;
       if (button.hidden !== hideAdminCommands) button.hidden = hideAdminCommands;
       if (button.classList.contains('hidden') !== hideAdminCommands) button.classList.toggle('hidden', hideAdminCommands);
+      if (hideAdminCommands) button.style.setProperty('display', 'none', 'important');
+      else button.style.removeProperty('display');
       button.setAttribute('aria-hidden', String(hideAdminCommands));
     });
   };
