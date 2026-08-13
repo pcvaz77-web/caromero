@@ -9,12 +9,13 @@ security definer
 set search_path = public
 as $$
 begin
-  -- As permissões gerais (adicionar, editar/excluir e foto) podem ser
-  -- liberadas a qualquer professor pelo administrador.
+  -- As permissões gerais (adicionar e editar/excluir) podem ser liberadas
+  -- a qualquer professor pelo administrador.
   -- Direitos avançados continuam restritos a administradores e coordenadores.
   if new.role <> 'admin' and not coalesce(new.is_coordinator, false) then
     new.can_delete_students := false;
     new.can_edit_all := false;
+    new.can_edit_photo := false;
     new.can_edit_name := false;
     new.can_edit_class := false;
     new.can_edit_report := false;
@@ -55,22 +56,14 @@ begin
     or old.uniform_pending is distinct from new.uniform_pending;
   bulk_update := current_setting('app.uniform_bulk_update', true) = 'true';
 
-  -- Professores comuns podem ter a permissão geral de editar/excluir ou
-  -- somente foto; Uniforme e material continuam como recursos avançados.
+  -- Professores comuns podem ter a permissão geral de editar/excluir;
+  -- Uniforme e material continuam como recursos avançados.
   if not coalesce(rights.is_coordinator, false) then
-    if not coalesce(rights.can_edit_students, false) and not coalesce(rights.can_edit_photo, false) then
+    if not coalesce(rights.can_edit_students, false) then
       raise exception 'Sem permissão para editar alunos';
     end if;
     if uniform_changed then
       raise exception 'Uniforme e material exigem permissão de coordenador';
-    end if;
-    if not coalesce(rights.can_edit_students, false) and (
-      old.full_name is distinct from new.full_name
-      or old.class_id is distinct from new.class_id
-      or old.class_name is distinct from new.class_name
-      or old.has_report is distinct from new.has_report
-    ) then
-      raise exception 'Esta conta tem permissão somente para editar a foto';
     end if;
     return new;
   end if;
@@ -106,8 +99,8 @@ drop policy if exists "Coordinators delete student photos" on storage.objects;
 create policy "Coordinators add students" on public.students for insert to authenticated
   with check (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_add_students or (p.is_coordinator and p.can_edit_all))));
 create policy "Coordinators edit students" on public.students for update to authenticated
-  using (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or p.can_edit_photo or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo or p.can_edit_name or p.can_edit_class or p.can_edit_report or p.can_edit_uniform)))))
-  with check (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or p.can_edit_photo or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo or p.can_edit_name or p.can_edit_class or p.can_edit_report or p.can_edit_uniform)))));
+  using (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo or p.can_edit_name or p.can_edit_class or p.can_edit_report or p.can_edit_uniform)))))
+  with check (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo or p.can_edit_name or p.can_edit_class or p.can_edit_report or p.can_edit_uniform)))));
 create policy "Coordinators delete students" on public.students for delete to authenticated
   using (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_delete_students or p.can_edit_all)))));
 
@@ -120,8 +113,8 @@ create policy "Coordinators delete classes" on public.classes for delete to auth
   using (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_delete_students or p.can_edit_all)))));
 
 create policy "Coordinators upload student photos" on storage.objects for insert to authenticated
-  with check (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_add_students or p.can_edit_students or p.can_edit_photo or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
+  with check (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_add_students or p.can_edit_students or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
 create policy "Coordinators update student photos" on storage.objects for update to authenticated
-  using (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or p.can_edit_photo or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
+  using (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
 create policy "Coordinators delete student photos" on storage.objects for delete to authenticated
-  using (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or p.can_edit_photo or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
+  using (bucket_id = 'student-photos' and exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and (p.role = 'admin' or p.can_edit_students or (p.is_coordinator and (p.can_edit_all or p.can_edit_photo)))));
