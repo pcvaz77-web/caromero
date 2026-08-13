@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function refreshUniformState() {
     const requestId = ++uniformStateRequest;
-    const { data, error } = await db.from('students').select('id,full_name,class_id,class_name,uniform_pending,uniform_received,shoes_received');
+    const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received');
     if (requestId !== uniformStateRequest) return;
     if (error) {
       // Sem a coluna no banco, não há como calcular nem mostrar a situação.
@@ -87,29 +87,19 @@ document.addEventListener('DOMContentLoaded', () => {
     syncUniformState(data || []);
   }
 
-  const normalizedStudentKey = (name, className = '') => `${String(name || '').trim().toLocaleLowerCase('pt-BR')}|${String(className || '').trim().toLocaleLowerCase('pt-BR')}`;
-  function uniformStatusFor(studentId, card) {
+  function uniformStatusFor(studentId) {
     // O retorno específico de Uniforme é a fonte autoritativa. A lista
     // principal pode terminar de carregar depois dele e conter estado antigo.
-    let source = uniformRecords.find(item => item.id === studentId)
+    const source = uniformRecords.find(item => item.id === studentId)
+      || students.find(item => item.id === studentId)
       || classStudents?.find(item => item.id === studentId);
-    // Compatibilidade com cadastros antigos: se o identificador usado pela
-    // lista divergir do registro de Uniforme, associe pelo nome e turma.
-    if (!source && card) {
-      const name = card.querySelector('.name')?.textContent;
-      const className = card.querySelector(':scope > div:nth-child(3) > div:last-child')?.textContent;
-      const key = normalizedStudentKey(name, className);
-      source = uniformRecords.find(item => normalizedStudentKey(item.full_name || item.name, item.class_name || item.className) === key)
-        || classStudents?.find(item => normalizedStudentKey(item.name, item.className) === key);
-    }
-    source ||= students.find(item => item.id === studentId);
     return pending(source);
   }
 
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
       const existing = card.querySelector('.uniform-card-label');
-      const type = uniformStatusFor(studentId(card), card);
+      const type = uniformStatusFor(studentId(card));
       const meta = card.querySelector(':scope > div:nth-child(2) .meta');
       if (!meta) return;
       if (!type) {
