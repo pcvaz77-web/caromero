@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
       student.uniform_received = state.uniform_received;
       student.shoes_received = state.shoes_received;
     });
+    // Recrie a lista e o card com o estado de Uniforme que acabou de chegar.
+    // Isso evita que uma renderização anterior (sem esses campos) deixe de
+    // mostrar as etiquetas, mesmo quando os contadores já estão corretos.
+    window.render?.();
     paintStudentCards();
   }
   async function refreshUniformState() {
