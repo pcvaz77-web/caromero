@@ -157,9 +157,24 @@ document.addEventListener('DOMContentLoaded', () => {
     fillClasses();
     fillSearchClasses();
     fillStudents();
-    get('occurrenceDate').value ||= today();
     await refreshLabelState();
     await refreshHistory();
+  }
+  function resetOccurrenceScreen() {
+    editingOccurrence = null;
+    get('occurrenceClass').value = '';
+    fillStudents();
+    get('occurrenceDate').value = '';
+    get('occurrenceText').value = '';
+    get('occurrenceTextCount').textContent = '0/500';
+    get('occurrenceStart').value = '';
+    get('occurrenceEnd').value = '';
+    get('occurrenceSearchClass').value = '';
+    get('occurrenceSearchName').value = '';
+    get('occurrenceDateFilters').classList.add('hidden');
+    get('searchOccurrences').setAttribute('aria-expanded', 'false');
+    get('saveOccurrence').textContent = 'Salvar ocorrência';
+    refreshHistory();
   }
   async function save() {
     const classId = selectedClass();
@@ -183,23 +198,13 @@ document.addEventListener('DOMContentLoaded', () => {
       occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
     }
     paintStudentCards();
-    // Após um novo registro, deixe a tela pronta para uma próxima ocorrência
-    // sem manter turma, aluno, data ou filtros da consulta anterior.
-    if (!wasEditing) {
-      get('occurrenceClass').value = '';
-      fillStudents();
-      get('occurrenceDate').value = '';
-      get('occurrenceStart').value = '';
-      get('occurrenceEnd').value = '';
-      get('occurrenceSearchClass').value = '';
-      get('occurrenceSearchName').value = '';
-      get('occurrenceDateFilters').classList.add('hidden');
-      get('searchOccurrences').setAttribute('aria-expanded', 'false');
+    if (!wasEditing) resetOccurrenceScreen();
+    else {
+      get('occurrenceText').value = '';
+      get('occurrenceTextCount').textContent = '0/500';
+      editingOccurrence = null;
+      get('saveOccurrence').textContent = 'Salvar ocorrência';
     }
-    get('occurrenceText').value = '';
-    get('occurrenceTextCount').textContent = '0/500';
-    editingOccurrence = null;
-    get('saveOccurrence').textContent = 'Salvar ocorrência';
     toast(wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.');
     await refreshHistory();
   }
@@ -229,13 +234,14 @@ document.addEventListener('DOMContentLoaded', () => {
       get('occurrenceTextCount').textContent = '0/500';
     }
     paintStudentCards();
+    resetOccurrenceScreen();
     toast('Ocorrência excluída.');
-    await refreshHistory();
   }
 
   occurrenceButton.onclick = open;
-  get('closeOccurrence').onclick = () => modal.classList.add('hidden');
-  modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+  const closeOccurrence = () => { resetOccurrenceScreen(); modal.classList.add('hidden'); };
+  get('closeOccurrence').onclick = closeOccurrence;
+  modal.onclick = event => { if (event.target === modal) closeOccurrence(); };
   get('occurrenceClass').onchange = async () => { fillStudents(); await refreshHistory(); };
   get('occurrenceStudent').onchange = refreshHistory;
   get('searchOccurrences').onclick = () => {
