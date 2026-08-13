@@ -340,9 +340,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let latestLoadRequest = 0;
   window.load = async () => {
     const requestId = ++latestLoadRequest;
-    const [studentsResult, classesResult] = await Promise.all([
+    const [studentsResult, classesResult, uniformResult] = await Promise.all([
       db.from('students').select('*').order('created_at', { ascending: false }),
-      db.from('classes').select('*').order('name')
+      db.from('classes').select('*').order('name'),
+      // A lista principal precisa da mesma fonte de Uniforme que a janela de
+      // controle usa. Não deixe as etiquetas dependerem de uma carga posterior.
+      db.from('students').select('id,uniform_pending,uniform_received,shoes_received')
     ]);
     // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
     // deixe uma resposta antiga substituir a lista mais recente na tela.
@@ -350,6 +353,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (studentsResult.error || classesResult.error) { toast('Atualize o banco de dados com o novo script de turmas.'); return; }
     classes = classesResult.data || [];
     const classNames = new Map(classes.map(item => [item.id, item.name]));
+    const uniformStateById = new Map((uniformResult.data || []).map(item => [item.id, item]));
+    window.uniformStateByStudent = uniformStateById;
     students = (studentsResult.data || []).map(item => ({
       id: item.id,
       name: item.full_name,
@@ -357,13 +362,13 @@ document.addEventListener('DOMContentLoaded', () => {
       className: classNames.get(item.class_id) || item.class_name,
       report: item.has_report === 'Sim' ? 'Laudo' : item.has_report === 'Não' ? '' : item.has_report,
       photoPath: item.photo_path,
-      uniform_received: item.uniform_received,
-      shoes_received: item.shoes_received,
+      uniform_received: uniformStateById.get(item.id)?.uniform_received ?? item.uniform_received,
+      shoes_received: uniformStateById.get(item.id)?.shoes_received ?? item.shoes_received,
       uniform_size: item.uniform_size,
       shoe_size: item.shoe_size,
       uniform_received_at: item.uniform_received_at,
       uniform_notes: item.uniform_notes,
-      uniform_pending: item.uniform_pending,
+      uniform_pending: uniformStateById.get(item.id)?.uniform_pending ?? item.uniform_pending,
       photoUrl: ''
     }));
     render();
