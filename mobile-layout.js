@@ -179,6 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .side {
         position:relative !important;
         inset:auto !important;
+        z-index:auto !important;
         display:block !important;
         width:100% !important;
         padding:0 !important;
