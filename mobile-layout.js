@@ -307,27 +307,29 @@ document.addEventListener('DOMContentLoaded', () => {
       .class-head { display:none !important; }
       .class-list {
         display:grid !important;
-        grid-template-columns:repeat(4,minmax(118px,1fr)) !important;
+        grid-template-columns:repeat(4,minmax(0,1fr)) !important;
         gap:8px !important;
-        overflow-x:auto !important;
-        overflow-y:hidden !important;
+        overflow:visible !important;
         max-height:none !important;
         padding:0 !important;
-        scrollbar-width:none !important;
       }
-      .class-list::-webkit-scrollbar { display:none; }
       .shift-group { position:relative !important; width:auto !important; margin:0 !important; }
       .shift-tab {
         width:100% !important;
-        min-height:42px !important;
+        min-height:48px !important;
         justify-content:center !important;
-        padding:9px 5px !important;
+        padding:7px 4px !important;
         border-radius:9px !important;
         background:#2b3c5d !important;
         color:#fff !important;
-        font-size:12px !important;
+        font-size:11px !important;
+        line-height:1.12 !important;
+        text-align:center !important;
+        white-space:normal !important;
       }
-      .all-students-tab { white-space:nowrap !important; }
+      .class-list > .all-students-tab,
+      .class-list > .shift-group { min-height:48px !important; }
+      .class-list > .shift-group .shift-tab { height:100% !important; }
       .shift-tab[aria-expanded="true"] { background:#38527e !important; }
       .shift-classes {
         position:absolute !important;
