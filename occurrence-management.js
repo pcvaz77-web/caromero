@@ -168,14 +168,27 @@ document.addEventListener('DOMContentLoaded', () => {
       : await db.from('student_occurrences').insert({ student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text });
     button.disabled = false;
     if (error) { toast(error.message); return; }
-    if (!editingOccurrence) {
+    const wasEditing = !!editingOccurrence;
+    if (!wasEditing) {
       occurrenceStudentIds.add(studentId);
       occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
     }
     paintStudentCards();
+    // Após um novo registro, deixe a tela pronta para uma próxima ocorrência
+    // sem manter turma, aluno, data ou filtros da consulta anterior.
+    if (!wasEditing) {
+      get('occurrenceClass').value = '';
+      fillStudents();
+      get('occurrenceDate').value = '';
+      get('occurrenceStart').value = '';
+      get('occurrenceEnd').value = '';
+      get('occurrenceSearchClass').value = '';
+      get('occurrenceSearchName').value = '';
+      get('occurrenceDateFilters').classList.add('hidden');
+      get('searchOccurrences').setAttribute('aria-expanded', 'false');
+    }
     get('occurrenceText').value = '';
     get('occurrenceTextCount').textContent = '0/500';
-    const wasEditing = !!editingOccurrence;
     editingOccurrence = null;
     get('saveOccurrence').textContent = 'Salvar ocorrência';
     toast(wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.');
