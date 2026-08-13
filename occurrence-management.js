@@ -26,10 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
   const isCounselor = () => !isAdmin() && !!window.isCounselorUser?.();
-  const occurrenceRightsForClass = classId => isCounselor() ? window.counselorRightsForClass?.(classId) : permission;
-  const canRegisterOccurrence = classId => isAdmin() || !!(occurrenceRightsForClass(classId)?.can_register_occurrences);
-  const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && !!occurrenceRightsForClass(item.class_id)?.can_edit_occurrences);
-  const canDeleteOccurrence = item => isAdmin() || (item.created_by === user?.id && !!occurrenceRightsForClass(item.class_id)?.can_delete_occurrences);
+  // As permissões de Ocorrência do conselheiro são globais: se liberadas em
+  // qualquer vínculo dele, valem para registrar em todas as turmas.
+  const hasOccurrencePermission = key => isAdmin() || (isCounselor() ? !!window.counselorHasPermission?.(key) : !!permission?.[key]);
+  const canRegisterOccurrence = () => hasOccurrencePermission('can_register_occurrences');
+  const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_edit_occurrences'));
+  const canDeleteOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_delete_occurrences'));
   const escape = value => { const node = document.createElement('span'); node.textContent = value || ''; return node.innerHTML; };
   const today = () => new Date().toISOString().slice(0, 10);
   const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
@@ -43,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectedStudent() { return get('occurrenceStudent').value; }
   function syncSaveAction() {
     const button = get('saveOccurrence');
-    const allowed = editingOccurrence ? canEditOccurrence(editingOccurrence) : canRegisterOccurrence(selectedClass());
+    const allowed = editingOccurrence ? canEditOccurrence(editingOccurrence) : canRegisterOccurrence();
     button.disabled = !selectedClass() || !allowed;
     button.title = button.disabled ? 'O administrador precisa liberar a permissão de Ocorrência para esta turma.' : '';
   }
@@ -198,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const occurrenceDate = get('occurrenceDate').value;
     const classItem = classes.find(item => item.id === classId);
     if (!editingOccurrence && (!classItem || !studentId)) { toast('Selecione a turma e o aluno.'); return; }
-    if (!editingOccurrence && !canRegisterOccurrence(classId)) { toast('Sem permissão para registrar ocorrência nesta turma.'); return; }
+    if (!editingOccurrence && !canRegisterOccurrence()) { toast('Sem permissão para registrar ocorrência.'); return; }
     if (editingOccurrence && !canEditOccurrence(editingOccurrence)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     if (!occurrenceDate) { toast('Selecione a data da ocorrência.'); return; }
     if (!text) { toast('Digite a descrição da ocorrência.'); return; }

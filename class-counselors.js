@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let editingCounselorId = null;
   let lastLoadError = '';
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
+  window.counselorHasPermission = key => ownAssignments.some(item => !!item[key]);
   window.counselorHasEditPermission = () => ownAssignments.some(item => counselorFields.some(([key]) => !!item[key]));
   window.isCounselorUser = () => ownAssignments.length > 0;
   window.counselorAccessLabel = () => ownAssignments.length ? (window.counselorHasEditPermission() ? 'Acesso de Editor' : 'Visualizador') : null;
