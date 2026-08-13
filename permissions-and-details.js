@@ -173,6 +173,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) toast(error.message); else { toast('Permissão atualizada.'); openPermissions(); }
   };
   document.getElementById('permissionsNav').onclick = openPermissions;
+  document.addEventListener('carometro:permissions-changed', () => {
+    refreshCurrentPermission();
+    if (!document.getElementById('permissionsModal').classList.contains('hidden') && permission.role === 'admin') openPermissions();
+  });
   db.auth.getUser().then(({ data: { user: signedInUser } }) => {
     if (!signedInUser) return;
     if (db.channel) db.channel(`permission-live-${signedInUser.id}`).on(

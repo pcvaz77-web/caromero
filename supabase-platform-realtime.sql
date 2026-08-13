@@ -6,12 +6,13 @@ alter table public.classes replica identity full;
 alter table public.observation_options replica identity full;
 alter table public.class_counselors replica identity full;
 alter table public.user_permissions replica identity full;
+alter table public.student_occurrences replica identity full;
 
 do $$
 declare
   table_name text;
 begin
-  foreach table_name in array array['students', 'classes', 'observation_options', 'class_counselors', 'user_permissions']
+  foreach table_name in array array['students', 'classes', 'observation_options', 'class_counselors', 'user_permissions', 'student_occurrences']
   loop
     if not exists (
       select 1 from pg_publication_tables

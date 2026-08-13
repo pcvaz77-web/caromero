@@ -2,11 +2,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let refreshTimer;
   let refreshing = false;
   let refreshQueued = false;
+  let activeUserId = null;
+  let startingUserId = null;
+  let liveChannel = null;
+
+  const appIsOpen = () => !document.getElementById('app').classList.contains('hidden');
   const runRefresh = async () => {
     if (refreshing) { refreshQueued = true; return; }
-    if (document.getElementById('app').classList.contains('hidden')) return;
+    if (!appIsOpen()) return;
     refreshing = true;
-    try { await load(); }
+    try { await window.load?.(); }
     finally {
       refreshing = false;
       if (refreshQueued) {
@@ -17,28 +22,51 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const refreshData = () => {
     clearTimeout(refreshTimer);
-    // Um cadastro em lote gera diversos eventos. Agrupe-os em uma única
-    // atualização para não alternar a lista entre respostas parciais.
-    refreshTimer = setTimeout(runRefresh, 350);
+    // Agrupa uma alteração em lote, mantendo o reflexo nos demais aparelhos
+    // praticamente imediato e sem substituir dados recentes.
+    refreshTimer = setTimeout(runRefresh, 120);
   };
+  const notify = name => document.dispatchEvent(new Event(name));
 
-  db.auth.getUser().then(({ data: { user: signedInUser } }) => {
-    if (!signedInUser || !db.channel) return;
-    db.channel(`carometro-live-${signedInUser.id}`)
+  const startRealtime = async signedInUser => {
+    if (!signedInUser || !db.channel || activeUserId === signedInUser.id || startingUserId === signedInUser.id) return;
+    startingUserId = signedInUser.id;
+    try {
+      if (liveChannel) await db.removeChannel(liveChannel);
+      activeUserId = signedInUser.id;
+      liveChannel = db.channel(`carometro-live-${signedInUser.id}`)
       .on('postgres_changes', { event:'*', schema:'public', table:'students' }, refreshData)
       .on('postgres_changes', { event:'*', schema:'public', table:'classes' }, refreshData)
       .on('postgres_changes', { event:'*', schema:'public', table:'observation_options' }, () => {
-        document.dispatchEvent(new Event('carometro:observations-changed'));
+        notify('carometro:observations-changed');
         refreshData();
       })
       .on('postgres_changes', { event:'*', schema:'public', table:'class_counselors' }, () => {
         window.refreshCounselorAssignments?.();
+        notify('carometro:permissions-changed');
         refreshData();
+      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'user_permissions' }, () => {
+        notify('carometro:permissions-changed');
       })
       .on('postgres_changes', { event:'*', schema:'public', table:'student_occurrences' }, () => {
-        document.dispatchEvent(new Event('carometro:occurrences-changed'));
-        refreshData();
+        notify('carometro:occurrences-changed');
       })
-      .subscribe();
+        .subscribe();
+    } finally {
+      startingUserId = null;
+    }
+  };
+
+  window.startCarometroRealtime = startRealtime;
+  db.auth.getUser().then(({ data: { user: signedInUser } }) => startRealtime(signedInUser));
+  db.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) startRealtime(session.user);
+    else {
+      activeUserId = null;
+      startingUserId = null;
+      if (liveChannel) db.removeChannel(liveChannel);
+      liveChannel = null;
+    }
   });
 });
