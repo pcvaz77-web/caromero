@@ -32,6 +32,23 @@ document.addEventListener('DOMContentLoaded', () => {
   const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   let classStudents = null;
   let classStudentsRequest = 0;
+  let uniformRecords = [];
+  let uniformStateRequest = 0;
+
+  function syncUniformState(records) {
+    uniformRecords = records || [];
+    const statusByStudent = new Map(uniformRecords.map(item => [item.id, item.uniform_pending || '']));
+    students.forEach(student => {
+      if (statusByStudent.has(student.id)) student.uniform_pending = statusByStudent.get(student.id);
+    });
+    paintStudentCards();
+  }
+  async function refreshUniformState() {
+    const requestId = ++uniformStateRequest;
+    const { data, error } = await db.from('students').select('id,uniform_pending');
+    if (requestId !== uniformStateRequest || error) return;
+    syncUniformState(data || []);
+  }
 
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -77,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render() {
     classOptions();
-    const records = students;
+    const records = uniformRecords.length ? uniformRecords : students;
     get('pendingUniform').textContent = records.filter(item => pending(item) === 'uniform').length;
     get('pendingShoes').textContent = records.filter(item => pending(item) === 'shoes').length;
     get('pendingBoth').textContent = records.filter(item => pending(item) === 'both').length;
@@ -115,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // identificador e o nome impede que esses alunos fiquem fora do Uniforme.
     const normalizeClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
     const targetName = normalizeClassName(classes.find(item => item.id === classId)?.name);
+    syncUniformState(data || []);
     classStudents = (data || [])
       .filter(item => item.class_id === classId || normalizeClassName(item.class_name) === targetName)
       .map(item => ({
@@ -147,7 +165,9 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadClassStudents();
   };
   document.addEventListener('carometro:uniform-refresh', () => {
-    if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
-    else paintStudentCards();
+    refreshUniformState().then(() => {
+      if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
+      else paintStudentCards();
+    });
   });
 });
