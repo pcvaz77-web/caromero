@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador';
     if (item.is_coordinator) return 'Coordenador';
-    return 'Visualizador';
+    return 'Acesso de professor(a)';
   };
   const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 
