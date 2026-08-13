@@ -462,3 +462,91 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!open && touchStartX < 32 && distance > 60) setMenuOpen(true);
   }, { passive:true });
 });
+
+// Tablets mantêm o layout próprio, mas preservam a mesma continuidade de
+// navegação do celular ao atualizar a página.
+document.addEventListener('DOMContentLoaded', () => {
+  if (!window.matchMedia('(min-width:801px) and (max-width:1100px)').matches) return;
+
+  const side = document.querySelector('.side');
+  const logo = side?.querySelector('.logo');
+  const app = document.getElementById('app');
+  if (!side || !logo || !app) return;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    @media (min-width:801px) and (max-width:1100px) {
+      .side .tablet-home-brand { display:block!important; flex:1 1 100%!important; width:100%!important; padding:0 4px 4px!important; background:transparent; color:inherit; text-align:left; font-size:20px; font-weight:850; }
+      .side .tablet-home-brand:focus-visible { outline:2px solid #82aeff; outline-offset:4px; border-radius:8px; }
+    }
+  `;
+  document.head.appendChild(style);
+
+  const homeButton = document.createElement('button');
+  homeButton.type = 'button';
+  homeButton.className = 'logo tablet-home-brand';
+  homeButton.innerHTML = logo.innerHTML;
+  homeButton.setAttribute('aria-label', 'Voltar para a tela inicial');
+  logo.replaceWith(homeButton);
+
+  const savedScreenKey = 'carometro:mobile-screen';
+  let restoreAttempted = false;
+  const currentModal = () => {
+    if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
+    if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
+    if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
+    if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
+    if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';
+    return '';
+  };
+  const saveScreen = () => {
+    if (app.classList.contains('hidden')) return;
+    try {
+      sessionStorage.setItem(savedScreenKey, JSON.stringify({
+        classId: selectedClassId || null,
+        studentId: detailStudentId || null,
+        search: document.getElementById('search')?.value || '',
+        modalButtonId: currentModal(),
+        scrollY: window.scrollY
+      }));
+    } catch {}
+  };
+  const closeOpenPanels = () => {
+    document.querySelectorAll('.modal-bg:not(.hidden), .photo-picker:not(.hidden)').forEach(panel => panel.classList.add('hidden'));
+    document.querySelectorAll('.profile-drawer.open').forEach(panel => panel.classList.remove('open'));
+    document.getElementById('profileBackdrop')?.classList.add('hidden');
+  };
+  homeButton.onclick = () => {
+    try { sessionStorage.removeItem(savedScreenKey); } catch {}
+    closeOpenPanels();
+    selectedClassId = null;
+    detailStudentId = null;
+    const search = document.getElementById('search');
+    if (search) search.value = '';
+    window.render?.();
+    window.scrollTo(0, 0);
+  };
+  const restoreScreen = () => {
+    if (restoreAttempted || app.classList.contains('hidden')) return;
+    restoreAttempted = true;
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
+    if (!saved) return;
+    if (saved.classId) selectedClassId = saved.classId;
+    if (saved.studentId) detailStudentId = saved.studentId;
+    const search = document.getElementById('search');
+    if (search) search.value = saved.search || '';
+    window.render?.();
+    window.setTimeout(() => {
+      const opener = saved.modalButtonId && document.getElementById(saved.modalButtonId);
+      if (opener && !opener.hidden && !opener.classList.contains('hidden')) opener.click();
+      window.scrollTo(0, Number(saved.scrollY) || 0);
+    }, 140);
+  };
+  window.addEventListener('pagehide', saveScreen);
+  window.addEventListener('beforeunload', saveScreen);
+  document.addEventListener('click', () => window.setTimeout(saveScreen, 0));
+  app.addEventListener('input', () => window.setTimeout(saveScreen, 0));
+  new MutationObserver(restoreScreen).observe(app, { attributes:true, attributeFilter:['class'] });
+  window.setTimeout(restoreScreen, 240);
+});
