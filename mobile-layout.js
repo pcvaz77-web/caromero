@@ -345,10 +345,17 @@ document.addEventListener('DOMContentLoaded', () => {
   backdrop.className = 'mobile-menu-backdrop';
   document.body.appendChild(backdrop);
   const menuButton = topbar.querySelector('.mobile-menu-toggle');
+  const closeMobileMenuDialogs = () => {
+    // Fecha qualquer janela do sistema antes da troca de navegação. Os
+    // botões chamados em seguida continuam livres para abrir sua nova tela.
+    document.querySelectorAll('.modal-bg:not(.hidden), .photo-picker:not(.hidden)').forEach(dialog => dialog.classList.add('hidden'));
+    document.querySelectorAll('.profile-drawer.open').forEach(drawer => drawer.classList.remove('open'));
+    document.getElementById('profileBackdrop')?.classList.add('hidden');
+  };
   const setMenuOpen = open => {
     // O ícone do menu também é sempre uma saída segura de janelas abertas.
     // Assim Configurações nunca impede a navegação para outra função.
-    if (open) ['settingsModal', 'permissionsModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    if (open) closeMobileMenuDialogs();
     document.body.classList.toggle('mobile-menu-open', open);
     menuButton.setAttribute('aria-expanded', String(open));
     menuButton.setAttribute('aria-label', open ? 'Fechar menu' : 'Abrir menu');
@@ -379,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!event.target.closest('button')) return;
       // Ao trocar de opção, feche a janela anterior para que a nova função
       // assuma a tela imediatamente.
-      ['settingsModal', 'permissionsModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+      closeMobileMenuDialogs();
     }, true);
   }, 0);
 
