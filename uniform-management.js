@@ -94,7 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render() {
     classOptions();
-    const records = uniformRecords.length ? uniformRecords : students;
+    // Com uma turma aberta, o painel acompanha imediatamente os alunos que
+    // estão visíveis nela. Sem turma selecionada, mostra o total geral.
+    const records = classStudents && get('uniformClass').value
+      ? classStudents
+      : (uniformRecords.length ? uniformRecords : students);
     get('pendingUniform').textContent = records.filter(item => pending(item) === 'uniform').length;
     get('pendingShoes').textContent = records.filter(item => pending(item) === 'shoes').length;
     get('pendingBoth').textContent = records.filter(item => pending(item) === 'both').length;
@@ -160,6 +164,15 @@ document.addEventListener('DOMContentLoaded', () => {
     select.disabled = true;
     const { error } = await db.from('students').update({ uniform_pending:type || null }).eq('id', row.dataset.id);
     if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
+    // Atualização imediata: contadores, lista e etiqueta não dependem de uma
+    // nova abertura da janela nem de uma atualização posterior da página.
+    const newStatus = type || '';
+    const updateLocalStatus = item => { if (item?.id === row.dataset.id) item.uniform_pending = newStatus; };
+    students.forEach(updateLocalStatus);
+    classStudents?.forEach(updateLocalStatus);
+    uniformRecords.forEach(updateLocalStatus);
+    render();
+    paintStudentCards();
     toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.');
     await load();
     await loadClassStudents();
