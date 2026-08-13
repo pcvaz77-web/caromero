@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .side > .logo { display:none !important; }
       .mobile-topbar {
         position:relative;
-        z-index:31;
+        z-index:220;
         min-height:68px;
         display:flex;
         align-items:center;
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .mobile-menu-backdrop {
         position:fixed;
         inset:0;
-        z-index:29;
+        z-index:221;
         opacity:0;
         pointer-events:none;
         background:#10182888;
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body.mobile-menu-open .mobile-menu-backdrop { opacity:1; pointer-events:auto; }
       .side .nav {
         position:fixed !important;
-        z-index:30 !important;
+        z-index:222 !important;
         top:0 !important;
         bottom:0 !important;
         left:0 !important;
