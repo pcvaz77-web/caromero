@@ -58,6 +58,37 @@
   .detail-head .avatar { width: 72px; height: 72px; font-size: 20px; }
 }
 
+/* A lista de turmas usa somente a altura disponível na lateral. Em janelas
+   baixas ela passa a rolar dentro da própria área, sem ficar sob a borda. */
+@media (min-width: 801px) {
+  .side {
+    height: 100dvh !important;
+    overflow: hidden !important;
+  }
+  .class-sidebar {
+    display: flex !important;
+    flex: 1 1 auto !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+  }
+  .class-list {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    padding-bottom: 8px;
+  }
+  .out { flex: none !important; }
+}
+
+@media (min-width: 801px) and (max-height: 520px) {
+  .side { padding-top: 12px !important; padding-bottom: 12px !important; }
+  .nav { margin-top: 14px !important; }
+  .class-sidebar { margin-top: 14px !important; }
+  .out { padding: 7px 12px !important; font-size: 12px !important; }
+}
+
 @media (max-width: 390px) {
   .class-sidebar { flex-basis: 34%; }
   .stats { gap: 5px; }
