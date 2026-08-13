@@ -187,6 +187,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       .side > .logo { display:none !important; }
       .mobile-topbar {
+        position:relative;
+        z-index:31;
         min-height:68px;
         display:flex;
         align-items:center;
@@ -238,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         left:0 !important;
         width:min(325px,86vw) !important;
         margin:0 !important;
-        padding:20px 16px 24px !important;
+        padding:84px 16px 24px !important;
         display:flex !important;
         flex-direction:column !important;
         align-items:stretch !important;
@@ -363,7 +365,19 @@ document.addEventListener('DOMContentLoaded', () => {
       if (item) nav.appendChild(item);
     });
     nav.addEventListener('click', event => {
-      if (event.target.closest('button') && !event.target.closest('#profileNav')) setMenuOpen(false);
+      // Aguarda o botão executar sua própria ação (abrir Uniforme,
+      // Ocorrência, Perfil etc.) antes de recolher o menu lateral.
+      if (event.target.closest('button')) window.setTimeout(() => setMenuOpen(false), 0);
     });
   }, 0);
+
+  let touchStartX = 0;
+  document.addEventListener('touchstart', event => { touchStartX = event.touches[0]?.clientX || 0; }, { passive:true });
+  document.addEventListener('touchend', event => {
+    const endX = event.changedTouches[0]?.clientX || touchStartX;
+    const distance = endX - touchStartX;
+    const open = document.body.classList.contains('mobile-menu-open');
+    if (open && distance < -60) setMenuOpen(false);
+    if (!open && touchStartX < 32 && distance > 60) setMenuOpen(true);
+  }, { passive:true });
 });
