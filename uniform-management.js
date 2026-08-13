@@ -28,7 +28,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const isAdmin = () => permission?.role === 'admin';
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
-  const pending = student => student?.uniform_pending || '';
+  const pending = student => {
+    const explicit = student?.uniform_pending || '';
+    if (['uniform', 'shoes', 'both'].includes(explicit)) return explicit;
+
+    // Os primeiros registros de uniforme foram salvos nos dois campos
+    // booleanos. Use-os como fonte principal quando não houver a marcação
+    // mais recente em uniform_pending.
+    const needsUniform = student?.uniform_received === false;
+    const needsShoes = student?.shoes_received === false;
+    if (needsUniform && needsShoes) return 'both';
+    if (needsUniform) return 'uniform';
+    if (needsShoes) return 'shoes';
+    return '';
+  };
   const studentId = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   let classStudents = null;
   let classStudentsRequest = 0;
@@ -38,15 +51,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function syncUniformState(records) {
     uniformRecords = records || [];
-    const statusByStudent = new Map(uniformRecords.map(item => [item.id, item.uniform_pending || '']));
+    const stateByStudent = new Map(uniformRecords.map(item => [item.id, item]));
     students.forEach(student => {
-      student.uniform_pending = statusByStudent.get(student.id) || '';
+      const state = stateByStudent.get(student.id);
+      if (!state) return;
+      student.uniform_pending = state.uniform_pending || '';
+      student.uniform_received = state.uniform_received;
+      student.shoes_received = state.shoes_received;
     });
     paintStudentCards();
   }
   async function refreshUniformState() {
     const requestId = ++uniformStateRequest;
-    const { data, error } = await db.from('students').select('id,uniform_pending');
+    const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received');
     if (requestId !== uniformStateRequest) return;
     if (error) {
       // Sem a coluna no banco, não há como calcular nem mostrar a situação.
@@ -165,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     render();
     if (!classId) return;
     const { data, error } = await db.from('students')
-      .select('id,full_name,class_id,class_name,uniform_pending')
+      .select('id,full_name,class_id,class_name,uniform_pending,uniform_received,shoes_received')
       .order('full_name', { ascending:true });
     if (requestId !== classStudentsRequest) return;
     if (error) { classStudents = []; render(); toast('Não foi possível carregar os alunos desta turma.'); return; }
@@ -181,7 +198,9 @@ document.addEventListener('DOMContentLoaded', () => {
         name: item.full_name,
         classId: item.class_id,
         className: classes.find(cls => cls.id === item.class_id)?.name || item.class_name,
-        uniform_pending: item.uniform_pending
+        uniform_pending: item.uniform_pending,
+        uniform_received: item.uniform_received,
+        shoes_received: item.shoes_received
       }));
     render();
   }
@@ -203,12 +222,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const select = event.target.closest('.uniform-select'); if (!select || !isAdmin()) return;
     const row = select.closest('.uniform-row'); const type = select.value;
     select.disabled = true;
-    const { error } = await db.from('students').update({ uniform_pending:type || null }).eq('id', row.dataset.id);
+    const nextState = {
+      uniform_pending: type || null,
+      uniform_received: type !== 'uniform' && type !== 'both',
+      shoes_received: type !== 'shoes' && type !== 'both'
+    };
+    const { error } = await db.from('students').update(nextState).eq('id', row.dataset.id);
     if (error) { toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
     // Atualização imediata: contadores, lista e etiqueta não dependem de uma
     // nova abertura da janela nem de uma atualização posterior da página.
     const newStatus = type || '';
-    const updateLocalStatus = item => { if (item?.id === row.dataset.id) item.uniform_pending = newStatus; };
+    const updateLocalStatus = item => {
+      if (item?.id !== row.dataset.id) return;
+      item.uniform_pending = newStatus;
+      item.uniform_received = nextState.uniform_received;
+      item.shoes_received = nextState.shoes_received;
+    };
     students.forEach(updateLocalStatus);
     classStudents?.forEach(updateLocalStatus);
     uniformRecords.forEach(updateLocalStatus);
