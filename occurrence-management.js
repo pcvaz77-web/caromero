@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     #occurrenceNav { border:0; background:#202d47; color:#fff; } #occurrenceNav:hover { background:#34496f; }
-    .occurrence-modal { z-index:112; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates { grid-template-columns:repeat(3,1fr); }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }
+    .occurrence-modal { z-index:112; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates { grid-template-columns:repeat(3,1fr); }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px; align-items:center; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
   document.head.appendChild(style);
@@ -62,6 +62,19 @@ document.addEventListener('DOMContentLoaded', () => {
       label.textContent = 'Ocorrência';
       holder.appendChild(label);
     });
+    const detail = get('studentDetails');
+    const detailLabel = detail.querySelector('.occurrence-detail-label');
+    if (!detailStudentId || !occurrenceStudentIds.has(detailStudentId)) {
+      detailLabel?.remove();
+      return;
+    }
+    if (detailLabel) return;
+    const detailHolder = detail.querySelector('.detail-head > div:last-child');
+    if (!detailHolder) return;
+    const label = document.createElement('span');
+    label.className = 'occurrence-label occurrence-detail-label';
+    label.textContent = 'Ocorrência';
+    detailHolder.appendChild(label);
   }
   async function refreshLabelState() {
     const { data, error } = await db.from('student_occurrences').select('student_id');
@@ -145,6 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
   get('occurrenceText').oninput = () => { get('occurrenceTextCount').textContent = `${get('occurrenceText').value.length}/500`; };
   ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = refreshHistory; });
   new MutationObserver(paintStudentCards).observe(get('list'), { childList:true });
+  new MutationObserver(paintStudentCards).observe(get('studentDetails'), { childList:true, subtree:true });
   new MutationObserver(() => {
     if (!get('app').classList.contains('hidden')) refreshLabelState();
   }).observe(get('app'), { attributes:true, attributeFilter:['class'] });
