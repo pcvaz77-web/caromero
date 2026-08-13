@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
         white-space:normal !important;
       }
       .side .nav #profileNav { flex-direction:row !important; }
+      /* Nunca revele comandos que o sistema marcou como restritos. */
+      .side .nav button.hidden,
+      .settings-nav.hidden { display:none !important; }
       #profileNav .profile-nav-desktop { display:inline !important; }
       #profileNav .profile-nav-mobile { display:none !important; }
       .class-sidebar {
