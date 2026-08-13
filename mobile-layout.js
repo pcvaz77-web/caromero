@@ -216,6 +216,8 @@ document.addEventListener('DOMContentLoaded', () => {
         align-items:center;
         justify-content:flex-end;
         min-width:0;
+        padding:0;
+        background:transparent;
         color:#17233a;
         font-size:17px;
         font-weight:850;
@@ -338,13 +340,66 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const topbar = document.createElement('div');
   topbar.className = 'mobile-topbar';
-  topbar.innerHTML = `<button type="button" class="mobile-menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button><div class="mobile-brand">${side.querySelector('.logo')?.innerHTML || 'CARÔMETRO'}</div>`;
+  topbar.innerHTML = `<button type="button" class="mobile-menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button><button type="button" class="mobile-brand" aria-label="Voltar para a tela inicial">${side.querySelector('.logo')?.innerHTML || 'CARÔMETRO'}</button>`;
   side.insertBefore(topbar, side.firstChild);
 
   const backdrop = document.createElement('div');
   backdrop.className = 'mobile-menu-backdrop';
   document.body.appendChild(backdrop);
   const menuButton = topbar.querySelector('.mobile-menu-toggle');
+  const homeButton = topbar.querySelector('.mobile-brand');
+  const savedScreenKey = 'carometro:mobile-screen';
+  let restoreAttempted = false;
+
+  const currentModal = () => {
+    if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
+    if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
+    if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
+    if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
+    if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';
+    return '';
+  };
+  const saveCurrentScreen = () => {
+    const app = document.getElementById('app');
+    if (!app || app.classList.contains('hidden')) return;
+    try {
+      sessionStorage.setItem(savedScreenKey, JSON.stringify({
+        classId: selectedClassId || null,
+        studentId: detailStudentId || null,
+        search: document.getElementById('search')?.value || '',
+        modalButtonId: currentModal(),
+        scrollY: window.scrollY
+      }));
+    } catch {}
+  };
+  const clearSavedScreen = () => { try { sessionStorage.removeItem(savedScreenKey); } catch {} };
+  const goHome = () => {
+    clearSavedScreen();
+    closeMobileMenuDialogs();
+    selectedClassId = null;
+    detailStudentId = null;
+    const search = document.getElementById('search');
+    if (search) search.value = '';
+    window.render?.();
+    window.scrollTo(0, 0);
+  };
+  const restoreCurrentScreen = () => {
+    if (restoreAttempted || document.getElementById('app')?.classList.contains('hidden')) return;
+    restoreAttempted = true;
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
+    if (!saved) return;
+    if (saved.classId) selectedClassId = saved.classId;
+    if (saved.studentId) detailStudentId = saved.studentId;
+    const search = document.getElementById('search');
+    if (search) search.value = saved.search || '';
+    window.render?.();
+    window.setTimeout(() => {
+      const opener = saved.modalButtonId && document.getElementById(saved.modalButtonId);
+      if (opener && !opener.hidden && !opener.classList.contains('hidden')) opener.click();
+      window.scrollTo(0, Number(saved.scrollY) || 0);
+    }, 140);
+  };
   const closeMobileMenuDialogs = () => {
     // Fecha qualquer janela do sistema antes da troca de navegação. Os
     // botões chamados em seguida continuam livres para abrir sua nova tela.
@@ -363,6 +418,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   menuButton.onclick = () => setMenuOpen(!document.body.classList.contains('mobile-menu-open'));
   backdrop.onclick = () => setMenuOpen(false);
+  homeButton.onclick = goHome;
+  window.addEventListener('pagehide', saveCurrentScreen);
+  window.addEventListener('beforeunload', saveCurrentScreen);
+  document.addEventListener('click', () => window.setTimeout(saveCurrentScreen, 0));
+  document.getElementById('app')?.addEventListener('input', () => window.setTimeout(saveCurrentScreen, 0));
+  new MutationObserver(restoreCurrentScreen).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
+  window.setTimeout(restoreCurrentScreen, 240);
 
   setTimeout(() => {
     const title = document.createElement('div');
