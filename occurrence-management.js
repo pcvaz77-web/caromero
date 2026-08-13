@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const today = () => new Date().toISOString().slice(0, 10);
   const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
   let occurrenceStudentIds = new Set();
+  let occurrenceCounts = new Map();
   let tableErrorShown = false;
 
   function selectedClass() { return get('occurrenceClass').value; }
@@ -68,12 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
       detailLabel?.remove();
       return;
     }
-    if (detailLabel) return;
+    const count = occurrenceCounts.get(detailStudentId) || 0;
+    if (detailLabel) {
+      detailLabel.textContent = `Ocorrência · ${count}`;
+      return;
+    }
     const detailHolder = detail.querySelector('.detail-head > div:last-child');
     if (!detailHolder) return;
     const label = document.createElement('span');
     label.className = 'occurrence-label occurrence-detail-label';
-    label.textContent = 'Ocorrência';
+    label.textContent = `Ocorrência · ${count}`;
     detailHolder.appendChild(label);
   }
   async function refreshLabelState() {
@@ -86,7 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     tableErrorShown = false;
-    occurrenceStudentIds = new Set((data || []).map(item => item.student_id));
+    occurrenceCounts = new Map();
+    (data || []).forEach(item => occurrenceCounts.set(item.student_id, (occurrenceCounts.get(item.student_id) || 0) + 1));
+    occurrenceStudentIds = new Set(occurrenceCounts.keys());
     paintStudentCards();
   }
   async function refreshHistory() {
@@ -141,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.disabled = false;
     if (error) { toast(error.message); return; }
     occurrenceStudentIds.add(studentId);
+    occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
     paintStudentCards();
     get('occurrenceText').value = '';
     get('occurrenceTextCount').textContent = '0/500';
