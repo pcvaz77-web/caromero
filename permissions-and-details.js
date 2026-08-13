@@ -63,13 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const isAdvancedUser = () => permission.role === 'admin' || !!permission.is_coordinator;
   const isRestrictedCounselor = () => !isAdvancedUser() && !!window.isCounselorUser?.();
   const canDelete = student => {
-    return isAdvancedUser() && (permission.role === 'admin' || permission.can_delete_students || permission.can_edit_all);
+    return permission.role === 'admin' || !!permission.can_edit_students || (isAdvancedUser() && (!!permission.can_delete_students || !!permission.can_edit_all));
   };
-  const canEdit = () => isAdvancedUser() && (permission.role === 'admin' || permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report);
+  const canEdit = () => permission.role === 'admin' || !!permission.can_edit_students || (isAdvancedUser() && (!!permission.can_edit_all || !!permission.can_edit_photo || !!permission.can_edit_name || !!permission.can_edit_class || !!permission.can_edit_report));
   const canEditStudent = student => {
     return canEdit();
   };
-  const canAdd = () => isAdvancedUser() && (permission.role === 'admin' || permission.can_add_students || permission.can_edit_all);
+  const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
   const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences'];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
@@ -208,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function openPermissions() {
-    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,profiles(email,full_name)');
+    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
     const check = (item, key, label, admin) => `<label class="check"><input ${admin ? 'disabled' : ''} type="checkbox" ${item[key] ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...(data || [])].sort((first, second) => {
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
-      if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Visualizador</div></div><div class="meta">Torne este usuário coordenador para liberar permissões avançadas.</div></article>`;
+      if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · ${item.role === 'editor' ? 'Editor' : 'Visualizador'}</div></div><select class="general-role" onchange="setGeneralPermission('${item.user_id}','role',this.value)"><option value="viewer" ${item.role === 'viewer' ? 'selected' : ''}>Visualizador</option><option value="editor" ${item.role === 'editor' ? 'selected' : ''}>Editor</option></select><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div></article>`;
       return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_view_occurrences','Visualizar Ocorrências',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
@@ -259,6 +259,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const update = { [key]: value, updated_at:new Date().toISOString() };
     const { error } = await db.from('user_permissions').update(update).eq('user_id',id);
     if (error) toast(error.message); else { toast('Permissão atualizada.'); openPermissions(); }
+  };
+  window.setGeneralPermission = async (id, key, value) => {
+    const update = { [key]: value, updated_at:new Date().toISOString() };
+    if (key === 'role' && value === 'viewer') {
+      update.can_add_students = false;
+      update.can_edit_students = false;
+    }
+    const { error } = await db.from('user_permissions').update(update).eq('user_id', id);
+    if (error) { toast(error.message); return; }
+    toast('Permissão geral atualizada.');
+    openPermissions();
   };
   document.getElementById('permissionsNav').onclick = openPermissions;
   document.addEventListener('carometro:permissions-changed', () => {
