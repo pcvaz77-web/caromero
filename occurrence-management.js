@@ -177,7 +177,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function open() {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
+    // No celular, o drawer tem uma camada de toque própria. Feche-o pelo
+    // controlador do menu antes de abrir a janela de Ocorrência.
+    document.dispatchEvent(new Event('carometro:modal-open'));
     modal.classList.remove('hidden');
+    // Mostra o que já foi carregado sem esperar a atualização da rede.
+    fillClasses();
+    fillSearchClasses();
+    fillStudents();
     await load();
     fillClasses();
     fillSearchClasses();
