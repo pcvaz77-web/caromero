@@ -49,12 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (requestId !== uniformStateRequest || error) return;
     syncUniformState(data || []);
   }
+  function uniformStatusFor(studentId) {
+    const source = uniformRecords.find(item => item.id === studentId)
+      || classStudents?.find(item => item.id === studentId)
+      || students.find(item => item.id === studentId);
+    return pending(source);
+  }
 
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
       const existing = card.querySelector('.uniform-card-label');
-      const student = students.find(item => item.id === studentId(card));
-      const type = pending(student);
+      const type = uniformStatusFor(studentId(card));
       const meta = card.querySelector(':scope > div:nth-child(2) .meta');
       if (!meta) return;
       if (!type) {
@@ -71,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       tag.textContent = labels[type];
       meta.appendChild(tag);
     });
-    const detail = students.find(item => item.id === detailStudentId);
+    const detail = { uniform_pending: uniformStatusFor(detailStudentId) };
     const existing = document.querySelector('#studentDetails .uniform-detail-row');
     if (!pending(detail)) { existing?.remove(); return; }
     if (existing) { const tag = existing.querySelector('.uniform-card-label'); if (tag) tag.textContent = labels[pending(detail)]; return; }
