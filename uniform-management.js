@@ -48,14 +48,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
   const pending = student => {
-    const explicit = student?.uniform_pending || '';
+    const explicit = String(student?.uniform_pending || '').trim().toLocaleLowerCase('pt-BR');
     if (['uniform', 'shoes', 'both'].includes(explicit)) return explicit;
 
     // Os primeiros registros de uniforme foram salvos nos dois campos
     // booleanos. Use-os como fonte principal quando não houver a marcação
     // mais recente em uniform_pending.
-    const needsUniform = student?.uniform_received === false;
-    const needsShoes = student?.shoes_received === false;
+    const needsUniform = student?.uniform_received === false || student?.uniform_received === 'false';
+    const needsShoes = student?.shoes_received === false || student?.shoes_received === 'false';
     if (needsUniform && needsShoes) return 'both';
     if (needsUniform) return 'uniform';
     if (needsShoes) return 'shoes';
@@ -94,10 +94,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // A lista principal já usa estes dados em memória. Não a redesenhe a
     // cada resposta de Uniforme: isso evitou a piscada da tela inteira.
   }
-  async function refreshUniformState() {
+  async function refreshUniformState({ renderWhenOpen = true } = {}) {
     const requestId = ++uniformStateRequest;
     const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received');
-    if (requestId !== uniformStateRequest) return;
+    if (requestId !== uniformStateRequest) return false;
     if (error) {
       // Sem a coluna no banco, não há como calcular nem mostrar a situação.
       // Avise de forma explícita, em vez de deixar contadores silenciosamente em zero.
@@ -107,11 +107,12 @@ document.addEventListener('DOMContentLoaded', () => {
           ? 'O controle de Uniforme ainda não foi instalado no banco. Execute o arquivo supabase-uniform-management.sql.'
           : `Não foi possível atualizar o Uniforme: ${error.message}`);
       }
-      return;
+      return false;
     }
     uniformStateErrorShown = false;
     syncUniformState(data || []);
-    if (!modal.classList.contains('hidden')) render();
+    if (renderWhenOpen && !modal.classList.contains('hidden')) render();
+    return true;
   }
 
   function uniformStatusFor(studentId) {
@@ -138,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     get('markAllUniformReceived').classList.toggle('hidden', !bulkAccess.allowed);
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
-    const globalStudents = uniformRecords.length ? uniformRecords : students;
+    const globalStudents = uniformRecords.length || !students.length ? uniformRecords : students;
     get('pendingUniform').textContent = globalStudents.filter(item => pending(item) === 'uniform').length;
     get('pendingShoes').textContent = globalStudents.filter(item => pending(item) === 'shoes').length;
     get('pendingBoth').textContent = globalStudents.filter(item => pending(item) === 'both').length;
@@ -177,54 +178,23 @@ document.addEventListener('DOMContentLoaded', () => {
       .filter(item => item.classId === classId || selectedClassName(item.className) === selectedTargetName)
       .map(item => ({ ...item }));
     if (requestId === classStudentsRequest) render();
-    return;
-    classStudents = null;
-    render();
-    // Carregue sempre o conjunto completo antes de decidir a turma exibida.
-    // Assim os contadores e as etiquetas usam a mesma fonte de dados que
-    // funciona ao selecionar uma turma, inclusive com o filtro vazio.
-    const { data, error } = await db.from('students')
-      .select('id,full_name,class_id,class_name,uniform_pending,uniform_received,shoes_received')
-      .order('full_name', { ascending:true });
-    if (requestId !== classStudentsRequest) return;
-    if (error) { classStudents = []; render(); toast('Não foi possível carregar os alunos desta turma.'); return; }
-    // Há cadastros antigos que guardam somente o nome da turma. Considerar o
-    // identificador e o nome impede que esses alunos fiquem fora do Uniforme.
-    const normalizeClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
-    const targetName = normalizeClassName(classes.find(item => item.id === classId)?.name);
-    syncUniformState(data || []);
-    if (!classId) {
-      classStudents = [];
-      render();
-      return;
-    }
-    classStudents = (data || [])
-      .filter(item => item.class_id === classId || normalizeClassName(item.class_name) === targetName)
-      .map(item => ({
-        id: item.id,
-        name: item.full_name,
-        classId: item.class_id,
-        className: classes.find(cls => cls.id === item.class_id)?.name || item.class_name,
-        uniform_pending: item.uniform_pending,
-        uniform_received: item.uniform_received,
-        shoes_received: item.shoes_received
-      }));
-    render();
   }
   async function open() {
-    modal.classList.remove('hidden');
-    await refreshUniformState();
-    classOptions();
-    render();
-    if (get('uniformClass').value) await loadClassStudents();
-    return;
-    await load();
-    // Mesmo sem selecionar turma, consulte todos os alunos antes de montar
-    // os três contadores e as etiquetas da lista/cards.
-    await refreshUniformState();
-    classOptions();
-    render();
-    await loadClassStudents();
+    // Garanta que a lista principal e os dados exclusivos de Uniforme estejam
+    // atualizados antes de exibir os totais. Assim a janela nunca abre em 0
+    // por estar usando uma cópia antiga do carregamento anterior.
+    uniformButton.disabled = true;
+    try {
+      await window.load?.();
+      await refreshUniformState({ renderWhenOpen:false });
+      classOptions();
+      modal.classList.remove('hidden');
+      if (get('uniformClass').value) await loadClassStudents();
+      else classStudents = [];
+      render();
+    } finally {
+      uniformButton.disabled = false;
+    }
   }
   uniformButton.onclick = open; get('closeUniform').onclick = () => modal.classList.add('hidden'); modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
   get('uniformClass').onchange = loadClassStudents;
@@ -259,15 +229,6 @@ document.addEventListener('DOMContentLoaded', () => {
     window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
     render();
     toast(type ? 'Pendência registrada.' : 'Aluno marcado como recebeu.');
-    return;
-    // A lista e o card principal renderizam a etiqueta diretamente a partir
-    // do estado do aluno. Recrie-os agora, na mesma interação do select.
-    window.render?.();
-    render();
-    paintStudentCards();
-    toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.');
-    await load();
-    await loadClassStudents();
   };
   get('markAllUniformReceived').onclick = async () => {
     const access = bulkUniformAccess();
@@ -321,8 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (typeof finalLoad !== 'function' || finalLoad.__uniformWrapped) return;
     const wrappedLoad = async (...args) => {
       const result = await finalLoad(...args);
-      await refreshUniformState();
-      if (!modal.classList.contains('hidden')) render();
+      await refreshUniformState({ renderWhenOpen:false });
       return result;
     };
     wrappedLoad.__uniformWrapped = true;
