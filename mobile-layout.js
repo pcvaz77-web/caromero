@@ -364,10 +364,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const item = document.getElementById(id);
       if (item) nav.appendChild(item);
     });
-    nav.addEventListener('click', event => {
-      // Aguarda o botão executar sua própria ação (abrir Uniforme,
-      // Ocorrência, Perfil etc.) antes de recolher o menu lateral.
-      if (event.target.closest('button')) window.setTimeout(() => setMenuOpen(false), 0);
+    // Cada botão mantém seu próprio evento de abertura. O fechamento é
+    // ligado separadamente e só ocorre depois que esse evento já foi
+    // processado, evitando disputar o clique com Uniforme, Ocorrência ou
+    // Meu Perfil.
+    nav.querySelectorAll('button').forEach(button => {
+      button.addEventListener('click', () => window.setTimeout(() => setMenuOpen(false), 80));
     });
   }, 0);
 
