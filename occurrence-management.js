@@ -112,7 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = selectedClass();
     const studentId = selectedStudent();
     const searchClassId = get('occurrenceSearchClass').value;
+    const startDate = get('occurrenceStart').value;
+    const endDate = get('occurrenceEnd').value;
     const normalizedName = get('occurrenceSearchName').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+    const hasSearchFilter = !!(startDate || endDate || searchClassId || normalizedName);
+    const list = get('occurrenceHistoryList');
+    if (!hasSearchFilter) {
+      historyRecords = new Map();
+      get('occurrenceHistoryMeta').textContent = 'Use Buscar Ocorrência para consultar os registros.';
+      list.innerHTML = '<div class="occurrence-empty">Preencha ao menos um filtro para ver as ocorrências.</div>';
+      return;
+    }
     let query = db.from('student_occurrences')
       .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,students(full_name)')
       .order('occurred_on', { ascending:false })
@@ -128,10 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (searchClassId) query = query.eq('class_id', searchClassId);
     else if (studentId) query = query.eq('student_id', studentId);
     else if (classId) query = query.eq('class_id', classId);
-    if (get('occurrenceStart').value) query = query.gte('occurred_on', get('occurrenceStart').value);
-    if (get('occurrenceEnd').value) query = query.lte('occurred_on', get('occurrenceEnd').value);
+    if (startDate) query = query.gte('occurred_on', startDate);
+    if (endDate) query = query.lte('occurred_on', endDate);
     const { data, error } = await query;
-    const list = get('occurrenceHistoryList');
     if (error) {
       list.innerHTML = '<div class="occurrence-empty">Não foi possível consultar as ocorrências.</div>';
       get('occurrenceHistoryMeta').textContent = error.message;
