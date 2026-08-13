@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'uniformModal';
   modal.className = 'modal-bg uniform-modal hidden';
-  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Uniforme</h3><div class="meta">Escolha a turma e veja claramente a situação de cada aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div></div><div class="uniform-controls"><select id="uniformClass"><option value="">Selecione uma turma</option></select><select id="uniformView"><option value="all">Todos os alunos da turma</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></section>`;
+  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Uniforme</h3><div class="meta">Escolha a turma e veja claramente a situação de cada aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div></div><div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button">✓ Marcar todos como receberam</button></div><div class="uniform-controls"><select id="uniformClass"><option value="">Selecione uma turma</option></select><select id="uniformView"><option value="all">Todos os alunos da turma</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></section>`;
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
@@ -18,9 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:20px; overscroll-behavior:none; }.uniform-dialog { width:min(930px,100%); height:min(720px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; overflow:hidden; }
     .uniform-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:15px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:10px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:12px; font-weight:700; }.uniform-summary b { font-size:24px; color:#b42318; }
-    .uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 22px 22px; }
+    .uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 22px 22px; }
     .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; }.uniform-card-label { font-size:11px; } }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-bulk-action { padding:10px 14px 0; }.uniform-bulk-action .btn { width:100%; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; }.uniform-card-label { font-size:11px; } }
   `;
   document.head.appendChild(style);
 
@@ -151,6 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function render() {
     classOptions();
+    get('markAllUniformReceived').classList.toggle('hidden', !isAdmin());
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
     get('pendingUniform').textContent = students.filter(item => pending(item) === 'uniform').length;
@@ -246,6 +247,34 @@ document.addEventListener('DOMContentLoaded', () => {
     toast(type ? 'Pendência registrada no card do aluno.' : 'Aluno marcado como recebeu.');
     await load();
     await loadClassStudents();
+  };
+  get('markAllUniformReceived').onclick = async () => {
+    if (!isAdmin()) return;
+    if (!confirm('Marcar todos os alunos como receberam uniforme e tênis?')) return;
+    const button = get('markAllUniformReceived');
+    button.disabled = true;
+    const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true };
+    const { error } = await db.from('students').update(nextState).not('id', 'is', null);
+    if (error) {
+      button.disabled = false;
+      toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message);
+      return;
+    }
+    const markReceived = item => {
+      if (!item) return;
+      item.uniform_pending = '';
+      item.uniform_received = true;
+      item.shoes_received = true;
+    };
+    students.forEach(markReceived);
+    uniformRecords.forEach(markReceived);
+    classStudents?.forEach(markReceived);
+    // Atualização visual imediata: não espere uma consulta, evento em tempo
+    // real ou troca de turma para refletir a alteração concluída.
+    render();
+    paintStudentCards();
+    button.disabled = false;
+    toast('Todos os alunos foram marcados como receberam.');
   };
   document.addEventListener('carometro:uniform-refresh', () => {
     refreshUniformState().then(() => {
