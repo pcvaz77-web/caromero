@@ -16,11 +16,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
-    .uniform-modal { z-index:110; padding:20px; overscroll-behavior:none; }.uniform-dialog { width:min(930px,100%); height:min(720px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); display:flex; flex-direction:column; overflow:hidden; }
+    .uniform-modal { z-index:110; padding:20px; overscroll-behavior:none; }.uniform-dialog { width:min(930px,100%); height:min(720px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); min-height:0; display:flex; flex-direction:column; overflow:hidden; }.uniform-dialog .modal-head { position:relative!important; top:auto!important; flex:none; }
     .uniform-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:15px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:10px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:12px; font-weight:700; }.uniform-summary b { font-size:24px; color:#b42318; }
-    .uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding:0 22px 22px; }
+    .uniform-summary,.uniform-bulk-action,.uniform-controls,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:1fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:90px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
     .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-bulk-action { padding:10px 14px 0; }.uniform-bulk-action .btn { width:100%; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; }.uniform-card-label { font-size:11px; } }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:10px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 20px); max-height:none; }.uniform-dialog .modal-head { padding:15px; }.uniform-summary { padding:10px 14px; gap:7px; }.uniform-summary div { padding:8px; }.uniform-summary span { font-size:10px; }.uniform-summary b { font-size:20px; }.uniform-bulk-action { padding:10px 14px 0; }.uniform-bulk-action .btn { width:100%; }.uniform-controls { grid-template-columns:1fr; padding:12px 14px; gap:7px; }.uniform-columns { display:none; }.uniform-list { min-height:72px; padding:0 14px 14px; }.uniform-row { grid-template-columns:1fr; gap:8px; }.uniform-card-label { font-size:11px; } }
   `;
   document.head.appendChild(style);
 
@@ -81,11 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
       student.uniform_received = state.uniform_received;
       student.shoes_received = state.shoes_received;
     });
+    classStudents?.forEach(student => {
+      const state = stateByStudent.get(student.id);
+      if (!state) return;
+      student.uniform_pending = state.uniform_pending || '';
+      student.uniform_received = state.uniform_received;
+      student.shoes_received = state.shoes_received;
+    });
     // Recrie a lista e o card com o estado de Uniforme que acabou de chegar.
     // Isso evita que uma renderização anterior (sem esses campos) deixe de
     // mostrar as etiquetas, mesmo quando os contadores já estão corretos.
-    window.render?.();
-    paintStudentCards();
+    // A lista principal já usa estes dados em memória. Não a redesenhe a
+    // cada resposta de Uniforme: isso evitou a piscada da tela inteira.
   }
   async function refreshUniformState() {
     const requestId = ++uniformStateRequest;
@@ -104,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     uniformStateErrorShown = false;
     syncUniformState(data || []);
+    if (!modal.classList.contains('hidden')) render();
   }
 
   function uniformStatusFor(studentId) {
@@ -156,6 +164,20 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadClassStudents() {
     const classId = get('uniformClass').value;
     const requestId = ++classStudentsRequest;
+    const selectedClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
+    const selectedTargetName = selectedClassName(classes.find(item => item.id === classId)?.name);
+    if (!classId) {
+      classStudents = [];
+      render();
+      return;
+    }
+    // A lista principal já contém todos os alunos. Reaproveitá-la evita uma
+    // segunda consulta completa que desmontava a janela e causava piscadas.
+    classStudents = students
+      .filter(item => item.classId === classId || selectedClassName(item.className) === selectedTargetName)
+      .map(item => ({ ...item }));
+    if (requestId === classStudentsRequest) render();
+    return;
     classStudents = null;
     render();
     // Carregue sempre o conjunto completo antes de decidir a turma exibida.
@@ -191,6 +213,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function open() {
     modal.classList.remove('hidden');
+    await refreshUniformState();
+    classOptions();
+    render();
+    if (get('uniformClass').value) await loadClassStudents();
+    return;
     await load();
     // Mesmo sem selecionar turma, consulte todos os alunos antes de montar
     // os três contadores e as etiquetas da lista/cards.
@@ -230,6 +257,9 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformRecords.forEach(updateLocalStatus);
     window.uniformStateByStudent ||= new Map();
     window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
+    render();
+    toast(type ? 'Pendência registrada.' : 'Aluno marcado como recebeu.');
+    return;
     // A lista e o card principal renderizam a etiqueta diretamente a partir
     // do estado do aluno. Recrie-os agora, na mesma interação do select.
     window.render?.();
@@ -268,9 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.uniformStateByStudent = new Map(students.map(item => [item.id, item]));
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
-    window.render?.();
     render();
-    paintStudentCards();
     button.disabled = false;
     toast(targetIsClass ? 'Todos os alunos da turma foram marcados como receberam.' : 'Todos os alunos foram marcados como receberam.');
   };
