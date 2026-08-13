@@ -24,5 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('carometro:data-loaded', paintClassCounters);
+  // As turmas de Matutino/Vespertino/Noturno são criadas dinamicamente.
+  // Atualize após o clique desses botões e após voltar a Todos os alunos.
+  document.addEventListener('click', event => {
+    if (!event.target.closest('[data-class-id], #studentsNav')) return;
+    window.setTimeout(paintClassCounters, 0);
+  });
   paintClassCounters();
 });
