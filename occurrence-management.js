@@ -71,7 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const count = occurrenceCounts.get(detailStudentId) || 0;
     if (detailLabel) {
-      detailLabel.textContent = `Ocorrência · ${count}`;
+      const labelText = `Ocorrência · ${count}`;
+      if (detailLabel.textContent !== labelText) detailLabel.textContent = labelText;
       return;
     }
     const detailHolder = detail.querySelector('.detail-head > div:last-child');
