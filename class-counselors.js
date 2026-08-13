@@ -285,8 +285,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const baseEditStudent = window.editStudent;
   window.editStudent = id => {
     const student = students.find(item => item.id === id);
-    if (permission.role !== 'admin' && !permission.is_coordinator) {
-      toast('Somente coordenadores autorizados podem editar alunos.');
+    if (permission.role !== 'admin' && !permission.is_coordinator && !permission.can_edit_students) {
+      toast('Sem permissão para editar alunos.');
       return;
     }
     baseEditStudent(id);

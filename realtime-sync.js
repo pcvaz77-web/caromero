@@ -46,7 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
         notify('carometro:permissions-changed');
         refreshData();
       })
-      .on('postgres_changes', { event:'*', schema:'public', table:'user_permissions' }, () => {
+      .on('postgres_changes', { event:'*', schema:'public', table:'user_permissions' }, payload => {
+        if (payload.new?.user_id === signedInUser.id) window.applyCarometroPermission?.(payload.new);
         notify('carometro:permissions-changed');
       })
       .on('postgres_changes', { event:'*', schema:'public', table:'student_occurrences' }, () => {

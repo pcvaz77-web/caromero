@@ -90,6 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     syncStudentActions();
     document.dispatchEvent(new CustomEvent('carometro:permission-refresh'));
   }
+  window.applyCarometroPermission = applyCurrentPermission;
 
   async function refreshCurrentPermission() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
@@ -283,5 +284,5 @@ document.addEventListener('DOMContentLoaded', () => {
       () => { refreshCurrentPermission(); }
     ).subscribe();
   });
-  setInterval(refreshCurrentPermission, 4000);
+  setInterval(refreshCurrentPermission, 1000);
 });
