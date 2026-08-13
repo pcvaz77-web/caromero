@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const match = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/);
       if (!match) return;
       const student = students.find(item => item.id === match[1]);
-      const canEditStudent = permission.role === 'admin' || (!!permission.is_coordinator && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report));
+      const canEditStudent = permission.role === 'admin' || !!permission.can_edit_photo || (!!permission.is_coordinator && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report));
       if (!canEditStudent) return;
       let actions = card.querySelector('.actions-small');
       if (!actions) {
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingPhoto = null;
   let removePhoto = false;
   let activeCounselorRights = null;
-  const can = key => permission.role === 'admin' || (!!permission.is_coordinator && (permission.can_edit_all || permission[key]));
+  const can = key => permission.role === 'admin' || (!!permission.is_coordinator && (permission.can_edit_all || permission[key])) || (key === 'can_edit_photo' && !!permission.can_edit_photo);
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
