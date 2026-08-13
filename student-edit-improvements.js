@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     welcome.textContent = formatGreeting(fullName);
   };
   showWelcomeGreeting();
+  document.addEventListener('carometro:profiles-changed', showWelcomeGreeting);
   new MutationObserver(() => {
     if (!document.getElementById('app').classList.contains('hidden')) showWelcomeGreeting();
   }).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });

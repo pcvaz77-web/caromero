@@ -159,6 +159,15 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshSubscriptionButton();
     toast(show ? 'Botão de assinatura exibido no login.' : 'Botão de assinatura ocultado do login.');
   };
+  document.addEventListener('carometro:platform-settings-changed', () => {
+    refreshSubscriptionButton();
+  });
+  document.addEventListener('carometro:profiles-changed', () => {
+    if (!modal.classList.contains('hidden') && isAdmin()) openSettings();
+  });
+  document.addEventListener('carometro:permissions-changed', () => {
+    if (!modal.classList.contains('hidden') && isAdmin()) openSettings();
+  });
   nav.onclick = openSettings;
   new MutationObserver(() => {
     if (!app.classList.contains('hidden')) nav.classList.toggle('hidden', !isAdmin());

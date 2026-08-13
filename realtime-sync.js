@@ -52,6 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
       .on('postgres_changes', { event:'*', schema:'public', table:'student_occurrences' }, () => {
         notify('carometro:occurrences-changed');
       })
+      // Perfil Ã© dado pessoal: sincroniza apenas entre as sessÃµes do prÃ³prio usuÃ¡rio.
+      .on('postgres_changes', { event:'*', schema:'public', table:'profiles', filter:`id=eq.${signedInUser.id}` }, () => {
+        notify('carometro:profiles-changed');
+      })
+      .on('postgres_changes', { event:'*', schema:'public', table:'platform_settings', filter:'id=eq.true' }, () => {
+        notify('carometro:platform-settings-changed');
+      })
         .subscribe();
     } finally {
       startingUserId = null;

@@ -177,6 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshCurrentPermission();
     if (!document.getElementById('permissionsModal').classList.contains('hidden') && permission.role === 'admin') openPermissions();
   });
+  document.addEventListener('carometro:profiles-changed', () => {
+    if (!document.getElementById('permissionsModal').classList.contains('hidden') && permission.role === 'admin') openPermissions();
+  });
   db.auth.getUser().then(({ data: { user: signedInUser } }) => {
     if (!signedInUser) return;
     if (db.channel) db.channel(`permission-live-${signedInUser.id}`).on(
