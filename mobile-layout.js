@@ -424,9 +424,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   menuButton.onclick = () => setMenuOpen(!document.body.classList.contains('mobile-menu-open'));
   backdrop.onclick = () => setMenuOpen(false);
-  // Janelas abertas pelo menu precisam retirar completamente o drawer e a
-  // sua camada de toque antes de receber campos e botões próprios.
-  document.addEventListener('carometro:modal-open', () => setMenuOpen(false));
   homeButton.onclick = goHome;
   window.addEventListener('pagehide', saveCurrentScreen);
   window.addEventListener('beforeunload', saveCurrentScreen);
