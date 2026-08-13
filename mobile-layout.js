@@ -372,6 +372,12 @@ document.addEventListener('DOMContentLoaded', () => {
     nav.querySelectorAll('button').forEach(button => {
       button.addEventListener('click', () => window.setTimeout(() => setMenuOpen(false), 80));
     });
+    nav.addEventListener('click', event => {
+      if (!event.target.closest('button')) return;
+      // Ao trocar de opção, feche a janela anterior para que a nova função
+      // assuma a tela imediatamente.
+      ['settingsModal', 'permissionsModal'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+    }, true);
   }, 0);
 
   let touchStartX = 0;
