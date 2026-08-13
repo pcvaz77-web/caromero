@@ -45,7 +45,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = selectedClass();
     const select = get('occurrenceStudent');
     const current = select.value;
-    const classStudents = students.filter(item => item.classId === classId).sort((a, b) => String(a.name).localeCompare(String(b.name), 'pt-BR', { sensitivity:'base' }));
+    // Alguns cadastros trazem a numeração da chamada antes do nome. Preserve
+    // essa numeração no seletor, mas ordene pelo nome do aluno.
+    const nameForSort = value => String(value || '').replace(/^\s*\d+\s*[.)-]?\s*/, '');
+    const classStudents = students.filter(item => item.classId === classId).sort((a, b) => nameForSort(a.name).localeCompare(nameForSort(b.name), 'pt-BR', { sensitivity:'base', numeric:true }));
     select.disabled = !classId;
     select.innerHTML = classId
       ? '<option value="">Selecione um aluno</option>' + classStudents.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('')
