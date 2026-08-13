@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
   const isCoordinator = () => !!permission?.is_coordinator;
-  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
+  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_view_uniform || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
   const canRegisterUniform = student => {
     if (isAdmin()) return true;
     return isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform);

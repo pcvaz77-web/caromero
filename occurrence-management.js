@@ -26,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
   const isCoordinator = () => !!permission?.is_coordinator;
+  const canViewOccurrences = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_view_occurrences || permission?.can_register_occurrences || permission?.can_edit_occurrences || permission?.can_delete_occurrences));
   const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
   const canRegisterOccurrence = () => hasOccurrencePermission('can_register_occurrences');
   const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && hasOccurrencePermission('can_edit_occurrences'));
@@ -107,6 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
     detailHolder.appendChild(label);
   }
   async function refreshLabelState() {
+    if (!canViewOccurrences()) {
+      occurrenceStudentIds = new Set();
+      occurrenceCounts = new Map();
+      paintStudentCards();
+      return;
+    }
     const { data, error } = await db.from('student_occurrences').select('student_id');
     if (error) {
       if (!tableErrorShown) {
@@ -165,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
+    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
     modal.classList.remove('hidden');
     await load();
     fillClasses();
@@ -258,6 +266,12 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Ocorrência excluída.');
   }
 
+  const syncOccurrenceNavigation = () => {
+    const allowed = canViewOccurrences();
+    occurrenceButton.classList.toggle('hidden', !allowed);
+    occurrenceButton.hidden = !allowed;
+    if (!allowed) modal.classList.add('hidden');
+  };
   occurrenceButton.onclick = open;
   const closeOccurrence = () => { resetOccurrenceScreen(); modal.classList.add('hidden'); };
   get('closeOccurrence').onclick = closeOccurrence;
@@ -301,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!modal.classList.contains('hidden')) await refreshHistory();
   });
   document.addEventListener('carometro:permission-refresh', () => {
+    syncOccurrenceNavigation();
     syncSaveAction();
     if (!modal.classList.contains('hidden')) refreshHistory();
   });
@@ -316,4 +331,6 @@ document.addEventListener('DOMContentLoaded', () => {
       await refreshHistory();
     }
   });
+  new MutationObserver(syncOccurrenceNavigation).observe(get('app'), { attributes:true, attributeFilter:['class'] });
+  setTimeout(syncOccurrenceNavigation, 0);
 });
