@@ -26,15 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deleteButton.disabled = true;
     try {
-      // Remove first the dependent records. This also works when the database
-      // has not yet received the optional ON DELETE CASCADE migration.
-      if (affected.length) {
-        const { error: studentsError } = await db.from('students').delete().eq('class_id', cls.id);
-        if (studentsError) throw studentsError;
-      }
-
       const { error: classError } = await db.from('classes').delete().eq('id', cls.id);
-      if (classError) throw classError;
+      if (classError) {
+        if (classError.code === '23503') throw new Error('A exclusão foi bloqueada para proteger os alunos. Execute o script supabase-delete-class-cascade.sql no Supabase antes de tentar novamente.');
+        throw classError;
+      }
 
       const photos = affected.map(student => student.photoPath).filter(Boolean);
       if (photos.length) await db.storage.from('student-photos').remove(photos);
