@@ -24,6 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const get = id => document.getElementById(id);
+  const isAdmin = () => permission?.role === 'admin';
+  const isCounselor = () => !isAdmin() && !!window.isCounselorUser?.();
+  const occurrenceRightsForClass = classId => isCounselor() ? window.counselorRightsForClass?.(classId) : permission;
+  const canRegisterOccurrence = classId => isAdmin() || !!(occurrenceRightsForClass(classId)?.can_register_occurrences);
+  const canEditOccurrence = item => isAdmin() || (item.created_by === user?.id && !!occurrenceRightsForClass(item.class_id)?.can_edit_occurrences);
+  const canDeleteOccurrence = item => isAdmin() || (item.created_by === user?.id && !!occurrenceRightsForClass(item.class_id)?.can_delete_occurrences);
   const escape = value => { const node = document.createElement('span'); node.textContent = value || ''; return node.innerHTML; };
   const today = () => new Date().toISOString().slice(0, 10);
   const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
@@ -35,6 +41,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function selectedClass() { return get('occurrenceClass').value; }
   function selectedStudent() { return get('occurrenceStudent').value; }
+  function syncSaveAction() {
+    const button = get('saveOccurrence');
+    const allowed = editingOccurrence ? canEditOccurrence(editingOccurrence) : canRegisterOccurrence(selectedClass());
+    button.disabled = !selectedClass() || !allowed;
+    button.title = button.disabled ? 'O administrador precisa liberar a permissão de Ocorrência para esta turma.' : '';
+  }
   function fillClasses() {
     const select = get('occurrenceClass');
     const current = select.value || selectedClassId || '';
@@ -60,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? '<option value="">Selecione um aluno</option>' + classStudents.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('')
       : '<option value="">Selecione a turma primeiro</option>';
     if (classStudents.some(item => item.id === current)) select.value = current;
+    syncSaveAction();
   }
   function paintStudentCards() {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -124,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     let query = db.from('student_occurrences')
-      .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,students(full_name)')
+      .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,created_by,students(full_name)')
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false });
     if (normalizedName) {
@@ -149,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const records = data || [];
     historyRecords = new Map(records.map(item => [item.id, item]));
     get('occurrenceHistoryMeta').textContent = records.length ? `${records.length} ocorrência${records.length === 1 ? '' : 's'} encontrada${records.length === 1 ? '' : 's'}.` : 'Nenhuma ocorrência no filtro selecionado.';
-    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions"><button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button><button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button></div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
+    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
     modal.classList.remove('hidden');
@@ -159,6 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     fillStudents();
     await refreshLabelState();
     await refreshHistory();
+    syncSaveAction();
   }
   function resetOccurrenceScreen() {
     editingOccurrence = null;
@@ -175,6 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     get('searchOccurrences').setAttribute('aria-expanded', 'false');
     get('saveOccurrence').textContent = 'Salvar ocorrência';
     refreshHistory();
+    syncSaveAction();
   }
   async function save() {
     const classId = selectedClass();
@@ -183,6 +198,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const occurrenceDate = get('occurrenceDate').value;
     const classItem = classes.find(item => item.id === classId);
     if (!editingOccurrence && (!classItem || !studentId)) { toast('Selecione a turma e o aluno.'); return; }
+    if (!editingOccurrence && !canRegisterOccurrence(classId)) { toast('Sem permissão para registrar ocorrência nesta turma.'); return; }
+    if (editingOccurrence && !canEditOccurrence(editingOccurrence)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     if (!occurrenceDate) { toast('Selecione a data da ocorrência.'); return; }
     if (!text) { toast('Digite a descrição da ocorrência.'); return; }
     const button = get('saveOccurrence');
@@ -210,6 +227,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function editOccurrence(item) {
+    if (!canEditOccurrence(item)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     editingOccurrence = item;
     get('occurrenceClass').value = item.class_id || '';
     fillStudents();
@@ -218,9 +236,11 @@ document.addEventListener('DOMContentLoaded', () => {
     get('occurrenceText').value = item.occurrence_text;
     get('occurrenceTextCount').textContent = `${item.occurrence_text.length}/500`;
     get('saveOccurrence').textContent = 'Salvar alterações';
+    syncSaveAction();
     get('occurrenceText').focus();
   }
   async function deleteOccurrence(item) {
+    if (!canDeleteOccurrence(item)) { toast('Sem permissão para excluir esta ocorrência.'); return; }
     if (!confirm(`Excluir a ocorrência de ${formatDate(item.occurred_on)}?`)) return;
     const { error } = await db.from('student_occurrences').delete().eq('id', item.id);
     if (error) { toast(error.message); return; }
@@ -279,6 +299,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('carometro:occurrences-changed', async () => {
     await refreshLabelState();
     if (!modal.classList.contains('hidden')) await refreshHistory();
+  });
+  document.addEventListener('carometro:permission-refresh', () => {
+    syncSaveAction();
+    if (!modal.classList.contains('hidden')) refreshHistory();
   });
 
   setTimeout(() => {

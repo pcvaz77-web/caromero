@@ -5,7 +5,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_edit_name', 'Editar nome'],
     ['can_edit_report', 'Editar observações'],
     ['can_edit_uniform', 'Registrar uniforme'],
-    ['can_mark_all_uniform_received', 'Marcar todos como receberam']
+    ['can_mark_all_uniform_received', 'Marcar todos como receberam'],
+    ['can_register_occurrences', 'Registrar ocorrência'],
+    ['can_edit_occurrences', 'Editar ocorrência própria'],
+    ['can_delete_occurrences', 'Excluir ocorrência própria']
   ];
   let assignments = [];
   let ownAssignments = [];
