@@ -54,6 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // lista de alunos ficar visível imediatamente.
         if (window.matchMedia('(max-width: 800px)').matches) openShifts.clear();
         window.selectClass(button.dataset.classId);
+        document.dispatchEvent(new CustomEvent('carometro:class-selected', {
+          detail: { classId: button.dataset.classId }
+        }));
         drawGroups();
       };
     });

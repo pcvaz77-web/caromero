@@ -1,13 +1,14 @@
 document.addEventListener('DOMContentLoaded', () => {
   // Os contadores acompanham a turma selecionada, sem considerar a busca por
   // nome. Ao retornar para "Todos os alunos", eles mostram a escola inteira.
-  const paintClassCounters = () => {
+  const paintClassCounters = classId => {
     const total = document.getElementById('total');
     const reports = document.getElementById('reports');
     if (!total || !reports || !Array.isArray(students)) return;
 
-    const scope = selectedClassId
-      ? students.filter(student => student.classId === selectedClassId)
+    const activeClassId = classId === undefined ? selectedClassId : classId;
+    const scope = activeClassId
+      ? students.filter(student => student.classId === activeClassId)
       : students;
 
     total.textContent = scope.length;
@@ -24,6 +25,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.addEventListener('carometro:data-loaded', paintClassCounters);
+  document.addEventListener('carometro:class-selected', event => {
+    paintClassCounters(event.detail?.classId || null);
+  });
   // As turmas de Matutino/Vespertino/Noturno são criadas dinamicamente.
   // Atualize após o clique desses botões e após voltar a Todos os alunos.
   document.addEventListener('click', event => {
