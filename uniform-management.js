@@ -68,6 +68,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let uniformStateRequest = 0;
   let uniformStateErrorShown = false;
 
+  // Os três totais não dependem da turma, dos filtros nem da lista visível.
+  // Mantê-los em uma função própria evita que uma falha ao montar a lista
+  // deixe os números em zero, apesar de os dados já terem sido carregados.
+  function updateUniformSummary(records = uniformRecords) {
+    // A lista principal sempre representa todos os alunos que o usuário pode
+    // visualizar. A resposta exclusiva de Uniforme pode chegar incompleta ou
+    // antes de uma alteração recente; use-a apenas antes da carga principal.
+    const source = students.length ? students : records;
+    const totals = { uniform:0, shoes:0, both:0 };
+    source.forEach(student => {
+      const status = pending(student);
+      if (status) totals[status] += 1;
+    });
+    get('pendingUniform').textContent = totals.uniform;
+    get('pendingShoes').textContent = totals.shoes;
+    get('pendingBoth').textContent = totals.both;
+  }
+
   function syncUniformState(records) {
     uniformRecords = records || [];
     const stateByStudent = new Map(uniformRecords.map(item => [item.id, item]));
@@ -81,6 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
       student.uniform_received = state.uniform_received;
       student.shoes_received = state.shoes_received;
     });
+    updateUniformSummary();
     classStudents?.forEach(student => {
       const state = stateByStudent.get(student.id);
       if (!state) return;
@@ -107,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ? 'O controle de Uniforme ainda não foi instalado no banco. Execute o arquivo supabase-uniform-management.sql.'
           : `Não foi possível atualizar o Uniforme: ${error.message}`);
       }
+      updateUniformSummary(students);
       return false;
     }
     uniformStateErrorShown = false;
@@ -139,10 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     get('markAllUniformReceived').classList.toggle('hidden', !bulkAccess.allowed);
     // Os contadores são sempre gerais; os filtros abaixo servem apenas para
     // definir quais alunos aparecem na lista.
-    const globalStudents = uniformRecords.length || !students.length ? uniformRecords : students;
-    get('pendingUniform').textContent = globalStudents.filter(item => pending(item) === 'uniform').length;
-    get('pendingShoes').textContent = globalStudents.filter(item => pending(item) === 'shoes').length;
-    get('pendingBoth').textContent = globalStudents.filter(item => pending(item) === 'both').length;
+    updateUniformSummary();
     const classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
     const selectedClass = classes.find(item => item.id === classId);
     if (!classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha uma turma para ver os alunos.</div>'; return; }
@@ -227,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformRecords.forEach(updateLocalStatus);
     window.uniformStateByStudent ||= new Map();
     window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
+    updateUniformSummary();
     render();
     toast(type ? 'Pendência registrada.' : 'Aluno marcado como recebeu.');
   };
@@ -259,6 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.uniformStateByStudent = new Map(students.map(item => [item.id, item]));
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
+    updateUniformSummary();
     render();
     button.disabled = false;
     toast(targetIsClass ? 'Todos os alunos da turma foram marcados como receberam.' : 'Todos os alunos foram marcados como receberam.');
