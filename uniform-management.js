@@ -52,6 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncUniformState(records) {
     uniformRecords = records || [];
     const stateByStudent = new Map(uniformRecords.map(item => [item.id, item]));
+    // Exponha a fonte canônica por aluno para a lista e o card principal.
+    // Dessa forma uma etiqueta nunca usa uma cópia antiga do objeto do aluno.
+    window.uniformStateByStudent = stateByStudent;
     students.forEach(student => {
       const state = stateByStudent.get(student.id);
       if (!state) return;
@@ -241,6 +244,8 @@ document.addEventListener('DOMContentLoaded', () => {
     students.forEach(updateLocalStatus);
     classStudents?.forEach(updateLocalStatus);
     uniformRecords.forEach(updateLocalStatus);
+    window.uniformStateByStudent ||= new Map();
+    window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
     // A lista e o card principal renderizam a etiqueta diretamente a partir
     // do estado do aluno. Recrie-os agora, na mesma interação do select.
     window.render?.();
@@ -271,6 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
     students.forEach(markReceived);
     uniformRecords.forEach(markReceived);
     classStudents?.forEach(markReceived);
+    window.uniformStateByStudent = new Map(students.map(item => [item.id, item]));
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
     window.render?.();
