@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         notify('carometro:occurrences-changed');
       })
       // Perfil Ã© dado pessoal: sincroniza apenas entre as sessÃµes do prÃ³prio usuÃ¡rio.
-      .on('postgres_changes', { event:'*', schema:'public', table:'profiles', filter:`id=eq.${signedInUser.id}` }, () => {
+      .on('postgres_changes', { event:'*', schema:'public', table:'profiles' }, () => {
         notify('carometro:profiles-changed');
       })
       .on('postgres_changes', { event:'*', schema:'public', table:'platform_settings', filter:'id=eq.true' }, () => {
@@ -77,4 +77,11 @@ document.addEventListener('DOMContentLoaded', () => {
       liveChannel = null;
     }
   });
+
+  // Recupera alterações feitas durante uma queda breve de conexão ou enquanto
+  // o navegador esteve em segundo plano, sem criar uma recarga periódica.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshData();
+  });
+  window.addEventListener('online', refreshData);
 });

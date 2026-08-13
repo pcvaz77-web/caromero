@@ -717,6 +717,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('closePhotoPicker').onclick = () => photoPicker.classList.add('hidden');
   photoPicker.onclick = event => { if (event.target === photoPicker) photoPicker.classList.add('hidden'); };
   document.getElementById('removePhoto').onclick = () => {
+    if (!confirm('Remover a foto deste aluno? A remoção só será concluída quando você salvar os dados do aluno.')) return;
     pendingPhoto = null;
     photoInput.value = '';
     cameraInput.value = '';
@@ -756,21 +757,73 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) { toast('Selecione uma turma.'); return; }
 
     let photoPath = old?.photoPath || null;
+    let uploadedPhotoPath = null;
     if (removePhoto) photoPath = null;
     if (pendingPhoto) {
       const extension = (pendingPhoto.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '');
       photoPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
       const { error } = await db.storage.from('student-photos').upload(photoPath, pendingPhoto, { contentType: pendingPhoto.type });
       if (error) { toast('Não foi possível enviar a foto.'); return; }
+      uploadedPhotoPath = photoPath;
     }
 
     const observationValues = can('can_edit_report') ? selectedObservationValues() : decodeObservationValues(old?.report);
     const row = { full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: encodeObservationValues(observationValues), photo_path: photoPath };
     const result = id ? await db.from('students').update(row).eq('id', id) : await db.from('students').insert(row);
-    if (result.error) { toast(result.error.message); return; }
-    if ((pendingPhoto || removePhoto) && old?.photoPath) await db.storage.from('student-photos').remove([old.photoPath]);
+    if (result.error) {
+      // Não deixe uma foto recém-enviada sem aluno caso a gravação do aluno falhe.
+      if (uploadedPhotoPath) await db.storage.from('student-photos').remove([uploadedPhotoPath]);
+      toast(result.error.message);
+      return;
+    }
+    let oldPhotoCleanupFailed = false;
+    if ((pendingPhoto || removePhoto) && old?.photoPath) {
+      const { error: oldPhotoError } = await db.storage.from('student-photos').remove([old.photoPath]);
+      oldPhotoCleanupFailed = !!oldPhotoError;
+    }
     document.getElementById('studentModal').classList.add('hidden');
-    toast('Dados salvos.');
-    load();
+    toast(oldPhotoCleanupFailed ? 'Dados salvos. A foto anterior ficou preservada no armazenamento.' : 'Dados salvos.');
+    await load();
+  };
+
+  // A função antiga vinha do núcleo inicial da página. Substituí-la aqui garante
+  // a mesma proteção para PC e celular, inclusive se alguém tentar disparar o
+  // botão renderizado antes de a lista ser recarregada.
+  let deletingStudentId = null;
+  window.deleteStudent = async id => {
+    const student = students.find(item => item.id === id);
+    const allowed = permission.role === 'admin'
+      || (!permission.is_coordinator && !!permission.can_edit_students)
+      || (!!permission.is_coordinator && !!(permission.can_delete_students || permission.can_edit_all));
+    if (!student || !allowed || deletingStudentId) {
+      if (student && !allowed) toast('Sem permissão para excluir alunos.');
+      return;
+    }
+    if (!confirm(`Excluir ${student.name}? Esta ação não pode ser desfeita.`)) return;
+    const typedName = prompt(`Para confirmar, digite exatamente o nome do aluno: ${student.name}`);
+    if (typedName !== student.name) {
+      toast('Exclusão cancelada. O nome do aluno não foi confirmado.');
+      return;
+    }
+
+    deletingStudentId = id;
+    try {
+      const { data, error } = await db.from('students').delete().eq('id', id).select('id');
+      if (error) { toast(error.message); return; }
+      if (!data?.length) { toast('A exclusão não foi confirmada pelo banco de dados.'); return; }
+
+      let photoCleanupFailed = false;
+      if (student.photoPath) {
+        const { error: photoError } = await db.storage.from('student-photos').remove([student.photoPath]);
+        photoCleanupFailed = !!photoError;
+      }
+      students = students.filter(item => item.id !== id);
+      if (detailStudentId === id) detailStudentId = null;
+      render();
+      await load();
+      toast(photoCleanupFailed ? 'Aluno excluído. A foto antiga permaneceu protegida no armazenamento.' : 'Aluno excluído.');
+    } finally {
+      deletingStudentId = null;
+    }
   };
 });

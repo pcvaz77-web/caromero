@@ -6,12 +6,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const cls = classes.find(item => item.id === selectedClassId);
     if (!cls) return;
 
-    const affected = students.filter(student => student.classId === cls.id);
     const isAdmin = permission.role === 'admin';
-    if (affected.length && !isAdmin) {
-      toast('Somente administradores podem excluir uma turma que possui alunos cadastrados.');
+    // Turmas são estruturas que podem conter muitos alunos. Mesmo vazias,
+    // somente o administrador pode removê-las; isso impede que uma permissão
+    // geral de editar alunos apague uma turma inteira por engano.
+    if (!isAdmin) {
+      toast('Somente administradores podem excluir turmas.');
       return;
     }
+    const affected = students.filter(student => student.classId === cls.id);
     const suffix = affected.length === 1 ? '' : 's';
     const message = affected.length
       ? `Excluir a turma ${cls.name} e também os ${affected.length} aluno${suffix} cadastrado${suffix}? Esta ação não pode ser desfeita.`
