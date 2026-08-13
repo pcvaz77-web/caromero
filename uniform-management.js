@@ -48,14 +48,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis' };
   const pending = student => {
-    const explicit = String(student?.uniform_pending || '').trim().toLocaleLowerCase('pt-BR');
+    // Toda a tela consulta primeiro o último estado confirmado do aluno.
+    // Isso protege a contagem contra uma carga antiga que termine depois de
+    // o usuário alterar o seletor.
+    const stored = student?.id ? canonicalUniformState.get(student.id) : null;
+    const source = stored ? { ...student, ...stored } : student;
+    const explicit = String(source?.uniform_pending || '').trim().toLocaleLowerCase('pt-BR');
     if (['uniform', 'shoes', 'both'].includes(explicit)) return explicit;
 
     // Os primeiros registros de uniforme foram salvos nos dois campos
     // booleanos. Use-os como fonte principal quando não houver a marcação
     // mais recente em uniform_pending.
-    const needsUniform = student?.uniform_received === false || student?.uniform_received === 'false';
-    const needsShoes = student?.shoes_received === false || student?.shoes_received === 'false';
+    const needsUniform = source?.uniform_received === false || source?.uniform_received === 'false';
+    const needsShoes = source?.shoes_received === false || source?.shoes_received === 'false';
     if (needsUniform && needsShoes) return 'both';
     if (needsUniform) return 'uniform';
     if (needsShoes) return 'shoes';
@@ -65,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let classStudents = null;
   let classStudentsRequest = 0;
   let uniformRecords = [];
+  let canonicalUniformState = new Map();
   let uniformStateRequest = 0;
   let uniformStateErrorShown = false;
 
@@ -89,9 +95,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncUniformState(records) {
     uniformRecords = records || [];
     const stateByStudent = new Map(uniformRecords.map(item => [item.id, item]));
+    stateByStudent.forEach((state, id) => canonicalUniformState.set(id, { id, ...state }));
     // Exponha a fonte canônica por aluno para a lista e o card principal.
     // Dessa forma uma etiqueta nunca usa uma cópia antiga do objeto do aluno.
-    window.uniformStateByStudent = stateByStudent;
+    window.uniformStateByStudent = new Map(canonicalUniformState);
     students.forEach(student => {
       const state = stateByStudent.get(student.id);
       if (!state) return;
@@ -242,6 +249,10 @@ document.addEventListener('DOMContentLoaded', () => {
     students.forEach(updateLocalStatus);
     classStudents?.forEach(updateLocalStatus);
     uniformRecords.forEach(updateLocalStatus);
+    // Invalida qualquer consulta iniciada antes desta alteração. Ela não pode
+    // mais voltar e desfazer apenas o contador deste aluno.
+    uniformStateRequest += 1;
+    canonicalUniformState.set(row.dataset.id, { id:row.dataset.id, ...nextState });
     window.uniformStateByStudent ||= new Map();
     window.uniformStateByStudent.set(row.dataset.id, { id:row.dataset.id, ...nextState });
     updateUniformSummary();
@@ -274,7 +285,11 @@ document.addEventListener('DOMContentLoaded', () => {
     students.forEach(markAffectedReceived);
     uniformRecords.forEach(markAffectedReceived);
     classStudents?.forEach(markAffectedReceived);
-    window.uniformStateByStudent = new Map(students.map(item => [item.id, item]));
+    uniformStateRequest += 1;
+    students.forEach(item => {
+      if (!affectedIds || affectedIds.has(item?.id)) canonicalUniformState.set(item.id, { id:item.id, ...nextState });
+    });
+    window.uniformStateByStudent = new Map(canonicalUniformState);
     // Atualização visual imediata: não espere uma consulta, evento em tempo
     // real ou troca de turma para refletir a alteração concluída.
     updateUniformSummary();
