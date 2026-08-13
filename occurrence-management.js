@@ -12,13 +12,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'occurrenceModal';
   modal.className = 'modal-bg occurrence-modal hidden';
-  modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar por datas</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="meta">O resultado é atualizado assim que você escolher as datas.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
+  modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar Ocorrência</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="occurrence-grid occurrence-search-fields"><div class="field"><label for="occurrenceSearchClass">Buscar por turma</label><select id="occurrenceSearchClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="occurrenceSearchName">Buscar por nome</label><input id="occurrenceSearchName" placeholder="Digite o nome do aluno"></div></div><div class="meta">Os resultados são atualizados assim que você escolher os filtros.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
   style.textContent = `
     #occurrenceNav { border:0; background:#202d47; color:#fff; } #occurrenceNav:hover { background:#34496f; }
-    .occurrence-modal { z-index:112; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
+    .occurrence-modal { z-index:112; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px; align-items:center; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
   document.head.appendChild(style);
@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const select = get('occurrenceClass');
     const current = select.value || selectedClassId || '';
     select.innerHTML = '<option value="">Selecione uma turma</option>' + classes.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
+    if (classes.some(item => item.id === current)) select.value = current;
+  }
+  function fillSearchClasses() {
+    const select = get('occurrenceSearchClass');
+    const current = select.value;
+    select.innerHTML = '<option value="">Todas as turmas</option>' + classes.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
     if (classes.some(item => item.id === current)) select.value = current;
   }
   function fillStudents() {
@@ -105,12 +111,23 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshHistory() {
     const classId = selectedClass();
     const studentId = selectedStudent();
+    const searchClassId = get('occurrenceSearchClass').value;
+    const normalizedName = get('occurrenceSearchName').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
     let query = db.from('student_occurrences')
       .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,students(full_name)')
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false });
-    if (classId) query = query.eq('class_id', classId);
-    if (studentId) query = query.eq('student_id', studentId);
+    if (normalizedName) {
+      const matches = students.filter(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedName) && (!searchClassId || item.classId === searchClassId));
+      if (!matches.length) {
+        get('occurrenceHistoryMeta').textContent = 'Nenhum aluno encontrado com esse nome.';
+        get('occurrenceHistoryList').innerHTML = '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
+        return;
+      }
+      query = query.in('student_id', matches.map(item => item.id));
+    } else if (searchClassId) query = query.eq('class_id', searchClassId);
+    else if (studentId) query = query.eq('student_id', studentId);
+    else if (classId) query = query.eq('class_id', classId);
     if (get('occurrenceStart').value) query = query.gte('occurred_on', get('occurrenceStart').value);
     if (get('occurrenceEnd').value) query = query.lte('occurred_on', get('occurrenceEnd').value);
     const { data, error } = await query;
@@ -129,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('hidden');
     await load();
     fillClasses();
+    fillSearchClasses();
     fillStudents();
     get('occurrenceDate').value ||= today();
     await refreshLabelState();
@@ -207,6 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
   get('saveOccurrence').onclick = save;
   get('occurrenceText').oninput = () => { get('occurrenceTextCount').textContent = `${get('occurrenceText').value.length}/500`; };
   ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = refreshHistory; });
+  get('occurrenceSearchClass').onchange = refreshHistory;
+  let nameSearchTimer;
+  get('occurrenceSearchName').oninput = () => { clearTimeout(nameSearchTimer); nameSearchTimer = setTimeout(refreshHistory, 250); };
   get('occurrenceHistoryList').onclick = event => {
     const editId = event.target.closest('[data-occurrence-edit]')?.dataset.occurrenceEdit;
     const deleteId = event.target.closest('[data-occurrence-delete]')?.dataset.occurrenceDelete;
@@ -229,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const wrappedLoad = async (...args) => {
       const result = await previousLoad(...args);
       await refreshLabelState();
-      if (!modal.classList.contains('hidden')) { fillClasses(); fillStudents(); await refreshHistory(); }
+      if (!modal.classList.contains('hidden')) { fillClasses(); fillSearchClasses(); fillStudents(); await refreshHistory(); }
       return result;
     };
     wrappedLoad.__occurrencesWrapped = true;
