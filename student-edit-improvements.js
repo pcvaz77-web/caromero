@@ -132,11 +132,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
     return [normalizeObservation(value)].filter(Boolean);
   };
+  const normalizeLaudoText = value => String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+  const negativeLaudoWords = /\b(sem|nao|nem|nenhum|nenhuma|ausencia|ausente|inexistente|negativo|negativa|negado|negada|falta|faltando|isento|isenta|dispensado|dispensada|aguardando|pendente)\b/;
+  const observationIndicatesLaudo = value => {
+    const normalized = normalizeLaudoText(value);
+    return /\blaudo\b/.test(normalized) && !negativeLaudoWords.test(normalized);
+  };
+  window.studentHasPositiveLaudo = value => decodeObservationValues(value).some(observationIndicatesLaudo);
   const syncLaudoCount = () => {
-    document.getElementById('reports').textContent = students.filter(student => {
-      try { return JSON.parse(student.report || '[]').includes('Tem Laudo'); }
-      catch { return student.report === 'Tem Laudo' || student.report === 'Laudo'; }
-    }).length;
+    const scope = selectedClassId ? students.filter(student => student.classId === selectedClassId) : students;
+    document.getElementById('reports').textContent = scope.filter(student => window.studentHasPositiveLaudo(student.report)).length;
   };
   new MutationObserver(syncLaudoCount).observe(document.getElementById('list'), { childList:true });
   const configureObservationField = id => {
