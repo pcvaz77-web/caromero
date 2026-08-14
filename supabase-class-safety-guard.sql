@@ -1,13 +1,9 @@
 -- Execute uma vez no Supabase: SQL Editor > New query > Run.
 -- Não remove alunos, turmas, fotos ou ocorrências.
--- Impede exclusão de turma com alunos e impede novas turmas duplicadas no
--- mesmo turno, inclusive se duas pessoas clicarem em cadastrar ao mesmo tempo.
+-- Impede novas turmas duplicadas no mesmo turno, inclusive se duas pessoas
+-- clicarem em cadastrar ao mesmo tempo.
 
 begin;
-
-alter table public.students drop constraint if exists students_class_id_fkey;
-alter table public.students add constraint students_class_id_fkey
-  foreign key (class_id) references public.classes(id) on delete restrict;
 
 create or replace function public.prevent_duplicate_class_name()
 returns trigger
