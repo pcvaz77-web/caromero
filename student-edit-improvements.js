@@ -288,20 +288,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
         if (meta) renderSpecialStudentLabels(meta, student);
       }
-      // Na lista, Laudo e Representante ficam somente abaixo do nome.
-      // O card de detalhes continua exibindo todas as observações.
-      const visibleLabels = values.filter(value => value !== 'Representante de turma' && !observationIndicatesLaudo(value));
-      const labels = document.createDocumentFragment();
-      visibleLabels.forEach(value => {
-        const label = document.createElement('span');
-        label.className = `pill ${observationColorClass(value)}`;
-        label.dataset.observationLabel = 'true';
-        label.textContent = value;
-        labels.appendChild(label);
-      });
+      // A lista exibe somente Laudo e Representante abaixo do nome.
+      // Todas as observações continuam disponíveis no card de detalhes.
       const labelArea = pill.parentElement;
-      labelArea?.classList.add('student-observation-labels');
-      pill.replaceWith(labels);
+      if (labelArea) {
+        labelArea.replaceChildren();
+        labelArea.classList.add('hidden');
+      }
     });
     if (representatives.length) document.getElementById('list').prepend(...representatives);
     ensureStudentEditActions();
