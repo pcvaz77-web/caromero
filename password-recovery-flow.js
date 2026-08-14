@@ -55,11 +55,18 @@
 
     // O link aponta para a página principal. A etapa de senha é exibida por
     // cima dela e, ao terminar, a pessoa volta ao login normal do navegador.
+    const recoveryPageUrl = (() => {
+      const basePath = location.pathname.endsWith('/')
+        ? location.pathname
+        : location.pathname.replace(/\/[^/]*$/, '/');
+      return `${location.origin}${basePath}reset-password.html`;
+    })();
+
     document.getElementById('recoveryForm').onsubmit = async event => {
       event.preventDefault();
       const email = document.getElementById('recoveryEmail').value.trim();
       const { error } = await db.auth.resetPasswordForEmail(email, {
-        redirectTo: `${location.origin}${location.pathname}`
+        redirectTo: recoveryPageUrl
       });
       if (error) { toast(error.message); return; }
       document.getElementById('recoveryModal').classList.add('hidden');
