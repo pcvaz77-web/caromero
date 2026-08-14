@@ -144,15 +144,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const positiveLaudoObservations = value => decodeObservationValues(value).filter(observationIndicatesLaudo);
   window.studentHasPositiveLaudo = value => positiveLaudoObservations(value).length > 0;
   window.positiveLaudoObservations = positiveLaudoObservations;
+  const renderSpecialStudentLabels = (subtitle, student) => {
+    const values = decodeObservationValues(student?.report);
+    const laudos = values.filter(observationIndicatesLaudo);
+    const isRepresentative = values.includes('Representante de turma');
+    subtitle.replaceChildren();
+    subtitle.classList.toggle('student-laudo-label', laudos.length > 0);
+    laudos.forEach((text, index) => {
+      if (index) subtitle.append(document.createTextNode(' · '));
+      const laudo = document.createElement('span');
+      laudo.textContent = text;
+      subtitle.appendChild(laudo);
+    });
+    if (isRepresentative) {
+      if (laudos.length) subtitle.appendChild(document.createElement('br'));
+      const representative = document.createElement('span');
+      representative.className = 'representative-label observation-custom-4';
+      representative.textContent = 'Representante de turma';
+      subtitle.appendChild(representative);
+    }
+    subtitle.classList.toggle('hidden', !laudos.length && !isRepresentative);
+  };
   const syncStudentCardLaudoLabels = () => {
     document.querySelectorAll('#list .student').forEach(card => {
       const studentId = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
       const student = students.find(item => item.id === studentId);
       const subtitle = card.querySelector('.name')?.nextElementSibling;
       if (!student || !subtitle) return;
-      const laudos = positiveLaudoObservations(student.report);
-      subtitle.textContent = laudos.length ? laudos.join(' · ') : 'Cadastro individual';
-      subtitle.classList.toggle('student-laudo-label', laudos.length > 0);
+      renderSpecialStudentLabels(subtitle, student);
     });
   };
   const syncLaudoCount = () => {
@@ -264,31 +283,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const isRepresentative = values.includes('Representante de turma');
       if (studentCard && isRepresentative) {
         representatives.push(studentCard);
+        const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+        const student = students.find(item => item.id === studentId);
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
-        if (meta) {
-          // A marcação de representante ocupa o mesmo espaço abaixo do nome.
-          // Preserve a etiqueta de Uniforme já calculada para que ela não
-          // desapareça em alunos que possuem as duas informações.
-          const uniformLabel = meta.querySelector('.uniform-card-label')?.cloneNode(true);
-          const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-          const student = students.find(item => item.id === studentId);
-          const laudoText = positiveLaudoObservations(student?.report).join(' · ');
-          meta.classList.remove('student-laudo-label');
-          meta.innerHTML = '';
-          if (laudoText) {
-            const laudo = document.createElement('span');
-            laudo.className = 'student-laudo-label';
-            laudo.textContent = laudoText;
-            meta.append(laudo, document.createElement('br'));
-          }
-          meta.insertAdjacentHTML('beforeend', '<span class="representative-label observation-custom-4">Representante de turma</span>');
-          if (uniformLabel) {
-            meta.appendChild(document.createTextNode(' '));
-            meta.appendChild(uniformLabel);
-          }
-        }
+        if (meta) renderSpecialStudentLabels(meta, student);
       }
-      const visibleLabels = values;
+      const visibleLabels = values.filter(value => value !== 'Representante de turma' && !observationIndicatesLaudo(value));
       const labels = document.createDocumentFragment();
       visibleLabels.forEach(value => {
         const label = document.createElement('span');
