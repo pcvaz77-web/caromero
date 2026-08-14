@@ -270,15 +270,23 @@ document.addEventListener('DOMContentLoaded', () => {
           // Preserve a etiqueta de Uniforme já calculada para que ela não
           // desapareça em alunos que possuem as duas informações.
           const uniformLabel = meta.querySelector('.uniform-card-label')?.cloneNode(true);
+          const laudoText = meta.classList.contains('student-laudo-label') ? meta.textContent.trim() : '';
           meta.classList.remove('student-laudo-label');
-          meta.innerHTML = '<span class="representative-label observation-custom-4">Representante de turma</span>';
+          meta.innerHTML = '';
+          if (laudoText) {
+            const laudo = document.createElement('span');
+            laudo.className = 'student-laudo-label';
+            laudo.textContent = laudoText;
+            meta.append(laudo, document.createElement('br'));
+          }
+          meta.insertAdjacentHTML('beforeend', '<span class="representative-label observation-custom-4">Representante de turma</span>');
           if (uniformLabel) {
             meta.appendChild(document.createTextNode(' '));
             meta.appendChild(uniformLabel);
           }
         }
       }
-      const visibleLabels = values.filter(value => value !== 'Representante de turma' && !observationIndicatesLaudo(value));
+      const visibleLabels = values;
       const labels = document.createDocumentFragment();
       visibleLabels.forEach(value => {
         const label = document.createElement('span');
@@ -287,15 +295,9 @@ document.addEventListener('DOMContentLoaded', () => {
         label.textContent = value;
         labels.appendChild(label);
       });
-      const nameColumn = studentCard?.querySelector(':scope > div:nth-child(2)');
-      let labelArea = nameColumn?.querySelector('.student-observation-labels');
-      if (visibleLabels.length && nameColumn && !labelArea) {
-        labelArea = document.createElement('div');
-        labelArea.className = 'student-observation-labels';
-        nameColumn.appendChild(labelArea);
-      }
-      if (visibleLabels.length && labelArea) labelArea.appendChild(labels);
-      pill.remove();
+      const labelArea = pill.parentElement;
+      labelArea?.classList.add('student-observation-labels');
+      pill.replaceWith(labels);
     });
     if (representatives.length) document.getElementById('list').prepend(...representatives);
     ensureStudentEditActions();
@@ -500,6 +502,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .representative-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; font-size:12px; font-weight:750; }
     .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .student-observation-labels { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
+    @media(max-width:800px) {
+      #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
+    }
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
     .detail-observation-tags .pill { font-size:12px; padding:7px 10px; }
     .observation-select-hidden { display:none !important; }
