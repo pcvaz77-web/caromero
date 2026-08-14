@@ -293,7 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const labelArea = pill.parentElement;
       if (labelArea) {
         labelArea.replaceChildren();
-        labelArea.classList.add('hidden');
+        // Mantém o espaço estrutural da coluna para que as ações fiquem
+        // alinhadas exatamente como nas linhas sem observações selecionadas.
+        labelArea.classList.remove('student-observation-labels', 'hidden');
       }
     });
     if (representatives.length) document.getElementById('list').prepend(...representatives);
