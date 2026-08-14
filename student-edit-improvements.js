@@ -332,14 +332,27 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   new MutationObserver(observeVisiblePhotos).observe(document.getElementById('list'), { childList: true });
   let latestLoadRequest = 0;
+  const fetchEveryStudent = async fields => {
+    const pageSize = 1000;
+    const rows = [];
+    for (let from = 0; ; from += pageSize) {
+      // A API limita cada resposta a 1.000 linhas. A ordenação secundária
+      // por id torna a paginação estável mesmo em cadastros feitos em lote.
+      const result = await db.from('students')
+        .select(fields)
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, from + pageSize - 1);
+      if (result.error) return result;
+      rows.push(...(result.data || []));
+      if ((result.data || []).length < pageSize) return { data: rows, error: null };
+    }
+  };
   window.load = async () => {
     const requestId = ++latestLoadRequest;
-    const [studentsResult, classesResult, uniformResult] = await Promise.all([
-      db.from('students').select('*').order('created_at', { ascending: false }),
-      db.from('classes').select('*').order('name'),
-      // A lista principal precisa da mesma fonte de Uniforme que a janela de
-      // controle usa. Não deixe as etiquetas dependerem de uma carga posterior.
-      db.from('students').select('id,uniform_pending,uniform_received,shoes_received,material_received')
+    const [studentsResult, classesResult] = await Promise.all([
+      fetchEveryStudent('*'),
+      db.from('classes').select('*').order('name')
     ]);
     // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
     // deixe uma resposta antiga substituir a lista mais recente na tela.
@@ -347,7 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (studentsResult.error || classesResult.error) { toast('Atualize o banco de dados com o novo script de turmas.'); return; }
     classes = classesResult.data || [];
     const classNames = new Map(classes.map(item => [item.id, item.name]));
-    const uniformStateById = new Map((uniformResult.data || []).map(item => [item.id, item]));
+    // O estado de uniforme vem da mesma carga paginada dos alunos: isso evita
+    // que alunos depois do milésimo fiquem sem contador ou etiqueta.
+    const uniformStateById = new Map((studentsResult.data || []).map(item => [item.id, item]));
     window.uniformStateByStudent = uniformStateById;
     students = (studentsResult.data || []).map(item => ({
       id: item.id,

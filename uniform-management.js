@@ -147,9 +147,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // A lista principal já usa estes dados em memória. Não a redesenhe a
     // cada resposta de Uniforme: isso evitou a piscada da tela inteira.
   }
+  async function fetchEveryUniformState() {
+    const pageSize = 1000;
+    const records = [];
+    for (let from = 0; ; from += pageSize) {
+      const result = await db.from('students')
+        .select('id,uniform_pending,uniform_received,shoes_received,material_received')
+        .order('created_at', { ascending:false })
+        .order('id', { ascending:false })
+        .range(from, from + pageSize - 1);
+      if (result.error) return result;
+      records.push(...(result.data || []));
+      if ((result.data || []).length < pageSize) return { data:records, error:null };
+    }
+  }
+
   async function refreshUniformState({ renderWhenOpen = true } = {}) {
     const requestId = ++uniformStateRequest;
-    const { data, error } = await db.from('students').select('id,uniform_pending,uniform_received,shoes_received,material_received');
+    const { data, error } = await fetchEveryUniformState();
     if (requestId !== uniformStateRequest) return false;
     if (error) {
       // Sem a coluna no banco, não há como calcular nem mostrar a situação.
