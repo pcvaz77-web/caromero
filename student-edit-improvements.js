@@ -278,8 +278,9 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }
       }
+      const visibleLabels = values.filter(value => value !== 'Representante de turma' && !observationIndicatesLaudo(value));
       const labels = document.createDocumentFragment();
-      values.filter(value => value !== 'Representante de turma').forEach(value => {
+      visibleLabels.forEach(value => {
         const label = document.createElement('span');
         label.className = `pill ${observationColorClass(value)}`;
         label.dataset.observationLabel = 'true';
@@ -288,12 +289,12 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const nameColumn = studentCard?.querySelector(':scope > div:nth-child(2)');
       let labelArea = nameColumn?.querySelector('.student-observation-labels');
-      if (nameColumn && !labelArea) {
+      if (visibleLabels.length && nameColumn && !labelArea) {
         labelArea = document.createElement('div');
         labelArea.className = 'student-observation-labels';
         nameColumn.appendChild(labelArea);
       }
-      if (labelArea) labelArea.appendChild(labels);
+      if (visibleLabels.length && labelArea) labelArea.appendChild(labels);
       pill.remove();
     });
     if (representatives.length) document.getElementById('list').prepend(...representatives);
