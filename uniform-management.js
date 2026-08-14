@@ -55,9 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const explicit = String(source?.uniform_pending || '').trim().toLocaleLowerCase('pt-BR');
     if (['uniform', 'shoes', 'both'].includes(explicit)) return explicit;
 
-    // Os primeiros registros de uniforme foram salvos nos dois campos
-    // booleanos. Use-os como fonte principal quando não houver a marcação
-    // mais recente em uniform_pending.
+    // Quando a coluna existe, uma pendência só vale se estiver registrada nela.
+    // As versões iniciais criavam os dois booleanos como false para alunos já
+    // existentes, o que não representa uma escolha feita por um usuário.
+    if (Object.prototype.hasOwnProperty.call(source || {}, 'uniform_pending')) return '';
+
+    // Compatibilidade apenas com bancos muito antigos, sem a coluna de status.
     const needsUniform = source?.uniform_received === false || source?.uniform_received === 'false';
     const needsShoes = source?.shoes_received === false || source?.shoes_received === 'false';
     if (needsUniform && needsShoes) return 'both';
