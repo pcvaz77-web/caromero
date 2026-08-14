@@ -141,12 +141,28 @@ document.addEventListener('DOMContentLoaded', () => {
     const normalized = normalizeLaudoText(value);
     return /\blaudo\b/.test(normalized) && !negativeLaudoWords.test(normalized);
   };
-  window.studentHasPositiveLaudo = value => decodeObservationValues(value).some(observationIndicatesLaudo);
+  const positiveLaudoObservations = value => decodeObservationValues(value).filter(observationIndicatesLaudo);
+  window.studentHasPositiveLaudo = value => positiveLaudoObservations(value).length > 0;
+  window.positiveLaudoObservations = positiveLaudoObservations;
+  const syncStudentCardLaudoLabels = () => {
+    document.querySelectorAll('#list .student').forEach(card => {
+      const studentId = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      const student = students.find(item => item.id === studentId);
+      const subtitle = card.querySelector('.name')?.nextElementSibling;
+      if (!student || !subtitle) return;
+      const laudos = positiveLaudoObservations(student.report);
+      subtitle.textContent = laudos.length ? laudos.join(' · ') : 'Cadastro individual';
+      subtitle.classList.toggle('student-laudo-label', laudos.length > 0);
+    });
+  };
   const syncLaudoCount = () => {
     const scope = selectedClassId ? students.filter(student => student.classId === selectedClassId) : students;
     document.getElementById('reports').textContent = scope.filter(student => window.studentHasPositiveLaudo(student.report)).length;
   };
-  new MutationObserver(syncLaudoCount).observe(document.getElementById('list'), { childList:true });
+  new MutationObserver(() => {
+    syncLaudoCount();
+    syncStudentCardLaudoLabels();
+  }).observe(document.getElementById('list'), { childList:true });
   const configureObservationField = id => {
     const select = document.getElementById(id);
     if (!select) return;
@@ -414,6 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
+    .student-laudo-label { color:#b54708; font-weight:750; }
     .nav { display:flex; flex-direction:column; gap:8px; }
     #profileNav { margin:0; }
     .profile-nav-mobile { display:none; }
