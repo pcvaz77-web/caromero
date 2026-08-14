@@ -42,7 +42,7 @@ as $$
     where user_id = auth.uid()
       and role <> 'admin'
       and is_coordinator
-      and can_manage_counselors
+      and (can_edit_all or can_manage_counselors)
   );
 $$;
 
