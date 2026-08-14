@@ -270,7 +270,9 @@ document.addEventListener('DOMContentLoaded', () => {
           // Preserve a etiqueta de Uniforme já calculada para que ela não
           // desapareça em alunos que possuem as duas informações.
           const uniformLabel = meta.querySelector('.uniform-card-label')?.cloneNode(true);
-          const laudoText = meta.classList.contains('student-laudo-label') ? meta.textContent.trim() : '';
+          const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+          const student = students.find(item => item.id === studentId);
+          const laudoText = positiveLaudoObservations(student?.report).join(' · ');
           meta.classList.remove('student-laudo-label');
           meta.innerHTML = '';
           if (laudoText) {
@@ -503,6 +505,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .student-observation-labels { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
     @media(max-width:800px) {
+      #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
+    }
+    @media(min-width:801px) and (max-width:1150px) {
       #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
     }
     .detail-observation-tags { display:flex; flex-wrap:wrap; gap:8px; padding-top:3px; }
