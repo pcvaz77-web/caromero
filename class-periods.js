@@ -88,18 +88,31 @@ document.addEventListener('DOMContentLoaded', () => {
   shiftField.innerHTML = `<label for="classShift">Turno</label><select id="classShift" required>${shifts.map(shift => `<option value="${shift}">${shift}</option>`).join('')}</select>`;
   classForm.querySelector('.actions').before(shiftField);
 
+  let classSaving = false;
   classForm.onsubmit = async event => {
     event.preventDefault();
+    if (classSaving) return;
     const name = document.getElementById('newClassName').value.trim();
     const shift = document.getElementById('classShift').value;
-    const { error } = await db.from('classes').insert({ name, shift });
-    if (error) {
-      toast(error.code === '23505' ? 'Essa turma já está cadastrada.' : error.message);
+    const normalizedName = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
+    const alreadyExists = classes.some(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR') === normalizedName && (item.shift || 'Matutino') === shift);
+    if (alreadyExists) {
+      toast(`A turma ${name} já está cadastrada no turno ${shift}.`);
       return;
     }
-    classModal.classList.add('hidden');
-    toast('Turma cadastrada.');
-    load();
+    const submit = classForm.querySelector('button[type="submit"]');
+    classSaving = true;
+    if (submit) { submit.disabled = true; submit.textContent = 'Cadastrando…'; }
+    try {
+      const { error } = await db.from('classes').insert({ name, shift });
+      if (error) { toast(error.code === '23505' || error.message.includes('já está cadastrada') ? 'Essa turma já está cadastrada.' : error.message); return; }
+      classModal.classList.add('hidden');
+      toast('Turma cadastrada.');
+      await load();
+    } finally {
+      classSaving = false;
+      if (submit) { submit.disabled = false; submit.textContent = 'Cadastrar turma'; }
+    }
   };
 
   document.getElementById('newClass').onclick = () => {

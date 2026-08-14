@@ -652,6 +652,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) { toast('Selecione a turma que receberá os alunos.'); return; }
     if (!names.length) { toast('Cole ao menos um nome por linha.'); return; }
     if (names.length > 100) { toast('Cole até 100 nomes por vez.'); return; }
+    const normalizedNames = names.map(name => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR'));
+    if (new Set(normalizedNames).size !== normalizedNames.length) {
+      toast('A lista possui nomes repetidos. Remova a repetição antes de cadastrar para evitar duplicidades.');
+      return;
+    }
 
     const submit = document.querySelector('#bulkForm button[type="submit"]');
     bulkSaving = true;
@@ -762,8 +767,10 @@ document.addEventListener('DOMContentLoaded', () => {
   window.editStudent = id => openStudentForm(students.find(student => student.id === id));
   document.getElementById('newStudent').onclick = () => openStudentForm();
 
+  let studentSaving = false;
   form.onsubmit = async event => {
     event.preventDefault();
+    if (studentSaving) return;
     const id = document.getElementById('studentId').value;
     const old = students.find(student => student.id === id);
     const isMoving = !old || document.getElementById('moveStudent').checked;
@@ -771,6 +778,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const cls = classes.find(item => item.id === classId);
     if (!cls) { toast('Selecione uma turma.'); return; }
 
+    const submit = form.querySelector('button[type="submit"]');
+    studentSaving = true;
+    if (submit) { submit.disabled = true; submit.textContent = 'Salvando…'; }
+    try {
     let photoPath = old?.photoPath || null;
     let uploadedPhotoPath = null;
     if (removePhoto) photoPath = null;
@@ -799,6 +810,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('studentModal').classList.add('hidden');
     toast(oldPhotoCleanupFailed ? 'Dados salvos. A foto anterior ficou preservada no armazenamento.' : 'Dados salvos.');
     await load();
+    } finally {
+      studentSaving = false;
+      if (submit) { submit.disabled = false; submit.textContent = 'Salvar aluno'; }
+    }
   };
 
   // A função antiga vinha do núcleo inicial da página. Substituí-la aqui garante
