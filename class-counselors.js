@@ -1,4 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
+  const counselorNav = document.createElement('button');
+  counselorNav.id = 'counselorNav';
+  counselorNav.className = 'hidden';
+  counselorNav.innerHTML = '&#9678; &nbsp; Gerenciar Conselheiros';
+  document.querySelector('.side .nav')?.appendChild(counselorNav);
   let assignments = [];
   let ownAssignments = [];
   let registeredUsers = [];
@@ -53,7 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeManager(); };
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
-  const counselorName = item => item.counselor_name?.trim() || item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
+  const counselorName = item => item.counselor_name?.trim() || item.full_name?.trim() || item.profiles?.full_name?.trim() || item.email || item.profiles?.email || 'Usuário';
+  const canManageCounselors = () => permission.role !== 'admin' && !!permission.is_coordinator && !!permission.can_manage_counselors;
+  const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
   const drawCounselorLabels = () => {
     document.querySelectorAll('#classList button').forEach(button => {
@@ -142,10 +149,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.openCounselorManager = async () => {
-    if (permission.role !== 'admin') return;
+    if (!canManageCounselors()) { toast('Somente um coordenador autorizado pode gerenciar conselheiros.'); return; }
     try {
       const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
-        db.from('user_permissions').select('user_id,profiles(email,full_name)'),
+        db.rpc('list_counselor_candidates'),
         db.from('class_counselors').select('*')
       ]);
       if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
@@ -159,9 +166,16 @@ document.addEventListener('DOMContentLoaded', () => {
       toast(`Não foi possível abrir os conselheiros: ${error.message || 'erro inesperado'}`);
     }
   };
+  counselorNav.onclick = event => {
+    event.preventDefault();
+    window.openCounselorManager();
+  };
+  document.addEventListener('carometro:permission-refresh', syncCounselorNavigation);
+  syncCounselorNavigation();
 
   document.getElementById('counselorForm').onsubmit = async event => {
     event.preventDefault();
+    if (!canManageCounselors()) { toast('Sua permissão para gerenciar conselheiros foi revogada.'); return; }
     const userChoice = document.getElementById('counselorUser').value;
     const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
     if (!selectedUser) { toast('Selecione um usuário cadastrado como conselheiro.'); return; }
@@ -179,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('counselorList').onclick = async event => {
+    if (!canManageCounselors()) { toast('Sua permissão para gerenciar conselheiros foi revogada.'); return; }
     const editButton = event.target.closest('[data-edit-counselor-id]');
     if (editButton) {
       const item = assignments.find(assignment => assignment.id === editButton.dataset.editCounselorId);
@@ -200,10 +215,10 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openCounselorManager();
   };
 
-  // Acionamento de reserva para toques no botão do administrador em celulares.
+  // Acionamento de reserva para toques no botão do coordenador em celulares.
   document.addEventListener('click', event => {
     const button = event.target.closest('#openCounselors');
-    if (!button || permission.role !== 'admin') return;
+    if (!button || !canManageCounselors()) return;
     event.preventDefault();
     event.stopPropagation();
     document.getElementById('permissionsModal')?.classList.add('hidden');

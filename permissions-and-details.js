@@ -70,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return canEdit();
   };
   const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
-  const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences'];
+  const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors'];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador';
@@ -85,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
     document.getElementById('permissionsNav').classList.toggle('hidden', !admin);
+    document.getElementById('counselorNav')?.classList.toggle('hidden', !(permission.is_coordinator && permission.can_manage_counselors));
     syncAddActions();
     render();
     syncStudentActions();
@@ -97,7 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     const { data } = await db.from('user_permissions').select('*').eq('user_id', signedInUser.id).maybeSingle();
     if (!data) return;
-    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data)) applyCurrentPermission(data);
+    const counselorShouldBeVisible = !!data.is_coordinator && !!data.can_manage_counselors;
+    const counselorNavigationOutOfSync = document.getElementById('counselorNav')?.classList.contains('hidden') === counselorShouldBeVisible;
+    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data) || counselorNavigationOutOfSync) applyCurrentPermission(data);
   }
 
   function syncAddActions() {
@@ -151,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_view_uniform', 'Visualizar Uniforme'],
     ['can_edit_uniform', 'Editar Uniforme e material'],
     ['can_mark_all_uniform_received', 'Marcar todos como receberam'],
+    ['can_manage_counselors', 'Gerenciar conselheiros de turma'],
     ['can_edit_occurrences', 'Editar todas as ocorrências'],
     ['can_delete_occurrences', 'Excluir todas as ocorrências']
   ];
@@ -207,7 +211,19 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function openPermissions() {
-    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,profiles(email,full_name)');
+    const canManageCounselors = permission.is_coordinator && permission.can_manage_counselors;
+    if (permission.role !== 'admin') {
+      if (!canManageCounselors) return;
+      document.getElementById('permissionsList').innerHTML = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>`;
+      document.getElementById('openCounselors').onclick = event => {
+        event.preventDefault();
+        document.getElementById('permissionsModal').classList.add('hidden');
+        window.openCounselorManager?.();
+      };
+      document.getElementById('permissionsModal').classList.remove('hidden');
+      return;
+    }
+    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
     const check = (item, key, label, admin) => `<label class="check"><input ${admin ? 'disabled' : ''} type="checkbox" ${item[key] ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...(data || [])].sort((first, second) => {
@@ -220,22 +236,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
       if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div></article>`;
-      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
+      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
-    const counselorManager = `<section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Cadastre, edite ou exclua conselheiros e as permissões por turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section>`;
-    const advancedPermissions = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}${counselorManager}<div id="advancedCoordinatorCards"></div></div></details>`;
+    const advancedPermissions = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}<div id="advancedCoordinatorCards"></div></div></details>`;
     document.getElementById('permissionsList').innerHTML = `${advancedPermissions}<section><div class="permissions-heading"><b>Permissões gerais</b><div class="meta">Usuários cadastrados e seus acessos atuais.</div></div><form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div></section>`;
     const advancedCardTarget = document.getElementById('advancedCoordinatorCards');
     document.querySelectorAll('#permissionsList .perm[data-permission-scope="advanced"]').forEach(card => advancedCardTarget.appendChild(card));
     document.getElementById('openCoordinators').onclick = event => { event.preventDefault(); event.stopPropagation(); openCoordinatorManager(); };
-    document.getElementById('openCounselors').onclick = event => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof window.openCounselorManager !== 'function') { toast('O gerenciador está sendo carregado. Tente novamente em alguns segundos.'); return; }
-      document.getElementById('permissionsModal').classList.add('hidden');
-      window.openCounselorManager();
-    };
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     window.filterPermissionUsers = value => {
       const query = normalizeSearch(value).trim();

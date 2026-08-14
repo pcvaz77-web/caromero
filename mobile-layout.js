@@ -148,6 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.setAttribute('aria-hidden', String(hidden));
     };
     ['permissionsNav', 'settingsNav'].forEach(id => syncButton(id, hideAdminCommands));
+    syncButton('counselorNav', !(permission?.role !== 'admin' && !!permission?.is_coordinator && !!permission?.can_manage_counselors));
     // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do
     // menu em um perfil de professor(a), mesmo que a tela móvel seja aberta.
     syncButton('uniformNav', !canViewUniform);
@@ -365,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let restoreAttempted = false;
 
   const currentModal = () => {
+    if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
@@ -505,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const savedScreenKey = 'carometro:mobile-screen';
   let restoreAttempted = false;
   const currentModal = () => {
+    if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
