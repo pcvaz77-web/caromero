@@ -2,11 +2,31 @@ document.addEventListener('DOMContentLoaded', () => {
   // Os contadores acompanham a turma selecionada, sem considerar a busca por
   // nome. Ao retornar para "Todos os alunos", eles mostram a escola inteira.
   let lastCounterRequest = 0;
-  const countStudents = (classId, withReport = false) => {
+  const countStudents = classId => {
     let query = db.from('students').select('id', { count:'exact', head:true });
     if (classId) query = query.eq('class_id', classId);
-    if (withReport) query = query.not('has_report', 'is', null).neq('has_report', '');
     return query;
+  };
+  const hasPositiveLaudo = value => {
+    if (typeof window.studentHasPositiveLaudo === 'function') return window.studentHasPositiveLaudo(value);
+    const normalize = text => String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let values;
+    try { const parsed = JSON.parse(value || '[]'); values = Array.isArray(parsed) ? parsed : [value]; }
+    catch { values = [value]; }
+    const negative = /\b(sem|nao|nem|nenhum|nenhuma|ausencia|ausente|inexistente|negativo|negativa|negado|negada|falta|faltando|isento|isenta|dispensado|dispensada|aguardando|pendente)\b/;
+    return values.some(item => { const text = normalize(item); return /\blaudo\b/.test(text) && !negative.test(text); });
+  };
+  const loadReportValues = async classId => {
+    const rows = [];
+    const pageSize = 1000;
+    for (let from = 0; ; from += pageSize) {
+      let query = db.from('students').select('id,has_report').order('id').range(from, from + pageSize - 1);
+      if (classId) query = query.eq('class_id', classId);
+      const { data, error } = await query;
+      if (error) return { data:null, error };
+      rows.push(...(data || []));
+      if (!data || data.length < pageSize) return { data:rows, error:null };
+    }
   };
 
   const paintClassCounters = async classId => {
@@ -22,15 +42,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mostra imediatamente o que já está em memória e, em seguida, substitui
     // pela contagem exata do banco. A lista pode ter paginação; o contador não.
     total.textContent = scope.length;
-    reports.textContent = scope.filter(student => !!student.report).length;
+    reports.textContent = scope.filter(student => hasPositiveLaudo(student.report)).length;
     const requestId = ++lastCounterRequest;
     const [totalResult, reportsResult] = await Promise.all([
       countStudents(activeClassId),
-      countStudents(activeClassId, true)
+      loadReportValues(activeClassId)
     ]);
     if (requestId !== lastCounterRequest) return;
     if (typeof totalResult.count === 'number') total.textContent = totalResult.count;
-    if (typeof reportsResult.count === 'number') reports.textContent = reportsResult.count;
+    if (reportsResult.data) reports.textContent = reportsResult.data.filter(row => hasPositiveLaudo(row.has_report)).length;
   };
 
   const originalRender = window.render;
