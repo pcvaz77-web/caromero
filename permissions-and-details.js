@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
     document.getElementById('permissionsNav').classList.toggle('hidden', !admin);
-    document.getElementById('counselorNav')?.classList.toggle('hidden', !(permission.is_coordinator && permission.can_manage_counselors));
+    document.getElementById('counselorNav')?.classList.toggle('hidden', !(permission.is_coordinator && (permission.can_edit_all || permission.can_manage_counselors)));
     syncAddActions();
     render();
     syncStudentActions();
@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     const { data } = await db.from('user_permissions').select('*').eq('user_id', signedInUser.id).maybeSingle();
     if (!data) return;
-    const counselorShouldBeVisible = !!data.is_coordinator && !!data.can_manage_counselors;
+    const counselorShouldBeVisible = !!data.is_coordinator && !!(data.can_edit_all || data.can_manage_counselors);
     const counselorNavigationOutOfSync = document.getElementById('counselorNav')?.classList.contains('hidden') === counselorShouldBeVisible;
     if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data) || counselorNavigationOutOfSync) applyCurrentPermission(data);
   }
@@ -169,6 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('coordinatorPermissionOptions').innerHTML = coordinatorPermissionOptions.map(([key, label]) => `<label class="check"><input type="checkbox" data-coordinator-permission="${key}"> ${label}</label>`).join('');
   };
   document.getElementById('coordinatorUser').onchange = renderCoordinatorPermissionOptions;
+  document.getElementById('coordinatorPermissionOptions').onchange = event => {
+    if (!event.target.matches('[data-coordinator-permission="can_edit_all"]') || !event.target.checked) return;
+    document.querySelectorAll('[data-coordinator-permission]').forEach(input => { input.checked = true; });
+  };
 
   async function openCoordinatorManager() {
     if (permission.role !== 'admin') return;
@@ -225,6 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
+    const fullAccessWithoutCounselorManagement = (data || []).filter(item => item.is_coordinator && item.can_edit_all && !item.can_manage_counselors);
+    if (fullAccessWithoutCounselorManagement.length) {
+      const results = await Promise.all(fullAccessWithoutCounselorManagement.map(item => db.from('user_permissions').update({ can_manage_counselors:true, updated_at:new Date().toISOString() }).eq('user_id', item.user_id)));
+      const updateError = results.find(result => result.error)?.error;
+      if (updateError) { toast(updateError.message); return; }
+      fullAccessWithoutCounselorManagement.forEach(item => { item.can_manage_counselors = true; });
+    }
     const check = (item, key, label, admin) => `<label class="check"><input ${admin ? 'disabled' : ''} type="checkbox" ${item[key] ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...(data || [])].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
@@ -263,7 +274,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.setUserPermission = async (id, key, value) => {
-    const update = { [key]: value, updated_at:new Date().toISOString() };
+    const update = key === 'can_edit_all' && value
+      ? { ...Object.fromEntries(permissionFields.map(permissionKey => [permissionKey, true])), updated_at:new Date().toISOString() }
+      : { [key]: value, updated_at:new Date().toISOString() };
     const { error } = await db.from('user_permissions').update(update).eq('user_id',id);
     if (error) toast(error.message); else { toast('Permissão atualizada.'); openPermissions(); }
   };

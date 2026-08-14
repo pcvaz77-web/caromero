@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.setAttribute('aria-hidden', String(hidden));
     };
     ['permissionsNav', 'settingsNav'].forEach(id => syncButton(id, hideAdminCommands));
-    syncButton('counselorNav', !(permission?.role !== 'admin' && !!permission?.is_coordinator && !!permission?.can_manage_counselors));
+    syncButton('counselorNav', !(permission?.role !== 'admin' && !!permission?.is_coordinator && !!(permission?.can_edit_all || permission?.can_manage_counselors)));
     // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do
     // menu em um perfil de professor(a), mesmo que a tela móvel seja aberta.
     syncButton('uniformNav', !canViewUniform);
@@ -293,7 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .side .nav button.hidden,
       .side .nav .settings-nav.hidden { display:none !important; }
       .side .nav #studentsNav { display:none !important; }
-      .side .nav #profileNav { order:-1; }
+      .side .nav #profileNav { order:initial !important; }
       #profileNav .profile-nav-desktop { display:inline !important; }
       #profileNav .profile-nav-mobile { display:none !important; }
       .side .nav .out { margin-top:auto !important; background:transparent !important; color:#c9d3e8 !important; }
@@ -447,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     title.textContent = 'CARÔMETRO';
     nav.insertBefore(title, nav.firstChild);
     const profile = document.getElementById('profileNav');
-    if (profile) nav.insertBefore(profile, title.nextSibling);
+    if (profile) nav.appendChild(profile);
     ['settingsNav', 'signOut'].forEach(id => {
       const item = document.getElementById(id);
       if (item) nav.appendChild(item);

@@ -3,7 +3,8 @@ document.addEventListener('DOMContentLoaded', () => {
   counselorNav.id = 'counselorNav';
   counselorNav.className = 'hidden';
   counselorNav.innerHTML = '&#9678; &nbsp; Gerenciar Conselheiros';
-  document.querySelector('.side .nav')?.appendChild(counselorNav);
+  const sideNavigation = document.querySelector('.side .nav');
+  sideNavigation?.insertBefore(counselorNav, document.getElementById('profileNav'));
   let assignments = [];
   let ownAssignments = [];
   let registeredUsers = [];
@@ -18,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .counselor-entry { margin-left:auto; }
+    #counselorNav { border:0; background:#2b3c5d; color:#fff; }
+    #counselorNav:hover { background:#38527e; }
     .counselor-modal { z-index:100; }
     .counselor-modal .modal { width:min(840px,100%); }
     .counselor-form-grid { display:grid; grid-template-columns:1fr 1fr; gap:15px; }
@@ -59,7 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
   const counselorName = item => item.counselor_name?.trim() || item.full_name?.trim() || item.profiles?.full_name?.trim() || item.email || item.profiles?.email || 'Usuário';
-  const canManageCounselors = () => permission.role !== 'admin' && !!permission.is_coordinator && !!permission.can_manage_counselors;
+  const canManageCounselors = () => permission.role !== 'admin' && !!permission.is_coordinator && !!(permission.can_edit_all || permission.can_manage_counselors);
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
   const drawCounselorLabels = () => {
