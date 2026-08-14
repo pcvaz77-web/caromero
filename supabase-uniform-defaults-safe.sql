@@ -5,6 +5,11 @@
 
 begin;
 
+-- A proteção normal impede que o navegador altere alunos sem autorização.
+-- No SQL Editor, ela é pausada somente nesta transação de manutenção e volta
+-- a ficar ativa antes do commit.
+alter table public.students disable trigger limit_student_field_updates;
+
 alter table public.students
   alter column uniform_received set default true,
   alter column shoes_received set default true;
@@ -15,6 +20,8 @@ set uniform_received = true,
 where uniform_pending is null
   and uniform_received = false
   and shoes_received = false;
+
+alter table public.students enable trigger limit_student_field_updates;
 
 commit;
 
