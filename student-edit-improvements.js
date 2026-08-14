@@ -288,7 +288,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
         if (meta) renderSpecialStudentLabels(meta, student);
       }
-      const visibleLabels = values;
+      // Na lista, Laudo e Representante ficam somente abaixo do nome.
+      // O card de detalhes continua exibindo todas as observações.
+      const visibleLabels = values.filter(value => value !== 'Representante de turma' && !observationIndicatesLaudo(value));
       const labels = document.createDocumentFragment();
       visibleLabels.forEach(value => {
         const label = document.createElement('span');
