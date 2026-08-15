@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
-    #permissionsModal .modal { width:min(1160px, calc(100vw - 36px)); max-height:90vh; }
-    #permissionsModal .form { padding:24px 28px 30px; }
+    #permissionsModal .modal { display:flex; flex-direction:column; width:min(1160px, calc(100vw - 36px)); height:min(900px,90dvh); max-height:90dvh; overflow:hidden; }
+    #permissionsModal .modal-head { position:sticky; top:0; z-index:3; flex:none; background:#fff; }
+    #permissionsModal .form { flex:1; min-height:0; padding:24px 28px 30px; overflow-y:auto; overscroll-behavior:contain; }
     .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
     .permission-search { flex:1; min-height:48px; }
     .counselor-management { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:15px 16px; border:1px solid #cbdcff; background:#f5f8ff; border-radius:11px; }
@@ -62,6 +63,11 @@ document.addEventListener('DOMContentLoaded', () => {
       #list .student { border-bottom:1px solid #edf0f4 !important; }
       #list .student:last-child { border-bottom:0 !important; }
     }
+  `;
+  style.textContent += `
+    .coordinator-modal .modal { display:flex; flex-direction:column; max-height:90dvh; overflow:hidden; }
+    .coordinator-modal .modal-head { position:sticky; top:0; z-index:3; flex:none; background:#fff; }
+    .coordinator-modal .form { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
   `;
   document.head.appendChild(style);
 

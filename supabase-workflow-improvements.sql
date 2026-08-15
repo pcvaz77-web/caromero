@@ -110,10 +110,17 @@ $$;
 
 drop policy if exists "Workflow alerts view" on public.student_alerts;
 drop policy if exists "Workflow alerts manage" on public.student_alerts;
+drop policy if exists "Workflow alerts create" on public.student_alerts;
+drop policy if exists "Workflow alerts update" on public.student_alerts;
+drop policy if exists "Workflow alerts delete" on public.student_alerts;
 create policy "Workflow alerts view" on public.student_alerts for select to authenticated
   using (public.has_workflow_permission('dashboard') or public.has_workflow_permission('history') or public.has_workflow_permission('alerts'));
-create policy "Workflow alerts manage" on public.student_alerts for all to authenticated
-  using (public.has_workflow_permission('alerts')) with check (public.has_workflow_permission('alerts') and created_by=auth.uid());
+create policy "Workflow alerts create" on public.student_alerts for insert to authenticated
+  with check (public.has_workflow_permission('alerts') and created_by=auth.uid());
+create policy "Workflow alerts update" on public.student_alerts for update to authenticated
+  using (public.has_workflow_permission('alerts')) with check (public.has_workflow_permission('alerts'));
+create policy "Workflow alerts delete" on public.student_alerts for delete to authenticated
+  using (public.has_workflow_permission('alerts'));
 
 drop policy if exists "Workflow followups view" on public.student_followups;
 drop policy if exists "Workflow followups create" on public.student_followups;
