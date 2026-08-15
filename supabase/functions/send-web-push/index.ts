@@ -20,6 +20,6 @@ Deno.serve(async request => {
     try{await webpush.sendNotification({endpoint:subscription.endpoint,keys:{p256dh:subscription.p256dh,auth:subscription.auth_key}},message);delivered++}
     catch(error){const status=(error as {statusCode?:number}).statusCode;if(status===404||status===410)await admin.from('push_subscriptions').delete().eq('id',subscription.id);else console.error(error)}
   }
-  await admin.from('user_notifications').update({push_sent_at:new Date().toISOString()}).eq('id',payload.record.id)
+  if(delivered>0)await admin.from('user_notifications').update({push_sent_at:new Date().toISOString()}).eq('id',payload.record.id)
   return Response.json({delivered})
 })
