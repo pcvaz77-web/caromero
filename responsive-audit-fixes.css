@@ -7,6 +7,32 @@
   z-index: 300 !important;
 }
 
+/* Janelas abertas a partir de outras janelas precisam ficar acima da base. */
+body > .photo-picker {
+  z-index: 400 !important;
+}
+
+body > .photo-picker.observation-manager-overlay {
+  z-index: 410 !important;
+}
+
+body > .modal-bg.coordinator-modal {
+  z-index: 400 !important;
+}
+
+body > .profile-backdrop {
+  z-index: 320 !important;
+}
+
+body > .profile-drawer {
+  z-index: 321 !important;
+}
+
+body #toast,
+body .toast {
+  z-index: 500 !important;
+}
+
 .manage-observations {
   display: inline-flex !important;
   align-self: flex-start;
