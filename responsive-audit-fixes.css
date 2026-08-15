@@ -1,0 +1,37 @@
+/* Ajustes finais encontrados na revisão visual responsiva. */
+.workflow-overlay {
+  z-index: 300 !important;
+}
+
+.modal-bg {
+  z-index: 300 !important;
+}
+
+@media (max-width: 800px) {
+  .workflow-overlay {
+    z-index: 300 !important;
+  }
+
+  .modal-bg {
+    z-index: 300 !important;
+  }
+
+  #permissionsModal .perm {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #permissionsModal .perm > div:first-child,
+  #permissionsModal .permission-primary,
+  #permissionsModal .permission-basic,
+  #permissionsModal .teacher-workflow-rights,
+  #permissionsModal .coordinator-right-group {
+    grid-column: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #permissionsModal .permission-primary .check,
+  #permissionsModal .permission-basic .check {
+    width: 100% !important;
+  }
+}

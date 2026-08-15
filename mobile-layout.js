@@ -314,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         max-height:none !important;
         padding:0 !important;
       }
-      .shift-group { position:relative !important; width:auto !important; margin:0 !important; }
+      .shift-group { position:static !important; width:auto !important; margin:0 !important; }
       .shift-tab {
         width:100% !important;
         min-height:48px !important;
@@ -335,10 +335,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .shift-classes {
         position:absolute !important;
         top:calc(100% + 7px) !important;
-        right:auto !important;
+        right:0 !important;
         bottom:auto !important;
         left:0 !important;
-        width:min(310px,calc(100vw - 28px)) !important;
+        width:auto !important;
         z-index:20 !important;
         padding:8px !important;
         border-radius:12px !important;

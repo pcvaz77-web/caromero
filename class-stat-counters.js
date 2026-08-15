@@ -49,7 +49,10 @@ document.addEventListener('DOMContentLoaded', () => {
       loadReportValues(activeClassId)
     ]);
     if (requestId !== lastCounterRequest) return;
-    if (typeof totalResult.count === 'number') total.textContent = totalResult.count;
+    // Algumas configurações de RLS devolvem count=0 em consultas HEAD mesmo
+    // quando as linhas já foram carregadas normalmente. Não deixe esse falso
+    // zero apagar a contagem confiável que está em memória.
+    if (typeof totalResult.count === 'number' && (totalResult.count > 0 || scope.length === 0)) total.textContent = totalResult.count;
     if (reportsResult.data) reports.textContent = reportsResult.data.filter(row => hasPositiveLaudo(row.has_report)).length;
   };
 
@@ -62,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
 
-  document.addEventListener('carometro:data-loaded', paintClassCounters);
+  document.addEventListener('carometro:data-loaded', () => paintClassCounters());
   document.addEventListener('carometro:class-selected', event => {
     paintClassCounters(event.detail?.classId || null);
   });
