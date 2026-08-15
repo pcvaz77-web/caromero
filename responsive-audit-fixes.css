@@ -23,6 +23,16 @@
   background: #38527e;
 }
 
+.workflow-dialog {
+  width: min(1280px, 100%) !important;
+  height: calc(100dvh - 12px) !important;
+  max-height: calc(100dvh - 12px) !important;
+}
+
+.workflow-overlay {
+  padding: 6px !important;
+}
+
 @media (max-width: 800px) {
   .workflow-overlay {
     z-index: 300 !important;
@@ -49,5 +59,11 @@
   #permissionsModal .permission-primary .check,
   #permissionsModal .permission-basic .check {
     width: 100% !important;
+  }
+
+  .shift-classes {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
   }
 }

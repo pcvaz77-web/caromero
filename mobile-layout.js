@@ -345,7 +345,8 @@ document.addEventListener('DOMContentLoaded', () => {
         background:#17233a !important;
         box-shadow:0 14px 30px #10182866 !important;
         max-height:45vh !important;
-        overflow:auto !important;
+        overflow-x:hidden !important;
+        overflow-y:auto !important;
       }
       .main { margin:0 !important; padding:22px 14px 30px !important; background:#fff !important; }
     }
