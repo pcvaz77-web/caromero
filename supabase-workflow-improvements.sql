@@ -138,10 +138,12 @@ create policy "Workflow activity view" on public.student_activity for select to 
 
 drop policy if exists "Own favorite classes" on public.user_favorite_classes;
 create policy "Own favorite classes" on public.user_favorite_classes for all to authenticated
-  using (user_id=auth.uid()) with check (user_id=auth.uid());
+  using (user_id=auth.uid() and exists (select 1 from public.user_permissions p where p.user_id=auth.uid() and p.role<>'admin' and not coalesce(p.is_coordinator,false)))
+  with check (user_id=auth.uid() and exists (select 1 from public.user_permissions p where p.user_id=auth.uid() and p.role<>'admin' and not coalesce(p.is_coordinator,false)));
 drop policy if exists "Own notification shifts" on public.user_notification_shifts;
 create policy "Own notification shifts" on public.user_notification_shifts for all to authenticated
-  using (user_id=auth.uid()) with check (user_id=auth.uid());
+  using (user_id=auth.uid() and exists (select 1 from public.user_permissions p where p.user_id=auth.uid() and (p.role='admin' or coalesce(p.is_coordinator,false))))
+  with check (user_id=auth.uid() and exists (select 1 from public.user_permissions p where p.user_id=auth.uid() and (p.role='admin' or coalesce(p.is_coordinator,false))));
 drop policy if exists "Own notifications" on public.user_notifications;
 drop policy if exists "Update own notifications" on public.user_notifications;
 create policy "Own notifications" on public.user_notifications for select to authenticated using (recipient_id=auth.uid());
