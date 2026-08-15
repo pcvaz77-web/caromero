@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ['bulk','Ações em grupo',allowed('can_use_bulk_actions')],
     ['reports','Relatórios',allowed('can_export_reports')],
     ['preferences',isCoordinator()?'Notificações':'Minhas turmas',!isAdmin()],
-    ['notifications','Avisos',true],
+    ['notifications','Notificações',true],
     ['audit',allowed('can_view_audit')?'Auditoria':'Histórico',allowed('can_view_audit')||allowed('can_view_history')]
   ].filter(item=>item[2]);
   const syncAccess=()=>{ workflowNav.classList.toggle('hidden',!canOpen()); bell.classList.toggle('hidden',!canOpen()); };
