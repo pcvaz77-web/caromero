@@ -13,6 +13,16 @@
   margin: 7px 0 16px !important;
 }
 
+.side .nav #workflowNav {
+  background: #2b3c5d;
+  color: #fff;
+}
+
+.side .nav #workflowNav:hover,
+.side .nav #workflowNav:focus-visible {
+  background: #38527e;
+}
+
 @media (max-width: 800px) {
   .workflow-overlay {
     z-index: 300 !important;
