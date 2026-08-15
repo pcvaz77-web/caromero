@@ -45,7 +45,9 @@ document.addEventListener('DOMContentLoaded', () => {
     classList.querySelectorAll('.shift-tab[data-shift]').forEach(button => {
       button.onclick = () => {
         const shift = button.dataset.shift;
-        if (openShifts.has(shift)) openShifts.delete(shift); else openShifts.add(shift);
+        const wasOpen = openShifts.has(shift);
+        openShifts.clear();
+        if (!wasOpen) openShifts.add(shift);
         drawGroups();
       };
     });

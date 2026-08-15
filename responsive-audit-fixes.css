@@ -1,0 +1,69 @@
+/* Ajustes finais encontrados na revisão visual responsiva. */
+.workflow-overlay {
+  z-index: 300 !important;
+}
+
+.modal-bg {
+  z-index: 300 !important;
+}
+
+.manage-observations {
+  display: inline-flex !important;
+  align-self: flex-start;
+  margin: 7px 0 16px !important;
+}
+
+.side .nav #workflowNav {
+  background: #2b3c5d;
+  color: #fff;
+}
+
+.side .nav #workflowNav:hover,
+.side .nav #workflowNav:focus-visible {
+  background: #38527e;
+}
+
+.workflow-dialog {
+  width: min(1280px, 100%) !important;
+  height: calc(100dvh - 12px) !important;
+  max-height: calc(100dvh - 12px) !important;
+}
+
+.workflow-overlay {
+  padding: 6px !important;
+}
+
+@media (max-width: 800px) {
+  .workflow-overlay {
+    z-index: 300 !important;
+  }
+
+  .modal-bg {
+    z-index: 300 !important;
+  }
+
+  #permissionsModal .perm {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  #permissionsModal .perm > div:first-child,
+  #permissionsModal .permission-primary,
+  #permissionsModal .permission-basic,
+  #permissionsModal .teacher-workflow-rights,
+  #permissionsModal .coordinator-right-group {
+    grid-column: 1 !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  #permissionsModal .permission-primary .check,
+  #permissionsModal .permission-basic .check {
+    width: 100% !important;
+  }
+
+  .shift-classes {
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+  }
+}

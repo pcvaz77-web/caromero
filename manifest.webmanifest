@@ -1,0 +1,17 @@
+{
+  "name": "CARÔMETRO",
+  "short_name": "CARÔMETRO",
+  "description": "Informações e acompanhamento dos alunos.",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f5f7fb",
+  "theme_color": "#17233a",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "carometro-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "carometro-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "carometro-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

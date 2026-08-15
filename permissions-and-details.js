@@ -1,8 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
-    #permissionsModal .modal { width:min(1160px, calc(100vw - 36px)); max-height:90vh; }
-    #permissionsModal .form { padding:24px 28px 30px; }
+    #permissionsModal .modal { display:flex; flex-direction:column; width:min(1160px, calc(100vw - 36px)); height:min(900px,90dvh); max-height:90dvh; overflow:hidden; }
+    #permissionsModal .modal-head { position:sticky; top:0; z-index:3; flex:none; background:#fff; }
+    #permissionsModal .form { flex:1; min-height:0; padding:24px 28px 30px; overflow-y:auto; overscroll-behavior:contain; }
     .permission-search-form { display:flex; gap:10px; margin:0 0 18px; }
     .permission-search { flex:1; min-height:48px; }
     .counselor-management { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:15px 16px; border:1px solid #cbdcff; background:#f5f8ff; border-radius:11px; }
@@ -22,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .edit-rights { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(132px, 1fr)); gap:9px; padding-top:15px; border-top:1px solid var(--line); }
     .edit-rights .check { align-items:flex-start; padding:9px; border-radius:8px; background:#f7f9fc; font-size:12px; }
     .edit-rights .check:has(input:checked) { background:#e8efff; color:#214dba; }
+    .teacher-workflow-rights,.coordinator-right-group { grid-column:1 / -1; border:1px solid #d9e2f4; border-radius:10px; overflow:hidden; }
+    .teacher-workflow-rights summary,.coordinator-right-group summary { cursor:pointer; padding:11px 13px; background:#f7f9fc; font-size:13px; font-weight:800; }
+    .teacher-workflow-rights .edit-rights,.coordinator-right-group .edit-rights { border-top:1px solid #d9e2f4; padding:12px; }
     #studentDetails { width:460px; padding:28px; }
     #studentDetails .detail-head { gap:20px; }
     #studentDetails .detail-head .avatar { width:180px; height:180px; font-size:38px; }
@@ -42,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .perm { grid-template-columns:1fr; gap:10px; padding:13px; min-width:0; }
       .permission-primary, .permission-basic, .edit-rights { display:grid; grid-template-columns:1fr; gap:7px; min-width:0; }
       .edit-rights { grid-column:auto; padding-top:10px; }
+      .teacher-workflow-rights,.coordinator-right-group { grid-column:auto; }
+      .teacher-workflow-rights .edit-rights,.coordinator-right-group .edit-rights { padding:8px; }
       .permission-primary .check, .permission-basic .check, .edit-rights .check { min-height:36px; padding:8px 10px; font-size:12px; line-height:1.25; overflow-wrap:anywhere; }
       #studentDetails { width:auto; padding:20px; }
       #studentDetails .detail-head .avatar { width:116px; height:116px; font-size:28px; }
@@ -58,6 +64,11 @@ document.addEventListener('DOMContentLoaded', () => {
       #list .student:last-child { border-bottom:0 !important; }
     }
   `;
+  style.textContent += `
+    .coordinator-modal .modal { display:flex; flex-direction:column; max-height:90dvh; overflow:hidden; }
+    .coordinator-modal .modal-head { position:sticky; top:0; z-index:3; flex:none; background:#fff; }
+    .coordinator-modal .form { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
+  `;
   document.head.appendChild(style);
 
   const isAdvancedUser = () => permission.role === 'admin' || !!permission.is_coordinator;
@@ -70,7 +81,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return canEdit();
   };
   const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
-  const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors'];
+  const workflowPermissionFields = ['can_view_dashboard', 'can_view_history', 'can_manage_alerts', 'can_record_followups', 'can_export_reports', 'can_use_bulk_actions', 'can_view_audit', 'can_view_class_summary'];
+  const permissionFields = ['can_add_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors', ...workflowPermissionFields];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador';
@@ -159,6 +171,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ['can_register_occurrences', 'Registrar Ocorrência'],
     ['can_edit_occurrences', 'Editar todas as ocorrências'],
     ['can_delete_occurrences', 'Excluir todas as ocorrências']
+    ,['can_view_dashboard', 'Visualizar painel de pendências']
+    ,['can_view_history', 'Visualizar histórico dos alunos']
+    ,['can_manage_alerts', 'Criar e gerenciar alertas']
+    ,['can_record_followups', 'Registrar acompanhamentos']
+    ,['can_export_reports', 'Gerar relatórios e PDF']
+    ,['can_use_bulk_actions', 'Executar ações em vários alunos']
+    ,['can_view_audit', 'Visualizar auditoria administrativa']
+    ,['can_view_class_summary', 'Visualizar resumo das turmas']
   ];
   coordinatorModal.querySelector('.form').insertAdjacentHTML('beforeend', `<section id="coordinatorPermissions" class="coordinator-permissions hidden"><h4>Permissões avançadas</h4><div class="meta">Escolha exatamente o que este coordenador poderá fazer.</div><div id="coordinatorPermissionOptions" class="coordinator-permission-options"></div></section>`);
   const renderCoordinatorPermissionOptions = () => {
@@ -229,7 +249,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('permissionsModal').classList.remove('hidden');
       return;
     }
-    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,profiles(email,full_name)');
+    const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_dashboard,can_view_history,can_manage_alerts,can_record_followups,can_export_reports,can_use_bulk_actions,can_view_audit,can_view_class_summary,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
     const fullAccessWithoutCounselorManagement = (data || []).filter(item => item.is_coordinator && item.can_edit_all && !item.can_manage_counselors);
     if (fullAccessWithoutCounselorManagement.length) {
@@ -248,8 +268,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const admin = item.role === 'admin';
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
-      if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div></article>`;
-      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${check(item,'can_view_occurrences','Visualizar Ocorrências',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></article>`;
+      if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div><details class="teacher-workflow-rights"><summary>Ferramentas de trabalho</summary><div class="edit-rights">${check(item,'can_view_dashboard','Painel de pendências',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_view_history','Histórico dos alunos',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_manage_alerts','Criar alertas',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_record_followups','Registrar acompanhamentos',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_export_reports','Gerar relatórios',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_view_class_summary','Resumo das turmas',false).replace('setUserPermission','setGeneralPermission')}</div></details></article>`;
+      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><details class="coordinator-right-group"><summary>Cadastro, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${check(item,'can_view_occurrences','Visualizar Ocorrências',admin)}${check(item,'can_register_occurrences','Registrar Ocorrência',admin)}${check(item,'can_edit_occurrences','Editar todas as ocorrências',admin)}${check(item,'can_delete_occurrences','Excluir todas as ocorrências',admin)}</div></details><details class="coordinator-right-group"><summary>Painéis e fluxo pedagógico</summary><div class="edit-rights">${check(item,'can_view_dashboard','Painel de pendências',admin)}${check(item,'can_view_history','Histórico dos alunos',admin)}${check(item,'can_manage_alerts','Gerenciar alertas',admin)}${check(item,'can_record_followups','Registrar acompanhamentos',admin)}${check(item,'can_export_reports','Gerar relatórios e PDF',admin)}${check(item,'can_use_bulk_actions','Ações em vários alunos',admin)}${check(item,'can_view_audit','Auditoria administrativa',admin)}${check(item,'can_view_class_summary','Resumo das turmas',admin)}</div></details></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
     const advancedPermissions = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}<div id="advancedCoordinatorCards"></div></div></details>`;
