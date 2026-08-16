@@ -18,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     #occurrenceNav { border:0; background:#2b3c5d; color:#fff; } #occurrenceNav:hover { background:#38527e; }
+    .occurrence-item-focused { outline:2px solid #2b3c5d; box-shadow:0 0 0 3px rgba(43,60,93,.18); }
     #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px!important; align-items:center!important; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
@@ -173,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const records = data || [];
     historyRecords = new Map(records.map(item => [item.id, item]));
     get('occurrenceHistoryMeta').textContent = records.length ? `${records.length} ocorrência${records.length === 1 ? '' : 's'} encontrada${records.length === 1 ? '' : 's'}.` : 'Nenhuma ocorrência no filtro selecionado.';
-    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
+    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item" data-occurrence-id="${item.id}"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
@@ -186,6 +187,41 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshHistory();
     syncSaveAction();
   }
+
+  // Abre o mesmo modal/lista de ocorrências (nenhum visualizador paralelo),
+  // já filtrado no aluno/turma informados, e destaca a ocorrência indicada.
+  // Quem chama esta função (notification-center.js) já validou com uma
+  // consulta nova ao Supabase que a ocorrência existe e está acessível —
+  // aqui só reaproveitamos a busca e a renderização que já existem.
+  async function openFocused({ occurrenceId, studentId, classId } = {}) {
+    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
+    modal.classList.remove('hidden');
+    await load();
+    fillClasses();
+    fillSearchClasses();
+    get('occurrenceClass').value = classId || '';
+    fillStudents();
+    if (studentId) get('occurrenceStudent').value = studentId;
+    await refreshLabelState();
+    const studentName = students.find(item => item.id === studentId)?.name || '';
+    get('occurrenceDateFilters').classList.remove('hidden');
+    get('searchOccurrences').setAttribute('aria-expanded', 'true');
+    get('occurrenceSearchClass').value = classId || '';
+    get('occurrenceStart').value = '';
+    get('occurrenceEnd').value = '';
+    get('occurrenceSearchName').value = studentName;
+    await refreshHistory();
+    syncSaveAction();
+    if (occurrenceId) {
+      const article = get('occurrenceHistoryList').querySelector(`[data-occurrence-id="${occurrenceId}"]`);
+      if (article) {
+        article.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        article.classList.add('occurrence-item-focused');
+        setTimeout(() => article.classList.remove('occurrence-item-focused'), 2500);
+      }
+    }
+  }
+  window.openOccurrenceRecord = openFocused;
   function resetOccurrenceScreen() {
     editingOccurrence = null;
     get('occurrenceClass').value = '';

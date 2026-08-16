@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .notification-item-head b { font-size:13px; }
     .notification-item-head span { flex:none; color:var(--muted); font-size:11px; }
     .notification-item p { margin:5px 0 0; font-size:13px; line-height:1.4; color:#344054; }
+    .notification-item-clickable { cursor:pointer; }
+    .notification-item-clickable:hover { background:#eef2ff; }
+    .notification-item-clickable .notification-item-head b::after { content:'  →'; color:var(--muted); font-weight:600; }
     .notification-mark-read { margin-top:7px; font-size:12px; }
     .notification-empty { padding:34px 16px; text-align:center; color:var(--muted); font-size:13px; }
     @media(max-width:800px) {
@@ -78,11 +81,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCount(count || 0);
   }
 
+  // A notificação é só um ponteiro de navegação. Cada tipo abaixo tem um
+  // destino que já sabemos resolver hoje; qualquer outro target_type (ou um
+  // item sem o id/turma necessário) fica sem indicação de link — continua
+  // uma notificação normal, só não clicável.
+  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor']);
+  function isNotificationClickable(item) {
+    if (!CLICKABLE_TARGET_TYPES.has(item.target_type)) return false;
+    if (item.target_type === 'class_counselor') return !!item.class_id;
+    return !!item.target_id;
+  }
+
   function renderList() {
     const list = document.getElementById('notificationList');
     if (!list) return;
     list.innerHTML = notifications.length
-      ? notifications.map(item => `<article class="notification-item ${item.read_at ? '' : 'unread'}" data-id="${item.id}"><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.created_at)}</span></div><p>${esc(item.body)}</p>${item.read_at ? '' : `<button type="button" class="link notification-mark-read" data-id="${item.id}">Marcar como lida</button>`}</article>`).join('')
+      ? notifications.map(item => {
+          const clickable = isNotificationClickable(item);
+          return `<article class="notification-item ${item.read_at ? '' : 'unread'} ${clickable ? 'notification-item-clickable' : ''}" data-id="${item.id}" ${clickable ? 'data-clickable="1"' : ''}><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.created_at)}</span></div><p>${esc(item.body)}</p>${item.read_at ? '' : `<button type="button" class="link notification-mark-read" data-id="${item.id}">Marcar como lida</button>`}</article>`;
+        }).join('')
       : '<div class="notification-empty">Nenhuma notificação por enquanto.</div>';
     document.getElementById('clearNotifications')?.classList.toggle('hidden', notifications.length === 0);
   }
@@ -91,7 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     const { data, error } = await db.from('user_notifications')
-      .select('id,title,body,class_id,read_at,created_at')
+      .select('id,title,body,class_id,read_at,created_at,target_type,target_id')
       .eq('recipient_id', signedInUser.id)
       .is('dismissed_at', null)
       .order('created_at', { ascending: false })
@@ -100,6 +117,58 @@ document.addEventListener('DOMContentLoaded', () => {
     notifications = data || [];
     renderList();
     await refreshUnreadCount();
+  }
+
+  // Resolve o destino de uma notificação com uma consulta NOVA ao Supabase
+  // no momento do clique — nunca a partir do array `students`/`classes` já
+  // carregado em memória. A RLS de cada tabela decide, agora, se a linha
+  // volta ou não; a notificação não concede nem amplia nenhum acesso, só
+  // aponta para onde tentar olhar. Retorna uma função de navegação (ainda
+  // não executada) quando o destino existe e está acessível, ou null.
+  async function resolveNotificationTarget(item) {
+    try {
+      if (item.target_type === 'student') {
+        if (!item.target_id) return null;
+        const { data, error } = await db.from('students').select('id,class_id').eq('id', item.target_id).maybeSingle();
+        if (error || !data) return null;
+        return () => { window.selectClass?.(data.class_id || ''); window.showStudentDetails?.(data.id); };
+      }
+      if (item.target_type === 'occurrence') {
+        if (!item.target_id) return null;
+        const { data, error } = await db.from('student_occurrences').select('id,student_id,class_id').eq('id', item.target_id).maybeSingle();
+        if (error || !data) return null;
+        return () => { window.openOccurrenceRecord?.({ occurrenceId: data.id, studentId: data.student_id, classId: data.class_id }); };
+      }
+      if (item.target_type === 'class') {
+        if (!item.target_id) return null;
+        const { data, error } = await db.from('classes').select('id').eq('id', item.target_id).maybeSingle();
+        if (error || !data) return null;
+        return () => { window.selectClass?.(data.id); };
+      }
+      if (item.target_type === 'class_counselor') {
+        if (!item.class_id) return null;
+        const { data, error } = await db.from('classes').select('id').eq('id', item.class_id).maybeSingle();
+        if (error || !data) return null;
+        return () => { window.selectClass?.(data.id); };
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function openNotificationTarget(id) {
+    const numericId = Number(id);
+    const item = notifications.find(entry => entry.id === numericId);
+    if (!item || !isNotificationClickable(item)) return;
+    const navigate = await resolveNotificationTarget(item);
+    if (!navigate) {
+      toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
+      return;
+    }
+    panel.classList.add('hidden');
+    if (!item.read_at) await markRead(id);
+    navigate();
   }
 
   async function markRead(id) {
@@ -143,8 +212,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('notificationList').onclick = event => {
     const button = event.target.closest('.notification-mark-read');
-    if (!button) return;
-    markRead(button.dataset.id);
+    if (button) { markRead(button.dataset.id); return; }
+    const article = event.target.closest('.notification-item[data-clickable="1"]');
+    if (article) openNotificationTarget(article.dataset.id);
   };
 
   bell.onclick = () => {
