@@ -36,21 +36,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let myClasses = [];
   let myPreferences = new Set();
 
-  // Mesma regra usada no banco (accessible_class_ids): ser conselheiro de
-  // uma turma é uma permissão ADICIONAL, nunca uma restrição sobre o que a
-  // pessoa já podia acessar. Só fica restrito às turmas de conselheiro quem
-  // NÃO tem nenhuma permissão geral de aluno (perfil realmente restrito).
-  const hasBroadClassAccess = () => {
-    const admin = permission?.role === 'admin';
-    const coordinator = !!permission?.is_coordinator;
-    return admin || coordinator || !!permission?.can_add_students || !!permission?.can_edit_students || !!permission?.can_delete_students;
-  };
-
-  const myAccessibleClasses = () => {
-    if (hasBroadClassAccess()) return classes;
-    if (window.isCounselorUser?.()) return classes.filter(cls => window.counselorRightsForClass?.(cls.id));
-    return classes;
-  };
+  // Notificações por turma são só um aviso: qualquer usuário autenticado
+  // (Professor, Coordenador ou Administrador) pode escolher acompanhar
+  // qualquer turma cadastrada, independente de ser conselheiro dela. Isso
+  // não concede nem amplia acesso a dados protegidos — a navegação/validação
+  // de acesso ao conteúdo em si continua acontecendo normalmente em cada
+  // tela, sem depender desta escolha.
+  const myAccessibleClasses = () => classes;
 
   function renderPreferences() {
     const list = document.getElementById('classNotificationList');
