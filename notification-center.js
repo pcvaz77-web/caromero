@@ -13,7 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   panel.innerHTML = `
     <div class="notification-panel-head">
       <b>Notificações</b>
-      <button type="button" id="markAllNotificationsRead" class="link">Marcar todas como lidas</button>
+      <div class="notification-panel-actions">
+        <button type="button" id="markAllNotificationsRead" class="link">Marcar todas como lidas</button>
+        <button type="button" id="clearNotifications" class="link">Limpar notificações</button>
+      </div>
     </div>
     <div id="notificationList" class="notification-list"></div>
   `;
@@ -26,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .notification-panel { position:fixed; top:78px; right:28px; width:min(380px, calc(100vw - 32px)); max-height:min(520px, calc(100vh - 110px)); display:flex; flex-direction:column; background:#fff; border:1px solid var(--line); border-radius:14px; box-shadow:0 20px 45px #10182833; z-index:120; overflow:hidden; }
     .notification-panel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--line); }
     .notification-panel-head b { font-size:15px; }
+    .notification-panel-actions { display:flex; align-items:center; gap:10px; }
     .notification-panel-head .link { font-size:12px; }
     .notification-list { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; }
     .notification-item { padding:12px 16px; border-bottom:1px solid #edf0f4; }
@@ -68,7 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const { count, error } = await db.from('user_notifications')
       .select('id', { count: 'exact', head: true })
       .eq('recipient_id', signedInUser.id)
-      .is('read_at', null);
+      .is('read_at', null)
+      .is('dismissed_at', null);
     if (error) return;
     renderCount(count || 0);
   }
@@ -79,6 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = notifications.length
       ? notifications.map(item => `<article class="notification-item ${item.read_at ? '' : 'unread'}" data-id="${item.id}"><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.created_at)}</span></div><p>${esc(item.body)}</p>${item.read_at ? '' : `<button type="button" class="link notification-mark-read" data-id="${item.id}">Marcar como lida</button>`}</article>`).join('')
       : '<div class="notification-empty">Nenhuma notificação por enquanto.</div>';
+    document.getElementById('clearNotifications')?.classList.toggle('hidden', notifications.length === 0);
   }
 
   async function loadNotifications() {
@@ -87,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await db.from('user_notifications')
       .select('id,title,body,class_id,read_at,created_at')
       .eq('recipient_id', signedInUser.id)
+      .is('dismissed_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
     if (error) return;
@@ -115,6 +122,21 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     const now = new Date().toISOString();
     notifications.forEach(item => { if (!item.read_at) item.read_at = now; });
+    renderList();
+    await refreshUnreadCount();
+  };
+
+  document.getElementById('clearNotifications').onclick = async () => {
+    if (!notifications.length) return;
+    if (!confirm('Limpar todas as notificações do sino?')) return;
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) return;
+    const { error } = await db.from('user_notifications')
+      .update({ dismissed_at: new Date().toISOString() })
+      .eq('recipient_id', signedInUser.id)
+      .is('dismissed_at', null);
+    if (error) { toast(error.message); return; }
+    notifications = [];
     renderList();
     await refreshUnreadCount();
   };
@@ -154,7 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, async payload => {
         const index = notifications.findIndex(item => item.id === payload.new.id);
-        if (index !== -1) notifications[index] = payload.new;
+        if (payload.new.dismissed_at) { if (index !== -1) notifications.splice(index, 1); }
+        else if (index !== -1) notifications[index] = payload.new;
         renderList();
         await refreshUnreadCount();
       })
