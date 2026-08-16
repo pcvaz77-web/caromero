@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bell.type = 'button';
   bell.className = 'notification-bell hidden';
   bell.setAttribute('aria-label', 'Notificações');
-  bell.innerHTML = '🔔 <span id="notifUnreadCount" class="notification-count hidden">0</span>';
+  bell.innerHTML = '🔔 <span id="notificationUnreadCount" class="notification-count hidden">0</span>';
   document.querySelector('.top-actions')?.prepend(bell);
 
   const panel = document.createElement('div');
@@ -51,12 +51,26 @@ document.addEventListener('DOMContentLoaded', () => {
     catch { return ''; }
   };
 
-  function renderCount() {
-    const unread = notifications.filter(item => !item.read_at).length;
-    const countEl = document.getElementById('notifUnreadCount');
+  // O contador do sino nunca é derivado da lista carregada (que fica
+  // limitada aos 50 itens mais recentes) — é sempre uma contagem
+  // independente no banco, para não subestimar quando existirem mais de
+  // 50 notificações não lidas.
+  function renderCount(unreadTotal) {
+    const countEl = document.getElementById('notificationUnreadCount');
     if (!countEl) return;
-    countEl.textContent = unread > 99 ? '99+' : String(unread);
-    countEl.classList.toggle('hidden', unread === 0);
+    countEl.textContent = unreadTotal > 99 ? '99+' : String(unreadTotal);
+    countEl.classList.toggle('hidden', unreadTotal === 0);
+  }
+
+  async function refreshUnreadCount() {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) return;
+    const { count, error } = await db.from('user_notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', signedInUser.id)
+      .is('read_at', null);
+    if (error) return;
+    renderCount(count || 0);
   }
 
   function renderList() {
@@ -77,8 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .limit(50);
     if (error) return;
     notifications = data || [];
-    renderCount();
     renderList();
+    await refreshUnreadCount();
   }
 
   async function markRead(id) {
@@ -87,8 +101,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     const item = notifications.find(entry => entry.id === numericId);
     if (item) item.read_at = new Date().toISOString();
-    renderCount();
     renderList();
+    await refreshUnreadCount();
   }
 
   document.getElementById('markAllNotificationsRead').onclick = async () => {
@@ -101,8 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     const now = new Date().toISOString();
     notifications.forEach(item => { if (!item.read_at) item.read_at = now; });
-    renderCount();
     renderList();
+    await refreshUnreadCount();
   };
 
   document.getElementById('notificationList').onclick = event => {
@@ -132,17 +146,17 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadNotifications();
     if (channel) await db.removeChannel(channel);
     channel = db.channel(`notification-center-${signedInUser.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, payload => {
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, async payload => {
         notifications.unshift(payload.new);
         if (notifications.length > 50) notifications.length = 50;
-        renderCount();
         renderList();
+        await refreshUnreadCount();
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, payload => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, async payload => {
         const index = notifications.findIndex(item => item.id === payload.new.id);
         if (index !== -1) notifications[index] = payload.new;
-        renderCount();
         renderList();
+        await refreshUnreadCount();
       })
       .subscribe();
   }

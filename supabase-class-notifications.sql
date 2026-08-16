@@ -4,6 +4,12 @@
 -- de user_favorite_classes (que hoje está sem uso, restrita a professores
 -- comuns) para que qualquer usuário autenticado possa escolher suas próprias
 -- turmas de interesse.
+--
+-- Todas as funções abaixo têm EXECUTE revogado de public/anon/authenticated
+-- logo após serem criadas: nenhuma delas deve ser chamável via RPC pelo
+-- cliente. Elas só são executadas pelos gatilhos ou por outras funções
+-- internas, sempre no contexto do dono (security definer), que continua
+-- podendo chamá-las entre si independente do revoke.
 
 begin;
 
@@ -18,33 +24,80 @@ begin;
 --    texto da notificação (a turma já está no corpo da mensagem) e só
 --    desvincula a referência que não existe mais. Não apaga nenhuma
 --    linha existente, só troca o comportamento futuro da restrição.
+--
+--    Este bloco só age se conseguir confirmar, com certeza, qual
+--    constraint é essa: exige achar EXATAMENTE UMA foreign key que (a)
+--    esteja na coluna class_id e (b) aponte para classes(id). Se achar
+--    zero ou mais de uma, aborta a migration inteira com uma mensagem
+--    clara em vez de adivinhar qual remover.
 -- =====================================================================
 
 do $$
 declare
   fk_name text;
+  fk_count int;
+  class_id_attnum smallint;
 begin
-  select conname into fk_name
-  from pg_constraint
-  where conrelid = 'public.user_notifications'::regclass
-    and contype = 'f'
-    and conkey = (
-      select array_agg(attnum) from pg_attribute
-      where attrelid = 'public.user_notifications'::regclass and attname = 'class_id'
-    );
-  if fk_name is not null then
-    execute format('alter table public.user_notifications drop constraint %I', fk_name);
+  select attnum into class_id_attnum
+  from pg_attribute
+  where attrelid = 'public.user_notifications'::regclass
+    and attname = 'class_id'
+    and not attisdropped;
+
+  if class_id_attnum is null then
+    raise exception 'A coluna user_notifications.class_id não foi encontrada. Abortando a migration sem alterar nada.';
   end if;
+
+  select count(*) into fk_count
+  from pg_constraint c
+  where c.conrelid = 'public.user_notifications'::regclass
+    and c.contype = 'f'
+    and c.confrelid = 'public.classes'::regclass
+    and c.conkey = array[class_id_attnum];
+
+  if fk_count = 0 then
+    raise exception 'Não encontrei nenhuma foreign key ligando user_notifications.class_id a classes(id). Abortando a migration em vez de adivinhar — verifique manualmente o schema antes de rodar de novo.';
+  end if;
+
+  if fk_count > 1 then
+    raise exception 'Encontrei % foreign keys ligando user_notifications.class_id a classes(id), esperava exatamente 1. Abortando a migration — verifique manualmente qual delas é a correta antes de rodar de novo.', fk_count;
+  end if;
+
+  select c.conname into fk_name
+  from pg_constraint c
+  where c.conrelid = 'public.user_notifications'::regclass
+    and c.contype = 'f'
+    and c.confrelid = 'public.classes'::regclass
+    and c.conkey = array[class_id_attnum];
+
+  execute format('alter table public.user_notifications drop constraint %I', fk_name);
   alter table public.user_notifications
     add constraint user_notifications_class_id_fkey
     foreign key (class_id) references public.classes(id) on delete set null;
 end $$;
 
 -- =====================================================================
--- 1) Quais turmas cada usuário pode acessar hoje (mesma regra que o resto
---    do Carômetro já usa: administrador e coordenador enxergam tudo;
---    conselheiro exclusivo fica restrito às turmas designadas a ele;
---    demais professores continuam com o mesmo acesso amplo que já têm).
+-- 1) Quais turmas cada usuário pode acessar hoje.
+--
+--    Regra final (ajustada após revisão):
+--    - Administrador ou coordenador: todas as turmas (acesso já é global
+--      no resto do Carômetro).
+--    - Qualquer usuário com pelo menos uma permissão geral de aluno
+--      (can_add_students, can_edit_students ou can_delete_students):
+--      também todas as turmas — é o mesmo alcance amplo que ele já tem
+--      hoje em qualquer outra tela do sistema, MESMO que essa pessoa
+--      também seja conselheiro de alguma turma específica. Ser
+--      conselheiro é uma permissão ADICIONAL sobre uma turma, nunca uma
+--      restrição sobre o que essa pessoa já podia fazer antes.
+--    - Só quando a pessoa NÃO tem nenhuma dessas permissões gerais (ou
+--      seja, um perfil "viewer" puro, sem elas) e existe pelo menos um
+--      vínculo em class_counselors: ela fica restrita exatamente às
+--      turmas em que é conselheira. Esse é o único perfil realmente
+--      restrito por turma hoje no Carômetro.
+--    - Fora esses dois casos (sem permissão geral e sem vínculo de
+--      conselheiro): mantém o mesmo acesso amplo de leitura que o
+--      Carômetro já concede a qualquer usuário autenticado hoje.
+--    Em nenhum caso alguém recebe acesso maior do que já tinha.
 -- =====================================================================
 
 create or replace function public.user_has_broad_class_access(p_user_id uuid)
@@ -57,9 +110,16 @@ as $$
   select exists (
     select 1 from public.user_permissions p
     where p.user_id = p_user_id
-      and (p.role = 'admin' or coalesce(p.is_coordinator, false))
+      and (
+        p.role = 'admin'
+        or coalesce(p.is_coordinator, false)
+        or coalesce(p.can_add_students, false)
+        or coalesce(p.can_edit_students, false)
+        or coalesce(p.can_delete_students, false)
+      )
   );
 $$;
+revoke execute on function public.user_has_broad_class_access(uuid) from public, anon, authenticated;
 
 create or replace function public.accessible_class_ids(p_user_id uuid)
 returns table (class_id uuid)
@@ -83,17 +143,22 @@ begin
     return;
   end if;
 
-  -- Professor sem vínculo de conselheiro: o Carômetro não restringe hoje o
-  -- acesso desse perfil a turmas específicas, então mantém o mesmo alcance
-  -- amplo que ele já tem no restante do sistema.
+  -- Sem permissão geral e sem vínculo de conselheiro: mantém o mesmo
+  -- acesso amplo de leitura que o Carômetro já concede hoje.
   return query select c.id from public.classes c;
 end;
 $$;
+revoke execute on function public.accessible_class_ids(uuid) from public, anon, authenticated;
 
 -- =====================================================================
 -- 2) Utilitários para ler o campo de observações do aluno (has_report),
 --    que guarda um texto simples OU um JSON com várias observações,
---    incluindo "Representante de turma".
+--    incluindo "Representante de turma". Confirmado no código atual do
+--    Carômetro (student-edit-improvements.js) que o cadastro individual
+--    grava sempre um JSON (ex.: '["Tem Laudo","Representante de turma"]'
+--    ou '' quando vazio), enquanto o cadastro em massa grava o texto
+--    puro escolhido no formulário (ex.: 'Tem Laudo'), sem JSON. As duas
+--    funções abaixo tratam os dois formatos sem quebrar em nenhum caso.
 -- =====================================================================
 
 create or replace function public.decode_observation_values(p_value text)
@@ -118,6 +183,7 @@ begin
   return array[p_value];
 end;
 $$;
+revoke execute on function public.decode_observation_values(text) from public, anon, authenticated;
 
 create or replace function public.sorted_text_array(p_values text[])
 returns text[]
@@ -126,11 +192,20 @@ immutable
 as $$
   select coalesce(array_agg(v order by v), array[]::text[]) from unnest(p_values) v;
 $$;
+revoke execute on function public.sorted_text_array(text[]) from public, anon, authenticated;
 
 -- =====================================================================
 -- 3) Envio de notificações: sempre reavalia acesso e preferência no
 --    momento do evento (nunca confia em dado antigo guardado) e nunca
 --    notifica quem realizou a própria ação.
+--
+--    Estas duas funções são as que mais precisam ficar fora do alcance
+--    de RPC: elas escrevem diretamente em user_notifications. Se
+--    ficassem chamáveis por um usuário comum, ele poderia fabricar
+--    notificações falsas para qualquer pessoa. O REVOKE logo abaixo de
+--    cada uma impede isso; elas continuam funcionando normalmente
+--    porque só são chamadas de dentro de outras funções/gatilhos que
+--    já rodam como o dono (security definer), nunca pelo cliente.
 -- =====================================================================
 
 create or replace function public.create_class_notifications(
@@ -162,6 +237,7 @@ begin
     );
 end;
 $$;
+revoke execute on function public.create_class_notifications(uuid,text,text,text,text,uuid) from public, anon, authenticated;
 
 create or replace function public.notify_admins_and_coordinators(
   p_title text,
@@ -183,6 +259,7 @@ begin
     and p.user_id is distinct from p_actor;
 end;
 $$;
+revoke execute on function public.notify_admins_and_coordinators(text,text,uuid,text,text,uuid) from public, anon, authenticated;
 
 -- =====================================================================
 -- 4) user_favorite_classes vira a preferência de notificação por turma,
@@ -212,6 +289,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.validate_favorite_class_access() from public, anon, authenticated;
 
 drop trigger if exists validate_favorite_class_access on public.user_favorite_classes;
 create trigger validate_favorite_class_access
@@ -240,6 +318,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.notify_class_created() from public, anon, authenticated;
 
 drop trigger if exists notify_class_created on public.classes;
 create trigger notify_class_created
@@ -267,6 +346,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.notify_class_updated() from public, anon, authenticated;
 
 drop trigger if exists notify_class_updated on public.classes;
 create trigger notify_class_updated
@@ -297,6 +377,7 @@ begin
   return old;
 end;
 $$;
+revoke execute on function public.notify_class_deleted() from public, anon, authenticated;
 
 drop trigger if exists notify_class_deleted on public.classes;
 create trigger notify_class_deleted
@@ -306,14 +387,26 @@ for each row execute function public.notify_class_deleted();
 -- =====================================================================
 -- 6) Alunos: cadastro (individual ou em lote), dados alterados, foto,
 --    laudo/observação, representante de turma, mudança de turma, exclusão.
+--
+--    Campos editáveis reais hoje (confirmados no código atual):
+--    full_name, class_id (+class_name derivado), has_report, photo_path.
+--    Os campos de uniforme (uniform_received, shoes_received,
+--    material_received, uniform_size, shoe_size, uniform_received_at,
+--    uniform_pending, uniform_notes) são gravados por uniform-management.js
+--    e propositalmente NÃO geram notificação aqui — não fazem parte da
+--    lista de eventos pedida. created_at e id são técnicos/internos.
 -- =====================================================================
 
 -- Cadastro: um único gatilho por instrução (não por linha) agrupa os
--- alunos inseridos na mesma operação por turma. Uma linha inserida gera a
--- mensagem individual de sempre; duas ou mais na mesma turma, na mesma
--- operação, geram uma única mensagem agregada. Não existe nenhum outro
--- gatilho de INSERT em students, então não há risco de duplicidade entre
--- o evento agregado e eventos individuais.
+-- alunos inseridos na mesma operação por turma. Confirmado no código
+-- atual (student-edit-improvements.js) que tanto o cadastro individual
+-- quanto o "colar lista" usam sempre um único db.from('students').insert(),
+-- com um array de 1 ou mais linhas — nunca vários INSERTs separados em
+-- loop. Por isso o gatilho por statement agrega corretamente: uma linha
+-- gera a mensagem individual de sempre; duas ou mais na mesma turma, na
+-- mesma operação, geram uma única mensagem agregada. Não existe nenhum
+-- outro gatilho de INSERT em students, então não há risco de duplicidade
+-- entre o evento agregado e eventos individuais.
 create or replace function public.notify_students_inserted()
 returns trigger
 language plpgsql
@@ -359,6 +452,7 @@ begin
   return null;
 end;
 $$;
+revoke execute on function public.notify_students_inserted() from public, anon, authenticated;
 
 drop trigger if exists notify_students_inserted on public.students;
 create trigger notify_students_inserted
@@ -491,6 +585,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.notify_student_updated() from public, anon, authenticated;
 
 drop trigger if exists notify_student_updated on public.students;
 create trigger notify_student_updated
@@ -532,6 +627,7 @@ begin
   return old;
 end;
 $$;
+revoke execute on function public.notify_student_deleted() from public, anon, authenticated;
 
 drop trigger if exists notify_student_deleted on public.students;
 create trigger notify_student_deleted
@@ -540,7 +636,10 @@ for each row execute function public.notify_student_deleted();
 
 -- =====================================================================
 -- 7) Ocorrências: registrada, editada, excluída. Nunca inclui o texto da
---    ocorrência na notificação (só o fato de que ela existe/mudou).
+--    ocorrência na notificação (só o fato de que ela existe/mudou). O
+--    autor é sempre lido de auth.uid() (nunca de created_by), para não
+--    depender de nenhum outro gatilho continuar existindo/preenchendo
+--    esse campo corretamente no futuro.
 -- =====================================================================
 
 create or replace function public.notify_occurrence_inserted()
@@ -564,11 +663,12 @@ begin
     'Nova ocorrência registrada para ' || student_name || ' — ' || class_name || '.',
     'occurrence',
     new.id::text,
-    new.created_by
+    auth.uid()
   );
   return new;
 end;
 $$;
+revoke execute on function public.notify_occurrence_inserted() from public, anon, authenticated;
 
 drop trigger if exists notify_occurrence_inserted on public.student_occurrences;
 create trigger notify_occurrence_inserted
@@ -604,6 +704,7 @@ begin
   return new;
 end;
 $$;
+revoke execute on function public.notify_occurrence_updated() from public, anon, authenticated;
 
 drop trigger if exists notify_occurrence_updated on public.student_occurrences;
 create trigger notify_occurrence_updated
@@ -642,6 +743,7 @@ begin
   return old;
 end;
 $$;
+revoke execute on function public.notify_occurrence_deleted() from public, anon, authenticated;
 
 drop trigger if exists notify_occurrence_deleted on public.student_occurrences;
 create trigger notify_occurrence_deleted
@@ -649,7 +751,11 @@ after delete on public.student_occurrences
 for each row execute function public.notify_occurrence_deleted();
 
 -- =====================================================================
--- 8) Conselheiro/responsável de turma alterado.
+-- 8) Conselheiro/responsável de turma alterado. Em UPDATE, só notifica
+--    quando a identidade do conselheiro realmente muda (usuário
+--    vinculado ou nome do conselheiro externo) — regravar a mesma linha
+--    (ex.: só ajustando permissões, ou um save que não mudou nada) não
+--    gera notificação.
 -- =====================================================================
 
 create or replace function public.notify_counselor_changed()
@@ -662,7 +768,6 @@ declare
   class_name text;
   target_class_id uuid := coalesce(new.class_id, old.class_id);
   target_id text := coalesce(new.id, old.id)::text;
-  counselor_name text;
 begin
   -- Exclusão em cascata (turma removida): a notificação de turma excluída
   -- já cobre isso.
@@ -670,9 +775,15 @@ begin
     return old;
   end if;
 
+  if tg_op = 'UPDATE' then
+    if old.counselor_user_id is not distinct from new.counselor_user_id
+       and coalesce(nullif(trim(old.counselor_name), ''), '') = coalesce(nullif(trim(new.counselor_name), ''), '') then
+      return new;
+    end if;
+  end if;
+
   select name into class_name from public.classes where id = target_class_id;
   class_name := coalesce(class_name, 'turma removida');
-  counselor_name := coalesce(nullif(trim(coalesce(new.counselor_name, old.counselor_name)), ''), 'um usuário cadastrado');
 
   perform public.create_class_notifications(
     target_class_id,
@@ -685,6 +796,7 @@ begin
   return coalesce(new, old);
 end;
 $$;
+revoke execute on function public.notify_counselor_changed() from public, anon, authenticated;
 
 drop trigger if exists notify_counselor_changed on public.class_counselors;
 create trigger notify_counselor_changed
