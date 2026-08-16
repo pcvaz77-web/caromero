@@ -1,8 +1,4 @@
 /* Ajustes finais encontrados na revisão visual responsiva. */
-.workflow-overlay {
-  z-index: 300 !important;
-}
-
 .modal-bg {
   z-index: 300 !important;
 }
@@ -39,31 +35,7 @@ body .toast {
   margin: 7px 0 16px !important;
 }
 
-.side .nav #workflowNav {
-  background: #2b3c5d;
-  color: #fff;
-}
-
-.side .nav #workflowNav:hover,
-.side .nav #workflowNav:focus-visible {
-  background: #38527e;
-}
-
-.workflow-dialog {
-  width: min(1280px, 100%) !important;
-  height: calc(100dvh - 12px) !important;
-  max-height: calc(100dvh - 12px) !important;
-}
-
-.workflow-overlay {
-  padding: 6px !important;
-}
-
 @media (max-width: 800px) {
-  .workflow-overlay {
-    z-index: 300 !important;
-  }
-
   .modal-bg {
     z-index: 300 !important;
   }
@@ -75,7 +47,6 @@ body .toast {
   #permissionsModal .perm > div:first-child,
   #permissionsModal .permission-primary,
   #permissionsModal .permission-basic,
-  #permissionsModal .teacher-workflow-rights,
   #permissionsModal .coordinator-right-group {
     grid-column: 1 !important;
     width: 100% !important;
