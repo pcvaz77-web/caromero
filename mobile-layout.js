@@ -77,13 +77,26 @@ document.addEventListener('DOMContentLoaded', () => {
       .shift-group { position:relative !important; flex:none !important; }
       .shift-tab {
         width:auto !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:space-between !important;
+        gap:8px !important;
+        min-height:39px !important;
+        padding:9px 10px !important;
+        border-radius:9px !important;
+        background:#20304d !important;
+        overflow:hidden !important;
+        white-space:nowrap !important;
+      }
+      .shift-tab[aria-expanded="true"] { background:#38527e !important; }
+      .class-list > .all-students-tab {
+        width:auto !important;
         min-height:39px !important;
         padding:9px 12px !important;
         border-radius:9px !important;
         background:#20304d !important;
         white-space:nowrap !important;
       }
-      .shift-tab[aria-expanded="true"] { background:#38527e !important; }
       .shift-classes {
         position:absolute !important;
         top:calc(100% + 7px) !important;
@@ -126,7 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
         overflow:visible !important;
       }
       .shift-group { width:100% !important; }
-      .shift-tab { width:100% !important; justify-content:center !important; padding:9px 5px !important; }
+      .shift-tab { width:100% !important; padding:9px 5px !important; }
+      .class-list > .all-students-tab { width:100% !important; text-align:center !important; }
     }
   `;
   document.head.appendChild(navigationStyle);
@@ -317,8 +331,23 @@ document.addEventListener('DOMContentLoaded', () => {
       .shift-group { position:static !important; width:auto !important; margin:0 !important; }
       .shift-tab {
         width:100% !important;
+        height:100% !important;
         min-height:48px !important;
+        padding:7px 2px !important;
+        border-radius:9px !important;
+        background:#2b3c5d !important;
+        color:#fff !important;
+        font-size:11px !important;
+        line-height:1.12 !important;
+        white-space:normal !important;
+        overflow:hidden !important;
+        flex-direction:column !important;
         justify-content:center !important;
+      }
+      .class-list > .shift-group .shift-tab .arrow { display:none !important; }
+      .class-list > .all-students-tab {
+        width:100% !important;
+        min-height:48px !important;
         padding:7px 4px !important;
         border-radius:9px !important;
         background:#2b3c5d !important;
@@ -327,8 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
         line-height:1.12 !important;
         text-align:center !important;
         white-space:normal !important;
+        display:flex !important;
+        align-items:center !important;
+        justify-content:center !important;
       }
-      .class-list > .all-students-tab,
       .class-list > .shift-group { min-height:48px !important; }
       .class-list > .shift-group .shift-tab { height:100% !important; }
       .shift-tab[aria-expanded="true"] { background:#38527e !important; }

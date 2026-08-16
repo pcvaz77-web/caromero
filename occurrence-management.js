@@ -27,7 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
   const isCoordinator = () => !!permission?.is_coordinator;
-  const canViewOccurrences = () => true;
+  // Professores comuns e o administrador sempre veem ocorrências (mesmo
+  // alcance amplo que já tinham). Coordenadores só veem se a permissão
+  // avançada correspondente (ou "Editar tudo") estiver marcada — mesmo
+  // padrão já usado por canEditOccurrence/canDeleteOccurrence abaixo.
+  const canViewOccurrences = () => !isCoordinator() || isAdmin() || !!permission?.can_edit_all || !!permission?.can_view_occurrences;
   const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
   // Registrar e consultar Ocorrências são funções padrão de todo professor.
   // As permissões avançadas de coordenador só ampliam a edição/exclusão de
@@ -112,11 +116,21 @@ document.addEventListener('DOMContentLoaded', () => {
     label.textContent = `Ocorrência · ${count}`;
     detailHolder.appendChild(label);
   }
+  // Exposta para outros módulos (ex.: filtros de busca) lerem sem fazer uma
+  // segunda consulta ao banco — sempre reflete o resultado da última
+  // consulta real feita sob a RLS de student_occurrences, nunca um valor
+  // adivinhado. Fica vazia sempre que canViewOccurrences() for falso.
+  window.canViewOccurrences = canViewOccurrences;
+  const publishOccurrenceLabelState = () => {
+    window.occurrenceStudentIds = occurrenceStudentIds;
+    document.dispatchEvent(new CustomEvent('carometro:occurrence-labels-changed'));
+  };
   async function refreshLabelState() {
     if (!canViewOccurrences()) {
       occurrenceStudentIds = new Set();
       occurrenceCounts = new Map();
       paintStudentCards();
+      publishOccurrenceLabelState();
       return;
     }
     const { data, error } = await db.from('student_occurrences').select('student_id');
@@ -132,6 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     (data || []).forEach(item => occurrenceCounts.set(item.student_id, (occurrenceCounts.get(item.student_id) || 0) + 1));
     occurrenceStudentIds = new Set(occurrenceCounts.keys());
     paintStudentCards();
+    publishOccurrenceLabelState();
   }
   async function refreshHistory() {
     const classId = selectedClass();
@@ -357,6 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('carometro:permission-refresh', () => {
     syncOccurrenceNavigation();
     syncSaveAction();
+    // Sem isto, revogar can_view_occurrences no meio da sessão só escondia o
+    // botão de navegação: os badges/occurrenceStudentIds já calculados
+    // continuavam expostos até a próxima carga completa.
+    refreshLabelState();
     if (!modal.classList.contains('hidden')) refreshHistory();
   });
 

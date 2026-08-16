@@ -7,7 +7,7 @@
   .out { display: block !important; order: 3 !important; margin: 0 !important; padding: 10px 7px !important; font-size: 0 !important; }
   .main { margin: 0 !important; padding: 22px 14px !important; }
   .top { flex-direction: column !important; gap: 15px !important; margin-bottom: 20px !important; }
-  .stats { grid-template-columns: repeat(3, 1fr) !important; gap: 7px !important; margin-bottom: 18px !important; }
+  .stats { grid-template-columns: repeat(2, 1fr) !important; gap: 7px !important; margin-bottom: 18px !important; }
   .head { padding: 15px !important; align-items: stretch !important; flex-direction: column !important; gap: 10px !important; }
   .list { padding: 3px 14px !important; }
   .student { grid-template-columns: 46px minmax(0, 1fr) auto !important; gap: 10px !important; padding: 13px 0 !important; }
@@ -33,7 +33,7 @@
   .top h1 { font-size: 27px; }
   .top-actions { width: 100%; justify-content: stretch; }
   .top-actions .btn { flex: 1; }
-  .stats { grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 18px; }
+  .stats { grid-template-columns: repeat(2, 1fr); gap: 7px; margin-bottom: 18px; }
   .stat { padding: 13px 10px; }
   .stat span { display: block; font-size: 11px; line-height: 1.2; }
   .stat strong { font-size: 23px; margin-top: 5px; }

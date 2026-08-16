@@ -144,6 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const positiveLaudoObservations = value => decodeObservationValues(value).filter(observationIndicatesLaudo);
   window.studentHasPositiveLaudo = value => positiveLaudoObservations(value).length > 0;
   window.positiveLaudoObservations = positiveLaudoObservations;
+  window.decodeObservationValues = decodeObservationValues;
   const renderSpecialStudentLabels = (subtitle, student) => {
     const values = decodeObservationValues(student?.report);
     const laudos = values.filter(observationIndicatesLaudo);
@@ -174,12 +175,10 @@ document.addEventListener('DOMContentLoaded', () => {
       renderSpecialStudentLabels(subtitle, student);
     });
   };
-  const syncLaudoCount = () => {
-    const scope = selectedClassId ? students.filter(student => student.classId === selectedClassId) : students;
-    document.getElementById('reports').textContent = scope.filter(student => window.studentHasPositiveLaudo(student.report)).length;
-  };
+  // O card "Com laudo" do topo foi removido (redundante com o filtro rápido
+  // "Com laudo" da barra de busca); esta função só existia para mantê-lo
+  // atualizado.
   new MutationObserver(() => {
-    syncLaudoCount();
     syncStudentCardLaudoLabels();
   }).observe(document.getElementById('list'), { childList:true });
   const configureObservationField = id => {
@@ -453,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
     .student-laudo-label { color:#b54708; font-weight:750; }
-    .nav { display:flex; flex-direction:column; gap:8px; }
+    .nav { display:flex; flex-direction:column; gap:6px; }
     #profileNav { margin:0; }
     .profile-nav-mobile { display:none; }
     .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
