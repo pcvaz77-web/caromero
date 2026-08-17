@@ -88,6 +88,37 @@ document.addEventListener('DOMContentLoaded', () => {
   let occurrenceSignature = '';
   let fetchToken = 0;
   let datasetError = false;
+  let occurrenceError = false;
+
+  // Tamanho de LOTE por requisição — não é um teto de alunos/ocorrências. O
+  // PostgREST/Supabase limita quantas linhas cada resposta pode conter
+  // (por padrão 1000); sem paginação, qualquer escola com mais alunos do
+  // que isso tinha o relatório truncado silenciosamente. fetchAllPages()
+  // encadeia quantas páginas forem necessárias até uma página vir menor
+  // que REPORT_PAGE_SIZE (sinal de que não há mais linhas), então funciona
+  // igual para 1.312, 2.000, 5.000 ou qualquer volume futuro.
+  const REPORT_PAGE_SIZE = 1000;
+
+  // Busca todas as páginas de uma RPC que devolve uma tabela. Se qualquer
+  // página falhar, interrompe imediatamente e descarta as páginas já
+  // acumuladas — nunca devolve um conjunto parcial como se fosse completo.
+  // Se uma busca mais nova for iniciada (token mudou) no meio da paginação,
+  // aborta silenciosamente sem mexer em estado nenhum (a busca nova é quem
+  // manda).
+  async function fetchAllPages(rpcName, params, token) {
+    const rows = [];
+    let offset = 0;
+    while (true) {
+      if (token !== fetchToken) return { data: null, error: null, stale: true };
+      const { data, error } = await db.rpc(rpcName, params).range(offset, offset + REPORT_PAGE_SIZE - 1);
+      if (token !== fetchToken) return { data: null, error: null, stale: true };
+      if (error) return { data: null, error, stale: false };
+      const batch = data || [];
+      rows.push(...batch);
+      if (batch.length < REPORT_PAGE_SIZE) return { data: rows, error: null, stale: false };
+      offset += REPORT_PAGE_SIZE;
+    }
+  }
 
   function fillShiftClasses() {
     const shiftValue = get('reportShift').value;
@@ -131,19 +162,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const signature = JSON.stringify([filters.shift, filters.classId, filters.studentId]);
     if (signature === datasetSignature) return;
     const token = ++fetchToken;
-    const { data, error } = await db.rpc('report_students', {
+    const { data, error, stale } = await fetchAllPages('report_students', {
       p_shift: filters.shift,
       p_class_id: filters.classId,
       p_student_id: filters.studentId
-    });
-    if (token !== fetchToken) return;
+    }, token);
+    if (stale || token !== fetchToken) return;
     if (error) {
       datasetStudents = [];
       datasetSignature = '';
       datasetError = true;
       return;
     }
-    datasetStudents = data || [];
+    datasetStudents = data;
     datasetSignature = signature;
     datasetError = false;
     occurrenceSignature = '';
@@ -152,6 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function fetchOccurrencesDataset(filters) {
     if (!filters.withOccurrences || !datasetStudents.length) {
       occurrencesByStudent = new Map();
+      occurrenceError = false;
       occurrenceSignature = filters.withOccurrences ? occurrenceSignature : '';
       return;
     }
@@ -159,23 +191,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const signature = JSON.stringify([studentIds, filters.start, filters.end]);
     if (signature === occurrenceSignature) return;
     const token = ++fetchToken;
-    const { data, error } = await db.rpc('report_occurrences', {
+    const { data, error, stale } = await fetchAllPages('report_occurrences', {
       p_student_ids: studentIds,
       p_start: filters.start,
       p_end: filters.end
-    });
-    if (token !== fetchToken) return;
+    }, token);
+    if (stale || token !== fetchToken) return;
     if (error) {
       occurrencesByStudent = new Map();
       occurrenceSignature = '';
+      occurrenceError = true;
       return;
     }
     occurrencesByStudent = new Map();
-    (data || []).forEach(item => {
+    data.forEach(item => {
       if (!occurrencesByStudent.has(item.student_id)) occurrencesByStudent.set(item.student_id, []);
       occurrencesByStudent.get(item.student_id).push(item);
     });
     occurrenceSignature = signature;
+    occurrenceError = false;
   }
 
   function studentHasRecord(student, filters) {
@@ -204,6 +238,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     await fetchOccurrencesDataset(filters);
+    if (occurrenceError) {
+      previewEl.textContent = 'Não foi possível carregar as ocorrências. Tente novamente.';
+      return;
+    }
     const total = datasetStudents.length;
     const withRecords = datasetStudents.filter(item => studentHasRecord(item, filters)).length;
     const included = selectedStudents(filters).length;
@@ -405,6 +443,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchStudentsDataset(filters);
     if (datasetError) { toast('Não foi possível carregar os alunos. Verifique se o script supabase-reports.sql foi executado.'); return; }
     await fetchOccurrencesDataset(filters);
+    if (occurrenceError) { toast('Não foi possível carregar as ocorrências. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;

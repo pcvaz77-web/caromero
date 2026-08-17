@@ -91,6 +91,10 @@ grant execute on function public.report_students(text, uuid, uuid) to authentica
 --    período opcional. Mesma proteção de report_students(). Devolve só
 --    os campos necessários ao PDF (data, responsável, descrição) — nada
 --    de status/categoria/campo que não existe na tabela.
+--    occurrence_text é varchar(500) em student_occurrences (supabase-
+--    occurrences.sql); a função declara text no retorno, então precisa do
+--    cast explícito abaixo (::text) — sem ele o Postgres recusa a função
+--    inteira com "structure of query does not match function result type".
 -- =====================================================================
 create or replace function public.report_occurrences(
   p_student_ids uuid[],
@@ -118,7 +122,7 @@ begin
   end if;
 
   return query
-  select o.student_id, o.occurred_on, o.created_by_name, o.occurrence_text
+  select o.student_id, o.occurred_on, o.created_by_name, o.occurrence_text::text
   from public.student_occurrences o
   where o.student_id = any(p_student_ids)
     and (p_start is null or o.occurred_on >= p_start)
