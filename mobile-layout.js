@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         gap:8px !important;
       }
       .side .nav button,
-      .side .nav #studentsNav,
+      .side .nav #reportsNav,
       .side .nav #permissionsNav,
       .side .nav #uniformNav,
       .side .nav #occurrenceNav,
@@ -152,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!window.matchMedia('(max-width:1100px)').matches) return;
     const hideAdminCommands = permission?.role !== 'admin';
     const canViewUniform = permission?.role === 'admin' || (!!permission?.is_coordinator && !!(permission?.can_edit_all || permission?.can_view_uniform || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
+    const canViewReports = permission?.role === 'admin' || !!permission?.is_coordinator;
     const syncButton = (id, hidden) => {
       const button = document.getElementById(id);
       if (!button) return;
@@ -166,6 +167,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do
     // menu em um perfil de professor(a), mesmo que a tela móvel seja aberta.
     syncButton('uniformNav', !canViewUniform);
+    // Mesma defesa em profundidade de Uniforme: Relatórios é recurso de
+    // administrador/coordenador e nunca pode aparecer por causa do CSS do
+    // menu móvel para um perfil de professor(a).
+    syncButton('reportsNav', !canViewReports);
   };
   document.addEventListener('carometro:permission-refresh', syncAdminOnlyNavigation);
   new MutationObserver(syncAdminOnlyNavigation).observe(document.querySelector('.side'), { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
@@ -284,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
         letter-spacing:-.4px;
       }
       .side .nav button,
-      .side .nav #studentsNav,
+      .side .nav #reportsNav,
       .side .nav #permissionsNav,
       .side .nav #uniformNav,
       .side .nav #occurrenceNav,
@@ -306,7 +311,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       .side .nav button.hidden,
       .side .nav .settings-nav.hidden { display:none !important; }
-      .side .nav #studentsNav { display:none !important; }
       .side .nav #profileNav { order:initial !important; }
       #profileNav .profile-nav-desktop { display:inline !important; }
       #profileNav .profile-nav-mobile { display:none !important; }
@@ -401,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
+    if (!document.getElementById('reportsModal')?.classList.contains('hidden')) return 'reportsNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
     if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
     if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';
@@ -542,6 +547,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
+    if (!document.getElementById('reportsModal')?.classList.contains('hidden')) return 'reportsNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
     if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
     if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';

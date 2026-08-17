@@ -465,11 +465,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .profile-user { display:flex; align-items:center; gap:12px; padding:14px; margin-bottom:22px; border-radius:11px; background:#f4f7ff; }
     .profile-user-mark { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:#dce6ff; color:#315dbb; font-weight:850; }
     .profile-drawer-footer { padding:18px 24px 24px; border-top:1px solid var(--line); }
-    #studentsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
-    #studentsNav:hover, #studentsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
+    #reportsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
+    #reportsNav:hover, #reportsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
     @media(max-width:800px) {
       .side .nav { flex-direction:row; align-items:center; gap:8px; }
-      .side .nav #studentsNav { flex:0 1 135px !important; min-width:0; }
+      .side .nav #reportsNav { flex:0 1 135px !important; min-width:0; }
       .side .nav #permissionsNav { flex:1 1 0 !important; min-width:0; }
       .side .nav #profileNav { flex:0 0 68px !important; min-height:58px; margin-left:auto; padding:4px 0 !important; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; }
       #profileNav .profile-nav-desktop { display:none; }
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .profile-nav-avatar span { position:absolute; bottom:-5px; left:5px; width:19px; height:16px; border-radius:50% 50% 0 0; background:#f6f8fc; }
       .profile-drawer { width:min(390px,92vw); }
     }
-    @media(max-width:340px) { .side .nav { gap:6px; } .side .nav #studentsNav { flex-basis:115px !important; } .side .nav #profileNav { flex-basis:62px !important; } }
+    @media(max-width:340px) { .side .nav { gap:6px; } .side .nav #reportsNav { flex-basis:115px !important; } .side .nav #profileNav { flex-basis:62px !important; } }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }
     .photo-source-actions .btn, .photo-controls .btn { min-height:38px; padding:8px 11px; }
     #photoFile, .photo-source-input { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
