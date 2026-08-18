@@ -1,103 +1,109 @@
 // CARÔMETRO COMERCIAL
 // Painel do proprietário da plataforma
-// Módulo inicial
-//
-// Objetivo:
-// Criar a entrada segura do painel da plataforma.
-// Não altera permissões existentes.
 
 (() => {
 
-  const createPlatformNavigation = () => {
+  function createPlatformNavigation() {
+
     const nav = document.querySelector('.nav');
 
-    if (!nav) return;
+    if (!nav) {
+      return;
+    }
 
-    if (document.getElementById('platformNav')) return;
+    if (document.getElementById('platformNav')) {
+      return;
+    }
 
     const button = document.createElement('button');
 
     button.id = 'platformNav';
-    button.className = 'hidden';
     button.innerHTML = '👑 &nbsp; Plataforma';
+    button.className = 'hidden';
 
-    const permissions = document.getElementById('permissionsNav');
-
-    if (permissions) {
-      nav.insertBefore(button, permissions);
-    } else {
-      nav.appendChild(button);
-    }
+    nav.insertBefore(
+      button,
+      nav.firstChild
+    );
 
     button.onclick = () => {
       alert('Painel da Plataforma em desenvolvimento.');
     };
-  };
+
+  }
 
 
-  const checkPlatformOwner = async () => {
+  async function checkPlatformOwner() {
 
-    try {
+    const button =
+      document.getElementById('platformNav');
 
-      const { data: { user }, error: userError } = await db.auth.getUser();
-
-if (userError || !user) return;;
-
-
-      const { data, error } = await db
-        .from('platform_admins')
-        .select('role,status')
-        .eq('user_id', user.id)
-        .single();
-
-
-      if (error || !data) {
-        document
-          .getElementById('platformNav')
-          ?.classList.add('hidden');
-
-        return;
-      }
-
-
-      const isOwner =
-        data.role === 'owner' &&
-        data.status === 'active';
-
-
-      document
-        .getElementById('platformNav')
-        ?.classList.toggle(
-          'hidden',
-          !isOwner
-        );
-
-
-    } catch (error) {
-
-      console.error(
-        'Erro ao verificar proprietário:',
-        error
-      );
-
+    if (!button) {
+      return;
     }
 
-  };
+
+    const {
+      data: { user }
+    } = await db.auth.getUser();
 
 
-  document.addEventListener('DOMContentLoaded', () => {
-
-  createPlatformNavigation();
-
-  setTimeout(
-    checkPlatformOwner,
-    500
-  );
-
-});
+    if (!user) {
+      button.classList.add('hidden');
+      return;
+    }
 
 
-document.addEventListener(
-  'carometro:permission-refresh',
-  checkPlatformOwner
-);
+    const { data, error } = await db
+      .from('platform_admins')
+      .select('role,status')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+
+    if (error || !data) {
+      button.classList.add('hidden');
+      return;
+    }
+
+
+    const owner =
+      data.role === 'owner' &&
+      data.status === 'active';
+
+
+    button.classList.toggle(
+      'hidden',
+      !owner
+    );
+
+  }
+
+
+  function start() {
+
+    createPlatformNavigation();
+
+    setTimeout(
+      checkPlatformOwner,
+      1000
+    );
+
+  }
+
+
+  if (document.readyState === 'loading') {
+
+    document.addEventListener(
+      'DOMContentLoaded',
+      start
+    );
+
+  } else {
+
+    start();
+
+  }
+
+
+})();
