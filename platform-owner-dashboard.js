@@ -39,9 +39,9 @@
 
     try {
 
-      const user = await signedIn();
+      const { data: { user }, error: userError } = await db.auth.getUser();
 
-      if (!user) return;
+if (userError || !user) return;;
 
 
       const { data, error } = await db
