@@ -182,7 +182,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const userChoice = document.getElementById('counselorUser').value;
     const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
     if (!selectedUser) { toast('Selecione um usuário cadastrado como conselheiro.'); return; }
-    const row = { class_id:document.getElementById('counselorClass').value, counselor_user_id:selectedUser.user_id, counselor_name:counselorName(selectedUser) };
+    const classId = document.getElementById('counselorClass').value;
+    const selectedClass = classes.find(item => item.id === classId);
+    if (!selectedClass?.school_id) { toast('Não foi possível identificar a escola desta turma. Recarregue a página e tente novamente.'); return; }
+    const row = { class_id:classId, counselor_user_id:selectedUser.user_id, counselor_name:counselorName(selectedUser), school_id:selectedClass.school_id };
     const request = editingCounselorId
       ? db.from('class_counselors').update(row).eq('id', editingCounselorId)
       : selectedUser
