@@ -181,6 +181,35 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshUnreadCount();
   }
 
+  // Deep link do push: abre uma notificação direto pelo id, sem depender
+  // dela já estar carregada no array em memória (o push pode chegar antes
+  // do sino ter sido aberto nesta sessão). Busca a linha com uma consulta
+  // nova, sujeita à mesma RLS de sempre ("Own notifications": recipient_id
+  // = auth.uid()) — se não vier nada (não existe, foi excluída ou não é do
+  // usuário), cai no mesmo "não disponível" que o sino já usa. Reaproveita
+  // resolveNotificationTarget() em vez de duplicar a lógica por target_type.
+  async function openNotificationById(id) {
+    const numericId = Number(id);
+    if (!Number.isFinite(numericId)) return;
+    const { data: item, error } = await db.from('user_notifications')
+      .select('id,target_type,target_id,class_id,read_at')
+      .eq('id', numericId)
+      .maybeSingle();
+    if (error || !item) {
+      toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
+      return;
+    }
+    const navigate = await resolveNotificationTarget(item);
+    if (!navigate) {
+      toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
+      return;
+    }
+    panel.classList.add('hidden');
+    if (!item.read_at) await markRead(id);
+    navigate();
+  }
+  window.openNotificationById = openNotificationById;
+
   document.getElementById('markAllNotificationsRead').onclick = async () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
