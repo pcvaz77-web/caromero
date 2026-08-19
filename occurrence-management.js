@@ -25,21 +25,69 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const get = id => document.getElementById(id);
-  const isAdmin = () => permission?.role === 'admin';
-  const isCoordinator = () => !!permission?.is_coordinator;
-  // Professores comuns e o administrador sempre veem ocorrências (mesmo
-  // alcance amplo que já tinham). Coordenadores só veem se a permissão
-  // avançada correspondente (ou "Editar tudo") estiver marcada — mesmo
-  // padrão já usado por canEditOccurrence/canDeleteOccurrence abaixo.
-  const canViewOccurrences = () => !isCoordinator() || isAdmin() || !!permission?.can_edit_all || !!permission?.can_view_occurrences;
-  const hasOccurrencePermission = key => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.[key]));
-  // Registrar e consultar Ocorrências são funções padrão de todo professor.
-  // As permissões avançadas de coordenador só ampliam a edição/exclusão de
-  // registros feitos por outras pessoas.
-  const canRegisterOccurrence = () => !!user?.id;
+  // Fonte de autorização de ocorrências: school_members + school_member_permissions,
+  // a mesma fonte usada pela RLS real de student_occurrences — não mais
+  // user_permissions (que não tem nenhum efeito sobre essa RLS). Mantidos
+  // atualizados por carga inicial + eventos do app (carometro:data-loaded,
+  // carometro:permission-refresh) + Realtime nas duas tabelas — sem polling.
+  let occurrenceMembership = null;
+  let occurrencePermission = { can_view_occurrences:false, can_register_occurrences:false, can_edit_occurrences:false, can_delete_occurrences:false, can_edit_all:false };
+  // Um par de canais Realtime por member_id atualmente carregado — nunca mais
+  // de um par vivo ao mesmo tempo (ver ensureOccurrenceChannels/teardown abaixo).
+  let occurrencePermissionChannel = null;
+  let occurrenceMembershipChannel = null;
+  let occurrenceChannelMemberId = null;
+  const isSchoolAdmin = () => occurrenceMembership?.role === 'school_admin';
+  // Espelha a policy "school_members_can_view_occurrences": bypass automático
+  // só para school_admin; qualquer outro papel depende só das flags.
+  const canViewOccurrences = () => isSchoolAdmin() || !!occurrencePermission.can_edit_all || !!occurrencePermission.can_view_occurrences;
+  // Espelha "authorized_school_members_can_add_occurrences": além da flag,
+  // exige um vínculo ativo (created_by/school_id são resolvidos pela RLS/trigger).
+  const canRegisterOccurrence = () => !!occurrenceMembership && (isSchoolAdmin() || !!occurrencePermission.can_edit_all || !!occurrencePermission.can_register_occurrences);
   const isOccurrenceAuthor = item => !!item?.created_by && item.created_by === user?.id;
-  const canEditOccurrence = item => isOccurrenceAuthor(item) || isAdmin() || hasOccurrencePermission('can_edit_occurrences');
-  const canDeleteOccurrence = item => isOccurrenceAuthor(item) || isAdmin() || hasOccurrencePermission('can_delete_occurrences');
+  // Espelha "authorized_school_members_can_edit/delete_occurrences": autoria
+  // (created_by = auth.uid()) É, por si só, suficiente — não depende de flag.
+  const canEditOccurrence = item => isOccurrenceAuthor(item) || isSchoolAdmin() || !!occurrencePermission.can_edit_all || !!occurrencePermission.can_edit_occurrences;
+  const canDeleteOccurrence = item => isOccurrenceAuthor(item) || isSchoolAdmin() || !!occurrencePermission.can_edit_all || !!occurrencePermission.can_delete_occurrences;
+  const emptyOccurrencePermission = () => ({ can_view_occurrences:false, can_register_occurrences:false, can_edit_occurrences:false, can_delete_occurrences:false, can_edit_all:false });
+  async function teardownOccurrenceChannels() {
+    if (occurrencePermissionChannel) { await db.removeChannel(occurrencePermissionChannel); occurrencePermissionChannel = null; }
+    if (occurrenceMembershipChannel) { await db.removeChannel(occurrenceMembershipChannel); occurrenceMembershipChannel = null; }
+    occurrenceChannelMemberId = null;
+  }
+  // Garante exatamente um par de canais vivo, sempre referente ao member_id
+  // atual — se o vínculo mudar (ex.: troca de conta), o par anterior é
+  // removido antes de assinar o novo, evitando canais duplicados/vazados.
+  async function ensureOccurrenceChannels(memberId) {
+    if (occurrenceChannelMemberId === memberId && occurrencePermissionChannel && occurrenceMembershipChannel) return;
+    await teardownOccurrenceChannels();
+    if (!db.channel) return;
+    occurrenceChannelMemberId = memberId;
+    const onRemoteChange = () => { refreshOccurrenceMembership().then(() => { syncOccurrenceNavigation(); syncSaveAction(); refreshLabelState(); }); };
+    // Flags de ocorrência (can_view/register/edit/delete_occurrences, can_edit_all).
+    occurrencePermissionChannel = db.channel(`occurrence-permission-${memberId}`).on(
+      'postgres_changes',
+      { event:'UPDATE', schema:'public', table:'school_member_permissions', filter:`member_id=eq.${memberId}` },
+      onRemoteChange
+    ).subscribe();
+    // Papel/status do próprio vínculo (ex.: promoção/remoção de coordenador).
+    // Filtro restrito ao id do próprio membro — nunca amplia o escopo de dados.
+    occurrenceMembershipChannel = db.channel(`occurrence-membership-${memberId}`).on(
+      'postgres_changes',
+      { event:'UPDATE', schema:'public', table:'school_members', filter:`id=eq.${memberId}` },
+      onRemoteChange
+    ).subscribe();
+  }
+  async function refreshOccurrenceMembership() {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
+    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('status', 'active').limit(1).maybeSingle();
+    if (!membership) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
+    occurrenceMembership = membership;
+    const { data: perms } = await db.from('school_member_permissions').select('can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_edit_all').eq('member_id', membership.id).maybeSingle();
+    occurrencePermission = perms || emptyOccurrencePermission();
+    await ensureOccurrenceChannels(membership.id);
+  }
   const escape = value => { const node = document.createElement('span'); node.textContent = value || ''; return node.innerHTML; };
   const today = () => new Date().toISOString().slice(0, 10);
   const formatDate = value => value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
@@ -192,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
     list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item" data-occurrence-id="${item.id}"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
-    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
+    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
     modal.classList.remove('hidden');
     await load();
     fillClasses();
@@ -209,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // consulta nova ao Supabase que a ocorrência existe e está acessível —
   // aqui só reaproveitamos a busca e a renderização que já existem.
   async function openFocused({ occurrenceId, studentId, classId } = {}) {
-    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este coordenador.'); return; }
+    if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
     modal.classList.remove('hidden');
     await load();
     fillClasses();
@@ -369,7 +417,8 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshLabelState();
     if (!modal.classList.contains('hidden')) await refreshHistory();
   });
-  document.addEventListener('carometro:permission-refresh', () => {
+  document.addEventListener('carometro:permission-refresh', async () => {
+    await refreshOccurrenceMembership();
     syncOccurrenceNavigation();
     syncSaveAction();
     // Sem isto, revogar can_view_occurrences no meio da sessão só escondia o
@@ -382,6 +431,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('carometro:data-loaded', async () => {
     // Recursos adicionais recebem a conclusão da carga central sem encadear
     // wrappers em window.load, o que evita respostas fora de ordem.
+    await refreshOccurrenceMembership();
     await refreshLabelState();
     if (!modal.classList.contains('hidden')) {
       fillClasses();
@@ -391,5 +441,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
   new MutationObserver(syncOccurrenceNavigation).observe(get('app'), { attributes:true, attributeFilter:['class'] });
-  setTimeout(syncOccurrenceNavigation, 0);
+  // Atualização orientada a eventos: carga inicial aqui, mais os listeners de
+  // carometro:data-loaded/carometro:permission-refresh acima, mais os dois
+  // canais Realtime (flags e papel) assinados dentro de refreshOccurrenceMembership.
+  // Sem polling.
+  refreshOccurrenceMembership().then(() => { syncOccurrenceNavigation(); syncSaveAction(); });
 });
