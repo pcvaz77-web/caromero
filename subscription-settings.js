@@ -19,6 +19,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .access-user .access-actions .btn { min-height:38px; }
     .access-active { color:#08784b; font-weight:700; }
     .access-suspended { color:#b42318; font-weight:700; }
+    .access-pending { color:#9a6b00; font-weight:700; }
+    .access-unknown { color:#6b5bd6; font-weight:700; }
     @media(max-width:800px) { .subscription-summary,.access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } }
   `;
   document.head.appendChild(style);
@@ -99,23 +101,33 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
-    const { data, error } = await db.from('user_permissions')
-      .select('user_id,role,access_status,profiles(email,full_name)')
-      .order('updated_at');
+    const { data, error } = await db.rpc('admin_list_accounts');
     if (error) {
       target.innerHTML = '<div class="error">Execute primeiro o arquivo de configuração de acesso no Supabase.</div>';
       return;
     }
+    function accountStatus(item) {
+      if (item.role === 'admin') return { cls:'access-active', label:'Acesso ativo', toggle:null };
+      if (!item.email_confirmed) return { cls:'access-pending', label:'Aguardando confirmação de e-mail', toggle:null };
+      if (item.access_status === 'active') return { cls:'access-active', label:'Acesso ativo', toggle:'suspended' };
+      if (item.access_status === 'suspended') return { cls:'access-suspended', label:'Acesso suspenso', toggle:'active' };
+      // E-mail confirmado mas sem access_status definido (sem linha em user_permissions,
+      // ou valor inesperado): não deve ser classificado como ativo nem como suspenso.
+      return { cls:'access-unknown', label:'Acesso sem permissão configurada', toggle:null };
+    }
     target.innerHTML = (data || []).map(item => {
       const admin = item.role === 'admin';
-      const active = admin || item.access_status !== 'suspended';
-      const name = item.profiles?.full_name?.trim() || 'Nome não informado';
-      const email = item.profiles?.email || 'Usuário';
-      return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${active ? 'access-active' : 'access-suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</div></div><div class="access-actions">${admin ? '<span class="meta">Administrador principal</span>' : `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${active ? 'suspended' : 'active'}')">${active ? 'Suspender acesso' : 'Reativar acesso'}</button>`}</div></article>`;
+      const status = accountStatus(item);
+      const name = item.full_name?.trim() || 'Nome não informado';
+      const email = item.email || 'Usuário';
+      const toggleButton = status.toggle
+        ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender acesso' : 'Reativar acesso'}</button>`
+        : '';
+      return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${admin ? '<span class="meta">Administrador principal</span>' : toggleButton}</div></article>`;
     }).join('') || '<div class="empty">Nenhum usuário encontrado.</div>';
     (data || []).forEach((item, index) => {
       if (item.role === 'admin') return;
-      const email = item.profiles?.email || '';
+      const email = item.email || '';
       const controls = target.querySelectorAll('.access-actions')[index];
       if (!controls) return;
       const cancel = document.createElement('button');
