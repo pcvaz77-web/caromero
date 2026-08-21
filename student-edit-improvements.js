@@ -86,6 +86,31 @@ document.addEventListener('DOMContentLoaded', () => {
     closeProfileDrawer();
     toast(email !== signedInUser.email ? 'Alterações salvas. Confirme o novo e-mail pela mensagem recebida.' : 'Alterações salvas.');
   };
+  // profiles.email só pode ser gravado com o e-mail que já está confirmado
+  // na sessão (a RLS de profiles exige isso), então o upsert acima sempre
+  // grava o e-mail antigo enquanto a troca está pendente de confirmação.
+  // Sincroniza só essa coluna, isolado de showApp()/load()/profile(), para
+  // não recarregar a lista de alunos, Realtime ou notificações à toa.
+  // SIGNED_IN/USER_UPDATED cobrem a confirmação processada nesta mesma
+  // aba. TOKEN_REFRESHED foi deliberadamente deixado de fora: não há como
+  // confirmar, sem testar ao vivo, que a renovação de token de uma sessão
+  // antiga realmente traz o e-mail já atualizado — e o caso de confirmação
+  // em outra aba/dispositivo já fica coberto por lá mesmo, pelo bootstrap
+  // de DOMContentLoaded (getSession() -> showApp() -> profile()) rodando
+  // naquele outro lugar. Callback fica síncrono (nunca async/await direto
+  // nele) e a chamada é adiada com setTimeout(...,0), conforme a prática
+  // recomendada pelo Supabase para trabalho assíncrono dentro de
+  // onAuthStateChange; o erro retornado pelo PostgREST é tratado, nunca
+  // vira uma Promise rejeitada silenciosa.
+  db.auth.onAuthStateChange((event, session) => {
+    if (!['SIGNED_IN', 'USER_UPDATED'].includes(event)) return;
+    const signedInUser = session?.user;
+    if (!signedInUser?.email) return;
+    setTimeout(() => {
+      db.from('profiles').update({ email: signedInUser.email }).eq('id', signedInUser.id)
+        .then(({ error }) => { if (error) console.error('Não foi possível sincronizar profiles.email:', error.message); });
+    }, 0);
+  });
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
