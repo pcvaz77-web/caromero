@@ -41,6 +41,8 @@
     </div>
 
     <div id="authSection" class="hidden">
+      <p id="accountExistsNotice" class="muted-box hidden" style="margin-bottom:16px">Já existe uma conta para o e-mail deste convite. Entre com sua senha para aceitar o convite — ou use "Esqueci minha senha" se não lembrar.</p>
+
       <div class="tabs">
         <button type="button" class="tab active" id="tabSignup">Criar conta</button>
         <button type="button" class="tab" id="tabLogin">Já tenho conta</button>
@@ -60,6 +62,8 @@
         <div class="field"><label>Seu e-mail (use exatamente o e-mail convidado acima)</label><input id="liEmail" type="email" required autocomplete="email"></div>
         <div class="field"><label>Senha</label><input id="liPassword" type="password" required autocomplete="current-password"></div>
         <button id="liSubmit" class="btn" type="submit">Entrar e aceitar convite</button>
+        <button id="liForgotPassword" class="btn secondary" type="button">Esqueci minha senha</button>
+        <p id="recoveryNotice" class="muted-box hidden" style="margin-top:14px">Link de recuperação enviado. Confira seu e-mail e clique nele para voltar e concluir o convite.</p>
       </form>
     </div>
 
@@ -178,8 +182,17 @@
       // conta logada no navegador), NUNCA aceita automaticamente — sempre
       // pede confirmação explícita de qual conta usar.
       const { data: { session } } = await db.auth.getSession();
-      if (session) showSessionChoice(session.user.email);
-      else showAuthForms();
+      if (session) { showSessionChoice(session.user.email); return; }
+      showAuthForms();
+      // O e-mail convidado já tem conta confirmada: signUp() nela não cria
+      // nada nem envia e-mail novo (o Supabase responde como se tivesse
+      // dado certo, silenciosamente, para não permitir enumeração de
+      // contas) — abrir direto em "Já tenho conta" evita que a pessoa seja
+      // induzida a "criar conta" e depois ache que um e-mail foi enviado.
+      if (preview.email_has_account) {
+        $('tabLogin').click();
+        $('accountExistsNotice').classList.remove('hidden');
+      }
     }
 
     $('continueSessionBtn').onclick = () => finishAccept();
@@ -236,6 +249,22 @@
       setBusy(false);
       if (error) { showFormError(error.message); return; }
       await finishAccept();
+    };
+
+    // Mesmo mecanismo já usado em index.html (resetPasswordForEmail), só
+    // com redirectTo apontando de volta para este link de convite (com o
+    // token preservado na query string) — ao clicar no e-mail de
+    // recuperação, a pessoa volta autenticada direto para cá e vê a tela
+    // "Continuar com esta conta".
+    $('liForgotPassword').onclick = async () => {
+      clearFormError();
+      const email = $('liEmail').value.trim();
+      if (!email) { showFormError('Informe seu e-mail para receber o link de recuperação.'); return; }
+      $('liForgotPassword').disabled = true;
+      const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: location.href });
+      $('liForgotPassword').disabled = false;
+      if (error) { showFormError(error.message); return; }
+      $('recoveryNotice').classList.remove('hidden');
     };
 
     boot();
