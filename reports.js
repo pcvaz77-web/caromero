@@ -260,6 +260,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return value ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${value}T00:00:00`)) : 'Sem data';
   }
 
+  // Mesmo padrão de data/hora já usado na tela de Ocorrências
+  // (occurrence-management.js) — created_at/updated_at são timestamptz reais,
+  // por isso usam o fuso local do navegador, ao contrário de occurred_on
+  // (formatDate acima), que é uma data pura tratada em UTC fixo.
+  function formatDateTime(value) {
+    return value ? `${new Intl.DateTimeFormat('pt-BR').format(new Date(value))} ${new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit' }).format(new Date(value))}` : '';
+  }
+
   async function loadPhotoDataUrl(photoPath) {
     if (!photoPath) return null;
     try {
@@ -393,17 +401,34 @@ document.addEventListener('DOMContentLoaded', () => {
         y += 9;
       } else {
         records.forEach(record => {
-          y = ensureSpace(doc, y, 12, `Continuação — ${student.full_name}`);
+          const continuationLabel = `Continuação — ${student.full_name}`;
+          y = ensureSpace(doc, y, 12, continuationLabel);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(20, 32, 58);
           doc.text(`${formatDate(record.occurred_on)} — Responsável: ${record.created_by_name || 'Não informado'}`, MARGIN_X, y);
-          y += 6;
+          y += 5;
+          // Autoria/data de criação nunca são substituídas por uma edição —
+          // esta linha reflete sempre o registro original (created_at real,
+          // com hora, vindo do banco), independente de a ocorrência já ter
+          // sido editada ou não.
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.setTextColor(102, 112, 133);
+          y = ensureSpace(doc, y, 5, continuationLabel);
+          doc.text(`Registrado em: ${formatDateTime(record.created_at)}`, MARGIN_X, y);
+          y += 5;
+          if (record.updated_at) {
+            y = ensureSpace(doc, y, 5, continuationLabel);
+            doc.text(`Última edição: ${record.updated_by_name || 'Não informado'} — ${formatDateTime(record.updated_at)}`, MARGIN_X, y);
+            y += 5;
+          }
+          y += 1;
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10.5);
           doc.setTextColor(52, 64, 84);
           const split = doc.splitTextToSize(record.occurrence_text || '', A4_WIDTH - MARGIN_X * 2);
-          y = printLines(doc, split, MARGIN_X, y, 5.4, `Continuação — ${student.full_name}`);
+          y = printLines(doc, split, MARGIN_X, y, 5.4, continuationLabel);
           y += 6;
         });
       }
@@ -442,6 +467,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const filters = currentFilters();
     await fetchStudentsDataset(filters);
     if (datasetError) { toast('Não foi possível carregar os alunos. Verifique se o script supabase-reports.sql foi executado.'); return; }
+    // O PDF nunca pode sair com ocorrências desatualizadas (ex.: uma excluída
+    // segundos antes deste clique). Zerar a assinatura aqui, de forma síncrona
+    // e imediatamente antes da busca, garante que a checagem de cache dentro
+    // de fetchOccurrencesDataset() nunca reaproveite um resultado antigo — o
+    // fetchToken já existente cuida de descartar qualquer resposta de uma
+    // busca anterior que ainda estivesse em andamento.
+    occurrenceSignature = '';
     await fetchOccurrencesDataset(filters);
     if (occurrenceError) { toast('Não foi possível carregar as ocorrências. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
@@ -542,6 +574,12 @@ document.addEventListener('DOMContentLoaded', () => {
   get('generateReport').onclick = generateReport;
 
   document.addEventListener('carometro:permission-refresh', syncReportsNavigation);
+  // Ocorrência criada/editada/excluída em qualquer lugar do app (evento já
+  // disparado por realtime-sync.js) invalida o cache local de ocorrências
+  // deste módulo. generateReport() também força esse mesmo reset por conta
+  // própria antes de montar o PDF — este listener cobre além disso a prévia,
+  // caso o modal de Relatórios fique aberto enquanto algo muda.
+  document.addEventListener('carometro:occurrences-changed', () => { occurrenceSignature = ''; });
   new MutationObserver(syncReportsNavigation).observe(get('app'), { attributes:true, attributeFilter:['class'] });
   setTimeout(syncReportsNavigation, 0);
 });
