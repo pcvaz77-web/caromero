@@ -22,14 +22,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const style = document.createElement('style');
   style.textContent = `
-    .notification-preferences { padding:0 24px 22px; }
+    .notification-preferences { padding:0 24px 22px; flex:1 1 auto; min-height:100px; display:flex; flex-direction:column; }
     .notification-preferences-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
     .notification-preferences-head .eyebrow { margin:0; }
     .notification-preferences-actions { display:flex; gap:12px; }
     .notification-preferences-actions .link { font-size:12px; }
-    .class-notification-list { display:grid; gap:7px; margin-top:12px; max-height:260px; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; }
+    .class-notification-list { display:grid; align-content:start; gap:7px; margin-top:12px; max-height:none; flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; scrollbar-width:thin; scrollbar-color:#c9d3e8 transparent; }
+    .class-notification-list::-webkit-scrollbar { width:10px; }
+    .class-notification-list::-webkit-scrollbar-track { background:transparent; }
+    .class-notification-list::-webkit-scrollbar-thumb { background:#c9d3e8; border-radius:99px; }
+    .class-notification-list::-webkit-scrollbar-thumb:hover { background:#a9b8d6; }
     .class-notification-item { display:flex; align-items:center; gap:9px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:13px; font-weight:650; }
     .class-notification-item input { width:auto; min-height:0; }
+    /* Piso real na lista rolável, não só no bloco que a envolve — sem isso o
+       cabeçalho/descrição da seção tomavam todo o espaço mínimo reservado e a
+       lista em si era comprimida até sumir. Só desktop por enquanto; celular
+       será testado separadamente. */
+    @media (min-width:801px) {
+      #notificationPreferences { min-height:300px; }
+      .class-notification-list { min-height:200px; }
+    }
+    /* Mesmo problema do desktop (lista comprimida a 0px pelo cabeçalho/
+       descrição da seção), agora coberto também em telas menores, com pisos
+       proporcionalmente menores. Não mexe no bloco acima, aprovado para desktop. */
+    @media (max-width:800px) {
+      #notificationPreferences { min-height:236px; }
+      .class-notification-list { min-height:140px; }
+    }
   `;
   document.head.appendChild(style);
 

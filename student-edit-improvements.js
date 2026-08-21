@@ -452,19 +452,19 @@ document.addEventListener('DOMContentLoaded', () => {
     .photo-controls { display:flex; gap:8px; margin-top:10px; }
     .welcome-greeting { margin:0 0 8px; color:var(--blue); font-size:15px; font-weight:800; }
     .student-laudo-label { color:#b54708; font-weight:750; }
-    .nav { display:flex; flex-direction:column; gap:6px; }
+    .nav { display:flex; flex-direction:column; gap:4px; }
     #profileNav { margin:0; }
     .profile-nav-mobile { display:none; }
     .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
-    .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
+    .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; overflow-y:auto; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
     .profile-drawer.open { transform:translateX(0); }
-    .profile-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:26px 24px 18px; border-bottom:1px solid var(--line); }
+    .profile-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:18px 24px 12px; border-bottom:1px solid var(--line); }
     .profile-drawer-head .eyebrow { margin:0 0 4px; }
     .profile-drawer-head h2 { margin:0; font-size:24px; }
-    .profile-form { flex:1; overflow:auto; padding:22px 24px; }
-    .profile-user { display:flex; align-items:center; gap:12px; padding:14px; margin-bottom:22px; border-radius:11px; background:#f4f7ff; }
+    .profile-form { flex:0 0 auto; overflow:visible; padding:14px 24px 0; }
+    .profile-user { display:flex; align-items:center; gap:12px; padding:12px; margin-bottom:14px; border-radius:11px; background:#f4f7ff; }
     .profile-user-mark { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:#dce6ff; color:#315dbb; font-weight:850; }
-    .profile-drawer-footer { padding:18px 24px 24px; border-top:1px solid var(--line); }
+    .profile-drawer-footer { padding:12px 24px 16px; border-top:1px solid var(--line); }
     #reportsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
     #reportsNav:hover, #reportsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
     @media(max-width:800px) {
