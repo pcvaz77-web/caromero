@@ -34,8 +34,14 @@ document.addEventListener('DOMContentLoaded', () => {
     return isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform);
   };
   const bulkUniformAccess = () => {
-    if (isAdmin()) return { allowed:true, ids:null };
-    return { allowed:isCoordinator() && !!permission?.can_mark_all_uniform_received, classId:null, ids:null };
+    const classId = get('uniformClass').value || null;
+    const selectedClassName = value => String(value || '').trim().toLocaleLowerCase('pt-BR');
+    const selectedTargetName = classId ? selectedClassName(classes.find(item => item.id === classId)?.name) : '';
+    const ids = classId
+      ? students.filter(item => item.classId === classId || selectedClassName(item.className) === selectedTargetName).map(item => item.id)
+      : null;
+    if (isAdmin()) return { allowed:true, classId, ids };
+    return { allowed:isCoordinator() && !!permission?.can_mark_all_uniform_received, classId, ids };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
@@ -324,13 +330,13 @@ document.addEventListener('DOMContentLoaded', () => {
   get('markAllUniformReceived').onclick = async () => {
     const access = bulkUniformAccess();
     if (!access.allowed) return;
-    const targetIsClass = Array.isArray(access.ids);
-    if (targetIsClass && !access.ids.length) { toast('Selecione uma turma com alunos para usar esta ação.'); return; }
-    if (!confirm(targetIsClass ? 'Marcar todos os alunos desta turma como receberam uniforme, tênis e material?' : 'Marcar todos os alunos como receberam uniforme, tênis e material?')) return;
+    if (!access.classId) { toast('Selecione uma turma para usar esta ação.'); return; }
+    if (!access.ids.length) { toast('Selecione uma turma com alunos para usar esta ação.'); return; }
+    if (!confirm('Marcar todos os alunos desta turma como receberam uniforme, tênis e material?')) return;
     const button = get('markAllUniformReceived');
     button.disabled = true;
     const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true, material_received:true };
-    const { error } = await db.rpc('mark_all_uniform_received', { target_class_id:access.classId || null });
+    const { error } = await db.rpc('mark_all_uniform_received', { target_class_id:access.classId });
     if (error) {
       button.disabled = false;
       toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message);
@@ -343,14 +349,14 @@ document.addEventListener('DOMContentLoaded', () => {
       item.shoes_received = true;
       item.material_received = true;
     };
-    const affectedIds = targetIsClass ? new Set(access.ids) : null;
-    const markAffectedReceived = item => { if (!affectedIds || affectedIds.has(item?.id)) markReceived(item); };
+    const affectedIds = new Set(access.ids);
+    const markAffectedReceived = item => { if (affectedIds.has(item?.id)) markReceived(item); };
     students.forEach(markAffectedReceived);
     uniformRecords.forEach(markAffectedReceived);
     classStudents?.forEach(markAffectedReceived);
     uniformStateRequest += 1;
     students.forEach(item => {
-      if (!affectedIds || affectedIds.has(item?.id)) {
+      if (affectedIds.has(item?.id)) {
         locallyUpdatedUniformIds.add(item.id);
         canonicalUniformState.set(item.id, { id:item.id, ...nextState });
       }
@@ -361,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateUniformSummary();
     render();
     button.disabled = false;
-    toast(targetIsClass ? 'Todos os alunos da turma foram marcados como receberam.' : 'Todos os alunos foram marcados como receberam.');
+    toast('Todos os alunos da turma foram marcados como receberam.');
   };
   document.addEventListener('carometro:data-loaded', () => {
     // O carregamento principal já trouxe os campos de Uniforme. Reutilize-o
