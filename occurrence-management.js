@@ -15,10 +15,24 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar Ocorrência</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="occurrence-grid occurrence-search-fields"><div class="field"><label for="occurrenceSearchClass">Buscar por turma</label><select id="occurrenceSearchClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="occurrenceSearchName">Buscar por nome</label><input id="occurrenceSearchName" placeholder="Digite o nome do aluno"></div></div><div class="meta">Os resultados são atualizados assim que você escolher os filtros.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
   document.body.appendChild(modal);
 
+  // Confirmação de exclusão dedicada: substitui o confirm() nativo, que só
+  // mostrava a data, por um resumo que identifica inequivocamente o registro
+  // (aluno, data do fato, autor, data/hora real de registro e um trecho do
+  // texto) — evita excluir o registro errado quando há ocorrências parecidas
+  // para o mesmo aluno. Não altera autoria/permissão nem o DELETE em si,
+  // que continua sendo feito pelo id exato da ocorrência sob a RLS existente.
+  const deleteConfirmModal = document.createElement('div');
+  deleteConfirmModal.id = 'occurrenceDeleteConfirmModal';
+  deleteConfirmModal.className = 'modal-bg occurrence-delete-confirm-modal hidden';
+  deleteConfirmModal.innerHTML = `<section class="modal occurrence-delete-confirm-dialog"><div class="modal-head"><div><h3>Excluir ocorrência?</h3></div></div><div class="form occurrence-delete-confirm-body"><dl class="occurrence-delete-confirm-details"><div><dt>Aluno</dt><dd id="occurrenceDeleteConfirmStudent"></dd></div><div><dt>Ocorrência</dt><dd id="occurrenceDeleteConfirmDate"></dd></div><div><dt>Registrada por</dt><dd id="occurrenceDeleteConfirmAuthor"></dd></div><div><dt>Registrada em</dt><dd id="occurrenceDeleteConfirmCreatedAt"></dd></div></dl><blockquote id="occurrenceDeleteConfirmText" class="occurrence-delete-confirm-text"></blockquote><p class="occurrence-delete-confirm-warning">Esta ação não poderá ser desfeita.</p><div class="actions occurrence-delete-confirm-actions"><button class="btn secondary" id="occurrenceDeleteConfirmCancel" type="button">Cancelar</button><button class="btn occurrence-delete-confirm-submit" id="occurrenceDeleteConfirmSubmit" type="button">Excluir ocorrência</button></div></div></section>`;
+  document.body.appendChild(deleteConfirmModal);
+
   const style = document.createElement('style');
   style.textContent = `
     #occurrenceNav { border:0; background:#2b3c5d; color:#fff; } #occurrenceNav:hover { background:#38527e; }
     .occurrence-item-focused { outline:2px solid #2b3c5d; box-shadow:0 0 0 3px rgba(43,60,93,.18); }
+    #occurrenceDeleteConfirmModal.occurrence-delete-confirm-modal { z-index:240!important; }.occurrence-delete-confirm-dialog { width:min(460px,100%); }.occurrence-delete-confirm-body { padding:20px 24px 24px; }.occurrence-delete-confirm-details { display:grid; gap:7px; margin:0 0 14px; }.occurrence-delete-confirm-details > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:13px; }.occurrence-delete-confirm-details dt { margin:0; color:var(--muted); font-weight:650; flex:0 0 auto; }.occurrence-delete-confirm-details dd { margin:0; font-weight:750; text-align:right; }.occurrence-delete-confirm-text { margin:0 0 16px; padding:10px 12px; border-left:3px solid #dbe4f5; border-radius:4px; background:#f8faff; font-size:13px; line-height:1.45; white-space:pre-wrap; color:#344054; }.occurrence-delete-confirm-warning { margin:0 0 16px; font-size:13px; font-weight:750; color:#b42318; }.occurrence-delete-confirm-actions { justify-content:flex-end; gap:10px; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit { background:#b42318; color:#fff; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit:hover { background:#932016; }
+    @media(max-width:800px) { .occurrence-delete-confirm-dialog { width:100%; } .occurrence-delete-confirm-actions { display:grid; grid-template-columns:1fr; gap:8px; } .occurrence-delete-confirm-actions .btn { width:100%; } }
     #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px!important; align-items:center!important; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
@@ -353,9 +367,35 @@ document.addEventListener('DOMContentLoaded', () => {
     syncSaveAction();
     get('occurrenceText').focus();
   }
+  // Resolve a Promise pendente de confirmOccurrenceDeletion() abaixo — nunca
+  // mais de uma por vez, pois o modal bloqueia o restante da tela enquanto
+  // aberto.
+  let deleteConfirmResolve = null;
+  function closeDeleteConfirm(result) {
+    deleteConfirmModal.classList.add('hidden');
+    const resolve = deleteConfirmResolve;
+    deleteConfirmResolve = null;
+    if (resolve) resolve(result);
+  }
+  // Substitui o confirm() nativo (que só mostrava a data) por um resumo que
+  // identifica o registro sem ambiguidade — necessário porque um mesmo aluno
+  // pode ter mais de uma ocorrência parecida, e excluir pelo id certo não
+  // adianta se o usuário escolheu o item errado na lista. Não muda quem pode
+  // excluir nem como o DELETE é feito, só a clareza da confirmação.
+  function confirmOccurrenceDeletion(item) {
+    get('occurrenceDeleteConfirmStudent').textContent = item.students?.full_name || 'Aluno removido';
+    get('occurrenceDeleteConfirmDate').textContent = formatDate(item.occurred_on);
+    get('occurrenceDeleteConfirmAuthor').textContent = item.created_by_name || 'Não informado';
+    get('occurrenceDeleteConfirmCreatedAt').textContent = formatDateTime(item.created_at) || 'Não informado';
+    const text = item.occurrence_text || '';
+    const preview = text.length > 220 ? `${text.slice(0, 220).trim()}…` : text;
+    get('occurrenceDeleteConfirmText').textContent = `"${preview}"`;
+    deleteConfirmModal.classList.remove('hidden');
+    return new Promise(resolve => { deleteConfirmResolve = resolve; });
+  }
   async function deleteOccurrence(item) {
     if (!canDeleteOccurrence(item)) { toast('Sem permissão para excluir esta ocorrência.'); return; }
-    if (!confirm(`Excluir a ocorrência de ${formatDate(item.occurred_on)}?`)) return;
+    if (!(await confirmOccurrenceDeletion(item))) return;
     const { error } = await db.from('student_occurrences').delete().eq('id', item.id);
     if (error) { toast(error.message); return; }
     const nextCount = Math.max(0, (occurrenceCounts.get(item.student_id) || 1) - 1);
@@ -382,6 +422,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeOccurrence = () => { resetOccurrenceScreen(); modal.classList.add('hidden'); };
   get('closeOccurrence').onclick = closeOccurrence;
   modal.onclick = event => { if (event.target === modal) closeOccurrence(); };
+  get('occurrenceDeleteConfirmCancel').onclick = () => closeDeleteConfirm(false);
+  get('occurrenceDeleteConfirmSubmit').onclick = () => closeDeleteConfirm(true);
+  deleteConfirmModal.onclick = event => { if (event.target === deleteConfirmModal) closeDeleteConfirm(false); };
   get('occurrenceClass').onchange = async () => { fillStudents(); await refreshHistory(); };
   get('occurrenceStudent').onchange = refreshHistory;
   get('searchOccurrences').onclick = () => {

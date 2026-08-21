@@ -465,6 +465,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canAccessReports()) { toast('Você não tem acesso a Relatórios.'); return; }
     if (!window.jspdf?.jsPDF) { toast('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
     const filters = currentFilters();
+    // O PDF nunca pode sair com dados desatualizados do aluno (ex.: uma
+    // observação removida segundos antes deste clique). Mesmo racional do
+    // reset de occurrenceSignature logo abaixo: zerar a assinatura aqui,
+    // de forma síncrona e imediatamente antes da busca, garante que a
+    // checagem de cache dentro de fetchStudentsDataset() nunca reaproveite
+    // um resultado antigo.
+    datasetSignature = '';
     await fetchStudentsDataset(filters);
     if (datasetError) { toast('Não foi possível carregar os alunos. Verifique se o script supabase-reports.sql foi executado.'); return; }
     // O PDF nunca pode sair com ocorrências desatualizadas (ex.: uma excluída
