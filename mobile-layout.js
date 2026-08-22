@@ -145,13 +145,18 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(navigationStyle);
 
+  // Fonte de autorização de Uniforme usada pelo menu móvel: a mesma função
+  // de decisão de uniform-management.js, exposta globalmente como
+  // window.canAccessUniformNav, para não manter uma cópia própria e
+  // potencialmente desatualizada do estado de permissão.
+
   // Proteção adicional para o menu responsivo. Usar o atributo `hidden`, e
   // não apenas uma classe de estilo, impede que regras de layout revelem
   // botões exclusivos do administrador para usuários comuns.
   const syncAdminOnlyNavigation = () => {
     if (!window.matchMedia('(max-width:1100px)').matches) return;
     const hideAdminCommands = permission?.role !== 'admin';
-    const canViewUniform = permission?.role === 'admin' || (!!permission?.is_coordinator && !!(permission?.can_edit_all || permission?.can_view_uniform || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
+    const canViewUniform = typeof window.canAccessUniformNav === 'function' ? window.canAccessUniformNav() : false;
     const canViewReports = permission?.role === 'admin' || !!permission?.is_coordinator;
     const syncButton = (id, hidden) => {
       const button = document.getElementById(id);
@@ -172,7 +177,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // menu móvel para um perfil de professor(a).
     syncButton('reportsNav', !canViewReports);
   };
-  document.addEventListener('carometro:permission-refresh', syncAdminOnlyNavigation);
+  document.addEventListener('carometro:permission-refresh', () => {
+    syncAdminOnlyNavigation();
+  });
   new MutationObserver(syncAdminOnlyNavigation).observe(document.querySelector('.side'), { childList:true, subtree:true, attributes:true, attributeFilter:['class'] });
   new MutationObserver(syncAdminOnlyNavigation).observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
   setTimeout(syncAdminOnlyNavigation, 0);

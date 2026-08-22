@@ -18,20 +18,72 @@ document.addEventListener('DOMContentLoaded', () => {
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:12px 20px; overscroll-behavior:none; }.uniform-dialog { width:min(1040px,100%); height:min(960px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); min-height:0; display:flex; flex-direction:column; overflow:hidden; }.uniform-dialog .modal-head { position:relative!important; top:auto!important; flex:none; }
     .uniform-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:7px 9px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:11px; font-weight:700; }.uniform-summary b { font-size:20px; color:#b42318; }
-    .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }
+    .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }.uniform-shift-cell { all:unset; box-sizing:border-box; display:block; width:100%; font:inherit; color:var(--muted); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; border-radius:6px; }.uniform-shift-cell:hover:not(:disabled) { background:#eef3ff; }.uniform-shift-cell[aria-pressed="true"] { background:#dbe7ff; border:1px solid #8fa8e0; }.uniform-shift-cell:disabled { opacity:.55; cursor:default; }.uniform-shift-cell:focus-visible { outline:2px solid #2b3c5d; outline-offset:2px; }
     .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:430px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
     .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-statuses { display:flex; flex-wrap:wrap; gap:5px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:5px; font-size:9px; }.uniform-shift-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; }.uniform-shift-card { display:block; min-width:0; padding:6px 3px; text-align:center; }.uniform-shift-card b { margin:0 0 4px; font-size:10px; }.uniform-shift-values { gap:1px; }.uniform-shift-values span { font-size:7px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:14px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-columns { display:none; }.uniform-list { min-height:190px; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; } }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:10px; }.uniform-shift-summary { grid-template-columns:1fr; gap:8px; }.uniform-shift-card { padding:8px 10px; }.uniform-shift-card b { margin:0 0 6px; font-size:13px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }.uniform-shift-values span { font-size:11px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:16px; margin-top:3px; }.uniform-shift-cell { min-height:44px; padding:6px 4px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-columns { display:none; }.uniform-list { min-height:190px; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; } }
   `;
   document.head.appendChild(style);
 
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
   const isCoordinator = () => !!permission?.is_coordinator;
-  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(permission?.can_edit_all || permission?.can_view_uniform || permission?.can_edit_uniform || permission?.can_mark_all_uniform_received));
+  // Fonte de autorização de Uniforme: school_members + school_member_permissions,
+  // a mesma fonte usada pela RLS/RPC real — não mais user_permissions (que não
+  // tem nenhum efeito sobre essa RLS/RPC). Mantidos atualizados por carga
+  // inicial + eventos do app (carometro:data-loaded, carometro:permission-refresh)
+  // + Realtime nas duas tabelas — sem polling.
+  let uniformMembership = null;
+  let uniformCommercialPermission = { can_view_uniform:false, can_edit_uniform:false, can_mark_all_uniform_received:false, can_edit_all:false };
+  // Um par de canais Realtime por member_id atualmente carregado — nunca mais
+  // de um par vivo ao mesmo tempo (ver ensureUniformChannels/teardown abaixo).
+  let uniformPermissionChannel = null;
+  let uniformMembershipChannel = null;
+  let uniformChannelMemberId = null;
+  const emptyUniformPermission = () => ({ can_view_uniform:false, can_edit_uniform:false, can_mark_all_uniform_received:false, can_edit_all:false });
+  async function teardownUniformChannels() {
+    if (uniformPermissionChannel) { await db.removeChannel(uniformPermissionChannel); uniformPermissionChannel = null; }
+    if (uniformMembershipChannel) { await db.removeChannel(uniformMembershipChannel); uniformMembershipChannel = null; }
+    uniformChannelMemberId = null;
+  }
+  // Garante exatamente um par de canais vivo, sempre referente ao member_id
+  // atual — se o vínculo mudar (ex.: troca de conta), o par anterior é
+  // removido antes de assinar o novo, evitando canais duplicados/vazados.
+  async function ensureUniformChannels(memberId) {
+    if (uniformChannelMemberId === memberId && uniformPermissionChannel && uniformMembershipChannel) return;
+    await teardownUniformChannels();
+    if (!db.channel) return;
+    uniformChannelMemberId = memberId;
+    const onRemoteChange = () => { refreshUniformMembership().then(() => { syncUniformNavigation(); if (!modal.classList.contains('hidden')) render(); }); };
+    // Flags de uniforme (can_view/edit_uniform, can_mark_all_uniform_received, can_edit_all).
+    uniformPermissionChannel = db.channel(`uniform-permission-${memberId}`).on(
+      'postgres_changes',
+      { event:'UPDATE', schema:'public', table:'school_member_permissions', filter:`member_id=eq.${memberId}` },
+      onRemoteChange
+    ).subscribe();
+    // Papel/status do próprio vínculo (ex.: promoção/remoção de coordenador).
+    // Filtro restrito ao id do próprio membro — nunca amplia o escopo de dados.
+    uniformMembershipChannel = db.channel(`uniform-membership-${memberId}`).on(
+      'postgres_changes',
+      { event:'UPDATE', schema:'public', table:'school_members', filter:`id=eq.${memberId}` },
+      onRemoteChange
+    ).subscribe();
+  }
+  async function refreshUniformMembership() {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) { uniformMembership = null; uniformCommercialPermission = emptyUniformPermission(); await teardownUniformChannels(); return; }
+    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('status', 'active').limit(1).maybeSingle();
+    if (!membership) { uniformMembership = null; uniformCommercialPermission = emptyUniformPermission(); await teardownUniformChannels(); return; }
+    uniformMembership = membership;
+    const { data: perms } = await db.from('school_member_permissions').select('can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_edit_all').eq('member_id', membership.id).maybeSingle();
+    uniformCommercialPermission = perms || emptyUniformPermission();
+    await ensureUniformChannels(membership.id);
+  }
+  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_view_uniform || uniformCommercialPermission.can_edit_uniform || uniformCommercialPermission.can_mark_all_uniform_received));
+  window.canAccessUniformNav = canAccessUniform;
   const canRegisterUniform = student => {
     if (isAdmin()) return true;
-    return isCoordinator() && !!(permission?.can_edit_all || permission?.can_edit_uniform);
+    return isCoordinator() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_edit_uniform);
   };
   const bulkUniformAccess = () => {
     const classId = get('uniformClass').value || null;
@@ -41,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? students.filter(item => item.classId === classId || selectedClassName(item.className) === selectedTargetName).map(item => item.id)
       : null;
     if (isAdmin()) return { allowed:true, classId, ids };
-    return { allowed:isCoordinator() && !!permission?.can_mark_all_uniform_received, classId, ids };
+    return { allowed:isCoordinator() && !!uniformCommercialPermission.can_mark_all_uniform_received, classId, ids };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
@@ -110,6 +162,13 @@ document.addEventListener('DOMContentLoaded', () => {
     get('pendingShoes').textContent = totals.shoes;
     get('pendingBoth').textContent = totals.both;
     get('pendingMaterial').textContent = totals.material;
+    const activeShift = get('uniformShift').value, activeView = get('uniformView').value;
+    const shiftCategories = [
+      { key:'uniform', label:'Uniforme' },
+      { key:'shoes', label:'Tênis' },
+      { key:'both', label:'Os dois' },
+      { key:'material', label:'Material' }
+    ];
     get('uniformShiftSummary').innerHTML = shifts.map(shift => {
       const shiftTotals = { uniform:0, shoes:0, both:0, material:0 };
       source.forEach(student => {
@@ -118,7 +177,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (status) shiftTotals[status] += 1;
         if (materialPending(student)) shiftTotals.material += 1;
       });
-      return `<article class="uniform-shift-card"><b>${shift}</b><div class="uniform-shift-values"><span>Uniforme<strong>${shiftTotals.uniform}</strong></span><span>Tênis<strong>${shiftTotals.shoes}</strong></span><span>Os dois<strong>${shiftTotals.both}</strong></span><span>Material<strong>${shiftTotals.material}</strong></span></div></article>`;
+      const cellsHtml = shiftCategories.map(category => {
+        const count = shiftTotals[category.key];
+        const isActive = activeShift === shift && activeView === category.key;
+        const disabled = count === 0 && !isActive;
+        const ariaLabel = `${labels[category.key]} — turno ${shift} (${count} aluno${count === 1 ? '' : 's'})`;
+        return `<button type="button" class="uniform-shift-cell" data-shift="${escape(shift)}" data-view="${category.key}" aria-pressed="${isActive}" aria-label="${escape(ariaLabel)}" ${disabled ? 'disabled' : ''}><span>${category.label}</span><strong>${count}</strong></button>`;
+      }).join('');
+      return `<article class="uniform-shift-card"><b>${shift}</b><div class="uniform-shift-values">${cellsHtml}</div></article>`;
     }).join('');
   }
 
@@ -290,6 +356,18 @@ document.addEventListener('DOMContentLoaded', () => {
   get('uniformClass').onchange = loadClassStudents;
   get('uniformView').onchange = render;
   get('uniformSearch').oninput = render;
+  get('uniformShiftSummary').onclick = event => {
+    const button = event.target.closest('button.uniform-shift-cell');
+    if (!button || button.disabled) return;
+    const shift = button.dataset.shift, view = button.dataset.view;
+    const alreadyActive = get('uniformShift').value === shift && get('uniformView').value === view;
+    get('uniformShift').value = alreadyActive ? '' : shift;
+    get('uniformView').value = alreadyActive ? 'all' : view;
+    get('uniformClass').value = '';
+    get('uniformSearch').value = '';
+    classOptions();
+    loadClassStudents();
+  };
   get('uniformList').onchange = async event => {
     const select = event.target.closest('.uniform-select, .material-select'); if (!select) return;
     const row = select.closest('.uniform-row'); const student = classStudents?.find(item => item.id === row.dataset.id) || students.find(item => item.id === row.dataset.id);
@@ -369,7 +447,7 @@ document.addEventListener('DOMContentLoaded', () => {
     button.disabled = false;
     toast('Todos os alunos da turma foram marcados como receberam.');
   };
-  document.addEventListener('carometro:data-loaded', () => {
+  document.addEventListener('carometro:data-loaded', async () => {
     // O carregamento principal já trouxe os campos de Uniforme. Reutilize-o
     // em vez de iniciar uma segunda consulta que possa chegar fora de ordem.
     syncUniformState(students.map(student => ({
@@ -379,9 +457,12 @@ document.addEventListener('DOMContentLoaded', () => {
       shoes_received:student.shoes_received,
       material_received:student.material_received
     })), { preserveLocal:true });
+    await refreshUniformMembership();
+    syncUniformNavigation();
     if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
   });
-  document.addEventListener('carometro:permission-refresh', () => {
+  document.addEventListener('carometro:permission-refresh', async () => {
+    await refreshUniformMembership();
     syncUniformNavigation();
     if (!modal.classList.contains('hidden')) render();
   });
