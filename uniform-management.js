@@ -17,13 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:12px 20px; overscroll-behavior:none; }.uniform-dialog { width:min(1040px,100%); height:min(960px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); min-height:0; display:flex; flex-direction:column; overflow:hidden; }.uniform-dialog .modal-head { position:relative!important; top:auto!important; flex:none; }
-    .uniform-mode-toggle { flex:none; display:flex; gap:8px; padding:14px 22px 0; }.uniform-mode-btn { min-height:38px; padding:8px 16px; border:1px solid #d9e2f4; border-radius:99px; background:#fff; color:var(--muted); font-weight:750; font-size:13px; cursor:pointer; }.uniform-mode-btn.active { background:#2b3c5d; border-color:#2b3c5d; color:#fff; }
+    .uniform-mode-toggle { flex:none; display:flex; gap:8px; padding:9px 22px 0; }.uniform-mode-btn { min-height:32px; padding:6px 16px; border:1px solid #d9e2f4; border-radius:99px; background:#fff; color:var(--muted); font-weight:750; font-size:13px; cursor:pointer; }.uniform-mode-btn.active { background:#2b3c5d; border-color:#2b3c5d; color:#fff; }
     #uniformItemsPanel { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
     .livro-revisa-panel { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:0 22px 22px; }.livro-revisa-controls { flex:none; display:grid; grid-template-columns:1.3fr .8fr 1fr; gap:10px; padding:15px 0; }.livro-revisa-controls input,.livro-revisa-controls select { min-width:0; min-height:42px; padding:8px 10px; }.livro-revisa-notice { flex:none; margin-bottom:12px; padding:10px 12px; border-radius:8px; background:#fff4e5; color:#8a5a00; font-size:13px; font-weight:650; }.livro-revisa-columns { flex:none; padding:0 0 9px; }.livro-revisa-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }.livro-revisa-actions { flex:none; display:flex; justify-content:flex-end; padding-top:14px; }.livro-revisa-toggle { display:flex; gap:6px; }.livro-revisa-check,.livro-revisa-cross { min-width:40px; min-height:40px; border-radius:8px; border:1px solid #d9e2f4; background:#fff; font-size:16px; font-weight:800; cursor:pointer; color:var(--muted); }.livro-revisa-check.active { background:#dcfae6; border-color:#087443; color:#087443; }.livro-revisa-cross.active { background:#fee4e2; border-color:#b42318; color:#b42318; }
-    .uniform-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:7px 9px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:11px; font-weight:700; }.uniform-summary b { font-size:20px; color:#b42318; }
-    .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }.uniform-shift-cell { all:unset; box-sizing:border-box; display:block; width:100%; font:inherit; color:var(--muted); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; border-radius:6px; }.uniform-shift-cell:hover:not(:disabled) { background:#eef3ff; }.uniform-shift-cell[aria-pressed="true"] { background:#dbe7ff; border:1px solid #8fa8e0; }.uniform-shift-cell:disabled { opacity:.55; cursor:default; }.uniform-shift-cell:focus-visible { outline:2px solid #2b3c5d; outline-offset:2px; }
-    .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-active-filter,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-active-filter { margin:0 22px 12px; padding:9px 12px; border-radius:8px; background:#eef3ff; color:#2b3c5d; font-size:12.5px; font-weight:700; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
-    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-statuses { display:flex; flex-wrap:wrap; gap:5px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
+    .uniform-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; padding:6px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:4px 8px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:10.5px; font-weight:700; }.uniform-summary b { font-size:16px; color:#b42318; }
+    .uniform-shift-section { padding:5px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:3px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:5px 6px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:2px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.1; }.uniform-shift-values strong { display:block; margin-top:1px; color:#b42318; font-size:14px; }.uniform-shift-cell { all:unset; box-sizing:border-box; display:block; width:100%; font:inherit; color:var(--muted); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; border-radius:6px; }.uniform-shift-cell:hover:not(:disabled) { background:#eef3ff; }.uniform-shift-cell[aria-pressed="true"] { background:#dbe7ff; border:1px solid #8fa8e0; }.uniform-shift-cell:disabled { opacity:.55; cursor:default; }.uniform-shift-cell:focus-visible { outline:2px solid #2b3c5d; outline-offset:2px; }
+    .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-active-filter,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:6px 22px 0; }.uniform-bulk-action .btn { min-height:30px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:8px; padding:8px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:36px; padding:6px 9px; }.uniform-active-filter { margin:0 22px 6px; padding:6px 10px; border-radius:8px; background:#eef3ff; color:#2b3c5d; font-size:12.5px; font-weight:700; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 6px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
+    .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); min-width:0; }.uniform-student { display:flex; align-items:center; gap:10px; min-width:0; }.uniform-student .avatar { width:40px; height:40px; font-size:13px; flex:none; }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-statuses { display:flex; flex-wrap:wrap; gap:5px; }.uniform-status { display:inline-flex; max-width:100%; padding:6px 9px; border-radius:14px; font-size:12px; font-weight:800; white-space:normal; word-break:break-word; line-height:1.3; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; min-width:0; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
     @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-mode-toggle { padding:10px 12px 0; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:10px; }.uniform-shift-summary { grid-template-columns:1fr; gap:8px; }.uniform-shift-card { padding:8px 10px; }.uniform-shift-card b { margin:0 0 6px; font-size:13px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }.uniform-shift-values span { font-size:11px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:16px; margin-top:3px; }.uniform-shift-cell { min-height:44px; padding:6px 4px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-active-filter { margin:0 12px 9px; font-size:11.5px; padding:8px 10px; }.uniform-columns { display:none; }.uniform-list { min-height:0; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; }.livro-revisa-panel { padding:0 12px 12px; }.livro-revisa-controls { grid-template-columns:1fr; gap:6px; padding:9px 0; }.livro-revisa-controls input,.livro-revisa-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.livro-revisa-columns { display:none; } }
   `;
   document.head.appendChild(style);
@@ -105,6 +105,39 @@ document.addEventListener('DOMContentLoaded', () => {
     return { allowed:isCoordinator() && !!uniformCommercialPermission.can_mark_all_uniform_received, classId, ids };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
+  // Avatar da lista — mesmo padrão de carregamento preguiçoso já usado na
+  // tela principal (student-edit-improvements.js): nunca assina todas as
+  // fotos de uma vez (isso seria N+1 e tornaria a abertura mais lenta).
+  // Reaproveita student.photoUrl se já tiver sido carregado em qualquer
+  // lugar do app (a mesma lista `students` é compartilhada); só assina sob
+  // demanda, um por vez, quando a linha realmente aparece na tela.
+  const avatarHtml = item => `<div class="avatar" data-avatar-id="${item.id}">${item.photoUrl ? `<img src="${item.photoUrl}" alt="">` : ini(item.name)}</div>`;
+  let uniformPhotoObserver = null;
+  async function loadUniformRowPhoto(studentId) {
+    const student = students.find(item => item.id === studentId);
+    if (!student?.photoPath || student.photoUrl || student.loadingUniformPhoto) return;
+    student.loadingUniformPhoto = true;
+    const { data } = await db.storage.from('student-photos').createSignedUrl(student.photoPath, 3600);
+    student.loadingUniformPhoto = false;
+    if (!data?.signedUrl) return;
+    student.photoUrl = data.signedUrl;
+    // Atualiza só o avatar já em tela — nunca re-renderiza a lista inteira
+    // por causa de uma foto (evitaria piscar as outras linhas já prontas).
+    modal.querySelectorAll(`[data-avatar-id="${studentId}"]`).forEach(avatar => {
+      avatar.innerHTML = `<img src="${student.photoUrl}" alt="">`;
+    });
+  }
+  function observeUniformPhotos(listElement) {
+    if (uniformPhotoObserver) uniformPhotoObserver.disconnect();
+    const rows = listElement.querySelectorAll('[data-avatar-id]');
+    if (!('IntersectionObserver' in window)) { rows.forEach(el => loadUniformRowPhoto(el.dataset.avatarId)); return; }
+    uniformPhotoObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      uniformPhotoObserver.unobserve(entry.target);
+      loadUniformRowPhoto(entry.target.dataset.avatarId);
+    }), { root:listElement, rootMargin:'160px 0px' });
+    rows.forEach(el => uniformPhotoObserver.observe(el));
+  }
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
   const shifts = ['Matutino', 'Vespertino', 'Noturno'];
   const shiftForClass = classId => classes.find(item => item.id === classId)?.shift || 'Matutino';
@@ -344,8 +377,9 @@ document.addEventListener('DOMContentLoaded', () => {
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
       const type = pending(item), missingMaterial = materialPending(item), statuses = statusesFor(item);
       const statusHtml = statuses.length ? `<div class="uniform-statuses">${statuses.map(status => `<span class="uniform-status pending">${labels[status]}</span>`).join('')}</div>` : '<span class="uniform-status received">✓ Recebeu</span>';
-      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${statusHtml}</div>${canRegisterUniform(item) ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme e tênis"><option value="" ${!type ? 'selected' : ''}>Uniforme e tênis: recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select><select class="material-select" aria-label="Registrar situação de material"><option value="" ${!missingMaterial ? 'selected' : ''}>Material: recebeu</option><option value="material" ${missingMaterial ? 'selected' : ''}>Não recebeu material</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student">${avatarHtml(item)}<div><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div></div><div>${statusHtml}</div>${canRegisterUniform(item) ? `<div class="uniform-action"><select class="uniform-select" aria-label="Registrar situação de uniforme e tênis"><option value="" ${!type ? 'selected' : ''}>Uniforme e tênis: recebeu</option><option value="uniform" ${type === 'uniform' ? 'selected' : ''}>Não recebeu uniforme</option><option value="shoes" ${type === 'shoes' ? 'selected' : ''}>Não recebeu tênis</option><option value="both" ${type === 'both' ? 'selected' : ''}>Não recebeu uniforme e tênis</option></select><select class="material-select" aria-label="Registrar situação de material"><option value="" ${!missingMaterial ? 'selected' : ''}>Material: recebeu</option><option value="material" ${missingMaterial ? 'selected' : ''}>Não recebeu material</option></select></div>` : '<div class="meta">Consulta disponível.</div>'}</article>`;
     }).join('') : `<div class="uniform-empty">Nenhum aluno corresponde a este filtro.<br><br>${view !== 'all' ? 'Use “Todos os alunos da turma” para ver cada aluno e registrar a situação.' : 'Esta turma ainda não possui alunos cadastrados.'}</div>`;
+    observeUniformPhotos(get('uniformList'));
     setTimeout(paintStudentCards, 0);
   }
   async function loadClassStudents() {
@@ -368,12 +402,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function open() {
     if (!canAccessUniform()) { toast('O administrador precisa liberar o acesso ao Controle de Itens para este coordenador.'); return; }
-    // Garanta que a lista principal e os dados exclusivos de Uniforme estejam
-    // atualizados antes de exibir os totais. Assim a janela nunca abre em 0
-    // por estar usando uma cópia antiga do carregamento anterior.
+    // NUNCA chame window.load?.() aqui: é a carga completa da tela principal
+    // (todos os alunos, todas as turmas, e — em student-edit-improvements.js —
+    // zera photoUrl de todo mundo antes de recarregar sob demanda), então
+    // reexecutá-la só para abrir esta janela recarrega a página inteira por
+    // trás (fotos da lista principal somem e voltam) e atrasa a abertura em
+    // segundos, sem necessidade: students/classes já são mantidos
+    // atualizados pelo ciclo de vida normal do app. Só o estado específico de
+    // Uniforme (colunas próprias, leves) precisa ser garantido fresco aqui.
     uniformButton.disabled = true;
     try {
-      await window.load?.();
       await refreshUniformState({ renderWhenOpen:false });
       classOptions();
       setUniformMode('items');
@@ -570,6 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
       columns.classList.add('hidden');
       notice.classList.add('hidden');
       finalizeButton.disabled = true;
+      finalizeButton.title = 'Escolha turma, ano letivo e bimestre antes de finalizar a conferência.';
       list.innerHTML = '<div class="uniform-empty">Escolha turma, ano letivo e bimestre para ver os alunos.</div>';
       return;
     }
@@ -577,10 +616,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const term = livroRevisaTermFor(year, bimester);
     // O mesmo bloqueio que a RPC já aplica no banco (bimestre precisa existir
     // E já ter começado) tem que valer aqui — nunca deixar ✓/✕/Finalizar
-    // habilitados para um período que a escrita real recusaria.
+    // habilitados para um período que a escrita real recusaria. O calendário
+    // é pré-requisito legítimo, não uma falha — mas o botão desabilitado
+    // sozinho parece quebrado, então o motivo exato fica sempre visível no
+    // aviso acima da lista E no title do próprio botão (funciona mesmo se o
+    // aviso ficar fora da viewport em telas pequenas).
     const termStarted = !!term && term.starts_on <= new Date().toISOString().slice(0, 10);
     notice.classList.toggle('hidden', termStarted);
-    if (!termStarted) notice.textContent = term ? 'Bimestre ainda não iniciado — aguarde a data de início configurada.' : 'Calendário letivo não configurado para este período.';
+    if (!termStarted) notice.textContent = term ? 'Bimestre ainda não iniciado — aguarde a data de início configurada.' : 'Calendário letivo não configurado para este período. Configure em Permissões → Permissões avançadas → Calendário letivo.';
 
     livroRevisaClassStudents = students.filter(item => item.classId === classId)
       .slice().sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
@@ -588,6 +631,11 @@ document.addEventListener('DOMContentLoaded', () => {
     columns.classList.toggle('hidden', livroRevisaClassStudents.length === 0);
     const canRegisterHere = canRegisterUniform() && termStarted;
     finalizeButton.disabled = !canRegisterUniform() || !termStarted;
+    finalizeButton.title = !canRegisterUniform()
+      ? 'Sem permissão para finalizar a conferência.'
+      : !termStarted
+        ? (term ? 'Bimestre ainda não iniciado — aguarde a data de início configurada.' : 'Calendário letivo não configurado para este período. Configure em Permissões → Permissões avançadas → Calendário letivo.')
+        : 'Notifica administradores e coordenadores sobre os alunos ainda marcados como não recebido nesta turma/bimestre.';
 
     list.innerHTML = livroRevisaClassStudents.length ? livroRevisaClassStudents.map(item => {
       const row = livroRevisaDeliveries.get(`${item.id}_${year}_${bimester}`) || null;
@@ -598,8 +646,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const actionsHtml = canRegisterHere
         ? `<div class="livro-revisa-toggle"><button type="button" class="livro-revisa-check ${isReceived ? 'active' : ''}" data-student-id="${item.id}" data-status="recebido" aria-pressed="${isReceived}" aria-label="Marcar ${escape(item.name)} como recebido">✓</button><button type="button" class="livro-revisa-cross ${isNotReceived ? 'active' : ''}" data-student-id="${item.id}" data-status="nao_recebido" aria-pressed="${isNotReceived}" aria-label="Marcar ${escape(item.name)} como não recebido">✕</button></div>`
         : '<div class="meta">Consulta disponível.</div>';
-      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${statusHtml}</div>${actionsHtml}</article>`;
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student">${avatarHtml(item)}<div><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div></div><div>${statusHtml}</div>${actionsHtml}</article>`;
     }).join('') : '<div class="uniform-empty">Esta turma ainda não possui alunos cadastrados.</div>';
+    observeUniformPhotos(list);
   }
 
   async function refreshLivroRevisaForClass() {
