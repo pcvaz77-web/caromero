@@ -10,6 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
   let registeredUsers = [];
   let editingCounselorId = null;
   let lastLoadError = '';
+  // Fonte de autorização de "Gerenciar Conselheiros": school_members +
+  // school_member_permissions.can_manage_counselors, da escola ATIVA — a
+  // mesma fonte que a RLS real de class_counselors já usa (has_school_
+  // permission). Não mais user_permissions (que não tem nenhum efeito
+  // sobre essa RLS e não tem noção de escola).
+  let counselorMembership = null;
+  let counselorSchoolPermission = false;
+  async function refreshCounselorMembership() {
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) { counselorMembership = null; counselorSchoolPermission = false; return; }
+    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('school_id', schoolId).eq('status', 'active').maybeSingle();
+    if (!membership) { counselorMembership = null; counselorSchoolPermission = false; return; }
+    counselorMembership = membership;
+    const { data: perms } = await db.from('school_member_permissions').select('can_manage_counselors').eq('member_id', membership.id).maybeSingle();
+    counselorSchoolPermission = !!perms?.can_manage_counselors;
+  }
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
   window.counselorHasPermission = () => false;
   window.counselorHasEditPermission = () => false;
@@ -62,7 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
   const counselorName = item => item.counselor_name?.trim() || item.full_name?.trim() || item.profiles?.full_name?.trim() || item.email || item.profiles?.email || 'Usuário';
-  const canManageCounselors = () => permission.role !== 'admin' && !!permission.is_coordinator && !!(permission.can_edit_all || permission.can_manage_counselors);
+  // school_admin nunca gerencia conselheiros por esta tela (regra de
+  // produto já existente) — e como counselorMembership só é preenchido
+  // quando o vínculo ativo é coordinator (query abaixo não filtra role,
+  // mas a checagem explícita aqui documenta a regra e protege mesmo se o
+  // vínculo ativo do usuário for de outro papel).
+  const canManageCounselors = () => counselorMembership?.role === 'coordinator' && !!counselorSchoolPermission;
+  window.counselorCanManage = canManageCounselors;
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
   const drawCounselorLabels = () => {
@@ -112,6 +135,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
+    await refreshCounselorMembership();
+    syncCounselorNavigation();
     const { data, error } = await db.from('class_counselors').select('*');
     if (error) {
       if (lastLoadError !== error.message) toast(`Não foi possível carregar os conselheiros: ${error.message}`);
@@ -152,10 +177,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.openCounselorManager = async () => {
+    await refreshCounselorMembership();
     if (!canManageCounselors()) { toast('Somente um coordenador autorizado pode gerenciar conselheiros.'); return; }
     try {
       const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
-        db.rpc('list_counselor_candidates'),
+        db.rpc('list_counselor_candidates', { target_school_id: counselorMembership.school_id }),
         db.from('class_counselors').select('*')
       ]);
       if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
@@ -173,8 +199,8 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     window.openCounselorManager();
   };
-  document.addEventListener('carometro:permission-refresh', syncCounselorNavigation);
-  syncCounselorNavigation();
+  document.addEventListener('carometro:permission-refresh', async () => { await refreshCounselorMembership(); syncCounselorNavigation(); });
+  refreshCounselorMembership().then(syncCounselorNavigation);
 
   document.getElementById('counselorForm').onsubmit = async event => {
     event.preventDefault();

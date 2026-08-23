@@ -90,6 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // Uniforme lê school_member_permissions, não esta tabela. Ver
   // uniformCheck/setUniformPermission abaixo.
   const UNIFORM_PERMISSION_KEYS = ['can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received'];
+  // can_manage_counselors também é gerida fora de user_permissions: a RLS
+  // real de class_counselors e a RPC list_counselor_candidates leem
+  // school_member_permissions.can_manage_counselors por escola, não esta
+  // tabela. Ver counselorCheck/setCounselorPermission abaixo.
+  const COUNSELOR_PERMISSION_KEYS = ['can_manage_counselors'];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador';
@@ -130,6 +135,19 @@ document.addEventListener('DOMContentLoaded', () => {
     (data || []).forEach(item => {
       const perms = item.school_member_permissions || {};
       map.set(item.user_id, { memberId:item.id, role:item.role, can_view_uniform:!!perms.can_view_uniform, can_edit_uniform:!!perms.can_edit_uniform, can_mark_all_uniform_received:!!perms.can_mark_all_uniform_received, can_edit_all:!!perms.can_edit_all });
+    });
+    return map;
+  }
+
+  // Mapa user_id -> permissão de conselheiro (school_member_permissions) de
+  // todos os membros ativos da escola informada.
+  async function loadSchoolCounselorPermissions(schoolId) {
+    const { data, error } = await db.from('school_members').select('id,user_id,role,school_member_permissions(can_manage_counselors)').eq('school_id', schoolId).eq('status', 'active');
+    if (error) { toast(error.message); return new Map(); }
+    const map = new Map();
+    (data || []).forEach(item => {
+      const perms = item.school_member_permissions || {};
+      map.set(item.user_id, { memberId:item.id, role:item.role, can_manage_counselors:!!perms.can_manage_counselors });
     });
     return map;
   }
@@ -177,6 +195,19 @@ document.addEventListener('DOMContentLoaded', () => {
     return null;
   }
 
+  // Aplica can_manage_counselors via a RPC comercial (hierarquia e
+  // anti-escalada já garantidas pela própria função no banco — só admin
+  // pode conceder, já que a permissão é exclusiva de coordenador).
+  async function applyCounselorPermissions(userId, schoolId, flags) {
+    const memberId = await findSchoolMemberId(userId, schoolId);
+    if (!memberId) return 'Sem vínculo comercial ativo nesta escola para aplicar a permissão de conselheiros.';
+    for (const key of COUNSELOR_PERMISSION_KEYS) {
+      const { error } = await db.rpc('set_school_member_permission', { target_member_id:memberId, permission_name:key, permission_value:!!flags[key] });
+      if (error) return error.message;
+    }
+    return null;
+  }
+
   const occCheck = (item, occMap, key, label) => {
     const admin = item.role === 'admin';
     const target = occMap.get(item.user_id);
@@ -209,13 +240,35 @@ document.addEventListener('DOMContentLoaded', () => {
     openPermissions();
   };
 
+  // can_manage_counselors só pode ser concedida a coordenadores (mesma
+  // regra já validada no servidor por set_school_member_permission) —
+  // desabilitado para professor/admin, mesmo padrão visual de occCheck/
+  // uniformCheck.
+  const counselorCheck = (item, counselorMap, admin) => {
+    const target = counselorMap.get(item.user_id);
+    const disabled = admin || !target;
+    const checked = !!target && target.can_manage_counselors;
+    const hint = !target ? ' title="Sem vínculo comercial ativo nesta escola"' : '';
+    return `<label class="check"${hint}><input ${disabled ? 'disabled' : ''} type="checkbox" ${checked ? 'checked' : ''} onchange="setCounselorPermission('${target ? target.memberId : ''}',this.checked)"> Gerenciar conselheiros de turma</label>`;
+  };
+  window.setCounselorPermission = async (memberId, value) => {
+    if (!memberId) { toast('Sem vínculo comercial ativo nesta escola para aplicar esta permissão.'); return; }
+    const { error } = await db.rpc('set_school_member_permission', { target_member_id:memberId, permission_name:'can_manage_counselors', permission_value:value });
+    if (error) { toast(error.message); return; }
+    toast('Permissão atualizada.');
+    openPermissions();
+  };
+
   function applyCurrentPermission(nextPermission) {
     if (!nextPermission) return;
     permission = nextPermission.role === 'admin' ? { ...nextPermission, can_add_students:true, can_edit_students:true } : nextPermission;
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
     document.getElementById('permissionsNav').classList.toggle('hidden', !admin);
-    document.getElementById('counselorNav')?.classList.toggle('hidden', !(permission.is_coordinator && (permission.can_edit_all || permission.can_manage_counselors)));
+    // counselorNav não é mais controlado aqui: class-counselors.js é o dono
+    // exclusivo dessa visibilidade, com a fonte comercial real
+    // (school_member_permissions.can_manage_counselors da escola ativa) —
+    // evita duas lógicas competindo pelo mesmo elemento com fontes diferentes.
     syncAddActions();
     render();
     syncStudentActions();
@@ -228,9 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     const { data } = await db.from('user_permissions').select('*').eq('user_id', signedInUser.id).maybeSingle();
     if (!data) return;
-    const counselorShouldBeVisible = !!data.is_coordinator && !!(data.can_edit_all || data.can_manage_counselors);
-    const counselorNavigationOutOfSync = document.getElementById('counselorNav')?.classList.contains('hidden') === counselorShouldBeVisible;
-    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data) || counselorNavigationOutOfSync) applyCurrentPermission(data);
+    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || permissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data)) applyCurrentPermission(data);
   }
 
   function syncAddActions() {
@@ -336,12 +387,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = document.getElementById('coordinatorUser').value;
     if (!id) { toast('Selecione um usuário cadastrado.'); return; }
     const selectedRights = Object.fromEntries(permissionFields.map(key => [key, !!document.querySelector(`[data-coordinator-permission="${key}"]`)?.checked]));
-    // can_view/register/edit/delete_occurrences e can_view/edit_uniform/
-    // can_mark_all_uniform_received não vão para user_permissions: são
-    // aplicadas à parte, em school_member_permissions, via RPC comercial.
-    const legacyRights = Object.fromEntries(permissionFields.filter(key => !OCCURRENCE_PERMISSION_KEYS.includes(key) && !UNIFORM_PERMISSION_KEYS.includes(key)).map(key => [key, selectedRights[key]]));
+    // can_view/register/edit/delete_occurrences, can_view/edit_uniform/
+    // can_mark_all_uniform_received e can_manage_counselors não vão para
+    // user_permissions: são aplicadas à parte, em school_member_permissions,
+    // via RPC comercial.
+    const legacyRights = Object.fromEntries(permissionFields.filter(key => !OCCURRENCE_PERMISSION_KEYS.includes(key) && !UNIFORM_PERMISSION_KEYS.includes(key) && !COUNSELOR_PERMISSION_KEYS.includes(key)).map(key => [key, selectedRights[key]]));
     const occurrenceRights = Object.fromEntries(OCCURRENCE_PERMISSION_KEYS.map(key => [key, selectedRights[key]]));
     const uniformRights = Object.fromEntries(UNIFORM_PERMISSION_KEYS.map(key => [key, selectedRights[key]]));
+    const counselorRights = Object.fromEntries(COUNSELOR_PERMISSION_KEYS.map(key => [key, selectedRights[key]]));
     const membership = await currentSchoolMembership();
     if (!membership) { toast('Sem vínculo comercial ativo para atualizar o papel.'); return; }
     const roleError = await applySchoolMemberRole(id, membership.school_id, 'coordinator');
@@ -352,6 +405,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (occurrenceError) { toast(`Coordenador promovido e cadastro legado atualizado, mas houve falha ao aplicar as permissões de ocorrência: ${occurrenceError}`); await openCoordinatorManager(); await openPermissions(); return; }
     const uniformError = await applyUniformPermissions(id, membership.school_id, uniformRights);
     if (uniformError) { toast(`Coordenador promovido e permissões de ocorrência aplicadas, mas houve falha ao aplicar as permissões de uniforme: ${uniformError}`); await openCoordinatorManager(); await openPermissions(); return; }
+    const counselorError = await applyCounselorPermissions(id, membership.school_id, counselorRights);
+    if (counselorError) { toast(`Coordenador promovido e permissões de uniforme aplicadas, mas houve falha ao aplicar a permissão de conselheiros: ${counselorError}`); await openCoordinatorManager(); await openPermissions(); return; }
     toast('Coordenador adicionado com as permissões avançadas escolhidas.');
     await openCoordinatorManager();
     await openPermissions();
@@ -359,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('coordinatorList').onclick = async event => {
     const id = event.target.closest('[data-remove-coordinator]')?.dataset.removeCoordinator;
     if (!id || !confirm('Remover este coordenador? Todas as permissões avançadas dele serão revogadas.')) return;
-    const clearedRights = Object.fromEntries(permissionFields.filter(key => !OCCURRENCE_PERMISSION_KEYS.includes(key) && !UNIFORM_PERMISSION_KEYS.includes(key)).map(key => [key, false]));
+    const clearedRights = Object.fromEntries(permissionFields.filter(key => !OCCURRENCE_PERMISSION_KEYS.includes(key) && !UNIFORM_PERMISSION_KEYS.includes(key) && !COUNSELOR_PERMISSION_KEYS.includes(key)).map(key => [key, false]));
     const membership = await currentSchoolMembership();
     if (!membership) { toast('Sem vínculo comercial ativo para atualizar o papel.'); return; }
     const roleError = await applySchoolMemberRole(id, membership.school_id, 'teacher');
@@ -377,15 +432,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultUniformRights = { can_view_uniform:false, can_edit_uniform:false, can_mark_all_uniform_received:false };
     const uniformError = await applyUniformPermissions(id, membership.school_id, defaultUniformRights);
     if (uniformError) { toast(`Coordenador removido e permissões de ocorrência atualizadas, mas houve falha ao revogar as permissões de uniforme: ${uniformError}`); await openCoordinatorManager(); await openPermissions(); return; }
+    // Mesma simetria defensiva: set_school_member_role já zera
+    // can_manage_counselors ao rebaixar (limpeza automática já existente na
+    // própria função), esta chamada só garante que a UI reflita e
+    // re-confirme o estado revogado.
+    const counselorError = await applyCounselorPermissions(id, membership.school_id, { can_manage_counselors:false });
+    if (counselorError) { toast(`Coordenador removido e permissões de uniforme atualizadas, mas houve falha ao revogar a permissão de conselheiros: ${counselorError}`); await openCoordinatorManager(); await openPermissions(); return; }
     toast('Coordenador removido e permissões avançadas revogadas.');
     await openCoordinatorManager();
     await openPermissions();
   };
 
   async function openPermissions() {
-    const canManageCounselors = permission.is_coordinator && (permission.can_edit_all || permission.can_manage_counselors);
+    // Fonte única: a mesma checagem comercial (school_member_permissions.
+    // can_manage_counselors da escola ativa) que class-counselors.js já usa
+    // para o botão real "Gerenciar Conselheiros" — nunca uma segunda lógica
+    // paralela que possa divergir dela.
     if (permission.role !== 'admin') {
-      if (!canManageCounselors) return;
+      if (!window.counselorCanManage?.()) return;
       document.getElementById('permissionsList').innerHTML = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>`;
       document.getElementById('openCounselors').onclick = event => {
         event.preventDefault();
@@ -397,20 +461,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const { data, error } = await db.from('user_permissions').select('user_id,role,is_coordinator,can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,profiles(email,full_name)');
     if (error) { toast(error.message); return; }
-    // can_view/register/edit/delete_occurrences e can_view/edit_uniform/
-    // can_mark_all_uniform_received vêm de school_member_permissions (fonte
-    // real da RLS/RPC), não das colunas homônimas de user_permissions —
-    // essas colunas legadas continuam existindo só para não quebrar leituras antigas.
+    // can_view/register/edit/delete_occurrences, can_view/edit_uniform/
+    // can_mark_all_uniform_received e can_manage_counselors vêm de
+    // school_member_permissions (fonte real da RLS/RPC), não das colunas
+    // homônimas de user_permissions — essas colunas legadas continuam
+    // existindo só para não quebrar leituras antigas.
     const membership = await currentSchoolMembership();
     const occMap = membership ? await loadSchoolOccurrencePermissions(membership.school_id) : new Map();
     const uniformMap = membership ? await loadSchoolUniformPermissions(membership.school_id) : new Map();
-    const fullAccessWithoutCounselorManagement = (data || []).filter(item => item.is_coordinator && item.can_edit_all && !item.can_manage_counselors);
-    if (fullAccessWithoutCounselorManagement.length) {
-      const results = await Promise.all(fullAccessWithoutCounselorManagement.map(item => db.from('user_permissions').update({ can_manage_counselors:true, updated_at:new Date().toISOString() }).eq('user_id', item.user_id)));
-      const updateError = results.find(result => result.error)?.error;
-      if (updateError) { toast(updateError.message); return; }
-      fullAccessWithoutCounselorManagement.forEach(item => { item.can_manage_counselors = true; });
-    }
+    const counselorMap = membership ? await loadSchoolCounselorPermissions(membership.school_id) : new Map();
+    // Removida a autocorreção automática que antes forçava
+    // user_permissions.can_manage_counselors=true para todo coordenador com
+    // can_edit_all=true: agora que school_member_permissions.
+    // can_manage_counselors é a fonte de verdade por escola (counselorCheck/
+    // counselorMap abaixo), essa escrita unilateral no lado legado recriaria
+    // exatamente a divergência legado×comercial já corrigida nesta rodada.
+    // Conceder "Editar tudo" não concede mais implicitamente a permissão de
+    // conselheiros — cada uma é decidida separadamente pelo admin.
     const check = (item, key, label, admin) => `<label class="check"><input ${admin || (item.can_edit_all && key !== 'can_edit_all') ? 'disabled' : ''} type="checkbox" ${item[key] || (item.can_edit_all && key !== 'can_edit_all') ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...(data || [])].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
@@ -422,7 +489,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
       if (!isCoordinator(item)) return `<article class="perm" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div></article>`;
-      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><details class="coordinator-right-group"><summary>Cadastro, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${uniformCheck(item,uniformMap,'can_view_uniform','Visualizar Uniforme')}${uniformCheck(item,uniformMap,'can_edit_uniform','Editar Uniforme e material')}${uniformCheck(item,uniformMap,'can_mark_all_uniform_received','Marcar todos como receberam')}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
+      return `<article class="perm" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><details class="coordinator-right-group"><summary>Cadastro, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${uniformCheck(item,uniformMap,'can_view_uniform','Visualizar Uniforme')}${uniformCheck(item,uniformMap,'can_edit_uniform','Editar Uniforme e material')}${uniformCheck(item,uniformMap,'can_mark_all_uniform_received','Marcar todos como receberam')}${counselorCheck(item,counselorMap,admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
     const schoolCalendarManager = `<section class="coordinator-management"><div><b>Calendário letivo</b><div class="meta">Datas de início e fim de cada bimestre, usadas pelo Livro/Revisa.</div></div><button id="openSchoolCalendar" type="button" class="btn secondary">Calendário letivo</button></section>`;
@@ -454,11 +521,18 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('permissionsModal').classList.remove('hidden');
   }
 
+  // can_manage_counselors nunca entra no bulk de "Editar tudo": já migrou
+  // para school_member_permissions (mesmo tratamento de OCCURRENCE_
+  // PERMISSION_KEYS/UNIFORM_PERMISSION_KEYS) — sua concessão/revogação
+  // acontece exclusivamente via setCounselorPermission/
+  // set_school_member_permission, nunca como efeito colateral de outra
+  // flag legada.
+  const legacyBulkFields = permissionFields.filter(field => !COUNSELOR_PERMISSION_KEYS.includes(field));
   window.setUserPermission = async (id, key, value) => {
     const update = key === 'can_edit_all' && value
-      ? { ...Object.fromEntries(permissionFields.map(permissionKey => [permissionKey, true])), updated_at:new Date().toISOString() }
+      ? { ...Object.fromEntries(legacyBulkFields.map(permissionKey => [permissionKey, true])), updated_at:new Date().toISOString() }
       : key === 'can_edit_all'
-        ? { ...Object.fromEntries(permissionFields.map(permissionKey => [permissionKey, false])), updated_at:new Date().toISOString() }
+        ? { ...Object.fromEntries(legacyBulkFields.map(permissionKey => [permissionKey, false])), updated_at:new Date().toISOString() }
         : { [key]: value, updated_at:new Date().toISOString() };
     const { error } = await db.from('user_permissions').update(update).eq('user_id',id);
     if (error) toast(error.message); else { toast('Permissão atualizada.'); openPermissions(); }

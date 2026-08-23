@@ -168,7 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
       button.setAttribute('aria-hidden', String(hidden));
     };
     ['permissionsNav', 'settingsNav'].forEach(id => syncButton(id, hideAdminCommands));
-    syncButton('counselorNav', !(permission?.role !== 'admin' && !!permission?.is_coordinator && !!(permission?.can_edit_all || permission?.can_manage_counselors)));
+    // Mesmo padrão de Uniforme logo abaixo: delega para a função global já
+    // exposta por class-counselors.js (window.counselorCanManage), fonte
+    // comercial real (school_member_permissions.can_manage_counselors da
+    // escola ativa) — nunca uma cópia própria da lógica legada, que
+    // divergiria da visibilidade real do botão no menu de desktop.
+    syncButton('counselorNav', !(typeof window.counselorCanManage === 'function' ? window.counselorCanManage() : false));
     // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do
     // menu em um perfil de professor(a), mesmo que a tela móvel seja aberta.
     syncButton('uniformNav', !canViewUniform);
