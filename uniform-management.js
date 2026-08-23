@@ -177,12 +177,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolClass = classes.find(item => item.id === student?.classId || (className && String(item.name || '').trim().toLocaleLowerCase('pt-BR') === className));
     return schoolClass?.shift || 'Matutino';
   };
-  const pending = student => {
-    // Toda a tela consulta primeiro o último estado confirmado do aluno.
-    // Isso protege a contagem contra uma carga antiga que termine depois de
-    // o usuário alterar o seletor.
-    const stored = student?.id ? canonicalUniformState.get(student.id) : null;
-    const source = stored ? { ...student, ...stored } : student;
+  // Funções puras (sem depender de canonicalUniformState/students): mesma
+  // regra exata já usada pela tela, extraída para poder ser reaproveitada
+  // por outra tela (Relatórios) sem duplicar lógica que possa divergir.
+  function deriveUniformPendingState(source) {
     const explicit = String(source?.uniform_pending || '').trim().toLocaleLowerCase('pt-BR');
     if (['uniform', 'shoes', 'both'].includes(explicit)) return explicit;
 
@@ -198,11 +196,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (needsUniform) return 'uniform';
     if (needsShoes) return 'shoes';
     return '';
+  }
+  window.deriveUniformPendingState = deriveUniformPendingState;
+
+  function isUniformMaterialPending(source) {
+    return source?.material_received === false || source?.material_received === 'false';
+  }
+  window.isUniformMaterialPending = isUniformMaterialPending;
+
+  const pending = student => {
+    // Toda a tela consulta primeiro o último estado confirmado do aluno.
+    // Isso protege a contagem contra uma carga antiga que termine depois de
+    // o usuário alterar o seletor.
+    const stored = student?.id ? canonicalUniformState.get(student.id) : null;
+    const source = stored ? { ...student, ...stored } : student;
+    return deriveUniformPendingState(source);
   };
   const materialPending = student => {
     const stored = student?.id ? canonicalUniformState.get(student.id) : null;
     const source = stored ? { ...student, ...stored } : student;
-    return source?.material_received === false || source?.material_received === 'false';
+    return isUniformMaterialPending(source);
   };
   const statusesFor = student => {
     const status = pending(student);
@@ -718,12 +731,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const { classId, year, bimester } = currentLivroRevisaSelection();
     if (!classId || !year || !bimester || !canRegisterUniform()) return;
     const studentId = button.dataset.studentId, status = button.dataset.status;
+    // Desfazer ✕: só quando o próprio botão ✕ já está ativo (estado atual real
+    // é nao_recebido, pintado no último render). O ✓ nunca entra neste caminho
+    // — continua chamando set_livro_revisa_status em qualquer estado, como hoje.
+    const isUndoCross = button.classList.contains('livro-revisa-cross') && button.classList.contains('active');
     button.disabled = true;
-    const { error } = await db.rpc('set_livro_revisa_status', { target_student_id:studentId, p_school_year:year, p_bimester:bimester, p_status:status });
+    const { error } = isUndoCross
+      ? await db.rpc('clear_livro_revisa_status', { target_student_id:studentId, p_school_year:year, p_bimester:bimester })
+      : await db.rpc('set_livro_revisa_status', { target_student_id:studentId, p_school_year:year, p_bimester:bimester, p_status:status });
     if (error) { toast(error.message); button.disabled = false; return; }
     await loadLivroRevisaDeliveries(livroRevisaClassStudents.map(item => item.id));
     renderLivroRevisaPanel();
-    toast(status === 'recebido' ? 'Aluno marcado como recebido.' : 'Pendência registrada.');
+    toast(isUndoCross ? 'Marcação removida.' : (status === 'recebido' ? 'Aluno marcado como recebido.' : 'Pendência registrada.'));
   };
   get('finalizeLivroRevisa').onclick = async () => {
     const { classId, year, bimester } = currentLivroRevisaSelection();

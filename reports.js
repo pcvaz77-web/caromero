@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
         <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
+        <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
       </div>
       <div class="field reports-livro-revisa-year hidden" id="reportLivroRevisaYearField"><label for="reportLivroRevisaYear">Ano letivo (Livro/Revisa)</label><input id="reportLivroRevisaYear" type="number" min="2000" max="2100" step="1"></div>
     </div>
@@ -101,6 +102,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // só quando a opção de Livro/Revisa é realmente usada. RLS já restringe
   // a leitura à(s) escola(s) do usuário; não precisa de school_id explícito.
   let livroRevisaTerms = null;
+
+  // Uniforme/Tênis/Material — mesmo padrão de dataset/cache de
+  // fetchLivroRevisaDataset, aplicado ao mesmo conjunto de alunos já
+  // filtrado/autorizado (datasetStudents). uniformItemsByStudent:
+  // student_id -> linha real de report_uniform_status.
+  let uniformItemsByStudent = new Map();
+  let uniformItemsSignature = '';
+  let uniformItemsError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
 
   // Tamanho de LOTE por requisição — não é um teto de alunos/ocorrências. O
@@ -172,6 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // (reportStart/reportEnd); nunca inferido delas, sempre lido deste
       // campo próprio, visível só quando a opção está marcada.
       livroRevisaYear: Number(get('reportLivroRevisaYear').value) || new Date().getFullYear(),
+      withUniformItems: get('reportContentUniformItems').checked,
       onlyWithRecords: get('reportIncludeWithRecords').checked
     };
   }
@@ -282,6 +292,41 @@ document.addEventListener('DOMContentLoaded', () => {
     await ensureLivroRevisaTerms();
   }
 
+  // Espelha fetchLivroRevisaDataset — mesmo padrão de assinatura/cache,
+  // aplicado exatamente ao conjunto de alunos já filtrado/autorizado
+  // (datasetStudents, vindo de report_students). Ao contrário de
+  // report_livro_revisa, report_uniform_status exige target_school_id
+  // explícito e reautoriza school_admin/coordinator NESSA escola no
+  // servidor (mesmo padrão de report_students/report_occurrences) — nunca
+  // confia só nos IDs de aluno enviados para isolamento.
+  async function fetchUniformItemsDataset(filters) {
+    if (!filters.withUniformItems || !datasetStudents.length) {
+      uniformItemsByStudent = new Map();
+      uniformItemsError = false;
+      uniformItemsSignature = filters.withUniformItems ? uniformItemsSignature : '';
+      return;
+    }
+    const studentIds = datasetStudents.map(item => item.student_id).sort();
+    const signature = JSON.stringify(studentIds);
+    if (signature === uniformItemsSignature) return;
+    const token = ++fetchToken;
+    const { data, error, stale } = await fetchAllPages('report_uniform_status', {
+      target_school_id: window.getActiveSchoolId?.() || null,
+      p_student_ids: studentIds
+    }, token);
+    if (stale || token !== fetchToken) return;
+    if (error) {
+      uniformItemsByStudent = new Map();
+      uniformItemsSignature = '';
+      uniformItemsError = true;
+      return;
+    }
+    uniformItemsByStudent = new Map();
+    data.forEach(item => { uniformItemsByStudent.set(item.student_id, item); });
+    uniformItemsSignature = signature;
+    uniformItemsError = false;
+  }
+
   // Escola ativa da sessão (school-context.js) — nunca mais resolvida
   // localmente aqui. Necessário porque report_students()/datasetStudents
   // não trazem school_id por aluno: sem filtrar school_terms pela escola
@@ -322,6 +367,17 @@ document.addEventListener('DOMContentLoaded', () => {
       const yearPrefix = `${filters.livroRevisaYear}_`;
       matched = matched || Array.from(livroRevisaByStudent.get(student.student_id)?.keys() || []).some(key => key.startsWith(yearPrefix));
     }
+    // Uniforme/Tênis/Material só conta como registro quando há pendência
+    // explícita real (mesma regra de deriveUniformPendingState/
+    // isUniformMaterialPending já usada pelo Controle de Itens) — o estado
+    // padrão "recebeu" é indistinguível de um aluno nunca tocado, então
+    // nunca faz, sozinho, um aluno entrar em "Somente alunos com registros".
+    if (filters.withUniformItems) {
+      const row = uniformItemsByStudent.get(student.student_id) || null;
+      const pendingState = window.deriveUniformPendingState?.(row || {}) || '';
+      const materialPending = window.isUniformMaterialPending?.(row || {}) || false;
+      matched = matched || !!pendingState || materialPending;
+    }
     return matched;
   }
 
@@ -351,6 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchLivroRevisaDataset(filters);
     if (livroRevisaError) {
       previewEl.textContent = 'Não foi possível carregar os dados de Livro/Revisa. Tente novamente.';
+      return;
+    }
+    await fetchUniformItemsDataset(filters);
+    if (uniformItemsError) {
+      previewEl.textContent = 'Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.';
       return;
     }
     const total = datasetStudents.length;
@@ -592,6 +653,44 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       y += 4;
     }
+
+    if (filters.withUniformItems) {
+      // Mesmo respiro/padrão visual das demais seções (não altera nada
+      // acima quando esta opção está desmarcada).
+      y += 6;
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(20, 32, 58);
+      doc.text('UNIFORME / TÊNIS / MATERIAL', MARGIN_X, y);
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(52, 64, 84);
+      // Reaproveita exatamente a mesma derivação já usada no Controle de
+      // Itens (uniform-management.js) — nunca uma interpretação paralela.
+      const row = uniformItemsByStudent.get(student.student_id) || {};
+      const derivePending = typeof window.deriveUniformPendingState === 'function' ? window.deriveUniformPendingState : null;
+      const deriveMaterialPending = typeof window.isUniformMaterialPending === 'function' ? window.isUniformMaterialPending : null;
+      if (derivePending && deriveMaterialPending) {
+        const pendingState = derivePending(row);
+        const uniformLabel = (pendingState === 'uniform' || pendingState === 'both') ? 'Não recebeu' : 'Recebeu';
+        const shoesLabel = (pendingState === 'shoes' || pendingState === 'both') ? 'Não recebeu' : 'Recebeu';
+        const materialLabel = deriveMaterialPending(row) ? 'Não recebeu' : 'Recebeu';
+        [['Uniforme', uniformLabel], ['Tênis', shoesLabel], ['Material', materialLabel]].forEach(([label, value]) => {
+          y = ensureSpace(doc, y, 6, `Continuação — ${student.full_name}`);
+          doc.text(`${label}: ${value}`, MARGIN_X, y);
+          y += 5.5;
+        });
+      } else {
+        // Nunca deveria acontecer (uniform-management.js já carrega antes de
+        // reports.js ser usado) — lacuna registrada, não inventa estado.
+        y = ensureSpace(doc, y, 6, `Continuação — ${student.full_name}`);
+        doc.text('Não foi possível determinar o estado (função de derivação indisponível).', MARGIN_X, y);
+        y += 5.5;
+      }
+      y += 4;
+    }
   }
 
   function applyFooters(doc, generatedByName, generatedAt) {
@@ -642,6 +741,11 @@ document.addEventListener('DOMContentLoaded', () => {
     livroRevisaSignature = '';
     await fetchLivroRevisaDataset(filters);
     if (livroRevisaError) { toast('Não foi possível carregar os dados de Livro/Revisa. Tente novamente.'); return; }
+    // Mesmo racional acima: nunca reaproveitar um resultado de
+    // Uniforme/Tênis/Material desatualizado no PDF.
+    uniformItemsSignature = '';
+    await fetchUniformItemsDataset(filters);
+    if (uniformItemsError) { toast('Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
@@ -695,7 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,
@@ -747,7 +851,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
   get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);
