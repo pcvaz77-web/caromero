@@ -314,6 +314,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let matched = false;
     if (filters.withOccurrences) matched = matched || (occurrencesByStudent.get(student.student_id)?.length > 0);
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
+    // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
+    // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
+    // histórico. livroRevisaByStudent já está em memória (populado sempre
+    // que withLivroRevisa está marcado); nenhuma consulta nova aqui.
+    if (filters.withLivroRevisa) {
+      const yearPrefix = `${filters.livroRevisaYear}_`;
+      matched = matched || Array.from(livroRevisaByStudent.get(student.student_id)?.keys() || []).some(key => key.startsWith(yearPrefix));
+    }
     return matched;
   }
 
@@ -739,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
   get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);
