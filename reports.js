@@ -30,7 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
         <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
+        <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
       </div>
+      <div class="field reports-livro-revisa-year hidden" id="reportLivroRevisaYearField"><label for="reportLivroRevisaYear">Ano letivo (Livro/Revisa)</label><input id="reportLivroRevisaYear" type="number" min="2000" max="2100" step="1"></div>
     </div>
     <div class="reports-section">
       <span class="reports-section-title">Incluir alunos</span>
@@ -89,6 +91,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let fetchToken = 0;
   let datasetError = false;
   let occurrenceError = false;
+
+  // Livro/Revisa — dataset próprio, nunca misturado ao de Ocorrências.
+  // livroRevisaByStudent: student_id -> Map(`${ano}_${bimestre}` -> linha real).
+  let livroRevisaByStudent = new Map();
+  let livroRevisaSignature = '';
+  let livroRevisaError = false;
+  // Calendário letivo (school_terms): carregado uma única vez, sob demanda —
+  // só quando a opção de Livro/Revisa é realmente usada. RLS já restringe
+  // a leitura à(s) escola(s) do usuário; não precisa de school_id explícito.
+  let livroRevisaTerms = null;
+  const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
 
   // Tamanho de LOTE por requisição — não é um teto de alunos/ocorrências. O
   // PostgREST/Supabase limita quantas linhas cada resposta pode conter
@@ -154,15 +167,33 @@ document.addEventListener('DOMContentLoaded', () => {
       withOccurrences: get('reportContentOccurrences').checked,
       withObservations: get('reportContentObservations').checked,
       withPhoto: get('reportContentPhoto').checked,
+      withLivroRevisa: get('reportContentLivroRevisa').checked,
+      // Ano letivo do Livro/Revisa — independente do período de Ocorrências
+      // (reportStart/reportEnd); nunca inferido delas, sempre lido deste
+      // campo próprio, visível só quando a opção está marcada.
+      livroRevisaYear: Number(get('reportLivroRevisaYear').value) || new Date().getFullYear(),
       onlyWithRecords: get('reportIncludeWithRecords').checked
     };
+  }
+
+  function syncLivroRevisaYearField() {
+    const checked = get('reportContentLivroRevisa').checked;
+    const field = get('reportLivroRevisaYearField');
+    field.classList.toggle('hidden', !checked);
+    const yearInput = get('reportLivroRevisaYear');
+    if (checked && !yearInput.value) yearInput.value = new Date().getFullYear();
   }
 
   async function fetchStudentsDataset(filters) {
     const signature = JSON.stringify([filters.shift, filters.classId, filters.studentId]);
     if (signature === datasetSignature) return;
     const token = ++fetchToken;
+    // Escola ativa da sessão (school-context.js) — nunca inferida aqui.
+    // report_students exige target_school_id explícito e reautoriza no
+    // servidor (is_school_admin/is_school_coordinator NESSA escola); sem
+    // isso, alunos de outra escola nunca podem entrar no relatório.
     const { data, error, stale } = await fetchAllPages('report_students', {
+      target_school_id: window.getActiveSchoolId?.() || null,
       p_shift: filters.shift,
       p_class_id: filters.classId,
       p_student_id: filters.studentId
@@ -191,7 +222,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const signature = JSON.stringify([studentIds, filters.start, filters.end]);
     if (signature === occurrenceSignature) return;
     const token = ++fetchToken;
+    // Mesma escola ativa usada em report_students — report_occurrences
+    // também reautoriza no servidor e restringe o resultado a alunos
+    // dessa escola, nunca confiando só nos IDs enviados.
     const { data, error, stale } = await fetchAllPages('report_occurrences', {
+      target_school_id: window.getActiveSchoolId?.() || null,
       p_student_ids: studentIds,
       p_start: filters.start,
       p_end: filters.end
@@ -210,6 +245,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     occurrenceSignature = signature;
     occurrenceError = false;
+  }
+
+  // Espelha fetchOccurrencesDataset — mesmo padrão de assinatura/cache,
+  // mesma RPC paginada (report_livro_revisa), aplicada exatamente ao
+  // conjunto de alunos que já passou pelos filtros/permissões do relatório
+  // (datasetStudents, vindo de report_students).
+  async function fetchLivroRevisaDataset(filters) {
+    if (!filters.withLivroRevisa || !datasetStudents.length) {
+      livroRevisaByStudent = new Map();
+      livroRevisaError = false;
+      livroRevisaSignature = filters.withLivroRevisa ? livroRevisaSignature : '';
+      return;
+    }
+    const studentIds = datasetStudents.map(item => item.student_id).sort();
+    const signature = JSON.stringify(studentIds);
+    if (signature === livroRevisaSignature) return;
+    const token = ++fetchToken;
+    const { data, error, stale } = await fetchAllPages('report_livro_revisa', {
+      p_student_ids: studentIds
+    }, token);
+    if (stale || token !== fetchToken) return;
+    if (error) {
+      livroRevisaByStudent = new Map();
+      livroRevisaSignature = '';
+      livroRevisaError = true;
+      return;
+    }
+    livroRevisaByStudent = new Map();
+    data.forEach(item => {
+      if (!livroRevisaByStudent.has(item.student_id)) livroRevisaByStudent.set(item.student_id, new Map());
+      livroRevisaByStudent.get(item.student_id).set(`${item.school_year}_${item.bimester}`, item);
+    });
+    livroRevisaSignature = signature;
+    livroRevisaError = false;
+    await ensureLivroRevisaTerms();
+  }
+
+  // Escola ativa da sessão (school-context.js) — nunca mais resolvida
+  // localmente aqui. Necessário porque report_students()/datasetStudents
+  // não trazem school_id por aluno: sem filtrar school_terms pela escola
+  // ativa, uma conta com vínculo em mais de uma escola (ex.: school_admin
+  // na Escola A e coordinator na Escola B) poderia ter dois calendários
+  // colidindo na mesma chave ano+bimestre. A escola ativa é escolhida
+  // explicitamente pelo usuário (ou automaticamente só quando há um único
+  // vínculo) — nunca "a primeira que o banco devolver" nem "a que sou
+  // admin".
+  function currentReportSchoolId() {
+    return window.getActiveSchoolId?.() || null;
+  }
+
+  // Calendário só é lido quando realmente necessário (Livro/Revisa marcado)
+  // e só uma vez por sessão do modal — ausência de linha em
+  // livro_revisa_deliveries nunca é interpretada como "não recebido"; o
+  // calendário é o que permite distinguir "sem informação" de "bimestre
+  // não iniciado" de "calendário não configurado".
+  async function ensureLivroRevisaTerms() {
+    if (livroRevisaTerms) return;
+    livroRevisaTerms = new Map();
+    const schoolId = await currentReportSchoolId();
+    if (!schoolId) return;
+    const { data, error } = await db.from('school_terms').select('school_year,bimester,starts_on,ends_on').eq('school_id', schoolId);
+    if (error) { livroRevisaTerms = null; return; }
+    (data || []).forEach(term => { livroRevisaTerms.set(`${term.school_year}_${term.bimester}`, term); });
   }
 
   function studentHasRecord(student, filters) {
@@ -240,6 +338,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchOccurrencesDataset(filters);
     if (occurrenceError) {
       previewEl.textContent = 'Não foi possível carregar as ocorrências. Tente novamente.';
+      return;
+    }
+    await fetchLivroRevisaDataset(filters);
+    if (livroRevisaError) {
+      previewEl.textContent = 'Não foi possível carregar os dados de Livro/Revisa. Tente novamente.';
       return;
     }
     const total = datasetStudents.length;
@@ -438,6 +541,49 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setTextColor(20, 32, 58);
       doc.text(`Total de ocorrências no período: ${records.length}`, MARGIN_X, y);
     }
+
+    if (filters.withLivroRevisa) {
+      // Respiro antes do título — mesmo espaçamento visual que já existe
+      // entre as demais seções (nunca altera o bloco de Ocorrências acima,
+      // que continua terminando exatamente como antes quando esta seção
+      // está desmarcada).
+      y += 6;
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.setTextColor(20, 32, 58);
+      doc.text('RECEBIMENTO DE LIVRO/REVISA', MARGIN_X, y);
+      y += 8;
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
+      doc.setTextColor(52, 64, 84);
+      // Reaproveita exatamente a mesma derivação de estado já usada na tela
+      // de Livro/Revisa (uniform-management.js) — nunca duas lógicas que
+      // possam divergir. Ausência de linha nunca vira "não recebido": o
+      // estado depende sempre do calendário (school_terms), nunca é
+      // inferido pela ausência em si.
+      const deliveries = livroRevisaByStudent.get(student.student_id) || new Map();
+      const deriveState = typeof window.deriveLivroRevisaState === 'function' ? window.deriveLivroRevisaState : null;
+      const stateLabel = typeof window.livroRevisaStateLabel === 'function' ? window.livroRevisaStateLabel : null;
+      for (let bimester = 1; bimester <= 4; bimester++) {
+        y = ensureSpace(doc, y, 6, `Continuação — ${student.full_name}`);
+        const row = deliveries.get(`${filters.livroRevisaYear}_${bimester}`) || null;
+        const term = livroRevisaTermFor(filters.livroRevisaYear, bimester);
+        let line;
+        if (deriveState && stateLabel) {
+          const state = deriveState(row, term);
+          const label = stateLabel(state, row);
+          line = label.endsWith('.') ? label : `${label}.`;
+        } else {
+          // Nunca deveria acontecer (uniform-management.js já carrega antes
+          // de reports.js ser usado) — lacuna registrada, não inventa estado.
+          line = 'Não foi possível determinar o estado (função de derivação indisponível).';
+        }
+        doc.text(`${bimester}º bimestre: ${line}`, MARGIN_X, y);
+        y += 5.5;
+      }
+      y += 4;
+    }
   }
 
   function applyFooters(doc, generatedByName, generatedAt) {
@@ -483,6 +629,11 @@ document.addEventListener('DOMContentLoaded', () => {
     occurrenceSignature = '';
     await fetchOccurrencesDataset(filters);
     if (occurrenceError) { toast('Não foi possível carregar as ocorrências. Tente novamente.'); return; }
+    // Mesmo racional de occurrenceSignature acima: nunca reaproveitar um
+    // resultado de Livro/Revisa desatualizado no PDF.
+    livroRevisaSignature = '';
+    await fetchLivroRevisaDataset(filters);
+    if (livroRevisaError) { toast('Não foi possível carregar os dados de Livro/Revisa. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
@@ -500,6 +651,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const generatedAt = new Date();
       const generatedByName = await currentUserDisplayName();
       const emittedAtLabel = new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(generatedAt);
+      // Ano letivo do Livro/Revisa já vem de filters.livroRevisaYear (campo
+      // próprio do formulário, lido em currentFilters()) — nunca mais fixo
+      // no ano de geração do PDF, para permitir relatórios de anos anteriores.
       const renderFilters = { ...filters, emittedAtLabel };
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit:'mm', format:'a4' });
@@ -533,10 +687,16 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, photo: filters.withPhoto },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
-        p_student_count: reportTargets.length
+        p_student_count: reportTargets.length,
+        // Escola ativa — para scopeType 'student'/'class' a RPC já deriva e
+        // valida a escola do próprio recurso (aluno/turma), então isto é só
+        // checagem de consistência extra; para 'shift' (sem recurso concreto)
+        // é o que resolve a ambiguidade de contas com mais de uma escola —
+        // era o parâmetro reservado e nunca enviado antes desta mudança.
+        p_school_id: window.getActiveSchoolId?.() || null
       });
       if (logError) toast('Relatório gerado, mas não foi possível registrar a auditoria. Verifique se supabase-reports.sql foi executado.');
       else toast('Relatório gerado com sucesso.');
@@ -561,6 +721,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function open() {
     if (!canAccessReports()) { toast('Você não tem acesso a Relatórios.'); return; }
     modal.classList.remove('hidden');
+    // Recarrega o calendário a cada abertura do modal — nunca reaproveitar
+    // school_terms de uma sessão anterior do modal, que pode ter ficado
+    // desatualizado se o calendário foi configurado/corrigido nesse meio-tempo.
+    livroRevisaTerms = null;
     await load();
     fillShiftClasses();
     fillClassStudents();
@@ -575,9 +739,10 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
+  get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);
   get('generateReport').onclick = generateReport;
 
   document.addEventListener('carometro:permission-refresh', syncReportsNavigation);

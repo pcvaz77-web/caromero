@@ -4,24 +4,27 @@ document.addEventListener('DOMContentLoaded', () => {
   const uniformButton = document.createElement('button');
   uniformButton.id = 'uniformNav';
   uniformButton.type = 'button';
-  uniformButton.innerHTML = '<span>▣ &nbsp; Uniforme</span>';
+  uniformButton.innerHTML = '<span>▣ &nbsp; Controle de Itens</span>';
   nav.insertBefore(uniformButton, document.getElementById('profileNav') || null);
 
   const modal = document.createElement('div');
   modal.id = 'uniformModal';
   modal.className = 'modal-bg uniform-modal hidden';
-  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Uniforme</h3><div class="meta">Consulte a situação por turno, turma ou aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div><div><span>Sem material</span><b id="pendingMaterial">0</b></div></div><section class="uniform-shift-section" aria-label="Contagem por turno"><span class="uniform-shift-title">Contagem por turno</span><div id="uniformShiftSummary" class="uniform-shift-summary"></div></section><div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button">✓ Marcar todos como receberam</button></div><div class="uniform-controls"><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select><select id="uniformClass"><option value="">Todas as turmas</option></select><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option><option value="material">Somente sem material</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></section>`;
+  modal.innerHTML = `<section class="modal uniform-dialog"><div class="modal-head"><div><h3>Controle de Itens</h3><div class="meta">Consulte a situação por turno, turma ou aluno.</div></div><button class="close" type="button" id="closeUniform">×</button></div><div class="uniform-mode-toggle" role="tablist"><button type="button" id="uniformModeItems" class="uniform-mode-btn active" role="tab" aria-pressed="true">Itens</button><button type="button" id="uniformModeLivroRevisa" class="uniform-mode-btn" role="tab" aria-pressed="false">Livro/Revisa</button></div><div id="uniformItemsPanel"><div class="uniform-summary"><div><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div><span>Sem tênis</span><b id="pendingShoes">0</b></div><div><span>Sem os dois</span><b id="pendingBoth">0</b></div><div><span>Sem material</span><b id="pendingMaterial">0</b></div></div><section class="uniform-shift-section" aria-label="Contagem por turno"><span class="uniform-shift-title">Contagem por turno</span><div id="uniformShiftSummary" class="uniform-shift-summary"></div></section><div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button">✓ Marcar todos como receberam</button></div><div class="uniform-controls"><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select><select id="uniformClass"><option value="">Todas as turmas</option></select><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option><option value="material">Somente sem material</option></select><input id="uniformSearch" placeholder="Buscar aluno"></div><div id="uniformActiveFilter" class="uniform-active-filter hidden" role="status" aria-live="polite"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></div><div id="livroRevisaPanel" class="livro-revisa-panel hidden"><div class="livro-revisa-controls"><select id="livroRevisaClass"><option value="">Selecione a turma</option></select><input id="livroRevisaYear" type="number" min="2000" max="2100" placeholder="Ano letivo"><select id="livroRevisaBimester"><option value="">Bimestre</option><option value="1">1º bimestre</option><option value="2">2º bimestre</option><option value="3">3º bimestre</option><option value="4">4º bimestre</option></select></div><div id="livroRevisaNotice" class="livro-revisa-notice hidden"></div><div id="livroRevisaColumns" class="uniform-columns livro-revisa-columns hidden"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="livroRevisaList" class="livro-revisa-list"></div><div class="livro-revisa-actions"><button id="finalizeLivroRevisa" class="btn secondary" type="button" disabled>Finalizar conferência</button></div></div></section>`;
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
   style.textContent = `
     #uniformNav { border:0; background:#2b3c5d; color:#fff; } #uniformNav:hover { background:#38527e; } #toast { z-index:220!important; }
     .uniform-modal { z-index:110; padding:12px 20px; overscroll-behavior:none; }.uniform-dialog { width:min(1040px,100%); height:min(960px,calc(100dvh - 24px)); max-height:calc(100dvh - 24px); min-height:0; display:flex; flex-direction:column; overflow:hidden; }.uniform-dialog .modal-head { position:relative!important; top:auto!important; flex:none; }
+    .uniform-mode-toggle { flex:none; display:flex; gap:8px; padding:14px 22px 0; }.uniform-mode-btn { min-height:38px; padding:8px 16px; border:1px solid #d9e2f4; border-radius:99px; background:#fff; color:var(--muted); font-weight:750; font-size:13px; cursor:pointer; }.uniform-mode-btn.active { background:#2b3c5d; border-color:#2b3c5d; color:#fff; }
+    #uniformItemsPanel { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; }
+    .livro-revisa-panel { flex:1 1 auto; min-height:0; display:flex; flex-direction:column; overflow:hidden; padding:0 22px 22px; }.livro-revisa-controls { flex:none; display:grid; grid-template-columns:1.3fr .8fr 1fr; gap:10px; padding:15px 0; }.livro-revisa-controls input,.livro-revisa-controls select { min-width:0; min-height:42px; padding:8px 10px; }.livro-revisa-notice { flex:none; margin-bottom:12px; padding:10px 12px; border-radius:8px; background:#fff4e5; color:#8a5a00; font-size:13px; font-weight:650; }.livro-revisa-columns { flex:none; padding:0 0 9px; }.livro-revisa-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }.livro-revisa-actions { flex:none; display:flex; justify-content:flex-end; padding-top:14px; }.livro-revisa-toggle { display:flex; gap:6px; }.livro-revisa-check,.livro-revisa-cross { min-width:40px; min-height:40px; border-radius:8px; border:1px solid #d9e2f4; background:#fff; font-size:16px; font-weight:800; cursor:pointer; color:var(--muted); }.livro-revisa-check.active { background:#dcfae6; border-color:#087443; color:#087443; }.livro-revisa-cross.active { background:#fee4e2; border-color:#b42318; color:#b42318; }
     .uniform-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; padding:10px 22px; border-bottom:1px solid var(--line); background:#f8faff; }.uniform-summary div { padding:7px 9px; border:1px solid #dbe4f5; border-radius:9px; background:#fff; }.uniform-summary span { display:block; color:var(--muted); font-size:11px; font-weight:700; }.uniform-summary b { font-size:20px; color:#b42318; }
     .uniform-shift-section { padding:8px 22px; border-bottom:1px solid var(--line); background:#fff; }.uniform-shift-title { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; }.uniform-shift-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }.uniform-shift-card { border:1px solid #dbe4f5; border-radius:9px; padding:7px; background:#f8faff; }.uniform-shift-card b { display:block; font-size:12px; margin-bottom:5px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }.uniform-shift-values span { color:var(--muted); font-size:10px; line-height:1.15; }.uniform-shift-values strong { display:block; margin-top:2px; color:#b42318; font-size:16px; }.uniform-shift-cell { all:unset; box-sizing:border-box; display:block; width:100%; font:inherit; color:var(--muted); text-align:left; cursor:pointer; -webkit-tap-highlight-color:transparent; border-radius:6px; }.uniform-shift-cell:hover:not(:disabled) { background:#eef3ff; }.uniform-shift-cell[aria-pressed="true"] { background:#dbe7ff; border:1px solid #8fa8e0; }.uniform-shift-cell:disabled { opacity:.55; cursor:default; }.uniform-shift-cell:focus-visible { outline:2px solid #2b3c5d; outline-offset:2px; }
-    .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:430px; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
+    .uniform-summary,.uniform-shift-section,.uniform-bulk-action,.uniform-controls,.uniform-active-filter,.uniform-columns { flex:none; }.uniform-bulk-action { display:flex; justify-content:flex-end; padding:12px 22px 0; }.uniform-bulk-action .btn { min-height:38px; font-size:13px; }.uniform-controls { display:grid; grid-template-columns:.85fr .85fr 1.15fr .9fr; gap:10px; padding:15px 22px; }.uniform-controls input,.uniform-controls select { min-width:0; min-height:42px; padding:8px 10px; }.uniform-active-filter { margin:0 22px 12px; padding:9px 12px; border-radius:8px; background:#eef3ff; color:#2b3c5d; font-size:12.5px; font-weight:700; }.uniform-columns { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; padding:0 22px 9px; color:var(--muted); font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }.uniform-list { flex:1 1 auto; min-height:0; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; padding:0 22px 22px; }
     .uniform-row { display:grid; grid-template-columns:minmax(210px,1fr) minmax(160px,.7fr) minmax(190px,.8fr); gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--line); }.uniform-student b { display:block; }.uniform-student .meta { margin-top:4px; }.uniform-statuses { display:flex; flex-wrap:wrap; gap:5px; }.uniform-status { display:inline-flex; width:max-content; padding:6px 9px; border-radius:99px; font-size:12px; font-weight:800; }.uniform-status.received { background:#dcfae6; color:#087443; }.uniform-status.pending { background:#fee4e2; color:#b42318; }.uniform-action { display:grid; gap:6px; }.uniform-action select { min-height:37px; padding:6px 8px; font-size:13px; }.uniform-save { min-height:37px; padding:7px 10px; font-size:13px; }.uniform-card-label { margin-left:0; max-width:100%; white-space:normal; line-height:1.25; }.uniform-card-label.uniform-pending { background:#fee4e2; color:#b42318; }.uniform-empty { padding:40px 15px; text-align:center; color:var(--muted); }
-    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:10px; }.uniform-shift-summary { grid-template-columns:1fr; gap:8px; }.uniform-shift-card { padding:8px 10px; }.uniform-shift-card b { margin:0 0 6px; font-size:13px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }.uniform-shift-values span { font-size:11px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:16px; margin-top:3px; }.uniform-shift-cell { min-height:44px; padding:6px 4px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-columns { display:none; }.uniform-list { min-height:190px; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; } }
+    @media(max-width:800px) { .side .nav #uniformNav { flex:1 1 0!important; min-width:0; }.uniform-modal { padding:6px; align-items:center; }.uniform-dialog { width:100%; height:calc(100dvh - 12px); max-height:none; }.uniform-dialog .modal-head { padding:11px 14px; }.uniform-mode-toggle { padding:10px 12px 0; }.uniform-summary { grid-template-columns:repeat(2,1fr); padding:7px 12px; gap:5px; }.uniform-summary div { padding:6px; }.uniform-summary span { font-size:9px; }.uniform-summary b { font-size:18px; }.uniform-shift-section { padding:7px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:10px; }.uniform-shift-summary { grid-template-columns:1fr; gap:8px; }.uniform-shift-card { padding:8px 10px; }.uniform-shift-card b { margin:0 0 6px; font-size:13px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; }.uniform-shift-values span { font-size:11px; overflow-wrap:anywhere; }.uniform-shift-values strong { font-size:16px; margin-top:3px; }.uniform-shift-cell { min-height:44px; padding:6px 4px; }.uniform-bulk-action { padding:7px 12px 0; }.uniform-bulk-action .btn { width:100%; min-height:34px; }.uniform-controls { grid-template-columns:1fr 1fr; padding:9px 12px; gap:6px; }.uniform-controls input,.uniform-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.uniform-active-filter { margin:0 12px 9px; font-size:11.5px; padding:8px 10px; }.uniform-columns { display:none; }.uniform-list { min-height:0; padding:0 12px 12px; }.uniform-row { grid-template-columns:1fr; gap:6px; padding:10px 0; }.uniform-card-label { font-size:11px; }.livro-revisa-panel { padding:0 12px 12px; }.livro-revisa-controls { grid-template-columns:1fr; gap:6px; padding:9px 0; }.livro-revisa-controls input,.livro-revisa-controls select { min-height:38px; padding:7px 8px; font-size:13px; }.livro-revisa-columns { display:none; } }
   `;
   document.head.appendChild(style);
 
@@ -72,7 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshUniformMembership() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) { uniformMembership = null; uniformCommercialPermission = emptyUniformPermission(); await teardownUniformChannels(); return; }
-    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('status', 'active').limit(1).maybeSingle();
+    // Vínculo da escola ATIVA da sessão (school-context.js) — nunca mais
+    // "a primeira membership ativa" retornada pelo banco. Uma conta com
+    // vínculo em mais de uma escola precisa das permissões da escola que
+    // está de fato selecionada, não de uma escola arbitrária.
+    const activeSchoolId = window.getActiveSchoolId?.() || null;
+    if (!activeSchoolId) { uniformMembership = null; uniformCommercialPermission = emptyUniformPermission(); await teardownUniformChannels(); return; }
+    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('school_id', activeSchoolId).eq('status', 'active').maybeSingle();
     if (!membership) { uniformMembership = null; uniformCommercialPermission = emptyUniformPermission(); await teardownUniformChannels(); return; }
     uniformMembership = membership;
     const { data: perms } = await db.from('school_member_permissions').select('can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_edit_all').eq('member_id', membership.id).maybeSingle();
@@ -281,6 +290,26 @@ document.addEventListener('DOMContentLoaded', () => {
     select.innerHTML = '<option value="">Todas as turmas</option>' + available.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
     if ([...select.options].some(item => item.value === current)) select.value = current;
   }
+  const uniformViewLabels = { uniform:'Sem uniforme', shoes:'Sem tênis', both:'Sem os dois', material:'Sem material', pending:'Pendentes' };
+  function updateActiveFilterIndicator({ shift, classId, view, query, matchedByView, visibleCount }) {
+    const indicator = get('uniformActiveFilter');
+    const parts = [];
+    if (shift) parts.push(`Turno ${shift}`);
+    if (classId) { const cls = classes.find(item => item.id === classId); if (cls) parts.push(`Turma ${cls.name}`); }
+    if (view !== 'all') parts.push(uniformViewLabels[view] || view);
+    // Sem nenhum filtro específico e sem busca: nada de específico para
+    // mostrar — não cria informação visual redundante ("mostrando tudo").
+    if (!parts.length && !query) {
+      indicator.classList.add('hidden');
+      indicator.textContent = '';
+      return;
+    }
+    indicator.classList.remove('hidden');
+    const base = parts.length ? parts.join(' • ') : 'Busca';
+    const countLabel = `${matchedByView} aluno${matchedByView === 1 ? '' : 's'}`;
+    const searchSuffix = query && visibleCount !== matchedByView ? ` • mostrando ${visibleCount} com a busca atual` : '';
+    indicator.textContent = `${base} — ${countLabel}${searchSuffix}`;
+  }
   function render() {
     classOptions();
     const bulkAccess = bulkUniformAccess();
@@ -289,19 +318,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // definir quais alunos aparecem na lista.
     updateUniformSummary();
     const shift = get('uniformShift').value, classId = get('uniformClass').value, view = get('uniformView').value, query = get('uniformSearch').value.trim().toLocaleLowerCase('pt-BR');
-    if (!shift && !classId) { get('uniformList').innerHTML = '<div class="uniform-empty">Escolha um turno ou uma turma para ver os alunos.</div>'; return; }
-    if (classStudents === null) { get('uniformList').innerHTML = '<div class="uniform-empty">Carregando alunos da turma…</div>'; return; }
+    if (!shift && !classId) {
+      get('uniformActiveFilter').classList.add('hidden');
+      get('uniformList').innerHTML = '<div class="uniform-empty">Escolha um turno ou uma turma para ver os alunos.</div>';
+      return;
+    }
+    if (classStudents === null) {
+      get('uniformActiveFilter').classList.add('hidden');
+      get('uniformList').innerHTML = '<div class="uniform-empty">Carregando alunos da turma…</div>';
+      return;
+    }
     // A tela de Uniforme deve manter todos os alunos da turma juntos e em
     // ordem alfabética, independentemente da data em que foram cadastrados.
-    const visible = classStudents.filter(item => {
+    const matchedByView = classStudents.filter(item => {
       const type = pending(item);
       const missingMaterial = materialPending(item);
-      if (query && !item.name.toLocaleLowerCase('pt-BR').includes(query)) return false;
       if (view === 'all') return true;
       if (view === 'pending') return !!type || missingMaterial;
       if (view === 'material') return missingMaterial;
       return type === view;
-    }).sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
+    });
+    const visible = matchedByView.filter(item => !query || item.name.toLocaleLowerCase('pt-BR').includes(query))
+      .sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
+    updateActiveFilterIndicator({ shift, classId, view, query, matchedByView:matchedByView.length, visibleCount:visible.length });
     get('uniformList').innerHTML = visible.length ? visible.map(item => {
       const type = pending(item), missingMaterial = materialPending(item), statuses = statusesFor(item);
       const statusHtml = statuses.length ? `<div class="uniform-statuses">${statuses.map(status => `<span class="uniform-status pending">${labels[status]}</span>`).join('')}</div>` : '<span class="uniform-status received">✓ Recebeu</span>';
@@ -328,7 +367,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (requestId === classStudentsRequest) render();
   }
   async function open() {
-    if (!canAccessUniform()) { toast('O administrador precisa liberar o acesso ao Uniforme para este coordenador.'); return; }
+    if (!canAccessUniform()) { toast('O administrador precisa liberar o acesso ao Controle de Itens para este coordenador.'); return; }
     // Garanta que a lista principal e os dados exclusivos de Uniforme estejam
     // atualizados antes de exibir os totais. Assim a janela nunca abre em 0
     // por estar usando uma cópia antiga do carregamento anterior.
@@ -337,6 +376,7 @@ document.addEventListener('DOMContentLoaded', () => {
       await window.load?.();
       await refreshUniformState({ renderWhenOpen:false });
       classOptions();
+      setUniformMode('items');
       modal.classList.remove('hidden');
       if (get('uniformClass').value || get('uniformShift').value) await loadClassStudents();
       else classStudents = [];
@@ -361,10 +401,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!button || button.disabled) return;
     const shift = button.dataset.shift, view = button.dataset.view;
     const alreadyActive = get('uniformShift').value === shift && get('uniformView').value === view;
-    get('uniformShift').value = alreadyActive ? '' : shift;
+    const nextShift = alreadyActive ? '' : shift;
+    get('uniformShift').value = nextShift;
     get('uniformView').value = alreadyActive ? 'all' : view;
-    get('uniformClass').value = '';
-    get('uniformSearch').value = '';
+    // Busca nunca é limpa automaticamente. Turma é preservada só quando ainda
+    // compatível com o turno resultante; ao desativar o filtro (toggle-off,
+    // nextShift vazio), a turma já escolhida também é preservada.
+    const currentClassId = get('uniformClass').value;
+    if (currentClassId && nextShift && shiftForClass(currentClassId) !== nextShift) {
+      get('uniformClass').value = '';
+    }
     classOptions();
     loadClassStudents();
   };
@@ -447,6 +493,169 @@ document.addEventListener('DOMContentLoaded', () => {
     button.disabled = false;
     toast('Todos os alunos da turma foram marcados como receberam.');
   };
+  // ------------------------------------------------------------------
+  // Livro/Revisa — núcleo funcional (área própria dentro de Uniforme,
+  // não misturada aos contadores/filtros de uniforme/tênis/material).
+  // Mesmas permissões já corrigidas: can_view_uniform (ver a aba) e
+  // can_edit_uniform (registrar/corrigir/finalizar) — sem flag nova.
+  // ------------------------------------------------------------------
+  let livroRevisaTerms = new Map(); // chave `${ano}_${bimestre}` -> {starts_on, ends_on}
+  let livroRevisaDeliveries = new Map(); // chave `${student_id}_${ano}_${bimestre}` -> linha real
+  let livroRevisaClassStudents = [];
+
+  const formatLivroRevisaDate = value => value ? new Intl.DateTimeFormat('pt-BR').format(new Date(value)) : '';
+
+  // Ausência de linha NUNCA significa "não recebido" — só os dois primeiros
+  // estados abaixo têm linha real; os outros três são sempre derivados na
+  // leitura, comparando com o calendário (school_terms).
+  function deriveLivroRevisaState(row, term) {
+    if (!term) return 'sem_calendario';
+    if (row) return row.status;
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (term.starts_on > todayIso) return 'nao_iniciado';
+    return 'sem_informacao';
+  }
+  window.deriveLivroRevisaState = deriveLivroRevisaState;
+
+  const livroRevisaStateLabel = (state, row) => {
+    if (state === 'recebido') return `Recebido em ${formatLivroRevisaDate(row?.delivered_at)}`;
+    if (state === 'nao_recebido') return 'Não recebido.';
+    if (state === 'nao_iniciado') return 'Bimestre não iniciado.';
+    if (state === 'sem_calendario') return 'Calendário letivo não configurado para este período.';
+    return 'Não há informação neste período.';
+  };
+  window.livroRevisaStateLabel = livroRevisaStateLabel;
+
+  const livroRevisaTermFor = (year, bimester) => livroRevisaTerms.get(`${year}_${bimester}`) || null;
+
+  const currentLivroRevisaSelection = () => ({
+    classId: get('livroRevisaClass').value || null,
+    year: Number(get('livroRevisaYear').value) || null,
+    bimester: Number(get('livroRevisaBimester').value) || null
+  });
+
+  function livroRevisaClassOptions() {
+    const select = get('livroRevisaClass');
+    const current = select.value;
+    select.innerHTML = '<option value="">Selecione a turma</option>' + classes.slice()
+      .sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }))
+      .map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
+    if ([...select.options].some(item => item.value === current)) select.value = current;
+  }
+
+  async function refreshLivroRevisaTerms() {
+    livroRevisaTerms = new Map();
+    if (!uniformMembership) return;
+    const { data, error } = await db.from('school_terms').select('school_year,bimester,starts_on,ends_on').eq('school_id', uniformMembership.school_id);
+    if (error) return;
+    (data || []).forEach(term => { livroRevisaTerms.set(`${term.school_year}_${term.bimester}`, term); });
+  }
+
+  async function loadLivroRevisaDeliveries(studentIds) {
+    livroRevisaDeliveries = new Map();
+    if (!studentIds.length) return;
+    const { data, error } = await db.rpc('report_livro_revisa', { p_student_ids: studentIds });
+    if (error) { toast(error.message); return; }
+    (data || []).forEach(row => { livroRevisaDeliveries.set(`${row.student_id}_${row.school_year}_${row.bimester}`, row); });
+  }
+
+  function renderLivroRevisaPanel() {
+    const { classId, year, bimester } = currentLivroRevisaSelection();
+    const notice = get('livroRevisaNotice');
+    const columns = get('livroRevisaColumns');
+    const list = get('livroRevisaList');
+    const finalizeButton = get('finalizeLivroRevisa');
+
+    if (!classId || !year || !bimester) {
+      columns.classList.add('hidden');
+      notice.classList.add('hidden');
+      finalizeButton.disabled = true;
+      list.innerHTML = '<div class="uniform-empty">Escolha turma, ano letivo e bimestre para ver os alunos.</div>';
+      return;
+    }
+
+    const term = livroRevisaTermFor(year, bimester);
+    // O mesmo bloqueio que a RPC já aplica no banco (bimestre precisa existir
+    // E já ter começado) tem que valer aqui — nunca deixar ✓/✕/Finalizar
+    // habilitados para um período que a escrita real recusaria.
+    const termStarted = !!term && term.starts_on <= new Date().toISOString().slice(0, 10);
+    notice.classList.toggle('hidden', termStarted);
+    if (!termStarted) notice.textContent = term ? 'Bimestre ainda não iniciado — aguarde a data de início configurada.' : 'Calendário letivo não configurado para este período.';
+
+    livroRevisaClassStudents = students.filter(item => item.classId === classId)
+      .slice().sort((first, second) => String(first.name || '').localeCompare(String(second.name || ''), 'pt-BR', { numeric:true, sensitivity:'base' }));
+
+    columns.classList.toggle('hidden', livroRevisaClassStudents.length === 0);
+    const canRegisterHere = canRegisterUniform() && termStarted;
+    finalizeButton.disabled = !canRegisterUniform() || !termStarted;
+
+    list.innerHTML = livroRevisaClassStudents.length ? livroRevisaClassStudents.map(item => {
+      const row = livroRevisaDeliveries.get(`${item.id}_${year}_${bimester}`) || null;
+      const state = deriveLivroRevisaState(row, term);
+      const isReceived = state === 'recebido', isNotReceived = state === 'nao_recebido';
+      const statusClass = isReceived ? 'received' : 'pending';
+      const statusHtml = `<span class="uniform-status ${statusClass}">${escape(livroRevisaStateLabel(state, row))}</span>`;
+      const actionsHtml = canRegisterHere
+        ? `<div class="livro-revisa-toggle"><button type="button" class="livro-revisa-check ${isReceived ? 'active' : ''}" data-student-id="${item.id}" data-status="recebido" aria-pressed="${isReceived}" aria-label="Marcar ${escape(item.name)} como recebido">✓</button><button type="button" class="livro-revisa-cross ${isNotReceived ? 'active' : ''}" data-student-id="${item.id}" data-status="nao_recebido" aria-pressed="${isNotReceived}" aria-label="Marcar ${escape(item.name)} como não recebido">✕</button></div>`
+        : '<div class="meta">Consulta disponível.</div>';
+      return `<article class="uniform-row" data-id="${item.id}"><div class="uniform-student"><b>${escape(item.name)}</b><div class="meta">Turma ${escape(item.className)}</div></div><div>${statusHtml}</div>${actionsHtml}</article>`;
+    }).join('') : '<div class="uniform-empty">Esta turma ainda não possui alunos cadastrados.</div>';
+  }
+
+  async function refreshLivroRevisaForClass() {
+    const { classId } = currentLivroRevisaSelection();
+    livroRevisaDeliveries = new Map();
+    if (classId) {
+      const ids = students.filter(item => item.classId === classId).map(item => item.id);
+      await loadLivroRevisaDeliveries(ids);
+    }
+    renderLivroRevisaPanel();
+  }
+
+  function setUniformMode(mode) {
+    const isItems = mode !== 'livro_revisa';
+    get('uniformModeItems').classList.toggle('active', isItems);
+    get('uniformModeItems').setAttribute('aria-pressed', String(isItems));
+    get('uniformModeLivroRevisa').classList.toggle('active', !isItems);
+    get('uniformModeLivroRevisa').setAttribute('aria-pressed', String(!isItems));
+    get('uniformItemsPanel').classList.toggle('hidden', !isItems);
+    get('livroRevisaPanel').classList.toggle('hidden', isItems);
+    if (!isItems) {
+      if (!get('livroRevisaYear').value) get('livroRevisaYear').value = String(new Date().getFullYear());
+      livroRevisaClassOptions();
+      refreshLivroRevisaTerms().then(() => refreshLivroRevisaForClass());
+    }
+  }
+
+  get('uniformModeItems').onclick = () => setUniformMode('items');
+  get('uniformModeLivroRevisa').onclick = () => setUniformMode('livro_revisa');
+  get('livroRevisaClass').onchange = refreshLivroRevisaForClass;
+  get('livroRevisaYear').onchange = renderLivroRevisaPanel;
+  get('livroRevisaBimester').onchange = renderLivroRevisaPanel;
+  get('livroRevisaList').onclick = async event => {
+    const button = event.target.closest('.livro-revisa-check, .livro-revisa-cross');
+    if (!button || button.disabled) return;
+    const { classId, year, bimester } = currentLivroRevisaSelection();
+    if (!classId || !year || !bimester || !canRegisterUniform()) return;
+    const studentId = button.dataset.studentId, status = button.dataset.status;
+    button.disabled = true;
+    const { error } = await db.rpc('set_livro_revisa_status', { target_student_id:studentId, p_school_year:year, p_bimester:bimester, p_status:status });
+    if (error) { toast(error.message); button.disabled = false; return; }
+    await loadLivroRevisaDeliveries(livroRevisaClassStudents.map(item => item.id));
+    renderLivroRevisaPanel();
+    toast(status === 'recebido' ? 'Aluno marcado como recebido.' : 'Pendência registrada.');
+  };
+  get('finalizeLivroRevisa').onclick = async () => {
+    const { classId, year, bimester } = currentLivroRevisaSelection();
+    if (!classId || !year || !bimester || !canRegisterUniform()) return;
+    const button = get('finalizeLivroRevisa');
+    button.disabled = true;
+    const { error } = await db.rpc('notify_livro_revisa_pending', { target_class_id:classId, p_school_year:year, p_bimester:bimester });
+    button.disabled = false;
+    if (error) { toast(error.message); return; }
+    toast('Conferência finalizada.');
+  };
+
   document.addEventListener('carometro:data-loaded', async () => {
     // O carregamento principal já trouxe os campos de Uniforme. Reutilize-o
     // em vez de iniciar uma segunda consulta que possa chegar fora de ordem.
@@ -460,11 +669,13 @@ document.addEventListener('DOMContentLoaded', () => {
     await refreshUniformMembership();
     syncUniformNavigation();
     if (!modal.classList.contains('hidden')) { classOptions(); loadClassStudents(); }
+    if (!modal.classList.contains('hidden') && !get('livroRevisaPanel').classList.contains('hidden')) { await refreshLivroRevisaTerms(); await refreshLivroRevisaForClass(); }
   });
   document.addEventListener('carometro:permission-refresh', async () => {
     await refreshUniformMembership();
     syncUniformNavigation();
     if (!modal.classList.contains('hidden')) render();
+    if (!modal.classList.contains('hidden') && !get('livroRevisaPanel').classList.contains('hidden')) renderLivroRevisaPanel();
   });
   new MutationObserver(syncUniformNavigation).observe(get('app'), { attributes:true, attributeFilter:['class'] });
   setTimeout(syncUniformNavigation, 0);
