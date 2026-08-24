@@ -10,22 +10,23 @@ document.addEventListener('DOMContentLoaded', () => {
   let registeredUsers = [];
   let editingCounselorId = null;
   let lastLoadError = '';
-  // Fonte de autorização de "Gerenciar Conselheiros": school_members +
-  // school_member_permissions.can_manage_counselors, da escola ATIVA — a
-  // mesma fonte que a RLS real de class_counselors já usa (has_school_
-  // permission). Não mais user_permissions (que não tem nenhum efeito
-  // sobre essa RLS e não tem noção de escola).
+  // Fonte de autorização de "Gerenciar Conselheiros": exclusivamente a RPC
+  // can_manage_class_counselors(target_school_id), que já deriva de
+  // school_members.role='coordinator' AND status='active' na escola ATIVA
+  // (Migrations 029/030) — é papel do coordenador, não uma permissão
+  // individual. Não depende de nenhuma flag em school_member_permissions
+  // nem de user_permissions.
   let counselorMembership = null;
-  let counselorSchoolPermission = false;
+  let counselorAuthorized = false;
   async function refreshCounselorMembership() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     const schoolId = window.getActiveSchoolId?.();
-    if (!signedInUser || !schoolId) { counselorMembership = null; counselorSchoolPermission = false; return; }
+    if (!signedInUser || !schoolId) { counselorMembership = null; counselorAuthorized = false; return; }
     const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('school_id', schoolId).eq('status', 'active').maybeSingle();
-    if (!membership) { counselorMembership = null; counselorSchoolPermission = false; return; }
-    counselorMembership = membership;
-    const { data: perms } = await db.from('school_member_permissions').select('can_manage_counselors').eq('member_id', membership.id).maybeSingle();
-    counselorSchoolPermission = !!perms?.can_manage_counselors;
+    counselorMembership = membership || null;
+    if (!membership) { counselorAuthorized = false; return; }
+    const { data: authorized, error } = await db.rpc('can_manage_class_counselors', { target_school_id: schoolId });
+    counselorAuthorized = !error && !!authorized;
   }
   window.counselorRightsForClass = classId => ownAssignments.find(item => item.class_id === classId) || null;
   window.counselorHasPermission = () => false;
@@ -79,12 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
   const counselorName = item => item.counselor_name?.trim() || item.full_name?.trim() || item.profiles?.full_name?.trim() || item.email || item.profiles?.email || 'Usuário';
-  // school_admin nunca gerencia conselheiros por esta tela (regra de
-  // produto já existente) — e como counselorMembership só é preenchido
-  // quando o vínculo ativo é coordinator (query abaixo não filtra role,
-  // mas a checagem explícita aqui documenta a regra e protege mesmo se o
-  // vínculo ativo do usuário for de outro papel).
-  const canManageCounselors = () => counselorMembership?.role === 'coordinator' && !!counselorSchoolPermission;
+  // Fonte única: can_manage_class_counselors(target_school_id) já garante
+  // role='coordinator' AND status='active' AND escola correta (e exclui
+  // school_admin) — nada disso é reimplementado aqui.
+  const canManageCounselors = () => !!counselorAuthorized;
   window.counselorCanManage = canManageCounselors;
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
