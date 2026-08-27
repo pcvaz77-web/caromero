@@ -71,10 +71,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function refreshUnreadCount() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) { renderCount(0); return; }
     const { count, error } = await db.from('user_notifications')
       .select('id', { count: 'exact', head: true })
       .eq('recipient_id', signedInUser.id)
+      .eq('school_id', schoolId)
       .is('read_at', null)
       .is('dismissed_at', null);
     if (error) return;
@@ -106,10 +108,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadNotifications() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) { notifications = []; renderList(); renderCount(0); return; }
     const { data, error } = await db.from('user_notifications')
-      .select('id,title,body,class_id,read_at,created_at,target_type,target_id')
+      .select('id,school_id,title,body,class_id,read_at,created_at,target_type,target_id')
       .eq('recipient_id', signedInUser.id)
+      .eq('school_id', schoolId)
       .is('dismissed_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
@@ -127,27 +131,37 @@ document.addEventListener('DOMContentLoaded', () => {
   // não executada) quando o destino existe e está acessível, ou null.
   async function resolveNotificationTarget(item) {
     try {
+      const schoolId = window.getActiveSchoolId?.();
+      if (!schoolId) return null;
       if (item.target_type === 'student') {
         if (!item.target_id) return null;
-        const { data, error } = await db.from('students').select('id,class_id').eq('id', item.target_id).maybeSingle();
+        let query = db.from('students').select('id,class_id').eq('id', item.target_id);
+        query = query.eq('school_id', schoolId);
+        const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.selectClass?.(data.class_id || ''); window.showStudentDetails?.(data.id); };
       }
       if (item.target_type === 'occurrence') {
         if (!item.target_id) return null;
-        const { data, error } = await db.from('student_occurrences').select('id,student_id,class_id').eq('id', item.target_id).maybeSingle();
+        let query = db.from('student_occurrences').select('id,student_id,class_id').eq('id', item.target_id);
+        query = query.eq('school_id', schoolId);
+        const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.openOccurrenceRecord?.({ occurrenceId: data.id, studentId: data.student_id, classId: data.class_id }); };
       }
       if (item.target_type === 'class') {
         if (!item.target_id) return null;
-        const { data, error } = await db.from('classes').select('id').eq('id', item.target_id).maybeSingle();
+        let query = db.from('classes').select('id').eq('id', item.target_id);
+        query = query.eq('school_id', schoolId);
+        const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.selectClass?.(data.id); };
       }
       if (item.target_type === 'class_counselor') {
         if (!item.class_id) return null;
-        const { data, error } = await db.from('classes').select('id').eq('id', item.class_id).maybeSingle();
+        let query = db.from('classes').select('id').eq('id', item.class_id);
+        query = query.eq('school_id', schoolId);
+        const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.selectClass?.(data.id); };
       }
@@ -173,7 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function markRead(id) {
     const numericId = Number(id);
-    const { error } = await db.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', numericId);
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) return;
+    const { error } = await db.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', numericId).eq('school_id', schoolId);
     if (error) { toast(error.message); return; }
     const item = notifications.find(entry => entry.id === numericId);
     if (item) item.read_at = new Date().toISOString();
@@ -191,12 +207,21 @@ document.addEventListener('DOMContentLoaded', () => {
   async function openNotificationById(id) {
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) return;
     const { data: item, error } = await db.from('user_notifications')
-      .select('id,target_type,target_id,class_id,read_at')
+      .select('id,school_id,target_type,target_id,class_id,read_at')
       .eq('id', numericId)
       .maybeSingle();
     if (error || !item) {
       toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
+      return;
+    }
+    if (item.school_id !== schoolId) {
+      try { sessionStorage.setItem('carometroPendingNotification', String(numericId)); } catch {}
+      if (window.activateSchoolContext?.(item.school_id)) return;
+      try { sessionStorage.removeItem('carometroPendingNotification'); } catch {}
+      toast('Esta notificação pertence a uma escola em que seu acesso não está ativo.');
       return;
     }
     const navigate = await resolveNotificationTarget(item);
@@ -212,10 +237,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('markAllNotificationsRead').onclick = async () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) return;
     const { error } = await db.from('user_notifications')
       .update({ read_at: new Date().toISOString() })
       .eq('recipient_id', signedInUser.id)
+      .eq('school_id', schoolId)
       .is('read_at', null);
     if (error) { toast(error.message); return; }
     const now = new Date().toISOString();
@@ -228,10 +255,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!notifications.length) return;
     if (!confirm('Limpar todas as notificações do sino?')) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) return;
     const { error } = await db.from('user_notifications')
       .update({ dismissed_at: new Date().toISOString() })
       .eq('recipient_id', signedInUser.id)
+      .eq('school_id', schoolId)
       .is('dismissed_at', null);
     if (error) { toast(error.message); return; }
     notifications = [];
@@ -260,20 +289,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeUserId = null;
   async function startNotificationCenter() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) { bell.classList.add('hidden'); return; }
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) { bell.classList.add('hidden'); return; }
     bell.classList.remove('hidden');
-    if (activeUserId === signedInUser.id) return;
-    activeUserId = signedInUser.id;
+    const activeScope = `${signedInUser.id}:${schoolId}`;
+    if (activeUserId === activeScope) return;
+    activeUserId = activeScope;
     await loadNotifications();
     if (channel) await db.removeChannel(channel);
-    channel = db.channel(`notification-center-${signedInUser.id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, async payload => {
+    channel = db.channel(`notification-center-${signedInUser.id}-${schoolId}`)
+      .on('postgres_changes', { event: 'INSERT', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
+        if (payload.new.recipient_id !== signedInUser.id) return;
         notifications.unshift(payload.new);
         if (notifications.length > 50) notifications.length = 50;
         renderList();
         await refreshUnreadCount();
       })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `recipient_id=eq.${signedInUser.id}` }, async payload => {
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
+        if (payload.new.recipient_id !== signedInUser.id) return;
         const index = notifications.findIndex(item => item.id === payload.new.id);
         if (payload.new.dismissed_at) { if (index !== -1) notifications.splice(index, 1); }
         else if (index !== -1) notifications[index] = payload.new;

@@ -1,16 +1,12 @@
 (() => {
-  // Guarda o tipo do link antes que o Supabase processe a URL e crie a sessão
-  // temporária de recuperação. Assim a aplicação nunca abre o painel nesse fluxo.
-  const initialHash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
-  const initialSearch = window.location.search.startsWith('?') ? window.location.search.slice(1) : window.location.search;
-  const isRecoveryParameters = value => new URLSearchParams(value).get('type') === 'recovery';
-  const recoveryLink = isRecoveryParameters(initialHash) || isRecoveryParameters(initialSearch);
-  let recoveryActive = recoveryLink;
+  // Somente o evento PASSWORD_RECOVERY, emitido depois que o Supabase valida o
+  // token do link, autoriza a troca. Parâmetros da URL não são prova de acesso.
+  let recoveryActive = false;
   let showRecoveryScreen = null;
 
   window.isCarometroPasswordRecovery = () => recoveryActive;
   window.openCarometroPasswordReset = () => {
-    recoveryActive = true;
+    if (!recoveryActive) return;
     showRecoveryScreen?.();
   };
 
@@ -91,6 +87,13 @@
       const save = document.getElementById('saveRecoveryPassword');
       save.disabled = true;
       error.classList.add('hidden');
+      const { data: { session } } = await db.auth.getSession();
+      if (!session || !recoveryActive) {
+        save.disabled = false;
+        error.textContent = 'Este link expirou ou já foi usado. Solicite uma nova recuperação de senha.';
+        error.classList.remove('hidden');
+        return;
+      }
       const { error: updateError } = await db.auth.updateUser({ password });
       save.disabled = false;
       if (updateError) {

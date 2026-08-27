@@ -39,7 +39,9 @@ select
   'owner',
   'active'
 from auth.users
-where email = 'passosdigital77@gmail.com'
+where lower(trim(email)) = 'passosdigital77@gmail.com'
+  and email_confirmed_at is not null
+  and deleted_at is null
 on conflict (user_id) do nothing;
 
 
@@ -61,7 +63,9 @@ select
 from public.schools s,
      auth.users u
 where s.slug = 'colegio-estadual-paulo-freire'
-and u.email = 'passosdigital77@gmail.com'
+and lower(trim(u.email)) = 'passosdigital77@gmail.com'
+and u.email_confirmed_at is not null
+and u.deleted_at is null
 on conflict (school_id, user_id) do nothing;
 
 
@@ -85,7 +89,9 @@ select
 from public.school_members sm
 join auth.users u
 on u.id = sm.user_id
-where u.email = 'passosdigital77@gmail.com'
+where lower(trim(u.email)) = 'passosdigital77@gmail.com'
+  and u.email_confirmed_at is not null
+  and u.deleted_at is null
 on conflict (member_id) do nothing;
 
 
@@ -183,6 +189,52 @@ where school_id is null;
 
 alter table public.students
 enable trigger limit_student_field_updates;
+
+
+-- ============================================================
+-- 9. VINCULAR OCORRÊNCIAS HISTÓRICAS
+-- ============================================================
+
+update public.student_occurrences o
+set school_id = s.school_id
+from public.students s
+where s.id = o.student_id
+  and o.school_id is null;
+
+do $$
+begin
+  if exists (
+    select 1 from public.student_occurrences where school_id is null
+  ) then
+    raise exception 'Existem ocorrências que não puderam ser vinculadas a uma escola.';
+  end if;
+end $$;
+
+alter table public.student_occurrences
+alter column school_id set not null;
+
+
+-- ============================================================
+-- 10. VINCULAR CONSELHEIROS HISTÓRICOS
+-- ============================================================
+
+update public.class_counselors cc
+set school_id = c.school_id
+from public.classes c
+where c.id = cc.class_id
+  and cc.school_id is null;
+
+do $$
+begin
+  if exists (
+    select 1 from public.class_counselors where school_id is null
+  ) then
+    raise exception 'Existem conselheiros que não puderam ser vinculados a uma escola.';
+  end if;
+end $$;
+
+alter table public.class_counselors
+alter column school_id set not null;
 
 
 commit;

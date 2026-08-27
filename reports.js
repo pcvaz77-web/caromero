@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // impede um professor de obter o dataset chamando a API diretamente)
   // está nas RPCs report_students/report_occurrences/log_report_generation
   // (supabase-reports.sql), não só nesta checagem de UI.
-  const canAccessReports = () => isAdmin() || isCoordinator();
+  const canAccessReports = () => !!window.getActiveSchoolId?.() && (isAdmin() || isCoordinator());
 
   let datasetStudents = [];
   let occurrencesByStudent = new Map();
@@ -168,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function currentFilters() {
     return {
+      schoolId: window.getActiveSchoolId?.() || null,
       shift: get('reportShift').value || null,
       classId: get('reportClass').value || null,
       studentId: get('reportStudent').value || null,
@@ -195,7 +196,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function fetchStudentsDataset(filters) {
-    const signature = JSON.stringify([filters.shift, filters.classId, filters.studentId]);
+    if (!filters.schoolId) { datasetStudents = []; datasetError = true; return; }
+    const signature = JSON.stringify([filters.schoolId, filters.shift, filters.classId, filters.studentId]);
     if (signature === datasetSignature) return;
     const token = ++fetchToken;
     // Escola ativa da sessão (school-context.js) — nunca inferida aqui.
@@ -203,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // servidor (is_school_admin/is_school_coordinator NESSA escola); sem
     // isso, alunos de outra escola nunca podem entrar no relatório.
     const { data, error, stale } = await fetchAllPages('report_students', {
-      target_school_id: window.getActiveSchoolId?.() || null,
+      p_school_id: filters.schoolId,
       p_shift: filters.shift,
       p_class_id: filters.classId,
       p_student_id: filters.studentId
@@ -236,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // também reautoriza no servidor e restringe o resultado a alunos
     // dessa escola, nunca confiando só nos IDs enviados.
     const { data, error, stale } = await fetchAllPages('report_occurrences', {
-      target_school_id: window.getActiveSchoolId?.() || null,
+      p_school_id: filters.schoolId,
       p_student_ids: studentIds,
       p_start: filters.start,
       p_end: filters.end
@@ -396,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     previewEl.textContent = 'Carregando prévia...';
     await fetchStudentsDataset(filters);
     if (datasetError) {
-      previewEl.textContent = 'Não foi possível carregar os alunos. Verifique se o script supabase-reports.sql foi executado.';
+      previewEl.textContent = 'Não foi possível carregar os alunos. Verifique se o SQL comercial de relatórios foi aplicado.';
       return;
     }
     await fetchOccurrencesDataset(filters);
@@ -726,7 +728,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // um resultado antigo.
     datasetSignature = '';
     await fetchStudentsDataset(filters);
-    if (datasetError) { toast('Não foi possível carregar os alunos. Verifique se o script supabase-reports.sql foi executado.'); return; }
+    if (datasetError) { toast('Não foi possível carregar os alunos. Verifique se o SQL comercial de relatórios foi aplicado.'); return; }
     // O PDF nunca pode sair com ocorrências desatualizadas (ex.: uma excluída
     // segundos antes deste clique). Zerar a assinatura aqui, de forma síncrona
     // e imediatamente antes da busca, garante que a checagem de cache dentro
@@ -796,6 +798,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.save(`Relatorio_${slug(filenameBase)}.pdf`);
 
       const { error: logError } = await db.rpc('log_report_generation', {
+        p_school_id: filters.schoolId,
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
@@ -810,7 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // era o parâmetro reservado e nunca enviado antes desta mudança.
         p_school_id: window.getActiveSchoolId?.() || null
       });
-      if (logError) toast('Relatório gerado, mas não foi possível registrar a auditoria. Verifique se supabase-reports.sql foi executado.');
+      if (logError) toast('Relatório gerado, mas não foi possível registrar a auditoria comercial.');
       else toast('Relatório gerado com sucesso.');
     } catch (error) {
       toast('Não foi possível gerar o relatório agora.');

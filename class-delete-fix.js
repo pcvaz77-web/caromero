@@ -29,14 +29,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deleteButton.disabled = true;
     try {
-      const { error: classError } = await db.from('classes').delete().eq('id', cls.id);
+      let deleteQuery = db.from('classes').delete().eq('id', cls.id);
+      const schoolId = window.getActiveSchoolId?.();
+      if (!schoolId) { toast('Selecione uma escola antes de excluir a turma.'); return; }
+      deleteQuery = deleteQuery.eq('school_id', schoolId);
+      const { error: classError } = await deleteQuery;
       if (classError) {
         if (classError.code === '23503') throw new Error('A exclusão foi bloqueada para proteger os alunos. Execute o script supabase-delete-class-cascade.sql no Supabase antes de tentar novamente.');
         throw classError;
       }
 
       const photos = affected.map(student => student.photoPath).filter(Boolean);
-      if (photos.length) await db.storage.from('student-photos').remove(photos);
+      let photoCleanupFailed = false;
+      if (photos.length) {
+        const { error:photoError } = await db.storage.from('student-photos').remove(photos);
+        photoCleanupFailed = !!photoError;
+      }
 
       // Update the screen immediately; the reload then confirms the server state.
       classes = classes.filter(item => item.id !== cls.id);
@@ -44,7 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedClassId = null;
       detailStudentId = null;
       render();
-      toast(affected.length ? `Turma e ${affected.length} aluno${suffix} excluído${suffix}.` : 'Turma excluída.');
+      toast(photoCleanupFailed
+        ? 'Turma e alunos excluídos. Algumas fotos antigas permaneceram protegidas no armazenamento.'
+        : affected.length ? `Turma e ${affected.length} aluno${suffix} excluído${suffix}.` : 'Turma excluída.');
       load();
     } catch (error) {
       toast(error.message || 'Não foi possível excluir a turma.');

@@ -1,6 +1,8 @@
 -- Execute uma vez no Supabase: SQL Editor > New query > Run.
 -- Controla se o botão de assinatura aparece na página de login.
 
+begin;
+
 create table if not exists public.platform_settings (
   id boolean primary key default true check (id = true),
   show_subscription boolean not null default true,
@@ -20,8 +22,14 @@ to anon, authenticated
 using (true);
 
 drop policy if exists "Admins can update platform settings" on public.platform_settings;
-create policy "Admins can update platform settings"
+drop policy if exists "Platform owner can update platform settings" on public.platform_settings;
+create policy "Platform owner can update platform settings"
 on public.platform_settings for update
 to authenticated
-using (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and p.role = 'admin'))
-with check (exists (select 1 from public.user_permissions p where p.user_id = auth.uid() and p.role = 'admin'));
+using (public.is_platform_owner())
+with check (public.is_platform_owner());
+
+-- A aplicação altera esta configuração exclusivamente pela RPC owner-only.
+revoke insert, update, delete on public.platform_settings from anon, authenticated;
+
+commit;

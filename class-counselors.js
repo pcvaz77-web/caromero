@@ -136,7 +136,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     await refreshCounselorMembership();
     syncCounselorNavigation();
-    const { data, error } = await db.from('class_counselors').select('*');
+    if (!counselorMembership) return;
+    const { data, error } = await db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id);
     if (error) {
       if (lastLoadError !== error.message) toast(`Não foi possível carregar os conselheiros: ${error.message}`);
       lastLoadError = error.message;
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const [{ data: users, error: usersError }, { data: dataAssignments, error: assignmentsError }] = await Promise.all([
         db.rpc('list_counselor_candidates', { target_school_id: counselorMembership.school_id }),
-        db.from('class_counselors').select('*')
+        db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id)
       ]);
       if (usersError || assignmentsError) { toast((usersError || assignmentsError).message); return; }
       registeredUsers = users || [];
@@ -207,9 +208,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const userChoice = document.getElementById('counselorUser').value;
     const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
     if (!selectedUser) { toast('Selecione um usuário cadastrado como conselheiro.'); return; }
-    const row = { class_id:document.getElementById('counselorClass').value, counselor_user_id:selectedUser.user_id, counselor_name:counselorName(selectedUser) };
+    if (!counselorMembership) { toast('Selecione uma escola antes de gerenciar conselheiros.'); return; }
+    const row = { school_id:counselorMembership.school_id, class_id:document.getElementById('counselorClass').value, counselor_user_id:selectedUser.user_id, counselor_name:counselorName(selectedUser) };
     const request = editingCounselorId
-      ? db.from('class_counselors').update(row).eq('id', editingCounselorId)
+      ? db.from('class_counselors').update(row).eq('id', editingCounselorId).eq('school_id', counselorMembership.school_id)
       : selectedUser
         ? db.from('class_counselors').upsert(row, { onConflict:'counselor_user_id,class_id' })
         : db.from('class_counselors').insert(row);
@@ -236,7 +238,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const button = event.target.closest('[data-counselor-id]');
     if (!button || !confirm('Excluir este conselheiro da turma?')) return;
-    const { error } = await db.from('class_counselors').delete().eq('id', button.dataset.counselorId);
+    if (!counselorMembership) { toast('Selecione uma escola antes de gerenciar conselheiros.'); return; }
+    const { error } = await db.from('class_counselors').delete().eq('id', button.dataset.counselorId).eq('school_id', counselorMembership.school_id);
     if (error) { toast(error.message); return; }
     toast('Conselheiro excluído.');
     await refreshAssignments();

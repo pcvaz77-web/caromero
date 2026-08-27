@@ -94,8 +94,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function refreshOccurrenceMembership() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
-    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('status', 'active').limit(1).maybeSingle();
+    const schoolId = window.getActiveSchoolId?.();
+    if (!signedInUser || !schoolId) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
+    const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('school_id', schoolId).eq('status', 'active').maybeSingle();
     if (!membership) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
     occurrenceMembership = membership;
     const { data: perms } = await db.from('school_member_permissions').select('can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_edit_all').eq('member_id', membership.id).maybeSingle();
@@ -198,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
       publishOccurrenceLabelState();
       return;
     }
-    const { data, error } = await db.from('student_occurrences').select('student_id');
+    const { data, error } = await db.from('student_occurrences').select('student_id').eq('school_id', occurrenceMembership.school_id);
     if (error) {
       if (!tableErrorShown) {
         tableErrorShown = true;
@@ -230,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     let query = db.from('student_occurrences')
       .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name)')
+      .eq('school_id', occurrenceMembership.school_id)
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false });
     if (normalizedName) {
@@ -333,8 +335,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = get('saveOccurrence');
     button.disabled = true;
     const { error } = editingOccurrence
-      ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text }).eq('id', editingOccurrence.id)
-      : await db.from('student_occurrences').insert({ student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text });
+      ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text }).eq('id', editingOccurrence.id).eq('school_id', occurrenceMembership.school_id)
+      : await db.from('student_occurrences').insert({ school_id:occurrenceMembership.school_id, student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text });
     button.disabled = false;
     if (error) { toast(error.message); return; }
     const wasEditing = !!editingOccurrence;
@@ -395,8 +397,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function deleteOccurrence(item) {
     if (!canDeleteOccurrence(item)) { toast('Sem permissão para excluir esta ocorrência.'); return; }
-    if (!(await confirmOccurrenceDeletion(item))) return;
-    const { error } = await db.from('student_occurrences').delete().eq('id', item.id);
+      if (!(await confirmOccurrenceDeletion(item))) return;
+      const { error } = await db.from('student_occurrences').delete().eq('id', item.id).eq('school_id', occurrenceMembership.school_id);
     if (error) { toast(error.message); return; }
     const nextCount = Math.max(0, (occurrenceCounts.get(item.student_id) || 1) - 1);
     if (nextCount) occurrenceCounts.set(item.student_id, nextCount);

@@ -210,12 +210,13 @@ create or replace function public.accept_school_invitation(invitation_token uuid
 returns uuid
 language plpgsql
 security definer
-set search_path to 'public', 'auth'
+set search_path to ''
 as $function$
 declare
   v_invitation public.school_invitations%rowtype;
   v_user_id uuid;
   v_user_email text;
+  v_email_confirmed_at timestamptz;
   v_member_id uuid;
 begin
   v_user_id := auth.uid();
@@ -224,13 +225,17 @@ begin
     raise exception 'Usuário não autenticado.';
   end if;
 
-  select lower(trim(email))
-    into v_user_email
+  select lower(trim(email)), email_confirmed_at
+    into v_user_email, v_email_confirmed_at
   from auth.users
   where id = v_user_id;
 
   if v_user_email is null then
     raise exception 'E-mail do usuário não encontrado.';
+  end if;
+
+  if v_email_confirmed_at is null then
+    raise exception 'Confirme seu e-mail antes de aceitar o convite.';
   end if;
 
   select *

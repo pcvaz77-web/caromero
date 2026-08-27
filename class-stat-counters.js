@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastCounterRequest = 0;
   const countStudents = classId => {
     let query = db.from('students').select('id', { count:'exact', head:true });
+    const schoolId = window.getActiveSchoolId?.();
+    query = query.eq('school_id', schoolId);
     if (classId) query = query.eq('class_id', classId);
     return query;
   };
@@ -16,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const total = document.getElementById('total');
     const classesCountEl = document.getElementById('classesCount');
     if (!total || !classesCountEl || !Array.isArray(students)) return;
+    if (!window.getActiveSchoolId?.()) { total.textContent = '0'; classesCountEl.textContent = '0'; return; }
 
     const activeClassId = classId === undefined ? selectedClassId : classId;
     const activeShift = activeClassId ? null : (typeof selectedShift !== 'undefined' ? selectedShift : null);

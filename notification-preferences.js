@@ -75,9 +75,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     myClasses = myAccessibleClasses();
+    if (!myClasses.length) { myPreferences = new Set(); renderPreferences(); return; }
     const { data, error } = await db.from('user_favorite_classes')
       .select('class_id,notifications_enabled')
-      .eq('user_id', signedInUser.id);
+      .eq('user_id', signedInUser.id)
+      .in('class_id', myClasses.map(cls => cls.id));
     if (error) { toast(error.message); return; }
     myPreferences = new Set((data || []).filter(row => row.notifications_enabled).map(row => row.class_id));
     renderPreferences();

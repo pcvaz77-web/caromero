@@ -145,7 +145,7 @@ create or replace function public.create_class_notifications(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_school_id uuid;
@@ -215,7 +215,7 @@ create or replace function public.notify_admins_and_coordinators(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_school_id uuid;
@@ -279,7 +279,7 @@ create or replace function public.notify_class_subscribers()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   cid uuid;

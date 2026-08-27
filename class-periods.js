@@ -120,7 +120,10 @@ document.addEventListener('DOMContentLoaded', () => {
     classSaving = true;
     if (submit) { submit.disabled = true; submit.textContent = 'Cadastrando…'; }
     try {
-      const { error } = await db.from('classes').insert({ name, shift });
+      const schoolId = window.getActiveSchoolId?.() || null;
+      if (!schoolId) { toast('Selecione uma escola antes de cadastrar a turma.'); return; }
+      const row = { name, shift, school_id:schoolId };
+      const { error } = await db.from('classes').insert(row);
       if (error) { toast(error.code === '23505' || error.message.includes('já está cadastrada') ? 'Essa turma já está cadastrada.' : error.message); return; }
       classModal.classList.add('hidden');
       toast('Turma cadastrada.');

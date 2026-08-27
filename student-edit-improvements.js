@@ -250,7 +250,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   async function loadObservationOptions() {
     if (observationOptionsLoaded) return;
-    const { data, error } = await db.from('observation_options').select('id,label').order('display_order').order('created_at');
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { observations = [fallbackObservations[0]]; observationOptionsLoaded = true; return; }
+    let query = db.from('observation_options').select('id,label').order('display_order').order('created_at');
+    query = query.eq('school_id', schoolId);
+    const { data, error } = await query;
     if (error) return;
     observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false }))];
     observationOptionsLoaded = true;
@@ -405,14 +409,17 @@ document.addEventListener('DOMContentLoaded', () => {
   const fetchEveryStudent = async fields => {
     const pageSize = 1000;
     const rows = [];
+    const schoolId = window.getActiveSchoolId?.() || null;
+    if (!schoolId) return { data:[], error:null };
     for (let from = 0; ; from += pageSize) {
       // A API limita cada resposta a 1.000 linhas. A ordenação secundária
       // por id torna a paginação estável mesmo em cadastros feitos em lote.
-      const result = await db.from('students')
+      let query = db.from('students')
         .select(fields)
         .order('created_at', { ascending: false })
-        .order('id', { ascending: false })
-        .range(from, from + pageSize - 1);
+        .order('id', { ascending: false });
+      query = query.eq('school_id', schoolId);
+      const result = await query.range(from, from + pageSize - 1);
       if (result.error) return result;
       rows.push(...(result.data || []));
       if ((result.data || []).length < pageSize) return { data: rows, error: null };
@@ -420,9 +427,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.load = async () => {
     const requestId = ++latestLoadRequest;
+    const schoolId = window.getActiveSchoolId?.() || null;
+    if (!schoolId) { classes = []; students = []; render(); document.dispatchEvent(new CustomEvent('carometro:data-loaded')); return; }
+    let classesQuery = db.from('classes').select('*').order('name');
+    classesQuery = classesQuery.eq('school_id', schoolId);
     const [studentsResult, classesResult] = await Promise.all([
       fetchEveryStudent('*'),
-      db.from('classes').select('*').order('name')
+      classesQuery
     ]);
     // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
     // deixe uma resposta antiga substituir a lista mais recente na tela.
@@ -690,10 +701,11 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
     const canEditObservations = can('can_edit_report');
+    const canManageObservationOptions = permission.role === 'admin' || (!!permission.is_coordinator && !!permission.can_manage_observation_options);
     reportField.classList.toggle('hidden', !canEditObservations);
     observationChoices.querySelectorAll('input').forEach(input => { input.disabled = !canEditObservations; });
-    clearObservations.classList.toggle('hidden', permission.role !== 'admin' || !student);
-    manageObservations.classList.toggle('hidden', permission.role !== 'admin');
+    clearObservations.classList.toggle('hidden', !canEditObservations || !student);
+    manageObservations.classList.toggle('hidden', !canManageObservationOptions);
     const photoDisabled = !!student && !can('can_edit_photo');
     photoInput.disabled = photoDisabled;
     cameraInput.disabled = photoDisabled;
@@ -740,7 +752,10 @@ document.addEventListener('DOMContentLoaded', () => {
     bulkSaving = true;
     if (submit) { submit.disabled = true; submit.textContent = 'Salvando alunos…'; }
     try {
+      const schoolId = window.getActiveSchoolId?.();
+      if (!schoolId) { toast('Selecione uma escola antes de cadastrar alunos.'); return; }
       const rows = names.map(fullName => ({
+        school_id:schoolId,
         full_name: fullName,
         class_id: classId,
         class_name: cls.name,
@@ -760,6 +775,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   manageObservations.onclick = async () => {
+    if (!(permission.role === 'admin' || (permission.is_coordinator && permission.can_manage_observation_options))) { toast('Sem permissão para gerenciar opções de observação.'); return; }
     await loadObservationOptions();
     renderCustomObservations();
     document.getElementById('newObservation').value = '';
@@ -776,7 +792,9 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Essa observação já existe.');
       return;
     }
-    const { data, error } = await db.from('observation_options').insert({ label, display_order: observations.length }).select('id,label').single();
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { toast('Selecione uma escola antes de gerenciar observações.'); return; }
+    const { data, error } = await db.from('observation_options').insert({ school_id:schoolId, label, display_order: observations.length }).select('id,label').single();
     if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
     observations.push({ id: data.id, value: data.label, label: data.label, standard: false });
     const selected = selectedObservationValues();
@@ -792,7 +810,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!button) return;
     const option = observations.find(item => item.id === button.dataset.id);
     if (!option || !confirm(`Excluir a observação “${option.label}”? Os alunos já cadastrados continuarão com esse registro até ele ser alterado.`)) return;
-    const { error } = await db.from('observation_options').delete().eq('id', option.id);
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { toast('Selecione uma escola antes de gerenciar observações.'); return; }
+    const { error } = await db.from('observation_options').delete().eq('id', option.id).eq('school_id', schoolId);
     if (error) { toast(error.message); return; }
     observations = observations.filter(item => item.id !== option.id);
     const selected = selectedObservationValues().filter(value => value !== option.value);
@@ -803,7 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Observação excluída.');
   };
   clearObservations.onclick = () => {
-    if (permission.role !== 'admin') return;
+    if (!can('can_edit_report')) return;
     observationChoices.querySelectorAll('input:checked').forEach(input => { input.checked = false; });
     toast('As observações serão removidas ao salvar o aluno.');
   };
@@ -855,6 +875,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = isMoving ? classSelect.value : old.classId;
     const cls = classes.find(item => item.id === classId);
     if (!cls) { toast('Selecione uma turma.'); return; }
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { toast('Selecione uma escola antes de salvar o aluno.'); return; }
+    const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (!signedInUser) { toast('Sua sessão expirou. Entre novamente para salvar o aluno.'); return; }
 
     const submit = form.querySelector('button[type="submit"]');
     studentSaving = true;
@@ -865,15 +889,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (removePhoto) photoPath = null;
     if (pendingPhoto) {
       const extension = (pendingPhoto.name.split('.').pop() || 'jpg').replace(/[^a-z0-9]/gi, '');
-      photoPath = `${user.id}/${crypto.randomUUID()}.${extension}`;
+      // O primeiro segmento identifica a escola. As policies comerciais do
+      // Storage validam escola + usuário antes de aceitar o objeto.
+      photoPath = `${schoolId}/${signedInUser.id}/${crypto.randomUUID()}.${extension}`;
       const { error } = await db.storage.from('student-photos').upload(photoPath, pendingPhoto, { contentType: pendingPhoto.type });
       if (error) { toast('Não foi possível enviar a foto.'); return; }
       uploadedPhotoPath = photoPath;
     }
 
     const observationValues = can('can_edit_report') ? selectedObservationValues() : decodeObservationValues(old?.report);
-    const row = { full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: encodeObservationValues(observationValues), photo_path: photoPath };
-    const result = id ? await db.from('students').update(row).eq('id', id) : await db.from('students').insert(row);
+    const row = { school_id:schoolId, full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: encodeObservationValues(observationValues), photo_path: photoPath };
+    let studentWrite = id ? db.from('students').update(row).eq('id', id) : db.from('students').insert(row);
+    if (id) studentWrite = studentWrite.eq('school_id', schoolId);
+    const result = await studentWrite;
     if (result.error) {
       // Não deixe uma foto recém-enviada sem aluno caso a gravação do aluno falhe.
       if (uploadedPhotoPath) await db.storage.from('student-photos').remove([uploadedPhotoPath]);
@@ -916,7 +944,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deletingStudentId = id;
     try {
-      const { data, error } = await db.from('students').delete().eq('id', id).select('id');
+      let deleteQuery = db.from('students').delete().eq('id', id);
+      const schoolId = window.getActiveSchoolId?.();
+      if (!schoolId) { toast('Selecione uma escola antes de excluir o aluno.'); return; }
+      deleteQuery = deleteQuery.eq('school_id', schoolId);
+      const { data, error } = await deleteQuery.select('id');
       if (error) { toast(error.message); return; }
       if (!data?.length) { toast('A exclusão não foi confirmada pelo banco de dados.'); return; }
 

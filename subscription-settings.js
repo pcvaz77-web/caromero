@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const side = document.querySelector('.side');
   const originalShowApp = window.showApp;
   let accessChannel;
+  let platformOwner = false;
 
   const style = document.createElement('style');
   style.textContent = `
@@ -60,7 +61,16 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
 
-  const isAdmin = () => permission?.role === 'admin';
+  async function refreshPlatformOwner() {
+    if (!user) {
+      platformOwner = false;
+      return false;
+    }
+    const { data, error } = await db.rpc('is_platform_owner');
+    platformOwner = !error && data === true;
+    return platformOwner;
+  }
+  const isPlatformOwner = () => platformOwner;
   function displayAccessProblem(message) {
     document.getElementById('app').classList.add('hidden');
     document.getElementById('login').classList.remove('hidden');
@@ -70,7 +80,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function suspendCurrentSession() {
-    if (!user || isAdmin()) return;
+    if (!user || isPlatformOwner()) return;
+    window.prepareCarometroSignOut?.();
+    await window.clearCarometroNotificationChannel?.();
     await db.auth.signOut();
     displayAccessProblem('Seu acesso está suspenso. Fale com o administrador da plataforma.');
   }
@@ -78,24 +90,43 @@ document.addEventListener('DOMContentLoaded', () => {
   function watchAccessStatus() {
     if (accessChannel) db.removeChannel(accessChannel);
     accessChannel = db.channel(`platform-access-${user.id}`)
-      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_permissions', filter:`user_id=eq.${user.id}` }, payload => {
-        if (payload.new?.access_status === 'suspended') suspendCurrentSession();
+      .on('postgres_changes', { event:'UPDATE', schema:'public', table:'platform_account_access', filter:`user_id=eq.${user.id}` }, payload => {
+        if (payload.new?.status === 'suspended') suspendCurrentSession();
       })
       .subscribe();
   }
 
+  async function currentAccountIsSuspended() {
+    if (!user || isPlatformOwner()) return false;
+    const { data, error } = await db.from('platform_account_access').select('status').eq('user_id', user.id).maybeSingle();
+    if (error) {
+      console.error('Não foi possível verificar o status global da conta:', error.message);
+      return false;
+    }
+    return data?.status === 'suspended';
+  }
+
   window.showApp = async function () {
-    await originalShowApp();
     if (!user) return;
-    if (permission?.access_status === 'suspended' && !isAdmin()) {
+    await refreshPlatformOwner();
+    if (await currentAccountIsSuspended()) {
       await suspendCurrentSession();
       return;
     }
-    nav.classList.toggle('hidden', !isAdmin());
+    // Verifica o bloqueio antes de carregar alunos, fotos, turmas e demais
+    // dados. A autorização definitiva continua sendo feita pelo banco.
+    await originalShowApp();
+    if (!user) return;
+    nav.classList.toggle('hidden', !isPlatformOwner());
     watchAccessStatus();
   };
 
   async function openSettings() {
+    if (!await refreshPlatformOwner()) {
+      modal.classList.add('hidden');
+      toast('Somente o proprietário da plataforma pode abrir estas configurações.');
+      return;
+    }
     const target = document.getElementById('accessUsers');
     const showSubscription = await refreshSubscriptionButton();
     document.getElementById('showSubscriptionButton').checked = showSubscription;
@@ -107,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     function accountStatus(item) {
-      if (item.role === 'admin') return { cls:'access-active', label:'Acesso ativo', toggle:null };
+      if (item.role === 'platform_owner') return { cls:'access-active', label:'Acesso ativo', toggle:null };
       if (!item.email_confirmed) return { cls:'access-pending', label:'Aguardando confirmação de e-mail', toggle:null };
       if (item.access_status === 'active') return { cls:'access-active', label:'Acesso ativo', toggle:'suspended' };
       if (item.access_status === 'suspended') return { cls:'access-suspended', label:'Acesso suspenso', toggle:'active' };
@@ -116,17 +147,17 @@ document.addEventListener('DOMContentLoaded', () => {
       return { cls:'access-unknown', label:'Acesso sem permissão configurada', toggle:null };
     }
     target.innerHTML = (data || []).map(item => {
-      const admin = item.role === 'admin';
+      const owner = item.role === 'platform_owner';
       const status = accountStatus(item);
       const name = item.full_name?.trim() || 'Nome não informado';
       const email = item.email || 'Usuário';
       const toggleButton = status.toggle
         ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender acesso' : 'Reativar acesso'}</button>`
         : '';
-      return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${admin ? '<span class="meta">Administrador principal</span>' : toggleButton}</div></article>`;
+      return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${owner ? '<span class="meta">Proprietário da plataforma</span>' : toggleButton}</div></article>`;
     }).join('') || '<div class="empty">Nenhum usuário encontrado.</div>';
     (data || []).forEach((item, index) => {
-      if (item.role === 'admin') return;
+      if (item.role === 'platform_owner') return;
       const email = item.email || '';
       const controls = target.querySelectorAll('.access-actions')[index];
       if (!controls) return;
@@ -143,26 +174,49 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.setPlatformAccess = async (id, status) => {
-    const { error } = await db.from('user_permissions').update({ access_status:status, updated_at:new Date().toISOString() }).eq('user_id', id);
+    if (!await refreshPlatformOwner()) { toast('Acesso negado.'); return; }
+    const { error } = await db.rpc('platform_set_account_access', {
+      target_user_id: id,
+      target_status: status
+    });
     if (error) { toast(error.message); return; }
     toast(status === 'active' ? 'Acesso liberado.' : 'Acesso suspenso.');
     openSettings();
   };
+  const pendingAccountActions = new Set();
   window.manageUserAccount = async (action, id, email) => {
+    const actionKey = `${action}:${id}`;
+    if (pendingAccountActions.has(actionKey)) {
+      toast('Esta ação já está em andamento.');
+      return;
+    }
+    if (!await refreshPlatformOwner()) { toast('Acesso negado.'); return; }
     if (action === 'cancel_login') {
       if (!confirm(`Cancelar o login de ${email}? A pessoa poderá criar outra conta usando este mesmo e-mail.`)) return;
     } else {
       const confirmation = prompt(`Para excluir permanentemente ${email}, digite o e-mail completo:`);
       if (confirmation !== email) { toast('O e-mail não confere. A exclusão foi cancelada.'); return; }
     }
-    const { data, error } = await db.functions.invoke('manage-user', { body:{ action, userId:id } });
-    if (error || data?.error) { toast(data?.error || error?.message || 'Não foi possível concluir a ação.'); return; }
-    toast(action === 'cancel_login' ? 'Login cancelado. O e-mail está liberado para novo cadastro.' : 'Usuário excluído permanentemente.');
-    openSettings();
+    pendingAccountActions.add(actionKey);
+    try {
+      const { data, error } = await db.functions.invoke('manage-user', { body:{ action, userId:id } });
+      if (error || data?.error) { toast(data?.error || error?.message || 'Não foi possível concluir a ação.'); return; }
+      toast(action === 'cancel_login' ? 'Login cancelado. O e-mail está liberado para novo cadastro.' : 'Usuário excluído permanentemente.');
+      openSettings();
+    } finally {
+      pendingAccountActions.delete(actionKey);
+    }
   };
   document.getElementById('showSubscriptionButton').onchange = async event => {
     const show = event.target.checked;
-    const { error } = await db.from('platform_settings').update({ show_subscription:show, updated_at:new Date().toISOString() }).eq('id', true);
+    if (!await refreshPlatformOwner()) {
+      event.target.checked = !show;
+      toast('Acesso negado.');
+      return;
+    }
+    const { error } = await db.rpc('platform_set_subscription_visibility', {
+      p_show_subscription: show
+    });
     if (error) {
       event.target.checked = !show;
       toast('Execute primeiro a configuração de assinatura no Supabase.');
@@ -175,13 +229,13 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshSubscriptionButton();
   });
   document.addEventListener('carometro:profiles-changed', () => {
-    if (!modal.classList.contains('hidden') && isAdmin()) openSettings();
+    if (!modal.classList.contains('hidden') && isPlatformOwner()) openSettings();
   });
   document.addEventListener('carometro:permissions-changed', () => {
-    if (!modal.classList.contains('hidden') && isAdmin()) openSettings();
+    if (!modal.classList.contains('hidden') && isPlatformOwner()) openSettings();
   });
   nav.onclick = openSettings;
   new MutationObserver(() => {
-    if (!app.classList.contains('hidden')) nav.classList.toggle('hidden', !isAdmin());
+    if (!app.classList.contains('hidden')) nav.classList.toggle('hidden', !isPlatformOwner());
   }).observe(app, { attributes:true, attributeFilter:['class'] });
 });

@@ -23,7 +23,7 @@ create or replace function public.set_occurrence_responsible()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 begin
   if tg_op = 'UPDATE' then
@@ -34,7 +34,7 @@ begin
   end if;
 
   new.created_by := auth.uid();
-  select coalesce(nullif(trim(full_name), ''), nullif(trim(email), ''), 'Não informado')
+  select coalesce(nullif(pg_catalog.trim(full_name), ''), nullif(pg_catalog.trim(email), ''), 'Não informado')
     into new.created_by_name
   from public.profiles
   where id = auth.uid();

@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeUserId = null;
   let startingUserId = null;
   let liveChannel = null;
+  let activeSchoolId = null;
 
   const appIsOpen = () => !document.getElementById('app').classList.contains('hidden');
   const runRefresh = async () => {
@@ -29,30 +30,36 @@ document.addEventListener('DOMContentLoaded', () => {
   const notify = name => document.dispatchEvent(new Event(name));
 
   const startRealtime = async signedInUser => {
-    if (!signedInUser || !db.channel || activeUserId === signedInUser.id || startingUserId === signedInUser.id) return;
+    const schoolId = window.getActiveSchoolId?.() || null;
+    if (!signedInUser || !db.channel || (activeUserId === signedInUser.id && activeSchoolId === schoolId) || startingUserId === signedInUser.id) return;
     startingUserId = signedInUser.id;
     try {
       if (liveChannel) await db.removeChannel(liveChannel);
       activeUserId = signedInUser.id;
-      liveChannel = db.channel(`carometro-live-${signedInUser.id}`)
-      .on('postgres_changes', { event:'*', schema:'public', table:'students' }, refreshData)
-      .on('postgres_changes', { event:'*', schema:'public', table:'classes' }, refreshData)
-      .on('postgres_changes', { event:'*', schema:'public', table:'observation_options' }, () => {
-        notify('carometro:observations-changed');
-        refreshData();
-      })
-      .on('postgres_changes', { event:'*', schema:'public', table:'class_counselors' }, () => {
-        window.refreshCounselorAssignments?.();
-        notify('carometro:permissions-changed');
-        refreshData();
-      })
-      .on('postgres_changes', { event:'*', schema:'public', table:'user_permissions' }, payload => {
-        if (payload.new?.user_id === signedInUser.id) window.applyCarometroPermission?.(payload.new);
-        notify('carometro:permissions-changed');
-      })
-      .on('postgres_changes', { event:'*', schema:'public', table:'student_occurrences' }, () => {
-        notify('carometro:occurrences-changed');
-      })
+      activeSchoolId = schoolId;
+      liveChannel = db.channel(`carometro-live-${signedInUser.id}-${schoolId || 'no-school'}`);
+      // Sem escola ativa, não existe assinatura ampla de tabelas escolares.
+      // Isso evita depender apenas da RLS para filtrar eventos de todas as
+      // escolas durante uma conta recém-confirmada, suspensa ou owner-only.
+      if (schoolId) {
+        const schoolChange = table => ({ event:'*', schema:'public', table, filter:`school_id=eq.${schoolId}` });
+        liveChannel
+        .on('postgres_changes', schoolChange('students'), refreshData)
+        .on('postgres_changes', schoolChange('classes'), refreshData)
+        .on('postgres_changes', schoolChange('observation_options'), () => {
+          notify('carometro:observations-changed');
+          refreshData();
+        })
+        .on('postgres_changes', schoolChange('class_counselors'), () => {
+          window.refreshCounselorAssignments?.();
+          notify('carometro:permissions-changed');
+          refreshData();
+        })
+        .on('postgres_changes', schoolChange('student_occurrences'), () => {
+          notify('carometro:occurrences-changed');
+        });
+      }
+      liveChannel
       // Perfil Ã© dado pessoal: sincroniza apenas entre as sessÃµes do prÃ³prio usuÃ¡rio.
       .on('postgres_changes', { event:'*', schema:'public', table:'profiles' }, () => {
         notify('carometro:profiles-changed');
@@ -60,18 +67,20 @@ document.addEventListener('DOMContentLoaded', () => {
       .on('postgres_changes', { event:'*', schema:'public', table:'platform_settings', filter:'id=eq.true' }, () => {
         notify('carometro:platform-settings-changed');
       })
-        .subscribe();
+      .subscribe();
     } finally {
       startingUserId = null;
     }
   };
 
   window.startCarometroRealtime = startRealtime;
-  db.auth.getUser().then(({ data: { user: signedInUser } }) => startRealtime(signedInUser));
   db.auth.onAuthStateChange((_event, session) => {
-    if (session?.user) startRealtime(session.user);
-    else {
+    // A abertura positiva ocorre somente por showApp(), depois de resolver a
+    // escola ativa. Eventos SIGNED_IN disparados antes disso não podem criar
+    // um canal provisório sem escola e vencer a inicialização correta.
+    if (!session?.user) {
       activeUserId = null;
+      activeSchoolId = null;
       startingUserId = null;
       if (liveChannel) db.removeChannel(liveChannel);
       liveChannel = null;

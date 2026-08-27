@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import webpush from 'npm:web-push@3.6.7'
 
-type NotificationRow = { id:number; recipient_id:string; title:string; body:string; class_id?:string|null }
+type NotificationRow = { id:number; recipient_id:string; school_id:string; title:string; body:string; class_id?:string|null }
 type WebhookPayload = { type:'INSERT'; table:'user_notifications'; record:NotificationRow }
 
 Deno.serve(async request => {
@@ -12,6 +12,9 @@ Deno.serve(async request => {
   const publicKey=Deno.env.get('VAPID_PUBLIC_KEY')!,privateKey=Deno.env.get('VAPID_PRIVATE_KEY')!
   webpush.setVapidDetails('mailto:administrador@carometro.app',publicKey,privateKey)
   const admin=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
+  const {data:canReceive,error:accessError}=await admin.rpc('can_receive_school_notification',{target_user_id:payload.record.recipient_id,target_school_id:payload.record.school_id})
+  if(accessError) return Response.json({error:accessError.message},{status:500})
+  if(!canReceive) return Response.json({ignored:true,reason:'recipient_without_effective_school_access'})
   const {data:subscriptions,error}=await admin.from('push_subscriptions').select('*').eq('user_id',payload.record.recipient_id).eq('enabled',true)
   if(error) return Response.json({error:error.message},{status:500})
   const message=JSON.stringify({title:payload.record.title,body:payload.record.body,tag:`carometro-${payload.record.id}`,url:`./?notification=${payload.record.id}`})

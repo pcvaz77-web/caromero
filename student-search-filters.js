@@ -83,7 +83,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.matchesQuickFilters = student => !activeQuickFilter || studentMatchesKey(student, activeQuickFilter);
 
   async function loadObservationCatalog() {
-    const { data, error } = await db.from('observation_options').select('id,label').order('display_order').order('created_at');
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { observationCatalog = []; observationCatalogLoaded = true; renderMoreFiltersPanel(); return; }
+    let query = db.from('observation_options').select('id,label').order('display_order').order('created_at');
+    query = query.eq('school_id', schoolId);
+    const { data, error } = await query;
     if (error) return;
     observationCatalog = data || [];
     observationCatalogLoaded = true;
@@ -127,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.innerHTML = visibleCatalog.map(option => {
       const count = scope.filter(s => observationValuesOf(s).includes(option.label)).length;
       const key = `obs:${option.label}`;
-      return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === key ? 'active' : ''}" data-obs-filter="${key}">${esc(option.label)} <span class="quick-filter-count">${count}</span></button>`;
+      return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === key ? 'active' : ''}" data-obs-filter="${esc(key)}">${esc(option.label)} <span class="quick-filter-count">${count}</span></button>`;
     }).join('');
   }
 

@@ -1,156 +1,142 @@
-// Infraestrutura central de "escola ativa" para o modelo comercial
-// multi-escola. Fonte única de verdade para "em qual escola o usuário está
-// operando agora" — reports.js, school-calendar.js e uniform-management.js
-// passam a ler o contexto daqui, em vez de cada um resolver sozinho (o que
-// produzia resultados diferentes e por vezes incorretos entre eles).
-//
-// Regra comercial:
-//   - 0 vínculos ativos: nenhuma escola é inventada; o app segue no fluxo
-//     legado existente (conta sem nenhuma escola comercial).
-//   - 1 vínculo ativo: selecionado automaticamente.
-//   - 2+ vínculos ativos: o usuário escolhe explicitamente, sempre que não
-//     houver uma escolha válida e ainda vigente guardada nesta aba.
-//
-// O valor guardado (sessionStorage, por aba) NUNCA é autorização — é só
-// "qual escola mostrar". Toda RPC/RLS protegida continua validando
-// vínculo/papel no servidor, independente do que está aqui.
-document.addEventListener('DOMContentLoaded', () => {
+// Escola ativa da sessão comercial. A escolha controla a interface; as
+// autorizações continuam sendo validadas por RLS/RPC no servidor.
+function initializeSchoolContext() {
   const STORAGE_KEY = 'carometro:activeSchoolId';
-
-  let activeSchoolId = null;
-  let activeSchoolRole = null;
-  let activeMemberships = []; // [{school_id, role, name}] — só vínculos ativos, recarregado a cada resolveActiveSchoolContext()
-
+  let activeSchoolId = null, activeSchoolRole = null, memberships = [];
+  let accessCheckTimer = null, accessCheckRunning = false, accessLost = false;
+  let noSchoolCheckTimer = null, noSchoolCheckRunning = false;
   const style = document.createElement('style');
-  style.textContent = `
-    #schoolSwitchNav { border:0; background:#2b3c5d; color:#fff; }
-    #schoolSwitchNav:hover { background:#38527e; }
-    .school-context-modal { z-index:200; }
-    .school-context-modal .modal { width:min(480px,100%); }
-    .school-context-list { display:grid; gap:10px; margin-top:16px; }
-    .school-context-option { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:14px 16px; border:1px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; text-align:left; font:inherit; color:inherit; width:100%; }
-    .school-context-option:hover { background:#f5f8ff; border-color:#8fa8e0; }
-    .school-context-option b { display:block; }
-    .school-context-option .meta { margin-top:3px; }
-    .school-context-role { padding:4px 9px; border-radius:99px; background:#e8efff; color:#214dba; font-size:11px; font-weight:800; white-space:nowrap; }
-    @media (max-width:800px) {
-      .school-context-modal { padding:10px; align-items:start; overflow:auto; }
-      .school-context-modal .modal { width:100%; max-height:calc(100vh - 20px); margin:auto 0; }
-    }
-  `;
+  style.textContent = `#schoolSwitchNav{border:0;background:#2b3c5d;color:#fff}.school-context-modal{z-index:200}.school-context-modal .modal{width:min(480px,100%)}.school-context-list{display:grid;gap:10px;margin-top:16px}.school-context-option{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:pointer;text-align:left;font:inherit;color:inherit;width:100%}.school-context-role{padding:4px 9px;border-radius:99px;background:#e8efff;color:#214dba;font-size:11px;font-weight:800;white-space:nowrap}`;
   document.head.appendChild(style);
-
-  // Botão "Trocar de escola" — só aparece com 2+ vínculos ativos. Fica no
-  // mesmo nível dos demais botões de nav (index.html já tem #reportsNav,
-  // #inviteNav etc. inseridos do mesmo jeito).
   const switchNav = document.createElement('button');
-  switchNav.id = 'schoolSwitchNav';
-  switchNav.type = 'button';
-  switchNav.className = 'hidden';
+  switchNav.id = 'schoolSwitchNav'; switchNav.type = 'button'; switchNav.className = 'hidden';
   switchNav.innerHTML = '<span>⇄ &nbsp; Trocar de escola</span>';
-  const sideNavigation = document.querySelector('.side .nav');
-  sideNavigation?.insertBefore(switchNav, document.getElementById('profileNav') || null);
-
+  document.querySelector('.side .nav')?.appendChild(switchNav);
   const modal = document.createElement('div');
-  modal.id = 'schoolContextModal';
-  modal.className = 'modal-bg school-context-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Escolha a escola</h3><div class="meta">Sua conta tem vínculo ativo em mais de uma escola. Selecione em qual você quer entrar agora.</div></div></div><div class="form"><div id="schoolContextList" class="school-context-list"></div></div></div>`;
+  modal.id = 'schoolContextModal'; modal.className = 'modal-bg school-context-modal hidden';
+  modal.innerHTML = '<div class="modal"><div class="modal-head"><div><h3>Escolha a escola</h3><div class="meta">Selecione em qual escola você quer trabalhar agora.</div></div></div><div class="form"><div id="schoolContextList" class="school-context-list"></div></div></div>';
   document.body.appendChild(modal);
-
   const roleLabel = role => role === 'school_admin' ? 'Administrador' : role === 'coordinator' ? 'Coordenador' : 'Professor(a)';
-
+  const persist = id => { try { sessionStorage.setItem(STORAGE_KEY, id); } catch {} };
+  function setActive(item) {
+    activeSchoolId = item.school_id; activeSchoolRole = item.role; persist(item.school_id);
+    switchNav.classList.toggle('hidden', memberships.length <= 1); modal.classList.add('hidden');
+    startEffectiveAccessChecks();
+  }
+  async function verifyEffectiveAccess() {
+    if (!activeSchoolId || accessCheckRunning || accessLost || document.hidden) return;
+    accessCheckRunning = true;
+    try {
+      const checkedSchoolId = activeSchoolId;
+      const { data, error } = await db.rpc('can_use_school', { target_school_id:checkedSchoolId });
+      if (error || checkedSchoolId !== activeSchoolId || data === true) return;
+      accessLost = true;
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
+      toast('O acesso a esta escola foi suspenso ou está indisponível.');
+      setTimeout(() => location.reload(), 1200);
+    } finally {
+      accessCheckRunning = false;
+    }
+  }
+  function startEffectiveAccessChecks() {
+    if (accessCheckTimer) clearInterval(accessCheckTimer);
+    if (noSchoolCheckTimer) clearInterval(noSchoolCheckTimer);
+    noSchoolCheckTimer = null;
+    accessLost = false;
+    accessCheckTimer = setInterval(verifyEffectiveAccess, 60000);
+    verifyEffectiveAccess();
+  }
+  async function checkForRestoredMembership() {
+    if (activeSchoolId || noSchoolCheckRunning || document.hidden) return;
+    noSchoolCheckRunning = true;
+    try {
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) return;
+      const { data, error } = await db.from('school_members')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .limit(1);
+      if (!error && data?.length) location.reload();
+    } finally {
+      noSchoolCheckRunning = false;
+    }
+  }
+  function startNoSchoolChecks() {
+    if (noSchoolCheckTimer) clearInterval(noSchoolCheckTimer);
+    noSchoolCheckTimer = setInterval(checkForRestoredMembership, 30000);
+  }
   function renderOptions(onPick) {
-    document.getElementById('schoolContextList').innerHTML = activeMemberships.map((membership, index) =>
-      `<button type="button" class="school-context-option" data-index="${index}"><span><b>${esc(membership.name || 'Escola')}</b></span><span class="school-context-role">${esc(roleLabel(membership.role))}</span></button>`
-    ).join('');
-    document.querySelectorAll('.school-context-option').forEach(button => {
-      button.onclick = () => onPick(activeMemberships[Number(button.dataset.index)]);
-    });
+    document.getElementById('schoolContextList').innerHTML = memberships.map((item, index) => `<button type="button" class="school-context-option" data-index="${index}"><b>${esc(item.name || 'Escola')}</b><span class="school-context-role">${esc(roleLabel(item.role))}</span></button>`).join('');
+    document.querySelectorAll('.school-context-option').forEach(button => { button.onclick = () => onPick(memberships[Number(button.dataset.index)]); });
   }
-
-  function persist(schoolId) {
-    try { sessionStorage.setItem(STORAGE_KEY, schoolId); } catch {}
-  }
-
-  async function fetchActiveMemberships(signedInUser) {
-    const { data } = await db.from('school_members').select('school_id,role,schools(name)').eq('user_id', signedInUser.id).eq('status', 'active');
-    return (data || []).map(row => ({ school_id: row.school_id, role: row.role, name: row.schools?.name || '' }));
-  }
-
-  function setActive(membership) {
-    activeSchoolId = membership.school_id;
-    activeSchoolRole = membership.role;
-    persist(membership.school_id);
-    switchNav.classList.toggle('hidden', activeMemberships.length <= 1);
-    modal.classList.add('hidden');
-  }
-
-  // Ponto único de resolução — chamado por showApp() logo depois de
-  // schoolMembership(), antes de load(). Nunca inventa escola para conta
-  // sem nenhum vínculo comercial (fluxo legado preservado).
-  window.resolveActiveSchoolContext = async () => {
-    activeSchoolId = null;
-    activeSchoolRole = null;
-    const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return;
-    activeMemberships = await fetchActiveMemberships(signedInUser);
-
-    if (!activeMemberships.length) {
-      switchNav.classList.add('hidden');
-      document.dispatchEvent(new CustomEvent('carometro:school-context-ready'));
-      return;
-    }
-
-    if (activeMemberships.length === 1) {
-      setActive(activeMemberships[0]);
-      document.dispatchEvent(new CustomEvent('carometro:school-context-ready'));
-      return;
-    }
-
-    // 2+ vínculos: só reaproveita a escolha salva nesta aba se ela ainda
-    // corresponder a um vínculo ativo real, revalidado agora — nunca
-    // confia cegamente no valor salvo (vínculo pode ter sido revogado).
-    let stored = null;
-    try { stored = sessionStorage.getItem(STORAGE_KEY); } catch {}
-    const stillValid = stored && activeMemberships.find(m => m.school_id === stored);
-    if (stillValid) {
-      setActive(stillValid);
-      document.dispatchEvent(new CustomEvent('carometro:school-context-ready'));
-      return;
-    }
-
-    switchNav.classList.remove('hidden');
+  async function showNoSchoolState() {
+    const { data:isOwner } = await db.rpc('is_platform_owner');
+    if (isOwner === true) return;
+    startNoSchoolChecks();
+    const list = document.getElementById('schoolContextList');
+    list.innerHTML = `
+      <div class="empty" style="padding:8px 0 18px">
+        Sua conta está confirmada, mas ainda não possui acesso ativo a uma escola.
+        Aguarde o administrador concluir a liberação ou abra novamente o link de convite recebido.
+      </div>
+      <button id="noSchoolSignOut" type="button" class="btn secondary full">Sair desta conta</button>
+    `;
+    modal.querySelector('h3').textContent = 'Aguardando acesso escolar';
+    modal.querySelector('.meta').textContent = 'Nenhum dado escolar foi carregado.';
     modal.classList.remove('hidden');
-    await new Promise(resolve => {
-      renderOptions(membership => { setActive(membership); resolve(); });
-    });
+    document.getElementById('noSchoolSignOut').onclick = async () => {
+      const button = document.getElementById('noSchoolSignOut');
+      button.disabled = true;
+      window.prepareCarometroSignOut?.();
+      await window.disableCarometroPush?.();
+      await window.clearCarometroNotificationChannel?.();
+      await db.auth.signOut();
+      window.clearActiveSchoolContext?.();
+      location.reload();
+    };
+  }
+  window.resolveActiveSchoolContext = async () => {
+    activeSchoolId = null; activeSchoolRole = null;
+    const { data: { user } } = await db.auth.getUser(); if (!user) return;
+    const { data, error } = await db.from('school_members').select('school_id,role,schools(name)').eq('user_id', user.id).eq('status', 'active');
+    if (error) { toast('Não foi possível confirmar a escola ativa.'); throw error; }
+    memberships = (data || []).map(row => ({ school_id:row.school_id, role:row.role, name:row.schools?.name || '' }));
+    if (!memberships.length) {
+      switchNav.classList.add('hidden');
+      await showNoSchoolState();
+      document.dispatchEvent(new CustomEvent('carometro:school-context-ready'));
+      return;
+    }
+    if (memberships.length === 1) setActive(memberships[0]);
+    else {
+      let stored = null; try { stored = sessionStorage.getItem(STORAGE_KEY); } catch {}
+      const valid = memberships.find(item => item.school_id === stored);
+      if (valid) setActive(valid);
+      else { switchNav.classList.remove('hidden'); modal.classList.remove('hidden'); await new Promise(resolve => renderOptions(item => { setActive(item); resolve(); })); }
+    }
     document.dispatchEvent(new CustomEvent('carometro:school-context-ready'));
   };
-
-  // "Trocar de escola" — sempre reload após a escolha, para que todo
-  // módulo (reports.js, school-calendar.js, uniform-management.js, e
-  // qualquer outro que dependa da escola ativa) releia seu próprio estado
-  // do zero sob o novo contexto, sem precisar invalidar caches um por um.
-  window.openSchoolSwitcher = () => {
-    if (activeMemberships.length <= 1) return;
-    modal.classList.remove('hidden');
-    renderOptions(membership => {
-      persist(membership.school_id);
-      location.reload();
-    });
+  window.openSchoolSwitcher = () => { if (memberships.length <= 1) return; modal.classList.remove('hidden'); renderOptions(item => { persist(item.school_id); location.reload(); }); };
+  window.activateSchoolContext = schoolId => {
+    const target = memberships.find(item => item.school_id === schoolId);
+    if (!target) return false;
+    persist(target.school_id);
+    location.reload();
+    return true;
   };
-  switchNav.onclick = () => window.openSchoolSwitcher();
-  modal.onclick = event => { if (event.target === modal && activeMemberships.length <= 1) modal.classList.add('hidden'); };
-
+  switchNav.onclick = window.openSchoolSwitcher;
+  window.addEventListener('focus', () => { verifyEffectiveAccess(); checkForRestoredMembership(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { verifyEffectiveAccess(); checkForRestoredMembership(); } });
+  document.getElementById('signOut')?.addEventListener('click', () => window.clearActiveSchoolContext?.(), { capture:true });
   window.getActiveSchoolId = () => activeSchoolId;
   window.getActiveSchoolRole = () => activeSchoolRole;
+  window.getActiveSchoolMembership = () => memberships.find(item => item.school_id === activeSchoolId) || null;
+  window.clearActiveSchoolContext = () => { activeSchoolId = null; activeSchoolRole = null; memberships = []; accessLost = false; if (accessCheckTimer) clearInterval(accessCheckTimer); if (noSchoolCheckTimer) clearInterval(noSchoolCheckTimer); accessCheckTimer = null; noSchoolCheckTimer = null; switchNav.classList.add('hidden'); modal.classList.add('hidden'); try { sessionStorage.removeItem(STORAGE_KEY); } catch {} };
+}
 
-  window.clearActiveSchoolContext = () => {
-    activeSchoolId = null;
-    activeSchoolRole = null;
-    activeMemberships = [];
-    switchNav.classList.add('hidden');
-    modal.classList.add('hidden');
-    try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
-  };
-});
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeSchoolContext, { once:true });
+} else {
+  initializeSchoolContext();
+}

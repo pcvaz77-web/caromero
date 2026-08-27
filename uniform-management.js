@@ -311,12 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
   async function fetchEveryUniformState() {
     const pageSize = 1000;
     const records = [];
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) return { data:records, error:null };
     for (let from = 0; ; from += pageSize) {
-      const result = await db.from('students')
+      let query = db.from('students')
         .select('id,uniform_pending,uniform_received,shoes_received,material_received')
         .order('created_at', { ascending:false })
-        .order('id', { ascending:false })
-        .range(from, from + pageSize - 1);
+        .order('id', { ascending:false });
+      query = query.eq('school_id', schoolId);
+      const result = await query.range(from, from + pageSize - 1);
       if (result.error) return result;
       records.push(...(result.data || []));
       if ((result.data || []).length < pageSize) return { data:records, error:null };
@@ -510,7 +513,11 @@ document.addEventListener('DOMContentLoaded', () => {
           uniform_received: type !== 'uniform' && type !== 'both',
           shoes_received: type !== 'shoes' && type !== 'both'
         };
-    const { error } = await db.from('students').update(nextState).eq('id', row.dataset.id);
+    let updateQuery = db.from('students').update(nextState).eq('id', row.dataset.id);
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { toast('Selecione uma escola antes de atualizar o uniforme.'); select.disabled = false; return; }
+    updateQuery = updateQuery.eq('school_id', schoolId);
+    const { error } = await updateQuery;
     if (error) { toast(error.message.includes('material_received') ? 'Execute o script supabase-uniform-material.sql no Supabase.' : error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message); select.disabled = false; return; }
     // Atualização imediata: contadores, lista e etiqueta não dependem de uma
     // nova abertura da janela nem de uma atualização posterior da página.
@@ -542,7 +549,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const button = get('markAllUniformReceived');
     button.disabled = true;
     const nextState = { uniform_pending:null, uniform_received:true, shoes_received:true, material_received:true };
-    const { error } = await db.rpc('mark_all_uniform_received', { target_class_id:access.classId });
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { button.disabled = false; toast('Selecione uma escola antes de atualizar o uniforme.'); return; }
+    const { error } = await db.rpc('mark_all_uniform_received', {
+      target_school_id:schoolId,
+      target_class_id:access.classId || null
+    });
     if (error) {
       button.disabled = false;
       toast(error.message.includes('uniform_pending') ? 'Execute novamente o script SQL do Uniforme no Supabase.' : error.message);

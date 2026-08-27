@@ -18,6 +18,8 @@
 -- altera a Edge Function, não altera envio de Push nem notificações
 -- internas, não toca nenhuma migration 001-015, não é a Migration 016.
 
+begin;
+
 create or replace function public.claim_push_subscription(
   p_endpoint text,
   p_p256dh text,
@@ -27,15 +29,34 @@ create or replace function public.claim_push_subscription(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path to ''
 as $$
 begin
   if auth.uid() is null then
     raise exception 'Usuário não autenticado.';
   end if;
 
-  if p_endpoint is null or p_p256dh is null or p_auth_key is null then
+  if not public.is_platform_owner()
+     and not exists (
+       select 1
+       from public.school_members sm
+       where sm.user_id = auth.uid()
+         and public.can_use_school(sm.school_id)
+     ) then
+    raise exception 'Conta sem acesso ativo a uma escola.';
+  end if;
+
+  if nullif(btrim(p_endpoint), '') is null
+     or nullif(btrim(p_p256dh), '') is null
+     or nullif(btrim(p_auth_key), '') is null then
     raise exception 'Assinatura Push incompleta.';
+  end if;
+
+  if length(p_endpoint) > 4096
+     or length(p_p256dh) > 512
+     or length(p_auth_key) > 512
+     or length(coalesce(p_user_agent, '')) > 1024 then
+    raise exception 'Assinatura Push inválida.';
   end if;
 
   insert into public.push_subscriptions (user_id, endpoint, p256dh, auth_key, user_agent, enabled, last_seen_at)
@@ -53,3 +74,5 @@ $$;
 revoke all on function public.claim_push_subscription(text, text, text, text) from public;
 revoke all on function public.claim_push_subscription(text, text, text, text) from anon;
 grant execute on function public.claim_push_subscription(text, text, text, text) to authenticated;
+
+commit;

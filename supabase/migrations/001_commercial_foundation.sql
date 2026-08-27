@@ -95,6 +95,31 @@ create table if not exists public.school_invitations (
 create index if not exists school_invitations_school_email_idx
   on public.school_invitations (school_id, lower(email));
 
+-- Convites vencidos deixam de ocupar a chave de convite pendente. Em seguida,
+-- a restrição parcial impede duplicidade inclusive sob duas chamadas
+-- concorrentes de criação para o mesmo e-mail e escola.
+update public.school_invitations
+set status = 'expired'
+where status = 'pending'
+  and expires_at <= now();
+
+do $$
+begin
+  if exists (
+    select 1
+    from public.school_invitations i
+    where i.status = 'pending'
+    group by i.school_id, lower(trim(i.email))
+    having count(*) > 1
+  ) then
+    raise exception 'Existem convites pendentes duplicados. Resolva-os antes de aplicar a fundação comercial.';
+  end if;
+end $$;
+
+create unique index if not exists school_invitations_one_pending_per_email
+  on public.school_invitations (school_id, lower(email))
+  where status = 'pending';
+
 alter table public.school_invitations enable row level security;
 
 -- Permissões do usuário dentro de uma escola.
@@ -155,12 +180,13 @@ create or replace function public.accept_school_invitation(invitation_token uuid
 returns uuid
 language plpgsql
 security definer
-set search_path = public, auth
+set search_path = ''
 as $$
 declare
   v_invitation public.school_invitations%rowtype;
   v_user_id uuid;
   v_user_email text;
+  v_email_confirmed_at timestamptz;
   v_member_id uuid;
 begin
   v_user_id := auth.uid();
@@ -169,13 +195,17 @@ begin
     raise exception 'Usuário não autenticado.';
   end if;
 
-  select lower(trim(email))
-    into v_user_email
+  select lower(trim(email)), email_confirmed_at
+    into v_user_email, v_email_confirmed_at
   from auth.users
   where id = v_user_id;
 
   if v_user_email is null then
     raise exception 'E-mail do usuário não encontrado.';
+  end if;
+
+  if v_email_confirmed_at is null then
+    raise exception 'Confirme seu e-mail antes de aceitar o convite.';
   end if;
 
   select *
@@ -252,7 +282,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -274,7 +304,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   select exists (
     select 1
@@ -347,7 +377,7 @@ create or replace function public.create_school_invitation(
 returns uuid
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_email text;
@@ -362,7 +392,9 @@ begin
 
   v_email := lower(trim(target_email));
 
-  if v_email = '' then
+  if v_email = ''
+     or length(v_email) > 320
+     or v_email !~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then
     raise exception 'Informe um e-mail válido.';
   end if;
 
@@ -413,6 +445,15 @@ begin
     raise exception 'Este usuário já pertence a esta escola.';
   end if;
 
+  -- Libera a chave parcial de um convite antigo que já venceu, sem alterar
+  -- convites válidos nem registros aceitos/cancelados.
+  update public.school_invitations i
+  set status = 'expired'
+  where i.school_id = target_school_id
+    and lower(trim(i.email)) = v_email
+    and i.status = 'pending'
+    and i.expires_at <= now();
+
   if exists (
     select 1
     from public.school_invitations i
@@ -424,19 +465,24 @@ begin
     raise exception 'Já existe um convite válido pendente para este e-mail nesta escola.';
   end if;
 
-  insert into public.school_invitations (
-    school_id,
-    email,
-    role,
-    invited_by
-  )
-  values (
-    target_school_id,
-    v_email,
-    target_role,
-    auth.uid()
-  )
-  returning id into v_invitation_id;
+  begin
+    insert into public.school_invitations (
+      school_id,
+      email,
+      role,
+      invited_by
+    )
+    values (
+      target_school_id,
+      v_email,
+      target_role,
+      auth.uid()
+    )
+    returning id into v_invitation_id;
+  exception
+    when unique_violation then
+      raise exception 'Já existe um convite válido pendente para este e-mail nesta escola.';
+  end;
 
   return v_invitation_id;
 end;
@@ -486,7 +532,7 @@ create or replace function public.cancel_school_invitation(
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   v_invitation public.school_invitations%rowtype;
@@ -1080,8 +1126,9 @@ on table public.school_members
 from anon;
 
 -- Marca como expirados os convites pendentes cujo prazo já terminou.
--- Pode ser chamada por usuário autenticado, mas somente atualiza
--- convites que efetivamente ultrapassaram expires_at.
+-- Uso interno de manutenção: clientes autenticados não executam esta rotina
+-- global. A criação de um novo convite expira apenas o anterior do mesmo
+-- e-mail e escola.
 
 create or replace function public.expire_school_invitations()
 returns integer
@@ -1107,9 +1154,8 @@ begin
 end;
 $$;
 
-revoke all on function public.expire_school_invitations() from public;
-revoke all on function public.expire_school_invitations() from anon;
-grant execute on function public.expire_school_invitations() to authenticated;
+revoke all on function public.expire_school_invitations()
+from public, anon, authenticated;
 
 -- Provisionamento inicial de uma escola.
 -- Esta função cria a escola e o primeiro administrador.

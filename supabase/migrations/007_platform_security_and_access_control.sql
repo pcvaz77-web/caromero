@@ -18,7 +18,7 @@ create or replace function public.is_platform_owner()
 returns boolean
 language sql
 security definer
-set search_path = public, auth
+set search_path = ''
 as $$
   select exists (
     select 1
