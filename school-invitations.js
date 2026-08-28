@@ -55,7 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
     byId('schoolInviteList').innerHTML = '<div class="meta">Carregando…</div>';
     const { data, error } = await db.from('school_invitations').select('id,email,role,token,expires_at,created_at').eq('school_id', schoolId).eq('status', 'pending').gt('expires_at', new Date().toISOString()).order('created_at', { ascending:false });
     if (error) { byId('schoolInviteList').innerHTML = `<div class="error">${esc(error.message)}</div>`; return; }
-    byId('schoolInviteList').innerHTML = (data || []).length ? data.map(item => `<div class="school-invite-item"><div><b>${esc(item.email)}</b><div class="meta">${esc(roleLabel(item.role))} · expira em ${esc(new Date(item.expires_at).toLocaleDateString('pt-BR'))}</div><div class="school-invite-link">${esc(linkForToken(item.token))}</div></div><div class="actions-small"><button class="edit" type="button" data-copy-invite="${esc(item.token)}">Copiar</button><button class="delete" type="button" data-cancel-invite="${esc(item.id)}">Cancelar</button></div></div>`).join('') : '<div class="empty" style="padding:26px">Nenhum convite pendente.</div>';
+    byId('schoolInviteList').innerHTML = (data || []).length ? data.map(item => `<div class="school-invite-item"><div><b>${esc(item.email)}</b><div class="meta">${esc(roleLabel(item.role))} · expira em ${esc(new Date(item.expires_at).toLocaleDateString('pt-BR'))}</div><div class="school-invite-link">${esc(linkForToken(item.token))}</div></div><div class="actions-small"><button class="edit" type="button" data-copy-invite="${esc(item.token)}">Copiar</button><button class="edit" type="button" data-resend-invite="${esc(item.id)}">Reenviar</button><button class="delete" type="button" data-cancel-invite="${esc(item.id)}">Cancelar</button></div></div>`).join('') : '<div class="empty" style="padding:26px">Nenhum convite pendente.</div>';
+  }
+
+  async function sendInvitationEmail(invitationId) {
+    const { data, error } = await db.functions.invoke('send-school-invitation', { body:{ invitationId } });
+    if (error) {
+      let message = error.message || 'Não foi possível enviar o e-mail.';
+      try { const payload = await error.context?.json(); if (payload?.error) message = payload.error; } catch {}
+      throw new Error(message);
+    }
+    if (data?.error) throw new Error(data.error);
+    return data;
   }
 
   nav.onclick = async () => { if (!canInvite()) return; byId('schoolInviteEmail').value = ''; byId('schoolInviteResult').classList.add('hidden'); modal.classList.remove('hidden'); await loadPending(); };
@@ -71,7 +82,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const { data, error:readError } = await db.from('school_invitations').select('token').eq('id', id).eq('school_id', schoolId).single();
       if (readError || !data) throw readError || new Error('Convite criado, mas o link não pôde ser recuperado.');
       byId('schoolInviteLink').value = linkForToken(data.token); byId('schoolInviteResult').classList.remove('hidden'); byId('schoolInviteEmail').value = '';
-      toast('Convite gerado. Nenhum e-mail foi enviado automaticamente.'); await loadPending();
+      try {
+        await sendInvitationEmail(id);
+        toast('Convite criado e enviado por e-mail.');
+      } catch (sendError) {
+        toast(`Convite criado, mas o e-mail não foi enviado: ${sendError.message}`);
+      }
+      await loadPending();
     } catch (error) { toast(error.message || 'Não foi possível gerar o convite.'); }
     finally { byId('schoolInviteCreate').disabled = false; }
   };
@@ -82,6 +99,20 @@ document.addEventListener('DOMContentLoaded', () => {
   byId('schoolInviteList').onclick = async event => {
     const copyButton = event.target.closest('[data-copy-invite]');
     if (copyButton) { await copyText(linkForToken(copyButton.dataset.copyInvite)); return; }
+    const resendButton = event.target.closest('[data-resend-invite]');
+    if (resendButton) {
+      if (resendButton.disabled) return;
+      resendButton.disabled = true;
+      try {
+        await sendInvitationEmail(resendButton.dataset.resendInvite);
+        toast('Convite reenviado por e-mail.');
+      } catch (error) {
+        toast(error.message || 'Não foi possível reenviar o convite.');
+      } finally {
+        resendButton.disabled = false;
+      }
+      return;
+    }
     const cancelButton = event.target.closest('[data-cancel-invite]');
     if (!cancelButton || !confirm('Cancelar este convite? O link deixará de funcionar.')) return;
     cancelButton.disabled = true;
