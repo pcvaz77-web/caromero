@@ -4,13 +4,22 @@
 
 begin;
 
-create or replace function public.platform_provision_school(
+-- Onboarding do administrador principal (P0): quando o e-mail informado não
+-- tem conta confirmada, esta função deixa de lançar exceção e passa a criar
+-- a escola normalmente com um convite school_admin pendente. O SQL exato de
+-- migração (ALTER TABLE + DROP/CREATE FUNCTION) fica em
+-- supabase-commercial-admin-onboarding.sql — este arquivo é mantido como a
+-- definição corrente da função, para não haver divergência entre o que está
+-- documentado aqui e o que roda de fato após a aplicação.
+drop function if exists public.platform_provision_school(text, text, text, numeric);
+
+create function public.platform_provision_school(
   p_school_name text,
   p_admin_email text,
   p_plan text default 'free',
   p_price numeric default 0
 )
-returns uuid
+returns jsonb
 language plpgsql
 security definer
 set search_path to ''
@@ -23,6 +32,9 @@ declare
   v_member_id uuid;
   v_slug_base text;
   v_slug text;
+  v_invitation_id uuid;
+  v_invitation_token uuid;
+  v_admin_state text;
 begin
   if auth.uid() is null or not public.is_platform_owner() then
     raise exception 'Acesso negado.';
@@ -53,10 +65,6 @@ begin
     and u.email_confirmed_at is not null
     and u.deleted_at is null;
 
-  if v_user_id is null then
-    raise exception 'A conta não existe ou ainda não confirmou o e-mail.';
-  end if;
-
   v_slug_base := trim(both '-' from regexp_replace(lower(v_name), '[^a-z0-9]+', '-', 'g'));
   if v_slug_base = '' then
     v_slug_base := 'escola';
@@ -66,13 +74,6 @@ begin
   insert into public.schools (name, slug, status)
   values (v_name, v_slug, 'active')
   returning id into v_school_id;
-
-  insert into public.school_members (school_id, user_id, role, status)
-  values (v_school_id, v_user_id, 'school_admin', 'active')
-  returning id into v_member_id;
-
-  insert into public.school_member_permissions (member_id)
-  values (v_member_id);
 
   insert into public.school_subscriptions (
     school_id,
@@ -93,6 +94,26 @@ begin
     'Provisionamento manual pelo proprietário da plataforma'
   );
 
+  if v_user_id is not null then
+    -- Conta já confirmada: vínculo imediato, comportamento inalterado.
+    insert into public.school_members (school_id, user_id, role, status)
+    values (v_school_id, v_user_id, 'school_admin', 'active')
+    returning id into v_member_id;
+
+    insert into public.school_member_permissions (member_id)
+    values (v_member_id)
+    on conflict (member_id) do nothing;
+
+    v_admin_state := 'linked';
+  else
+    -- Conta inexistente ou ainda não confirmada: onboarding por convite.
+    insert into public.school_invitations (school_id, email, role, invited_by)
+    values (v_school_id, v_email, 'school_admin', auth.uid())
+    returning id, token into v_invitation_id, v_invitation_token;
+
+    v_admin_state := 'invited';
+  end if;
+
   perform public.record_platform_audit(
     'school_provisioned',
     v_school_id,
@@ -101,11 +122,19 @@ begin
     jsonb_build_object(
       'school_name', v_name,
       'plan', p_plan,
-      'price', p_price
+      'price', p_price,
+      'admin_state', v_admin_state
     )
   );
 
-  return v_school_id;
+  return jsonb_build_object(
+    'school_id', v_school_id,
+    'admin_state', v_admin_state,
+    'admin_user_id', v_user_id,
+    'admin_email', v_email,
+    'invitation_id', v_invitation_id,
+    'invitation_token', v_invitation_token
+  );
 end;
 $function$;
 

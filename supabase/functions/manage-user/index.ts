@@ -42,10 +42,91 @@ Deno.serve(async (request) => {
   let action: unknown
   let userId: unknown
   let email: unknown
+  let invitationId: unknown
   try {
-    ({ action, userId, email } = await request.json())
+    ({ action, userId, email, invitationId } = await request.json())
   } catch {
     return json(request, { error: 'Corpo da solicitação inválido.' }, 400)
+  }
+  if (action === 'invite_school_admin') {
+    if (typeof invitationId !== 'string' || !invitationId) {
+      return json(request, { error: 'Convite inválido.' }, 400)
+    }
+
+    // O e-mail e o token usados no envio vêm sempre do próprio registro do
+    // convite, nunca do que o frontend informar nesta chamada.
+    const { data: invitation, error: invitationError } = await admin
+      .from('school_invitations')
+      .select('id, school_id, email, role, status, expires_at, token')
+      .eq('id', invitationId)
+      .maybeSingle()
+    if (invitationError) return json(request, { error: 'Não foi possível consultar o convite.' }, 500)
+    if (!invitation) return json(request, { error: 'Convite não encontrado.' }, 404)
+    if (invitation.role !== 'school_admin') {
+      return json(request, { error: 'Este convite não é de administrador principal.' }, 400)
+    }
+    if (invitation.status !== 'pending') {
+      return json(request, { error: 'Este convite não está mais disponível.' }, 400)
+    }
+    if (new Date(invitation.expires_at).getTime() <= Date.now()) {
+      return json(request, { error: 'Este convite expirou.' }, 400)
+    }
+
+    const { data: school, error: schoolError } = await admin
+      .from('schools')
+      .select('id, name')
+      .eq('id', invitation.school_id)
+      .maybeSingle()
+    if (schoolError) return json(request, { error: 'Não foi possível consultar a escola.' }, 500)
+    if (!school) return json(request, { error: 'Escola não encontrada.' }, 404)
+
+    const invitedEmail = invitation.email
+    const redirectTo = `${origin}/accept-invite.html?token=${invitation.token}`
+
+    let targetAuth: User | undefined
+    for (let page = 1; page <= 50 && !targetAuth; page += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 })
+      if (error) return json(request, { error: 'Não foi possível consultar as contas.' }, 500)
+      targetAuth = data.users.find(user => user.email?.trim().toLowerCase() === invitedEmail)
+      if (data.users.length < 200) break
+    }
+
+    if (targetAuth) {
+      const { count: alreadyMember, error: memberCheckError } = await admin
+        .from('school_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('school_id', invitation.school_id)
+        .eq('user_id', targetAuth.id)
+      if (memberCheckError) return json(request, { error: 'Não foi possível validar o vínculo existente.' }, 500)
+      if ((alreadyMember ?? 0) > 0) {
+        return json(request, { sent: false, already_linked: true })
+      }
+    }
+
+    if (!targetAuth) {
+      // Conta inexistente: cria e envia pelo mecanismo nativo do Supabase,
+      // usando o SMTP/Brevo já configurado.
+      const { error: inviteError } = await admin.auth.admin.inviteUserByEmail(invitedEmail, { redirectTo })
+      if (inviteError) return json(request, { error: inviteError.message }, 500)
+      return json(request, { sent: true, method: 'invite' })
+    }
+
+    // Conta já existe — confirmada ou não, convite ainda pendente. Nunca
+    // apaga nem recria a conta: reenvia por link mágico, que autentica ao
+    // ser clicado e, se a conta ainda não estava confirmada, confirma o
+    // e-mail nesse mesmo clique. Não altera senha nem nenhum dado existente.
+    const anon = createClient(url, anonKey)
+    const { error: otpError } = await anon.auth.signInWithOtp({
+      email: invitedEmail,
+      options: { emailRedirectTo: redirectTo, shouldCreateUser: false },
+    })
+    if (otpError) {
+      return json(request, { error: `Não foi possível reenviar automaticamente: ${otpError.message}` }, 500)
+    }
+    return json(request, {
+      sent: true,
+      method: targetAuth.email_confirmed_at ? 'magiclink' : 'magiclink_confirm',
+    })
   }
   if (action === 'lookup_user') {
     if (typeof email !== 'string' || !email.trim()) return json(request, { error: 'E-mail inválido.' }, 400)

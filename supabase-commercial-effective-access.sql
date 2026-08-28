@@ -376,7 +376,12 @@ security definer
 set search_path to ''
 as $function$
 begin
-  if auth.role() = 'service_role' then
+  -- O proprietário da plataforma também bypassa: ele precisa poder inserir o
+  -- convite school_admin de uma escola recém-criada, onde nunca é membro.
+  -- Mesma exceção já existente no trigger irmão
+  -- (enforce_member_permission_effective_access), aplicada aqui pela mesma
+  -- razão.
+  if auth.role() = 'service_role' or public.is_platform_owner() then
     return new;
   end if;
 
