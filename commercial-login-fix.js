@@ -1,6 +1,7 @@
-// A seleção da escola pode aguardar uma ação do usuário. Mostra a estrutura
-// autenticada antes dessa espera para que o seletor multi-escola fique visível
-// e o login nunca pareça ter ignorado o clique.
+// #app só é revelado depois que escola/papel/permissões da conta atual
+// estiverem completamente resolvidos (ver window.showApp abaixo). Isso evita
+// que qualquer dado de uma conta anterior — ou um estado provisório — apareça
+// mesmo que só por um instante durante o login/troca de conta.
 function initializeCommercialLoginFix() {
   const authenticatedShowApp = window.showApp;
   if (typeof authenticatedShowApp !== 'function') return;
@@ -29,8 +30,26 @@ function initializeCommercialLoginFix() {
       color:#fff !important;
     }
     .side .nav > button.hidden { display:none !important; }
+    /* Cortina de bootstrap: cobre a interface comum (fica acima dela) mas
+       fica abaixo do seletor de escola (#schoolContextModal, z-index:200),
+       que precisa continuar visível e utilizável durante a resolução. */
+    #carometroBootShield {
+      position:fixed; inset:0; z-index:150;
+      background:var(--bg); color:var(--navy);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:15px; text-align:center; padding:24px;
+    }
   `;
   document.head.appendChild(navigationStyle);
+
+  const bootShield = document.createElement('div');
+  bootShield.id = 'carometroBootShield';
+  bootShield.className = 'hidden';
+  bootShield.textContent = 'Carregando seu acesso…';
+  document.body.appendChild(bootShield);
+  const showBootShield = () => bootShield.classList.remove('hidden');
+  const hideBootShield = () => bootShield.classList.add('hidden');
+
   let commercialMemberships = [];
   let commercialActiveMembership = null;
 
@@ -56,9 +75,21 @@ function initializeCommercialLoginFix() {
     label.classList.toggle('hidden', !item && !requiresChoice);
   }
 
+  // Única limpeza do estado comercial em memória: zera o vínculo/escola ativa
+  // e a lista de vínculos, e publica contexto nulo. Chamada tanto quando não
+  // há usuário autenticado (abaixo) quanto no logout (index.html), para que
+  // nenhuma conta seguinte herde dado de uma sessão anterior.
+  function clearCommercialLoginState() {
+    commercialMemberships = [];
+    publishActiveSchool(null);
+    document.getElementById('schoolSwitchNav')?.classList.add('hidden');
+    hideBootShield();
+  }
+  window.clearCommercialLoginState = clearCommercialLoginState;
+
   async function ensureSchoolSwitcherVisibility() {
     const { data: { user } } = await db.auth.getUser();
-    if (!user) return;
+    if (!user) { clearCommercialLoginState(); return; }
     const { data, error } = await db.from('school_members')
       .select('school_id,role,schools(name)')
       .eq('user_id', user.id)
@@ -111,22 +142,47 @@ function initializeCommercialLoginFix() {
   window.showApp = async (...args) => {
     const login = document.getElementById('login');
     const app = document.getElementById('app');
+    // Cortina primeiro, sincronamente, antes de qualquer reorganização da
+    // interface anterior — nada do que acontece a seguir fica visível ao
+    // usuário até hideBootShield() no fim deste bloco.
+    showBootShield();
     login?.classList.add('hidden');
-    app?.classList.remove('hidden');
 
     try {
       // Não depende do término da escolha inicial: ela pode estar aguardando
       // interação do usuário quando ainda não existe escola salva na sessão.
+      // O seletor (#schoolContextModal, z-index:200) fica acima da cortina
+      // (z-index:150) e continua utilizável enquanto ela está visível.
       await ensureSchoolSwitcherVisibility();
       await authenticatedShowApp(...args);
+      // Recuperação de senha tem sua própria tela (password-recovery-flow.js)
+      // e já decidiu a visibilidade de #app/#login sozinha; a cortina não pode
+      // ficar por cima dela.
+      if (window.isCarometroPasswordRecovery?.()) { hideBootShield(); return; }
       await ensureSchoolSwitcherVisibility();
       // O núcleo legado chama a referência local de load/profile. Executa
       // explicitamente as versões comerciais, já com a escola resolvida.
       await window.load?.();
       await window.refreshCarometroSchoolPermission?.();
+      // #app é liberado internamente aqui para que os MutationObservers
+      // existentes (mobile-layout.js, permissions-and-details.js,
+      // student-edit-improvements.js, notification-center.js,
+      // pwa-notifications.js, class-counselors.js, class-periods.js)
+      // disparem normalmente — eles não são alterados. A cortina, ainda
+      // visível, é o que impede o usuário de ver esse instante.
+      app?.classList.remove('hidden');
+      // Janela de estabilização apenas com atraso tecnicamente justificado:
+      // 140ms é o setTimeout já existente em mobile-layout.js
+      // (restoreCurrentScreen), o único observer com atraso conhecido
+      // reagindo a #app ficar visível. Os dois requestAnimationFrame
+      // garantem que o resultado já foi pintado antes de tirar a cortina.
+      await new Promise(resolve => setTimeout(resolve, 140));
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      hideBootShield();
     } catch (error) {
       app?.classList.add('hidden');
       login?.classList.remove('hidden');
+      hideBootShield();
       throw error;
     }
   };
