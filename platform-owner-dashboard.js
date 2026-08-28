@@ -105,6 +105,10 @@
             <div class="field"><label for="platformSchoolPrice">Preço mensal</label><input id="platformSchoolPrice" type="number" min="0" step="0.01" value="0" required></div>
             <button class="btn primary" type="submit">Criar escola</button>
           </form>
+          <div id="platformAdminInvite" class="hidden" style="margin:-6px 0 18px">
+            <p id="platformAdminInviteStatus" class="meta"></p>
+            <button id="platformAdminInviteRetry" class="btn secondary" type="button">Reenviar convite ao administrador</button>
+          </div>
           <section class="panel">
             <div class="head">
               <h3>Escolas cadastradas</h3>
@@ -153,6 +157,7 @@
 
     modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
     modal.querySelector('#platformSchoolForm').onsubmit = provisionSchool;
+    modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.onclick = event => {
       if (event.target === modal) {
@@ -277,6 +282,47 @@
     }).join('');
   }
 
+  let pendingAdminInvite = null; // { invitationId, adminEmail } — só para permitir reenviar sem reprovisionar.
+
+  function renderAdminInviteStatus(message) {
+    const box = document.getElementById('platformAdminInvite');
+    const status = document.getElementById('platformAdminInviteStatus');
+    if (!box || !status) return;
+    if (!pendingAdminInvite) { box.classList.add('hidden'); return; }
+    status.textContent = message;
+    box.classList.remove('hidden');
+  }
+
+  async function sendAdminInvite(invitationId, adminEmail) {
+    try {
+      const data = await invokeManageUser({ action:'invite_school_admin', invitationId });
+      pendingAdminInvite = { invitationId, adminEmail };
+      if (data.already_linked) {
+        pendingAdminInvite = null;
+        renderAdminInviteStatus('');
+        toast(`${adminEmail} já está vinculado(a) a esta escola.`);
+        return;
+      }
+      renderAdminInviteStatus(`Convite enviado para ${adminEmail}. Aguardando definição de senha e confirmação.`);
+      toast('Escola criada. Convite de administrador enviado por e-mail.');
+    } catch (error) {
+      pendingAdminInvite = { invitationId, adminEmail };
+      renderAdminInviteStatus(`Escola criada, mas o envio do convite falhou: ${error.message}`);
+      toast(error.message);
+    }
+  }
+
+  async function retryAdminInvite() {
+    if (!pendingAdminInvite) return;
+    const button = document.getElementById('platformAdminInviteRetry');
+    button.disabled = true;
+    try {
+      await sendAdminInvite(pendingAdminInvite.invitationId, pendingAdminInvite.adminEmail);
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   async function provisionSchool(event) {
     event.preventDefault();
     const form = event.currentTarget;
@@ -290,7 +336,7 @@
     button.disabled = true;
     button.textContent = 'Criando…';
     try {
-      const { error } = await db.rpc('platform_provision_school', {
+      const { data, error } = await db.rpc('platform_provision_school', {
         p_school_name:schoolName,
         p_admin_email:adminEmail,
         p_plan:plan,
@@ -299,7 +345,13 @@
       if (error) { toast(error.message); return; }
       form.reset();
       document.getElementById('platformSchoolPrice').value = '0';
-      toast('Escola criada e vinculada ao administrador informado.');
+      pendingAdminInvite = null;
+      renderAdminInviteStatus('');
+      if (data?.admin_state === 'invited' && data.invitation_id) {
+        await sendAdminInvite(data.invitation_id, data.admin_email);
+      } else {
+        toast('Escola criada e vinculada ao administrador informado.');
+      }
       await openDashboard();
     } finally {
       button.disabled = false;

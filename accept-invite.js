@@ -26,7 +26,7 @@ function clearErrors() {
 }
 
 function busy(value) {
-  ['signupSubmit', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn']
+  ['signupSubmit', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn', 'sessionPasswordSubmit']
     .forEach(id => { $(id).disabled = value; });
 }
 
@@ -89,11 +89,21 @@ async function boot() {
   }
   preview = data[0];
   $('school').textContent = preview.school_name || '';
-  $('role').textContent = `Papel: ${preview.role === 'coordinator' ? 'Coordenador(a)' : 'Professor(a)'}`;
+  $('role').textContent = `Papel: ${preview.role === 'coordinator' ? 'Coordenador(a)' : preview.role === 'school_admin' ? 'Administrador(a)' : 'Professor(a)'}`;
   $('email').textContent = `E-mail: ${preview.masked_email || ''}`;
   $('content').classList.remove('hidden');
   const { data: { session } } = await db.auth.getSession();
-  if (session) showSession(session.user.email);
+  if (session) {
+    showSession(session.user.email);
+    // Administrador principal chega autenticado pelo convite nativo do
+    // Supabase, sem nunca ter definido uma senha própria. Exige isso antes
+    // de aceitar. Coordenador/professor não passam por aqui — continuam
+    // exatamente como já estavam aprovados.
+    if (preview.role === 'school_admin') {
+      $('continueBtn').classList.add('hidden');
+      $('sessionPasswordForm').classList.remove('hidden');
+    }
+  }
   else showAuth();
   if (preview.email_has_account) {
     $('loginTab').click();
@@ -102,6 +112,24 @@ async function boot() {
 }
 
 $('continueBtn').onclick = acceptInvitation;
+$('sessionPasswordForm').onsubmit = async event => {
+  event.preventDefault();
+  clearErrors();
+  const password = $('sessionPassword').value;
+  if (password !== $('sessionPasswordConfirm').value) {
+    showError('sessionError', 'As duas senhas precisam ser iguais.');
+    return;
+  }
+  busy(true);
+  try {
+    const { error } = await db.auth.updateUser({ password });
+    if (error) { showError('sessionError', error.message); return; }
+    // Só aceita o convite depois que a senha foi definida com sucesso.
+    await acceptInvitation();
+  } finally {
+    busy(false);
+  }
+};
 $('switchBtn').onclick = async () => {
   busy(true);
   await db.auth.signOut();
