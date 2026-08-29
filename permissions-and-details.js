@@ -114,16 +114,45 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
 
-  // Resolve o vínculo comercial ativo (school_members) do usuário logado.
-  // Não fixa nenhuma escola específica: cada usuário só enxerga, via RLS, o
-  // próprio vínculo — funciona igual para qualquer escola do sistema comercial.
-  async function currentSchoolMembership() {
+  // Consulta o vínculo comercial ativo (school_members) do usuário logado e
+  // devolve o resultado desta chamada específica — sem nenhum estado
+  // compartilhado entre chamadas concorrentes. Não fixa nenhuma escola
+  // específica: cada usuário só enxerga, via RLS, o próprio vínculo.
+  async function fetchCurrentSchoolMembership(retried) {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser) return null;
+    if (!signedInUser) return { membership: null, queryFailed: false };
     const activeSchoolId = window.getActiveSchoolId?.() || null;
-    if (!activeSchoolId) return null;
-    const { data } = await db.from('school_members').select(`id,school_id,user_id,role,school_member_permissions(${schoolPermissionSelect})`).eq('user_id', signedInUser.id).eq('school_id', activeSchoolId).eq('status', 'active').maybeSingle();
-    return data || null;
+    if (!activeSchoolId) return { membership: null, queryFailed: false };
+    const { data, error } = await db.from('school_members').select(`id,school_id,user_id,role,school_member_permissions(${schoolPermissionSelect})`).eq('user_id', signedInUser.id).eq('school_id', activeSchoolId).eq('status', 'active').maybeSingle();
+    if (error) {
+      // Falha transitória (rede, sessão em renovação etc.) nunca deve virar
+      // "sem vínculo" sem pelo menos uma nova tentativa (no máximo 1 retry).
+      if (!retried) return fetchCurrentSchoolMembership(true);
+      return { membership: null, queryFailed: true };
+    }
+    return { membership: data || null, queryFailed: false };
+  }
+
+  // Contrato preservado para todos os call sites já existentes: sempre
+  // retorna Membership | null, nunca lança.
+  async function currentSchoolMembership() {
+    const { membership } = await fetchCurrentSchoolMembership();
+    return membership;
+  }
+
+  // Usada pelos pontos que hoje mostram "Selecione uma escola ativa." —
+  // diferencia, para a própria chamada (sem depender de estado global), "não
+  // há vínculo real" (mesma mensagem de sempre) de "não deu para confirmar
+  // agora" (mensagem distinta, sem sugerir trocar de escola).
+  async function currentSchoolMembershipOrWarn() {
+    const { membership, queryFailed } = await fetchCurrentSchoolMembership();
+    if (!membership) {
+      toast(queryFailed
+        ? 'Não foi possível confirmar seu acesso a esta escola agora. Tente novamente.'
+        : 'Selecione uma escola ativa.');
+      return null;
+    }
+    return membership;
   }
 
   // Mapa user_id -> permissões de ocorrência (school_member_permissions) de
@@ -344,8 +373,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openCoordinatorManager() {
     if (permission.role !== 'admin') return;
-    const membership = await currentSchoolMembership();
-    if (!membership) { toast('Selecione uma escola ativa.'); return; }
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
     const schoolPermissionMap = await loadSchoolPermissions(membership.school_id);
     const users = [...schoolPermissionMap.values()].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
@@ -410,8 +439,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('permissionsModal').classList.remove('hidden');
       return;
     }
-    const membership = await currentSchoolMembership();
-    if (!membership) { toast('Selecione uma escola ativa.'); return; }
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
     const schoolPermissionMap = await loadSchoolPermissions(membership.school_id);
     const schoolScopedData = [...schoolPermissionMap.values()];
     const occMap = schoolPermissionMap;
@@ -469,8 +498,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // individual nem escrita via este bulk.
   const legacyBulkFields = permissionFields.filter(field => field !== 'can_manage_counselors');
   window.setUserPermission = async (id, key, value) => {
-    const membership = await currentSchoolMembership();
-    if (!membership) { toast('Selecione uma escola ativa.'); return; }
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
     const memberId = await findSchoolMemberId(id, membership.school_id);
     if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
     const commercialUpdates = key === 'can_edit_all'
@@ -485,8 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
     openPermissions();
   };
   window.setGeneralPermission = async (id, key, value) => {
-    const membership = await currentSchoolMembership();
-    if (!membership) { toast('Selecione uma escola ativa.'); return; }
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
     const memberId = await findSchoolMemberId(id, membership.school_id);
     if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
     const { error:commercialError } = await db.rpc('set_school_member_permission', { target_member_id:memberId, permission_name:key, permission_value:value });
