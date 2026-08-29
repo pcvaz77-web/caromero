@@ -434,6 +434,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!photoBatchTimer && !photoBatchRunning) photoBatchTimer = setTimeout(flushPhotoBatch, 20);
   };
   let visiblePhotoObserver = null;
+  const PHOTO_VISIBILITY_MARGIN = 180;
+  // O IntersectionObserver só garante entrega no próximo ciclo de composição
+  // da página; em sessões novas isso pode nunca chegar sem um scroll/layout
+  // subsequente. Por isso, além de observar (para o carregamento progressivo
+  // ao rolar), cada card já visível nesta renderização é carregado aqui de
+  // imediato — loadStudentPhoto já é seguro contra duplicidade (guarda por
+  // photoUrl/loadingPhoto), então isso nunca dispara uma segunda chamada
+  // para quem já está carregado, em cache ou em processamento.
+  const isCardNearViewport = card => {
+    const rect = card.getBoundingClientRect();
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    return rect.bottom >= -PHOTO_VISIBILITY_MARGIN && rect.top <= viewportHeight + PHOTO_VISIBILITY_MARGIN;
+  };
   const observeVisiblePhotos = () => {
     const cards = document.querySelectorAll('#list .student');
     if (!('IntersectionObserver' in window)) {
@@ -445,8 +458,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!entry.isIntersecting) return;
       visiblePhotoObserver.unobserve(entry.target);
       loadStudentPhoto(students.find(student => student.id === studentIdFromCard(entry.target)));
-    }), { rootMargin: '180px 0px' });
-    cards.forEach(card => visiblePhotoObserver.observe(card));
+    }), { rootMargin: `${PHOTO_VISIBILITY_MARGIN}px 0px` });
+    cards.forEach(card => {
+      visiblePhotoObserver.observe(card);
+      if (isCardNearViewport(card)) {
+        visiblePhotoObserver.unobserve(card);
+        loadStudentPhoto(students.find(student => student.id === studentIdFromCard(card)));
+      }
+    });
   };
   new MutationObserver(observeVisiblePhotos).observe(document.getElementById('list'), { childList: true });
   let latestLoadRequest = 0;
