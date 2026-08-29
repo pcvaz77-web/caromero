@@ -26,8 +26,63 @@ function clearErrors() {
 }
 
 function busy(value) {
-  ['signupSubmit', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn', 'sessionPasswordSubmit']
+  ['signupSubmit', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn', 'onboardingSubmit', 'retryStatusBtn']
     .forEach(id => { $(id).disabled = value; });
+}
+
+// Nome funcionalmente válido para identificar professor/coordenador em
+// ocorrências e demais registros: sem exagerar na regra, só evita valores
+// obviamente inválidos (vazio, só espaços, 1 caractere). Preserva acentos e
+// nomes brasileiros normalmente — nenhuma outra restrição é aplicada.
+const validName = value => String(value || '').trim().length >= 2;
+
+// Estados do primeiro acesso, sempre recalculados a partir do servidor
+// (current_user_onboarding_status), nunca assumidos a partir do sucesso
+// aparente de uma escrita anterior nem guardados como flag local que
+// sobreviva a um reload.
+async function loadOnboardingStatus() {
+  const { data, error } = await db.rpc('current_user_onboarding_status');
+  if (
+    error ||
+    !Array.isArray(data) ||
+    !data[0] ||
+    typeof data[0].has_password !== 'boolean' ||
+    typeof data[0].has_name !== 'boolean'
+  ) {
+    return 'unknown';
+  }
+  const { has_password, has_name } = data[0];
+  if (!has_password && !has_name) return 'needs_both';
+  if (!has_password && has_name) return 'needs_password';
+  if (has_password && !has_name) return 'needs_name';
+  return 'ready';
+}
+
+function renderOnboarding(state) {
+  $('sessionStatusError').classList.toggle('hidden', state !== 'unknown');
+  $('onboardingForm').classList.toggle('hidden', state === 'unknown' || state === 'ready');
+  $('continueBtn').classList.toggle('hidden', state !== 'ready');
+  const needsName = state === 'needs_both' || state === 'needs_name';
+  const needsPassword = state === 'needs_both' || state === 'needs_password';
+  $('onboardingNameField').classList.toggle('hidden', !needsName);
+  $('onboardingName').required = needsName;
+  $('onboardingPasswordField').classList.toggle('hidden', !needsPassword);
+  $('onboardingPasswordConfirmField').classList.toggle('hidden', !needsPassword);
+  $('onboardingPassword').required = needsPassword;
+  $('onboardingPasswordConfirm').required = needsPassword;
+  if (state === 'needs_both') {
+    $('onboardingNote').textContent = 'Antes de continuar, informe seu nome e defina a senha desta conta.';
+  } else if (state === 'needs_password') {
+    $('onboardingNote').textContent = 'Antes de continuar, defina a senha desta conta.';
+  } else if (state === 'needs_name') {
+    $('onboardingNote').textContent = 'Antes de continuar, confirme seu nome completo.';
+  }
+}
+
+async function refreshOnboarding() {
+  const state = await loadOnboardingStatus();
+  renderOnboarding(state);
+  return state;
 }
 
 function showAuth() {
@@ -95,14 +150,12 @@ async function boot() {
   const { data: { session } } = await db.auth.getSession();
   if (session) {
     showSession(session.user.email);
-    // Administrador principal chega autenticado pelo convite nativo do
-    // Supabase, sem nunca ter definido uma senha própria. Exige isso antes
-    // de aceitar. Coordenador/professor não passam por aqui — continuam
-    // exatamente como já estavam aprovados.
-    if (preview.role === 'school_admin') {
-      $('continueBtn').classList.add('hidden');
-      $('sessionPasswordForm').classList.remove('hidden');
-    }
+    // Qualquer papel (school_admin, coordinator ou teacher) pode chegar
+    // aqui autenticado pelo convite nativo do Supabase, sem nunca ter
+    // definido senha nem nome próprios — o mecanismo é o mesmo para os
+    // três. O estado exato (senha? nome?) é sempre consultado ao vivo no
+    // servidor, nunca assumido a partir do papel do convite.
+    await refreshOnboarding();
   }
   else showAuth();
   if (preview.email_has_account) {
@@ -112,19 +165,87 @@ async function boot() {
 }
 
 $('continueBtn').onclick = acceptInvitation;
-$('sessionPasswordForm').onsubmit = async event => {
+$('retryStatusBtn').onclick = async () => {
+  busy(true);
+  await refreshOnboarding();
+  busy(false);
+};
+$('onboardingForm').onsubmit = async event => {
   event.preventDefault();
   clearErrors();
-  const password = $('sessionPassword').value;
-  if (password !== $('sessionPasswordConfirm').value) {
-    showError('sessionError', 'As duas senhas precisam ser iguais.');
+  // Reconfirma o estado real antes de decidir o que gravar — nunca reusa um
+  // estado calculado antes deste clique (pode ter mudado, ex.: outra aba).
+  const state = await loadOnboardingStatus();
+  renderOnboarding(state);
+  if (state === 'unknown') {
+    showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.');
     return;
   }
+  if (state === 'ready') return;
+
+  const needsName = state === 'needs_both' || state === 'needs_name';
+  const needsPassword = state === 'needs_both' || state === 'needs_password';
+  const name = $('onboardingName').value;
+  if (needsName && !validName(name)) {
+    showError('sessionError', 'Informe um nome completo válido.');
+    return;
+  }
+  if (needsPassword) {
+    const password = $('onboardingPassword').value;
+    if (password !== $('onboardingPasswordConfirm').value) {
+      showError('sessionError', 'As duas senhas precisam ser iguais.');
+      return;
+    }
+  }
+
+  const trimmedName = needsName ? name.trim() : '';
+
   busy(true);
   try {
-    const { error } = await db.auth.updateUser({ password });
-    if (error) { showError('sessionError', error.message); return; }
-    // Só aceita o convite depois que a senha foi definida com sucesso.
+    // 1) Auth (senha e/ou metadata.full_name, conforme o que este estado
+    // exige) — mesmo padrão já usado em "Meu Perfil"
+    // (student-edit-improvements.js): auth.updateUser({password?, data:
+    // {full_name}}) antes do upsert em profiles, para as duas fontes nunca
+    // ficarem dessincronizadas (profiles com nome novo e user_metadata
+    // vazio/antigo). NEEDS_PASSWORD não inclui full_name aqui — a conta já
+    // tem nome válido, que não deve ser reescrito nem pedido de novo.
+    if (needsPassword && needsName) {
+      const password = $('onboardingPassword').value;
+      const { error: authError } = await db.auth.updateUser({ password, data: { full_name: trimmedName } });
+      if (authError) { showError('sessionError', authError.message); return; }
+    } else if (needsPassword) {
+      const password = $('onboardingPassword').value;
+      const { error: authError } = await db.auth.updateUser({ password });
+      if (authError) { showError('sessionError', authError.message); return; }
+    } else if (needsName) {
+      const { error: authError } = await db.auth.updateUser({ data: { full_name: trimmedName } });
+      if (authError) { showError('sessionError', authError.message); return; }
+    }
+
+    // 2) profiles.full_name continua sendo a ÚNICA fonte que
+    // current_user_onboarding_status() lê para decidir has_name — por isso
+    // esta escrita é obrigatória sempre que needsName, mesmo que o passo
+    // acima já tenha sincronizado o metadata: uma atualização bem-sucedida
+    // só do metadata nunca pode, sozinha, produzir READY.
+    if (needsName) {
+      const { data: { user } } = await db.auth.getUser();
+      const { error: profileError } = await db.from('profiles')
+        .upsert({ id: user.id, full_name: trimmedName, email: user.email }, { onConflict: 'id' });
+      if (profileError) {
+        showError('sessionError', 'Não foi possível salvar seu nome. Tente novamente.');
+        await refreshOnboarding();
+        return;
+      }
+    }
+
+    // 3) Só aceita o convite depois de reconfirmar, numa nova consulta
+    // independente, que o servidor já vê READY — nunca a partir do sucesso
+    // aparente dos passos acima.
+    const finalState = await refreshOnboarding();
+    if (finalState !== 'ready') {
+      showError('sessionError', 'Não foi possível confirmar seu cadastro. Tente novamente.');
+      return;
+    }
     await acceptInvitation();
   } finally {
     busy(false);
