@@ -107,7 +107,13 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.showApp = async function () {
-    if (!user) return;
+    // Não checa "user" aqui: essa variável global legada só é atribuída
+    // dentro de originalShowApp() (algumas linhas abaixo), então na
+    // primeiríssima execução desta função numa aba (sem login anterior no
+    // mesmo contexto) ela ainda é undefined — um retorno antecipado aqui
+    // pulava originalShowApp() por completo, e com ele profile/schoolMembership/
+    // load/permissão nunca rodavam. originalShowApp() já faz sua própria
+    // checagem, com o usuário buscado de verdade.
     await refreshPlatformOwner();
     if (await currentAccountIsSuspended()) {
       await suspendCurrentSession();

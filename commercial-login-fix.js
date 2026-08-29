@@ -154,16 +154,36 @@ function initializeCommercialLoginFix() {
       // O seletor (#schoolContextModal, z-index:200) fica acima da cortina
       // (z-index:150) e continua utilizável enquanto ela está visível.
       await ensureSchoolSwitcherVisibility();
+      // Só há motivo para repetir a resolução comercial depois de
+      // authenticatedShowApp() quando havia mais de uma escola sem
+      // preferência salva: nesse caso o seletor legado (school-context.js,
+      // acionado dentro de authenticatedShowApp) pode ter resolvido a
+      // escolha durante a própria chamada, e commercialActiveMembership
+      // (só atualizado aqui) ainda não reflete isso. Fora desse caso raro,
+      // a 1ª resolução já é definitiva e repeti-la só refaria uma consulta
+      // de rede sem necessidade nenhuma.
+      const pendingSchoolChoice = commercialMemberships.length > 1 && !commercialActiveMembership;
       await authenticatedShowApp(...args);
       // Recuperação de senha tem sua própria tela (password-recovery-flow.js)
       // e já decidiu a visibilidade de #app/#login sozinha; a cortina não pode
       // ficar por cima dela.
       if (window.isCarometroPasswordRecovery?.()) { hideBootShield(); return; }
-      await ensureSchoolSwitcherVisibility();
-      // O núcleo legado chama a referência local de load/profile. Executa
-      // explicitamente as versões comerciais, já com a escola resolvida.
-      await window.load?.();
-      await window.refreshCarometroSchoolPermission?.();
+      if (pendingSchoolChoice) {
+        // authenticatedShowApp() já chamou load() internamente, mas com a
+        // escola ainda não resolvida por este módulo — precisa recalcular
+        // o vínculo ativo e buscar os dados de novo, agora com a escola
+        // certa.
+        await ensureSchoolSwitcherVisibility();
+        await window.load?.();
+      }
+      // O load() que já rodou dentro de authenticatedShowApp() (ou o
+      // segundo, só no caso acima) já disparou carometro:data-loaded, que
+      // já aciona a resolução de permissão em permissions-and-details.js.
+      // Em vez de rodar essa resolução de novo, aguarda a MESMA promessa
+      // já em andamento — dispatchEvent() é síncrono, mas o listener é
+      // assíncrono, então isto é o que garante que a permissão já foi
+      // aplicada antes de revelar #app, sem refazer o trabalho.
+      await window.__waitForCarometroPermission?.();
       // #app é liberado internamente aqui para que os MutationObservers
       // existentes (mobile-layout.js, permissions-and-details.js,
       // student-edit-improvements.js, notification-center.js,
@@ -174,10 +194,19 @@ function initializeCommercialLoginFix() {
       // Janela de estabilização apenas com atraso tecnicamente justificado:
       // 140ms é o setTimeout já existente em mobile-layout.js
       // (restoreCurrentScreen), o único observer com atraso conhecido
-      // reagindo a #app ficar visível. Os dois requestAnimationFrame
-      // garantem que o resultado já foi pintado antes de tirar a cortina.
+      // reagindo a #app ficar visível.
       await new Promise(resolve => setTimeout(resolve, 140));
-      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      // Os dois requestAnimationFrame só servem para confirmar que o
+      // resultado já foi pintado antes de tirar a cortina — mas rAF é
+      // pausado pelo navegador em abas em segundo plano (document.hidden),
+      // e esperar por ele nesse caso travaria a cortina indefinidamente até
+      // a aba voltar ao primeiro plano. Com a aba oculta não há pintura
+      // para confirmar mesmo, então pula essa espera sem trocar por nenhum
+      // timeout longo — a próxima pintura acontece sozinha quando a aba
+      // voltar a ficar visível.
+      if (!document.hidden) {
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
       hideBootShield();
     } catch (error) {
       app?.classList.add('hidden');

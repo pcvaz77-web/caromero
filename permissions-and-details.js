@@ -535,8 +535,16 @@ document.addEventListener('DOMContentLoaded', () => {
       .subscribe();
   }
   window.refreshCarometroSchoolPermission = refreshCurrentPermission;
+  // Expõe a MESMA promessa que carometro:data-loaded já dispara aqui, para
+  // que o bootstrap (commercial-login-fix.js) possa aguardar essa
+  // resolução em andamento em vez de chamar refreshCurrentPermission() de
+  // novo — dispatchEvent() é síncrono, mas o listener é assíncrono, então
+  // sem isso não haveria garantia de que a permissão já foi aplicada no
+  // momento em que o evento termina de disparar.
+  let pendingCarometroPermissionRefresh = null;
+  window.__waitForCarometroPermission = () => pendingCarometroPermissionRefresh || Promise.resolve();
   document.addEventListener('carometro:data-loaded', () => {
-    refreshCurrentPermission();
+    pendingCarometroPermissionRefresh = refreshCurrentPermission();
     startPermissionRealtime();
   });
   startPermissionRealtime();
