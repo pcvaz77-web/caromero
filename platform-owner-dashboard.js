@@ -21,6 +21,7 @@
     school_provisioned: 'Escola criada',
     school_status_changed: 'Status da escola alterado',
     subscription_status_changed: 'Status da assinatura alterado',
+    subscription_plan_changed: 'Plano da assinatura alterado',
     account_access_changed: 'Acesso da conta alterado',
     subscription_visibility_changed: 'Visibilidade da assinatura alterada',
     account_login_cancelled: 'Login cancelado',
@@ -67,6 +68,7 @@
       .platform-account-result { margin:0 16px 18px; padding:14px; border:1px solid var(--line); border-radius:11px; background:#f8faff; }
       .platform-account-result .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
       .platform-account-result .danger { background:#b42318; color:#fff; border-color:#b42318; }
+      .platform-plan-modal { width:min(520px,100%); }
       @media(max-width:800px) {
         .platform-modal { width:100%; max-height:100vh; border-radius:0; }
         .platform-modal .form { padding:18px 14px; }
@@ -167,6 +169,72 @@
 
     return modal;
 
+  }
+
+  function createPlanModal() {
+    let modal = document.getElementById('platformPlanModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'platformPlanModal';
+    modal.className = 'modal-bg hidden';
+    modal.innerHTML = `
+      <div class="modal platform-plan-modal">
+        <div class="modal-head"><h3>Alterar plano</h3><button class="close" type="button">×</button></div>
+        <form id="platformPlanForm" class="form">
+          <p id="platformPlanSchool" class="meta"></p>
+          <div class="field"><label for="platformPlanValue">Plano</label><select id="platformPlanValue" required><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
+          <div class="field"><label for="platformPlanPrice">Preço mensal</label><input id="platformPlanPrice" type="number" min="0" max="99999999.99" step="0.01" required></div>
+          <div class="field"><label for="platformPlanBilling">Tipo de cobrança</label><select id="platformPlanBilling" required><option value="fixed_school">Valor fixo por escola</option><option value="per_student">Por aluno</option></select></div>
+          <div class="field"><label for="platformPlanReason">Justificativa</label><input id="platformPlanReason" maxlength="500" placeholder="Ex.: contratação confirmada" required></div>
+          <button id="platformPlanSubmit" class="btn primary full" type="submit">Salvar alteração</button>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
+    modal.querySelector('#platformPlanForm').onsubmit = saveSubscriptionPlan;
+    modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    return modal;
+  }
+
+  function openPlanModal(button) {
+    const modal = createPlanModal();
+    modal.dataset.schoolId = button.dataset.schoolId;
+    document.getElementById('platformPlanSchool').textContent = button.dataset.schoolName;
+    document.getElementById('platformPlanValue').value = button.dataset.plan;
+    document.getElementById('platformPlanPrice').value = button.dataset.price;
+    document.getElementById('platformPlanBilling').value = button.dataset.billingType;
+    document.getElementById('platformPlanReason').value = '';
+    modal.classList.remove('hidden');
+  }
+
+  async function saveSubscriptionPlan(event) {
+    event.preventDefault();
+    const modal = document.getElementById('platformPlanModal');
+    const button = document.getElementById('platformPlanSubmit');
+    const plan = document.getElementById('platformPlanValue').value;
+    const price = Number(document.getElementById('platformPlanPrice').value);
+    const billingType = document.getElementById('platformPlanBilling').value;
+    const reason = document.getElementById('platformPlanReason').value.trim();
+    if (!Number.isFinite(price) || price < 0) { toast('Informe um preço válido.'); return; }
+    if (!confirm(`Confirma a alteração para o plano ${PLAN_LABELS[plan]}?`)) return;
+
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_subscription_plan', {
+        p_school_id:modal.dataset.schoolId,
+        p_plan:plan,
+        p_price:price,
+        p_billing_type:billingType,
+        p_reason:reason
+      });
+      if (error) { toast(error.message); return; }
+      modal.classList.add('hidden');
+      toast('Plano alterado com sucesso.');
+      await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
   }
 
   async function invokeManageUser(body) {
@@ -407,6 +475,9 @@
       const subscriptionButton = subscriptionStatus === 'missing'
         ? ''
         : `<button class="btn secondary" type="button" data-subscription-status="${esc(nextSubscriptionStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${subscriptionActionLabel}</button>`;
+      const planButton = subscriptionStatus === 'missing'
+        ? ''
+        : `<button class="btn secondary" type="button" data-edit-plan data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}" data-plan="${esc(plan)}" data-price="${esc(school.price ?? 0)}" data-billing-type="${esc(school.billing_type || 'fixed_school')}">Alterar plano</button>`;
 
       return `<tr>
         <td>${esc(school.school_name)}</td>
@@ -415,7 +486,7 @@
         <td><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
         <td>${esc(school.user_count ?? 0)}</td>
         <td>${esc(school.student_count ?? 0)}</td>
-        <td class="platform-school-actions"><button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton}</td>
+        <td class="platform-school-actions">${planButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton}</td>
       </tr>`;
 
     });
@@ -427,6 +498,9 @@
     });
     body.querySelectorAll('[data-subscription-status]').forEach(button => {
       button.onclick = () => setSubscriptionStatus(button);
+    });
+    body.querySelectorAll('[data-edit-plan]').forEach(button => {
+      button.onclick = () => openPlanModal(button);
     });
 
   }
@@ -499,7 +573,7 @@
 
     const [summaryResult, schoolsResult, auditResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
-      db.rpc('platform_list_schools_with_counts'),
+      db.rpc('platform_list_schools_with_counts_v2'),
       db.rpc('platform_list_audit', { p_limit:50 })
     ]);
 
