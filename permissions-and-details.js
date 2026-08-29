@@ -274,7 +274,8 @@ document.addEventListener('DOMContentLoaded', () => {
     permission = nextPermission.role === 'admin' ? { ...nextPermission, can_add_students:true, can_edit_students:true } : nextPermission;
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
-    document.getElementById('permissionsNav').classList.toggle('hidden', !admin);
+    const canManageTeachers = !!data.is_coordinator && !!data.can_manage_member_permissions;
+    document.getElementById('permissionsNav').classList.toggle('hidden', !(admin || canManageTeachers || window.counselorCanManage?.()));
     // counselorNav não é mais controlado aqui: class-counselors.js é o dono
     // exclusivo dessa visibilidade, com a fonte comercial real
     // (can_manage_class_counselors(target_school_id), role='coordinator' —
@@ -428,19 +429,33 @@ document.addEventListener('DOMContentLoaded', () => {
     // class-counselors.js) usada para o botão real "Gerenciar
     // Conselheiros" — nunca uma segunda lógica paralela que possa divergir
     // dela.
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
     if (permission.role !== 'admin') {
-      if (!window.counselorCanManage?.()) return;
-      document.getElementById('permissionsList').innerHTML = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>`;
-      document.getElementById('openCounselors').onclick = event => {
+      const canManageTeachers = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
+      const canManageCounselors = !!window.counselorCanManage?.();
+      if (!canManageTeachers && !canManageCounselors) return;
+      const schoolPermissionMap = canManageTeachers ? await loadSchoolPermissions(membership.school_id) : new Map();
+      const schoolScopedData = [...schoolPermissionMap.values()];
+      const teachers = schoolScopedData.filter(item => !item.is_coordinator && item.role !== 'admin');
+      const teacherCards = teachers.map(item => {
+        const name = item.profiles?.full_name?.trim() || 'Nome não informado';
+        const email = item.profiles?.email || 'Usuário';
+        const active = item.member_status === 'active';
+        return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Professor(a)</div></div><div></div><div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span><button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button></div></article>`;
+      }).join('');
+      const teacherSection = canManageTeachers ? `<section><div class="permissions-heading"><b>Professores</b><div class="meta">Suspenda ou remova somente o vínculo com esta escola. A conta e o histórico serão preservados.</div></div>${teacherCards || '<div class="empty">Nenhum professor cadastrado.</div>'}</section>` : '';
+      const counselorSection = canManageCounselors ? `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>` : '';
+      document.getElementById('permissionsList').innerHTML = `${counselorSection}${teacherSection}`;
+      if (canManageCounselors) document.getElementById('openCounselors').onclick = event => {
         event.preventDefault();
         document.getElementById('permissionsModal').classList.add('hidden');
         window.openCounselorManager?.();
       };
+      bindMemberAccountActions();
       document.getElementById('permissionsModal').classList.remove('hidden');
       return;
     }
-    const membership = await currentSchoolMembershipOrWarn();
-    if (!membership) return;
     const schoolPermissionMap = await loadSchoolPermissions(membership.school_id);
     const schoolScopedData = [...schoolPermissionMap.values()];
     const occMap = schoolPermissionMap;
@@ -455,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.profiles?.full_name?.trim() || 'Nome não informado';
       const email = item.profiles?.email || 'Usuário';
       const active = item.member_status === 'active';
-      const access = `<div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span>${admin ? '' : `<button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button>`}</div>`;
+      const access = `<div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span>${admin ? '' : `<button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button>`}</div>`;
       if (!isCoordinator(item)) return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}</div>${access}</article>`;
       return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div>${access}<div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}</div><details class="coordinator-right-group"><summary>Cadastro, gestão, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_manage_observation_options','Gerenciar opções de observação',admin)}${check(item,'can_invite_teachers','Convidar professores',admin)}${check(item,'can_manage_member_permissions','Gerenciar permissões de professores',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
     }).join('');
@@ -465,9 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('permissionsList').innerHTML = `${advancedPermissions}<section><div class="permissions-heading"><b>Permissões gerais</b><div class="meta">Usuários cadastrados e seus acessos atuais.</div></div><form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div></section>`;
     const advancedCardTarget = document.getElementById('advancedCoordinatorCards');
     document.querySelectorAll('#permissionsList .perm[data-permission-scope="advanced"]').forEach(card => advancedCardTarget.appendChild(card));
-    document.querySelectorAll('#permissionsList [data-member-status]').forEach(button => {
-      button.onclick = () => window.setSchoolMemberStatus(button.dataset.memberId, button.dataset.memberStatus, button.dataset.memberEmail);
-    });
+    bindMemberAccountActions();
     document.getElementById('openCoordinators').onclick = event => { event.preventDefault(); event.stopPropagation(); openCoordinatorManager(); };
     document.getElementById('openSchoolCalendar').onclick = event => {
       event.preventDefault(); event.stopPropagation();
@@ -532,6 +545,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (error) { toast(error.message); return; }
     toast(status === 'suspended' ? 'Acesso suspenso somente nesta escola.' : 'Acesso reativado nesta escola.');
+    openPermissions();
+  };
+  function bindMemberAccountActions() {
+    document.querySelectorAll('#permissionsList [data-member-status]').forEach(button => {
+      button.onclick = () => window.setSchoolMemberStatus(button.dataset.memberId, button.dataset.memberStatus, button.dataset.memberEmail);
+    });
+    document.querySelectorAll('#permissionsList [data-remove-member-id]').forEach(button => {
+      button.onclick = () => window.removeSchoolMember(button.dataset.removeMemberId, button.dataset.removeMemberEmail);
+    });
+  }
+  window.removeSchoolMember = async (memberId, email) => {
+    if (!confirm(`Remover ${email} desta escola? A conta, o histórico e os vínculos com outras escolas serão preservados.`)) return;
+    const { error } = await db.rpc('remove_school_member', { target_member_id:memberId });
+    if (error) { toast(error.message); return; }
+    toast('Professor(a) removido(a) somente desta escola.');
     openPermissions();
   };
   document.getElementById('permissionsNav').onclick = openPermissions;
