@@ -380,14 +380,58 @@ document.addEventListener('DOMContentLoaded', () => {
       if (avatar) avatar.innerHTML = `<img src="${url}" alt="">`;
     }
   };
-  const loadStudentPhoto = async student => {
+  const photoUrlCache = new Map();
+  const queuedPhotoIds = new Set();
+  let photoBatchTimer = null;
+  let photoBatchRunning = false;
+  const cachedPhotoUrl = path => {
+    const cached = photoUrlCache.get(path);
+    if (!cached || cached.expiresAt <= Date.now()) {
+      if (cached) photoUrlCache.delete(path);
+      return '';
+    }
+    return cached.url;
+  };
+  const flushPhotoBatch = async () => {
+    if (photoBatchRunning) return;
+    photoBatchTimer = null;
+    const batch = [...queuedPhotoIds]
+      .map(id => students.find(student => student.id === id))
+      .filter(student => student?.photoPath && !student.photoUrl)
+      .slice(0, 50);
+    batch.forEach(student => queuedPhotoIds.delete(student.id));
+    if (!batch.length) return;
+    photoBatchRunning = true;
+    try {
+      const paths = [...new Set(batch.map(student => student.photoPath))];
+      const { data } = await db.storage.from('student-photos').createSignedUrls(paths, 3600);
+      const signedByPath = new Map((data || []).filter(item => item?.signedUrl).map(item => [item.path, item.signedUrl]));
+      const expiresAt = Date.now() + (55 * 60 * 1000);
+      batch.forEach(student => {
+        student.loadingPhoto = false;
+        const signedUrl = signedByPath.get(student.photoPath);
+        if (!signedUrl) return;
+        photoUrlCache.set(student.photoPath, { url:signedUrl, expiresAt });
+        student.photoUrl = signedUrl;
+        setStudentPhoto(student.id, signedUrl);
+      });
+    } finally {
+      batch.forEach(student => { student.loadingPhoto = false; });
+      photoBatchRunning = false;
+      if (queuedPhotoIds.size) photoBatchTimer = setTimeout(flushPhotoBatch, 20);
+    }
+  };
+  const loadStudentPhoto = student => {
     if (!student?.photoPath || student.photoUrl || student.loadingPhoto) return;
+    const cachedUrl = cachedPhotoUrl(student.photoPath);
+    if (cachedUrl) {
+      student.photoUrl = cachedUrl;
+      setStudentPhoto(student.id, cachedUrl);
+      return;
+    }
     student.loadingPhoto = true;
-    const { data } = await db.storage.from('student-photos').createSignedUrl(student.photoPath, 3600);
-    student.loadingPhoto = false;
-    if (!data?.signedUrl) return;
-    student.photoUrl = data.signedUrl;
-    setStudentPhoto(student.id, student.photoUrl);
+    queuedPhotoIds.add(student.id);
+    if (!photoBatchTimer && !photoBatchRunning) photoBatchTimer = setTimeout(flushPhotoBatch, 20);
   };
   let visiblePhotoObserver = null;
   const observeVisiblePhotos = () => {
@@ -460,7 +504,7 @@ document.addEventListener('DOMContentLoaded', () => {
       uniform_received_at: item.uniform_received_at,
       uniform_notes: item.uniform_notes,
       uniform_pending: uniformStateById.get(item.id)?.uniform_pending ?? item.uniform_pending,
-      photoUrl: ''
+      photoUrl: cachedPhotoUrl(item.photo_path)
     }));
     render();
     // Ponto único de sincronização: recursos adicionais devem ouvir este
