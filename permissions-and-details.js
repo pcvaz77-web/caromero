@@ -274,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
     permission = nextPermission.role === 'admin' ? { ...nextPermission, can_add_students:true, can_edit_students:true } : nextPermission;
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
-    const canManageTeachers = !!data.is_coordinator && !!data.can_manage_member_permissions;
+    const canManageTeachers = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
     document.getElementById('permissionsNav').classList.toggle('hidden', !(admin || canManageTeachers || window.counselorCanManage?.()));
     // counselorNav não é mais controlado aqui: class-counselors.js é o dono
     // exclusivo dessa visibilidade, com a fonte comercial real
