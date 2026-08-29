@@ -442,7 +442,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // imediato — loadStudentPhoto já é seguro contra duplicidade (guarda por
   // photoUrl/loadingPhoto), então isso nunca dispara uma segunda chamada
   // para quem já está carregado, em cache ou em processamento.
+  //
+  // A primeira renderização pode acontecer com #app ainda oculto (display:
+  // none) por trás da cortina de carregamento — nesse estado, TODO elemento
+  // reporta getBoundingClientRect() zerado, o que faria esta checagem
+  // considerar erroneamente todos os cards como visíveis. offsetParent
+  // volta null exatamente nesse caso (ancestral display:none), então a
+  // checagem é adiada em vez de confiar numa geometria que não é real.
   const isCardNearViewport = card => {
+    if (card.offsetParent === null) return false;
     const rect = card.getBoundingClientRect();
     const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
     return rect.bottom >= -PHOTO_VISIBILITY_MARGIN && rect.top <= viewportHeight + PHOTO_VISIBILITY_MARGIN;
@@ -468,6 +476,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   new MutationObserver(observeVisiblePhotos).observe(document.getElementById('list'), { childList: true });
+  // Se a primeira renderização ocorreu com #app oculto, a checagem acima foi
+  // adiada para todos os cards (offsetParent null). Assim que #app for
+  // revelado (fim do boot), reavalia a visibilidade real uma única vez —
+  // sem isso, quem já estava fora da tela na primeira passagem só seria
+  // carregado ao rolar, reproduzindo o problema original.
+  const appElement = document.getElementById('app');
+  if (appElement) {
+    let wasAppHidden = appElement.classList.contains('hidden');
+    new MutationObserver(() => {
+      const isHidden = appElement.classList.contains('hidden');
+      if (wasAppHidden && !isHidden) observeVisiblePhotos();
+      wasAppHidden = isHidden;
+    }).observe(appElement, { attributes: true, attributeFilter: ['class'] });
+  }
   let latestLoadRequest = 0;
   const fetchEveryStudent = async fields => {
     const pageSize = 1000;
