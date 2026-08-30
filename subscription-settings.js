@@ -41,11 +41,25 @@ document.addEventListener('DOMContentLoaded', () => {
   subscribe.textContent = 'Assinar CARÔMETRO — R$ 97/mês';
   loginCard.querySelector('.hint').insertAdjacentElement('afterend', subscribe);
 
+  // platform_settings.show_subscription representa a visibilidade da
+  // OFERTA PÚBLICA de planos do Carômetro. Hoje só controla este botão
+  // legado ("Assinar CARÔMETRO"), mas deve futuramente controlar toda a
+  // vitrine pública (Grátis / Básico / Profissional / Empresarial) — não
+  // criar outro campo/config para isso, reaproveitar sempre este mesmo.
+  //
+  // Fail-closed deliberado: só mostra a oferta quando a leitura confirma
+  // show_subscription === true. Erro de leitura e linha ausente também
+  // escondem a oferta — não existe mais um "mostrar por padrão" nesses
+  // casos. Esse padrão antigo foi exatamente a causa de um bug real: um
+  // GRANT SELECT ausente para o papel anon fazia toda leitura da tela de
+  // login falhar, e o fallback então mostrava a oferta mesmo com
+  // show_subscription=false. Uma falha de banco/permissão/rede nunca deve
+  // fazer uma oferta comercial aparecer indevidamente.
   async function refreshSubscriptionButton() {
     const { data, error } = await db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle();
-    // Enquanto a configuração ainda não existir, mantém a venda disponível.
-    subscribe.classList.toggle('hidden', !error && data?.show_subscription === false);
-    return !error && data ? data.show_subscription : true;
+    const visible = !error && data?.show_subscription === true;
+    subscribe.classList.toggle('hidden', !visible);
+    return visible;
   }
   refreshSubscriptionButton();
 

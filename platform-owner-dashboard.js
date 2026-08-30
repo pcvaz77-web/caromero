@@ -144,7 +144,7 @@
           <section class="panel">
             <div class="head"><h3>Oferta pública dos planos</h3></div>
             <div class="platform-plans-visibility">
-              <label class="check"><input id="platformShowSubscription" type="checkbox"> Mostrar os planos do Carômetro na tela de login</label>
+              <label class="check"><input id="platformShowSubscription" type="checkbox"> Exibir oferta de planos na área pública do Carômetro</label>
               <p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p>
             </div>
           </section>
@@ -304,9 +304,10 @@
   // (rede/RLS) NUNCA pode aparecer como "Ligado": isso mostraria ao
   // proprietário uma configuração que não foi realmente confirmada.
   //   - linha existe -> reflete o valor real (true/false).
-  //   - linha inexistente -> mesmo padrão legado já usado em
-  //     subscription-settings.js (trata como visível), pois este é um
-  //     estado que o sistema já suporta hoje.
+  //   - linha inexistente -> assume visível, só para o proprietário
+  //     revisar/corrigir no próprio Painel; a oferta pública em si
+  //     (subscription-settings.js) não usa mais este padrão — lá, linha
+  //     inexistente também esconde a oferta (fail-closed).
   //   - erro na consulta -> nunca marca como ligado; desabilita o
   //     controle e mostra mensagem de estado indisponível.
   function describeSubscriptionVisibility(result) {
