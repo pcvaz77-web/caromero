@@ -38,7 +38,10 @@
     school_restored: 'Escola restaurada',
     school_permanently_deleted: 'Escola excluída permanentemente',
     plan_catalog_updated: 'Catálogo de planos atualizado',
-    billing_contact_changed: 'Responsável pela assinatura alterado'
+    billing_contact_changed: 'Responsável pela assinatura alterado',
+    plan_override_set: 'Concessão administrativa de plano definida',
+    plan_override_removed: 'Concessão administrativa de plano removida',
+    subscription_commercial_terms_changed: 'Condições comerciais da escola alteradas'
   };
 
   function esc(value) {
@@ -102,6 +105,9 @@
       .platform-account-result .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
       .platform-account-result .danger { background:#b42318; color:#fff; border-color:#b42318; }
       .platform-plan-modal { width:min(520px,100%); }
+      .platform-plan-context { padding:14px 16px; margin-bottom:16px; border:1px solid var(--line); border-radius:9px; background:#f8faff; display:grid; gap:6px; font-size:13px; }
+      .platform-plan-context .label { font-weight:700; }
+      .platform-plan-modal .btn.danger-outline.full { margin-top:12px; }
       .platform-plans-visibility { padding:16px; }
       .platform-plans-visibility .check { display:flex; align-items:center; gap:9px; font-weight:650; }
       .platform-plans-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; padding:0 22px 20px; }
@@ -228,6 +234,11 @@
 
   }
 
+  // O plano contratado/concessão administrativa/plano efetivo mostrados
+  // aqui vêm todos prontos de platform_list_schools_with_counts_v3 —
+  // este modal nunca recalcula precedência entre eles; só exibe o que o
+  // backend já resolveu (mesmo princípio de describeSubscriptionVisibility:
+  // nunca reimplementar no frontend uma regra que já existe no banco).
   function createPlanModal() {
     let modal = document.getElementById('platformPlanModal');
     if (modal) return modal;
@@ -237,19 +248,27 @@
     modal.className = 'modal-bg hidden';
     modal.innerHTML = `
       <div class="modal platform-plan-modal">
-        <div class="modal-head"><h3>Alterar plano</h3><button class="close" type="button">×</button></div>
-        <form id="platformPlanForm" class="form">
+        <div class="modal-head"><h3>Gerenciar plano</h3><button class="close" type="button">×</button></div>
+        <div class="form">
           <p id="platformPlanSchool" class="meta"></p>
-          <div class="field"><label for="platformPlanValue">Plano</label><select id="platformPlanValue" required><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
-          <div class="field"><label for="platformPlanPrice">Preço mensal</label><input id="platformPlanPrice" type="number" min="0" max="99999999.99" step="0.01" required></div>
-          <div class="field"><label for="platformPlanBilling">Tipo de cobrança</label><select id="platformPlanBilling" required><option value="fixed_school">Valor fixo por escola</option><option value="per_student">Por aluno</option></select></div>
-          <div class="field"><label for="platformPlanReason">Justificativa</label><input id="platformPlanReason" maxlength="500" placeholder="Ex.: contratação confirmada" required></div>
-          <button id="platformPlanSubmit" class="btn primary full" type="submit">Salvar alteração</button>
-        </form>
+          <div class="platform-plan-context">
+            <p><span class="label">Plano contratado:</span> <span id="platformPlanContracted"></span></p>
+            <p><span class="label">Concessão administrativa:</span> <span id="platformPlanOverrideCurrent"></span></p>
+            <p><span class="label">Plano efetivo:</span> <span id="platformPlanEffective"></span></p>
+          </div>
+          <p class="meta">Conceder ou alterar a concessão administrativa desta escola. Isso é uma decisão administrativa e não representa uma contratação financeira.</p>
+          <form id="platformPlanForm">
+            <div class="field"><label for="platformPlanValue">Plano</label><select id="platformPlanValue" required><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
+            <div class="field"><label for="platformPlanReason">Motivo</label><input id="platformPlanReason" maxlength="500" placeholder="Ex.: cortesia, teste, parceria" required></div>
+            <button id="platformPlanSubmit" class="btn primary full" type="submit">Salvar concessão</button>
+          </form>
+          <button id="platformPlanRemoveOverride" class="btn danger-outline full hidden" type="button">Remover concessão</button>
+        </div>
       </div>`;
     document.body.appendChild(modal);
     modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
-    modal.querySelector('#platformPlanForm').onsubmit = saveSubscriptionPlan;
+    modal.querySelector('#platformPlanForm').onsubmit = savePlanOverride;
+    modal.querySelector('#platformPlanRemoveOverride').onclick = removePlanOverride;
     modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
     return modal;
   }
@@ -257,37 +276,155 @@
   function openPlanModal(button) {
     const modal = createPlanModal();
     modal.dataset.schoolId = button.dataset.schoolId;
+    modal.dataset.schoolName = button.dataset.schoolName;
+    // dataset nunca tem null de verdade — atributos ausentes/vazios viram
+    // string vazia, nunca a string "null". "|| null" abaixo devolve o
+    // valor real ao conceito de "não configurado".
+    const contractedPlan = button.dataset.contractedPlan || null;
+    const overridePlan = button.dataset.overridePlan || null;
+    const effectivePlan = button.dataset.plan || null;
+    modal.dataset.contractedPlan = contractedPlan || '';
+
     document.getElementById('platformPlanSchool').textContent = button.dataset.schoolName;
-    document.getElementById('platformPlanValue').value = button.dataset.plan;
-    document.getElementById('platformPlanPrice').value = button.dataset.price;
-    document.getElementById('platformPlanBilling').value = button.dataset.billingType;
+    document.getElementById('platformPlanContracted').textContent = contractedPlan
+      ? (PLAN_LABELS[contractedPlan] || contractedPlan)
+      : 'Nenhum plano contratado';
+    document.getElementById('platformPlanOverrideCurrent').textContent = overridePlan
+      ? `${PLAN_LABELS[overridePlan] || overridePlan} — permanente`
+      : 'Nenhuma concessão administrativa ativa';
+    document.getElementById('platformPlanEffective').textContent = effectivePlan
+      ? (PLAN_LABELS[effectivePlan] || effectivePlan)
+      : 'Não configurado';
+
+    document.getElementById('platformPlanValue').value = overridePlan || effectivePlan || 'free';
     document.getElementById('platformPlanReason').value = '';
+    document.getElementById('platformPlanRemoveOverride').classList.toggle('hidden', !overridePlan);
+
     modal.classList.remove('hidden');
   }
 
-  async function saveSubscriptionPlan(event) {
+  async function savePlanOverride(event) {
     event.preventDefault();
     const modal = document.getElementById('platformPlanModal');
     const button = document.getElementById('platformPlanSubmit');
     const plan = document.getElementById('platformPlanValue').value;
-    const price = Number(document.getElementById('platformPlanPrice').value);
-    const billingType = document.getElementById('platformPlanBilling').value;
     const reason = document.getElementById('platformPlanReason').value.trim();
-    if (!Number.isFinite(price) || price < 0) { toast('Informe um preço válido.'); return; }
-    if (!confirm(`Confirma a alteração para o plano ${PLAN_LABELS[plan]}?`)) return;
+    if (!reason) { toast('Informe o motivo da concessão.'); return; }
+    const schoolName = modal.dataset.schoolName || 'esta escola';
+    if (!confirm(`Confirma conceder o plano ${PLAN_LABELS[plan] || plan} para ${schoolName}? Isso é uma concessão administrativa e não representa uma contratação financeira.`)) return;
 
     button.disabled = true;
     try {
-      const { error } = await db.rpc('platform_set_subscription_plan', {
-        p_school_id:modal.dataset.schoolId,
-        p_plan:plan,
-        p_price:price,
-        p_billing_type:billingType,
-        p_reason:reason
+      const { error } = await db.rpc('platform_set_plan_override', {
+        p_school_id: modal.dataset.schoolId,
+        p_override_plan: plan,
+        p_override_expires_at: null,
+        p_reason: reason
       });
       if (error) { toast(error.message); return; }
       modal.classList.add('hidden');
-      toast('Plano alterado com sucesso.');
+      toast('Concessão administrativa salva.');
+      await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function removePlanOverride() {
+    const modal = document.getElementById('platformPlanModal');
+    const schoolName = modal.dataset.schoolName || 'esta escola';
+    const contractedPlan = modal.dataset.contractedPlan || null;
+    const resultLabel = contractedPlan
+      ? `o plano contratado (${PLAN_LABELS[contractedPlan] || contractedPlan})`
+      : 'o plano Grátis';
+    if (!confirm(`Remover a concessão administrativa de ${schoolName}? A escola passará a usar ${resultLabel}.`)) return;
+    const reason = prompt('Informe o motivo da remoção:');
+    if (reason === null) return;
+    const trimmedReason = reason.trim();
+    if (!trimmedReason) { toast('Informe o motivo da remoção.'); return; }
+
+    const button = document.getElementById('platformPlanRemoveOverride');
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_remove_plan_override', {
+        p_school_id: modal.dataset.schoolId,
+        p_reason: trimmedReason
+      });
+      if (error) { toast(error.message); return; }
+      modal.classList.add('hidden');
+      toast('Concessão administrativa removida.');
+      await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  // "Alterar preço e cobrança" é deliberadamente uma ação separada de
+  // "Gerenciar plano": school_subscriptions.price/billing_type são a
+  // condição comercial específica desta escola, nunca o preço público do
+  // catálogo (platform_plans.price) nem parte da concessão administrativa
+  // de plano — por isso usa exclusivamente platform_set_school_commercial_terms,
+  // nunca uma RPC de plano.
+  function createCommercialTermsModal() {
+    let modal = document.getElementById('platformCommercialTermsModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'platformCommercialTermsModal';
+    modal.className = 'modal-bg hidden';
+    modal.innerHTML = `
+      <div class="modal platform-plan-modal">
+        <div class="modal-head"><h3>Alterar preço e cobrança</h3><button class="close" type="button">×</button></div>
+        <form id="platformCommercialTermsForm" class="form">
+          <p id="platformCommercialTermsSchool" class="meta"></p>
+          <p class="meta">Este é o valor específico contratado por esta escola — não é o preço público do catálogo de planos.</p>
+          <div class="field"><label for="platformCommercialTermsPrice">Preço mensal desta escola</label><input id="platformCommercialTermsPrice" type="number" min="0" max="99999999.99" step="0.01" required></div>
+          <div class="field"><label for="platformCommercialTermsBilling">Tipo de cobrança</label><select id="platformCommercialTermsBilling" required><option value="fixed_school">Valor fixo por escola</option><option value="per_student">Por aluno</option></select></div>
+          <div class="field"><label for="platformCommercialTermsReason">Motivo</label><input id="platformCommercialTermsReason" maxlength="500" placeholder="Ex.: negociação, ajuste contratual" required></div>
+          <button id="platformCommercialTermsSubmit" class="btn primary full" type="submit">Salvar condições comerciais</button>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
+    modal.querySelector('#platformCommercialTermsForm').onsubmit = saveCommercialTerms;
+    modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    return modal;
+  }
+
+  function openCommercialTermsModal(button) {
+    const modal = createCommercialTermsModal();
+    modal.dataset.schoolId = button.dataset.schoolId;
+    modal.dataset.schoolName = button.dataset.schoolName;
+    document.getElementById('platformCommercialTermsSchool').textContent = button.dataset.schoolName;
+    document.getElementById('platformCommercialTermsPrice').value = button.dataset.price;
+    document.getElementById('platformCommercialTermsBilling').value = button.dataset.billingType;
+    document.getElementById('platformCommercialTermsReason').value = '';
+    modal.classList.remove('hidden');
+  }
+
+  async function saveCommercialTerms(event) {
+    event.preventDefault();
+    const modal = document.getElementById('platformCommercialTermsModal');
+    const button = document.getElementById('platformCommercialTermsSubmit');
+    const price = Number(document.getElementById('platformCommercialTermsPrice').value);
+    const billingType = document.getElementById('platformCommercialTermsBilling').value;
+    const reason = document.getElementById('platformCommercialTermsReason').value.trim();
+    if (!Number.isFinite(price) || price < 0) { toast('Informe um preço válido.'); return; }
+    if (!reason) { toast('Informe o motivo da alteração comercial.'); return; }
+    const schoolName = modal.dataset.schoolName || 'esta escola';
+    if (!confirm(`Confirma alterar as condições comerciais de ${schoolName}?`)) return;
+
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_school_commercial_terms', {
+        p_school_id: modal.dataset.schoolId,
+        p_price: price,
+        p_billing_type: billingType,
+        p_reason: reason
+      });
+      if (error) { toast(error.message); return; }
+      modal.classList.add('hidden');
+      toast('Condições comerciais atualizadas.');
       await openDashboard();
     } finally {
       button.disabled = false;
@@ -546,7 +683,7 @@
       modal.classList.add('hidden');
       toast('Responsável pela assinatura salvo.');
       // Mesmo padrão já usado por todo o resto do Painel (ex.:
-      // saveSubscriptionPlan, submitArchiveSchool): releitura via RPC e
+      // savePlanOverride, submitArchiveSchool): releitura via RPC e
       // re-render do conteúdo do modal já aberto — nunca um reload real
       // da página.
       await openDashboard();
@@ -768,6 +905,16 @@
       const action = previous.existed ? 'Atualizado' : 'Cadastrado';
       return fields ? `${action} (${fields})` : action;
     }
+    if (entry.event_type === 'plan_override_set') {
+      return `${PLAN_LABELS[next.plan] || next.plan || '—'} (permanente)`;
+    }
+    if (entry.event_type === 'plan_override_removed') {
+      return `Volta para ${PLAN_LABELS[next.plan] || next.plan || '—'}`;
+    }
+    if (entry.event_type === 'subscription_commercial_terms_changed') {
+      const billingLabel = value => value === 'per_student' ? 'Por aluno' : value === 'fixed_school' ? 'Valor fixo' : value;
+      return `Preço: R$ ${previous.price ?? '—'} → R$ ${next.price ?? '—'} · ${billingLabel(next.billing_type)}`;
+    }
     const key = Object.prototype.hasOwnProperty.call(next, 'status')
       ? 'status'
       : Object.prototype.hasOwnProperty.call(next, 'show_subscription')
@@ -949,9 +1096,16 @@
         const subscriptionButton = subscriptionStatus === 'missing'
           ? ''
           : `<button class="btn secondary" type="button" data-subscription-status="${esc(nextSubscriptionStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${subscriptionActionLabel}</button>`;
+        // dataset só aceita string: valores ausentes (contracted_plan/
+        // override_plan/override_expires_at nulos) viram '' aqui, nunca a
+        // string "null" — quem lê de volta (openPlanModal) trata ''
+        // como "não configurado" via "|| null".
         const planButton = subscriptionStatus === 'missing'
           ? ''
-          : `<button class="btn secondary" type="button" data-edit-plan data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}" data-plan="${esc(plan)}" data-price="${esc(school.price ?? 0)}" data-billing-type="${esc(school.billing_type || 'fixed_school')}">Alterar plano</button>`;
+          : `<button class="btn secondary" type="button" data-manage-plan data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}" data-plan="${esc(plan)}" data-contracted-plan="${esc(school.contracted_plan || '')}" data-override-plan="${esc(school.override_plan || '')}" data-override-expires-at="${esc(school.override_expires_at || '')}">Gerenciar plano</button>`;
+        const commercialTermsButton = subscriptionStatus === 'missing'
+          ? ''
+          : `<button class="btn secondary" type="button" data-commercial-terms data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}" data-price="${esc(school.price ?? 0)}" data-billing-type="${esc(school.billing_type || 'fixed_school')}">Alterar preço e cobrança</button>`;
         const billingContact = billingContacts[school.school_id] || null;
         const billingContactButton = `<button class="btn secondary" type="button" data-billing-contact data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${billingContact ? 'Editar responsável' : 'Definir responsável'}</button>`;
 
@@ -962,7 +1116,7 @@
           <td><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td>${esc(school.user_count ?? 0)}</td>
           <td>${esc(school.student_count ?? 0)}</td>
-          <td class="platform-school-actions">${planButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
@@ -977,8 +1131,11 @@
       body.querySelectorAll('[data-billing-contact]').forEach(button => {
         button.onclick = () => openBillingContactModal(button, billingContacts[button.dataset.schoolId] || null);
       });
-      body.querySelectorAll('[data-edit-plan]').forEach(button => {
+      body.querySelectorAll('[data-manage-plan]').forEach(button => {
         button.onclick = () => openPlanModal(button);
+      });
+      body.querySelectorAll('[data-commercial-terms]').forEach(button => {
+        button.onclick = () => openCommercialTermsModal(button);
       });
       body.querySelectorAll('[data-archive-school]').forEach(button => {
         button.onclick = () => openArchiveModal(button);
