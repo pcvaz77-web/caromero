@@ -498,6 +498,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!candidate) return;
     const previousAction = document.querySelector('input[name="transferAdminAction"]:checked')?.value;
     if (!previousAction) return;
+    // Confirmação extra só para left_school: quem sai perde o vínculo por
+    // completo (diferente de coordinator/teacher, que continuam na escola).
+    // Cancelar aqui aborta antes de qualquer outra coisa, sem tocar na
+    // confirmação genérica logo abaixo nem na RPC.
+    if (previousAction === 'left_school') {
+      const schoolName = window.getActiveSchoolMembership?.()?.schools?.name;
+      const leaveIntro = schoolName ? `Você escolheu sair da escola “${schoolName}”.` : 'Você escolheu sair desta escola.';
+      if (!confirm(`${leaveIntro} Após a transferência, você deixará de ter qualquer acesso a esta escola. Deseja continuar?`)) return;
+    }
     const actionLabel = previousAction === 'coordinator' ? 'continuar como coordenador(a)' : previousAction === 'teacher' ? 'continuar como professor(a)' : 'sair desta escola';
     if (!confirm(`Confirma transferir a administração desta escola para ${candidate.name}? Depois de confirmar, você vai ${actionLabel}. Esta ação não pode ser desfeita por este fluxo.`)) return;
 
