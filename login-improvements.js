@@ -54,6 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.auth.signInWithPassword({ email: emailValue, password: password.value });
     errorBox.textContent = error?.message || '';
     errorBox.classList.toggle('hidden', !error);
-    if (!error) showApp();
+    if (!error) {
+      // Login normal bem-sucedido é prova real de senha própria — regulariza
+      // o marcador para quem já tinha senha antes de ele existir. Melhor
+      // esforço: uma falha aqui nunca pode bloquear quem já provou a senha.
+      db.rpc('mark_current_user_password_set').catch(() => {});
+      showApp();
+    }
   };
 });

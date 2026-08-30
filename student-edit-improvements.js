@@ -80,6 +80,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const { error } = await db.auth.updateUser(update);
     if (error) { toast(error.message); return; }
+    // updateUser com senha nova bem-sucedido é prova real de senha própria.
+    // Melhor esforço: só quando a troca de senha realmente aconteceu nesta
+    // submissão (não em toda edição de perfil), e uma falha aqui nunca deve
+    // impedir a pessoa de continuar usando o Carômetro normalmente.
+    if (update.password) db.rpc('mark_current_user_password_set').catch(() => {});
     const { error: profileError } = await db.from('profiles').upsert({ id: signedInUser.id, full_name: name, email: signedInUser.email }, { onConflict: 'id' });
     if (profileError) { toast(profileError.message); return; }
     welcome.textContent = formatGreeting(name);

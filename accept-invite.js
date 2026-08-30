@@ -135,6 +135,22 @@ async function acceptInvitation() {
   }
 }
 
+// Invariante central: NENHUM caminho deste arquivo pode chamar
+// acceptInvitation() sem, imediatamente antes, reconsultar
+// current_user_onboarding_status() e obter READY. Todos os handlers abaixo
+// (onboarding, "Continuar com esta conta", login e cadastro dentro do
+// convite) passam por aqui em vez de chamar acceptInvitation() direto —
+// assim a regra não depende de cada handler lembrar dela individualmente.
+async function acceptInvitationIfReady() {
+  const state = await refreshOnboarding();
+  if (state === 'unknown') {
+    showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.');
+    return;
+  }
+  if (state !== 'ready') return; // renderOnboarding já mostrou o formulário certo (nome e/ou senha)
+  await acceptInvitation();
+}
+
 async function boot() {
   if (!token) { showError('fatal', 'Link inválido. Peça um novo convite.'); return; }
   const { data, error } = await db.rpc('get_invitation_preview', { invitation_token:token });
@@ -164,7 +180,7 @@ async function boot() {
   }
 }
 
-$('continueBtn').onclick = acceptInvitation;
+$('continueBtn').onclick = acceptInvitationIfReady;
 $('retryStatusBtn').onclick = async () => {
   busy(true);
   await refreshOnboarding();
@@ -222,6 +238,21 @@ $('onboardingForm').onsubmit = async event => {
       if (authError) { showError('sessionError', authError.message); return; }
     }
 
+    // 1b) Marcador de senha — só gravado depois de uma prova real
+    // (updateUser({password}) bem-sucedido nesta mesma submissão).
+    // Bloqueante: se a gravação falhar, o convite NÃO pode ser aceito,
+    // mesmo que a senha já exista no GoTrue — sem o marcador,
+    // current_user_onboarding_status() continua reportando has_password
+    // falso, então a reconfirmação final (passo 3) não deixa aceitar.
+    if (needsPassword) {
+      const { error: markError } = await db.rpc('mark_current_user_password_set');
+      if (markError) {
+        showError('sessionError', 'Não foi possível confirmar sua senha agora. Tente novamente.');
+        await refreshOnboarding();
+        return;
+      }
+    }
+
     // 2) profiles.full_name continua sendo a ÚNICA fonte que
     // current_user_onboarding_status() lê para decidir has_name — por isso
     // esta escrita é obrigatória sempre que needsName, mesmo que o passo
@@ -238,15 +269,9 @@ $('onboardingForm').onsubmit = async event => {
       }
     }
 
-    // 3) Só aceita o convite depois de reconfirmar, numa nova consulta
-    // independente, que o servidor já vê READY — nunca a partir do sucesso
-    // aparente dos passos acima.
-    const finalState = await refreshOnboarding();
-    if (finalState !== 'ready') {
-      showError('sessionError', 'Não foi possível confirmar seu cadastro. Tente novamente.');
-      return;
-    }
-    await acceptInvitation();
+    // 3) Só aceita o convite através da guarda central, que reconsulta o
+    // servidor e só prossegue quando ele confirmar READY.
+    await acceptInvitationIfReady();
   } finally {
     busy(false);
   }
@@ -292,7 +317,21 @@ $('signupForm').onsubmit = async event => {
       options:{ emailRedirectTo:redirectTo, data:{ full_name:name } }
     });
     if (error) { showError('formError', error.message); return; }
-    if (data.session) { await acceptInvitation(); return; }
+    if (data.session) {
+      // signUp com sessão imediata é prova real de senha própria escolhida
+      // agora mesmo pelo usuário — grava o marcador. has_name continua
+      // vindo exclusivamente de profiles.full_name (nunca de
+      // auth.user_metadata, mesmo que o próprio signUp já tenha colocado o
+      // nome lá via options.data), por isso gravamos em profiles aqui de
+      // forma explícita, não confiamos só no metadata do signUp.
+      await db.rpc('mark_current_user_password_set');
+      const { error: profileError } = await db.from('profiles')
+        .upsert({ id: data.user.id, full_name: name, email: data.user.email }, { onConflict: 'id' });
+      if (profileError) { showError('formError', 'Não foi possível salvar seu nome. Tente novamente.'); return; }
+      showSession(email);
+      await acceptInvitationIfReady();
+      return;
+    }
     $('authBox').classList.add('hidden');
     $('confirm').classList.remove('hidden');
   } catch (error) {
@@ -311,7 +350,14 @@ $('loginForm').onsubmit = async event => {
     if (!await requireInvitedEmail(email)) return;
     const { error } = await db.auth.signInWithPassword({ email, password:$('loginPassword').value });
     if (error) { showError('formError', error.message); return; }
-    await acceptInvitation();
+    // signInWithPassword bem-sucedido é prova real de que a senha existe.
+    // Não bloqueia aqui em caso de falha do marcador: a guarda central
+    // (acceptInvitationIfReady) reconsulta o estado real do servidor antes
+    // de aceitar, então uma falha nesta gravação naturalmente impede o
+    // aceite mesmo sem tratamento especial neste handler.
+    await db.rpc('mark_current_user_password_set');
+    showSession(email);
+    await acceptInvitationIfReady();
   } catch (error) {
     showError('formError', error.message || 'Não foi possível validar o convite.');
   } finally {

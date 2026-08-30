@@ -101,6 +101,11 @@
         error.classList.remove('hidden');
         return;
       }
+      // updateUser({password}) bem-sucedido é prova real de senha própria.
+      // Melhor esforço: precisa rodar antes do signOut (a RPC exige sessão
+      // ativa) e uma falha aqui não pode impedir a recuperação, que já
+      // funcionou do ponto de vista do GoTrue.
+      await db.rpc('mark_current_user_password_set').catch(() => {});
       await db.auth.signOut();
       document.getElementById('passwordResetForm').reset();
       await resetToLogin('Senha atualizada. Entre novamente com a nova senha.');

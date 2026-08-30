@@ -57,6 +57,9 @@ document.getElementById('resetForm').onsubmit = async event => {
   }
   const { error: updateError } = await db.auth.updateUser({ password });
   if (updateError) { save.disabled = false; message(updateError.message); return; }
+  // updateUser({password}) bem-sucedido é prova real de senha própria.
+  // Melhor esforço, e precisa rodar antes do goToLogin (que faz signOut).
+  await db.rpc('mark_current_user_password_set').catch(() => {});
   save.textContent = 'Senha atualizada';
   await goToLogin();
 };
