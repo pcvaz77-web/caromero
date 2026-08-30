@@ -37,7 +37,8 @@
     school_archived: 'Escola arquivada',
     school_restored: 'Escola restaurada',
     school_permanently_deleted: 'Escola excluída permanentemente',
-    plan_catalog_updated: 'Catálogo de planos atualizado'
+    plan_catalog_updated: 'Catálogo de planos atualizado',
+    billing_contact_changed: 'Responsável pela assinatura alterado'
   };
 
   function esc(value) {
@@ -74,6 +75,10 @@
       .platform-school-admin { display:block; margin-top:3px; color:var(--muted); font-size:12px; }
       .platform-school-admin.pending { color:#b7791f; }
       .platform-school-admin.none { font-style:italic; }
+      .platform-billing-contact { display:block; margin-top:3px; color:#315dbb; font-size:12px; }
+      .platform-billing-contact.none { font-style:italic; color:var(--muted); }
+      .platform-billing-contact .label { font-weight:700; }
+      .platform-billing-modal { width:min(480px,100%); }
       .platform-archived-section { margin-top:26px; padding:0 22px 18px; }
       .platform-archived-section .head h4 { margin:0 0 10px; font-size:14px; color:var(--muted); }
       .platform-archived-item { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; margin-bottom:8px; opacity:.85; flex-wrap:wrap; }
@@ -484,6 +489,71 @@
     }
   }
 
+  function createBillingContactModal() {
+    let modal = document.getElementById('platformBillingContactModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'platformBillingContactModal';
+    modal.className = 'modal-bg hidden';
+    modal.innerHTML = `
+      <div class="modal platform-billing-modal">
+        <div class="modal-head"><h3>Responsável pela assinatura</h3><button class="close" type="button">×</button></div>
+        <form id="platformBillingContactForm" class="form">
+          <p id="platformBillingContactSchool" class="meta"></p>
+          <div class="field"><label for="platformBillingContactName">Nome</label><input id="platformBillingContactName" maxlength="160" required></div>
+          <div class="field"><label for="platformBillingContactEmail">E-mail</label><input id="platformBillingContactEmail" type="email" maxlength="320" required></div>
+          <div class="field"><label for="platformBillingContactPhone">Telefone</label><input id="platformBillingContactPhone" maxlength="40"></div>
+          <button id="platformBillingContactSubmit" class="btn primary full" type="submit">Salvar</button>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
+    modal.querySelector('#platformBillingContactForm').onsubmit = saveBillingContact;
+    modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    return modal;
+  }
+
+  function openBillingContactModal(button, contact) {
+    const modal = createBillingContactModal();
+    modal.dataset.schoolId = button.dataset.schoolId;
+    document.getElementById('platformBillingContactSchool').textContent = button.dataset.schoolName;
+    document.getElementById('platformBillingContactName').value = contact ? contact.out_full_name : '';
+    document.getElementById('platformBillingContactEmail').value = contact ? contact.out_email : '';
+    document.getElementById('platformBillingContactPhone').value = contact && contact.out_phone ? contact.out_phone : '';
+    modal.classList.remove('hidden');
+  }
+
+  async function saveBillingContact(event) {
+    event.preventDefault();
+    const modal = document.getElementById('platformBillingContactModal');
+    const button = document.getElementById('platformBillingContactSubmit');
+    const fullName = document.getElementById('platformBillingContactName').value.trim();
+    const email = document.getElementById('platformBillingContactEmail').value.trim();
+    const phone = document.getElementById('platformBillingContactPhone').value.trim();
+    if (!fullName || !email) { toast('Preencha nome e e-mail do responsável.'); return; }
+
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_billing_contact', {
+        p_school_id: modal.dataset.schoolId,
+        p_full_name: fullName,
+        p_email: email,
+        p_phone: phone || null
+      });
+      if (error) { toast(error.message); return; }
+      modal.classList.add('hidden');
+      toast('Responsável pela assinatura salvo.');
+      // Mesmo padrão já usado por todo o resto do Painel (ex.:
+      // saveSubscriptionPlan, submitArchiveSchool): releitura via RPC e
+      // re-render do conteúdo do modal já aberto — nunca um reload real
+      // da página.
+      await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function createDeleteForeverModal() {
     let modal = document.getElementById('platformDeleteForeverModal');
     if (modal) return modal;
@@ -692,6 +762,11 @@
     if (entry.event_type === 'plan_catalog_updated') {
       return `${next.display_name ?? next.plan_key ?? 'Plano'} (${next.plan_key ?? ''})`;
     }
+    if (entry.event_type === 'billing_contact_changed') {
+      const fields = Array.isArray(next.changed_fields) ? next.changed_fields.join(', ') : '';
+      const action = previous.existed ? 'Atualizado' : 'Cadastrado';
+      return fields ? `${action} (${fields})` : action;
+    }
     const key = Object.prototype.hasOwnProperty.call(next, 'status')
       ? 'status'
       : Object.prototype.hasOwnProperty.call(next, 'show_subscription')
@@ -824,14 +899,27 @@
 
   function adminLine(school) {
     const state = school.admin_state || 'none';
-    if (state === 'active') return `<span class="platform-school-admin">${esc(school.admin_email)}</span>`;
-    if (state === 'pending') return `<span class="platform-school-admin pending">${esc(school.admin_email)} · convite pendente</span>`;
+    if (state === 'active') return `<span class="platform-school-admin"><span class="label">Administrador:</span> ${esc(school.admin_email)}</span>`;
+    if (state === 'pending') return `<span class="platform-school-admin pending"><span class="label">Administrador:</span> ${esc(school.admin_email)} · convite pendente</span>`;
     return `<span class="platform-school-admin none">Sem administrador</span>`;
   }
 
-  function renderSchools(schools, jobsBySchoolId) {
+  // Deliberadamente com rótulo próprio e cor distinta de adminLine(): o
+  // responsável pela assinatura é comercial/financeiro, independente do
+  // school_admin, e precisa ser visualmente impossível de confundir com
+  // ele mesmo quando são pessoas diferentes na mesma linha da tabela.
+  function billingContactLine(contact) {
+    if (!contact) {
+      return `<span class="platform-billing-contact none">Responsável pela assinatura: Não definido</span>`;
+    }
+    const phone = contact.out_phone ? ` · ${esc(contact.out_phone)}` : '';
+    return `<span class="platform-billing-contact"><span class="label">Responsável pela assinatura:</span> ${esc(contact.out_full_name)} · ${esc(contact.out_email)}${phone}</span>`;
+  }
+
+  function renderSchools(schools, jobsBySchoolId, billingContactsBySchoolId) {
 
     const jobs = jobsBySchoolId || {};
+    const billingContacts = billingContactsBySchoolId || {};
     const body = document.getElementById('platformSchoolsBody');
     const archivedSection = document.getElementById('platformArchivedSection');
     const archivedList = document.getElementById('platformArchivedList');
@@ -863,15 +951,17 @@
         const planButton = subscriptionStatus === 'missing'
           ? ''
           : `<button class="btn secondary" type="button" data-edit-plan data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}" data-plan="${esc(plan)}" data-price="${esc(school.price ?? 0)}" data-billing-type="${esc(school.billing_type || 'fixed_school')}">Alterar plano</button>`;
+        const billingContact = billingContacts[school.school_id] || null;
+        const billingContactButton = `<button class="btn secondary" type="button" data-billing-contact data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${billingContact ? 'Editar responsável' : 'Definir responsável'}</button>`;
 
         return `<tr>
-          <td><b>${esc(school.school_name)}</b>${adminLine(school)}</td>
+          <td><b>${esc(school.school_name)}</b>${adminLine(school)}${billingContactLine(billingContact)}</td>
           <td><span class="platform-badge ${esc(plan)}">${esc(PLAN_LABELS[plan] || plan)}</span></td>
           <td><span class="platform-badge ${esc(status)}">${esc(STATUS_LABELS[status] || status)}</span></td>
           <td><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td>${esc(school.user_count ?? 0)}</td>
           <td>${esc(school.student_count ?? 0)}</td>
-          <td class="platform-school-actions">${planButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td class="platform-school-actions">${planButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
@@ -882,6 +972,9 @@
       });
       body.querySelectorAll('[data-subscription-status]').forEach(button => {
         button.onclick = () => setSubscriptionStatus(button);
+      });
+      body.querySelectorAll('[data-billing-contact]').forEach(button => {
+        button.onclick = () => openBillingContactModal(button, billingContacts[button.dataset.schoolId] || null);
       });
       body.querySelectorAll('[data-edit-plan]').forEach(button => {
         button.onclick = () => openPlanModal(button);
@@ -996,13 +1089,14 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
       db.from('platform_school_deletion_jobs').select('school_id, status, error_message, updated_at'),
       db.from('platform_plans').select('*').order('display_order'),
-      db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle()
+      db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle(),
+      db.rpc('platform_list_billing_contacts')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1020,9 +1114,15 @@
     if (!jobsResult.error) {
       (jobsResult.data || []).forEach(job => { jobsBySchoolId[job.school_id] = job; });
     }
+    const billingContactsBySchoolId = {};
+    if (billingContactsResult.error) {
+      toast(billingContactsResult.error.message);
+    } else {
+      (billingContactsResult.data || []).forEach(contact => { billingContactsBySchoolId[contact.out_school_id] = contact; });
+    }
 
     renderStats(summary);
-    renderSchools(schoolsResult.data || [], jobsBySchoolId);
+    renderSchools(schoolsResult.data || [], jobsBySchoolId, billingContactsBySchoolId);
     renderAudit(auditResult.data || [], auditResult.error);
     renderPlans(plansResult.data || [], plansResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
