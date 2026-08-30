@@ -423,6 +423,112 @@ document.addEventListener('DOMContentLoaded', () => {
     await openPermissions();
   };
 
+  const transferAdminModal = document.createElement('div');
+  transferAdminModal.id = 'transferAdminModal';
+  transferAdminModal.className = 'modal-bg coordinator-modal hidden';
+  transferAdminModal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Transferir administração da escola</h3><div class="meta">O novo administrador passa a ter acesso total imediatamente.</div></div><button class="close" type="button" aria-label="Fechar">×</button></div><form id="transferAdminForm" class="form"><div class="field"><label for="transferAdminCandidate">Novo administrador</label><select id="transferAdminCandidate"><option value="">Selecione um coordenador ou professor</option></select></div><p id="transferAdminConfirmText" class="meta hidden"></p><div class="field"><label>O que deseja fazer com sua conta depois da transferência?</label><label class="check"><input type="radio" name="transferAdminAction" value="coordinator" checked> Continuar como coordenador</label><label class="check"><input type="radio" name="transferAdminAction" value="teacher"> Continuar como professor</label><label class="check"><input type="radio" name="transferAdminAction" value="left_school"> Sair desta escola</label></div><button id="transferAdminSubmit" class="btn danger full" type="submit" disabled>Transferir administração</button></form><div id="transferAdminEmpty" class="empty hidden" style="padding:0 24px 24px">É necessário existir um professor ou coordenador ativo nesta escola antes de transferir a administração.</div></div>`;
+  document.body.appendChild(transferAdminModal);
+  transferAdminModal.querySelector('.close').onclick = () => transferAdminModal.classList.add('hidden');
+  transferAdminModal.onclick = event => { if (event.target === transferAdminModal) transferAdminModal.classList.add('hidden'); };
+
+  let transferAdminCandidates = [];
+
+  function updateTransferAdminConfirmText() {
+    const select = document.getElementById('transferAdminCandidate');
+    const confirmText = document.getElementById('transferAdminConfirmText');
+    const submitButton = document.getElementById('transferAdminSubmit');
+    const candidate = transferAdminCandidates.find(item => item.user_id === select.value);
+    if (!candidate) {
+      confirmText.classList.add('hidden');
+      submitButton.disabled = true;
+      return;
+    }
+    const roleLabel = candidate.is_coordinator ? 'Coordenador(a)' : 'Professor(a)';
+    confirmText.textContent = `Ao confirmar, ${candidate.name} (${roleLabel}) passará a ser administrador(a) desta escola.`;
+    confirmText.classList.remove('hidden');
+    submitButton.disabled = false;
+  }
+  document.getElementById('transferAdminCandidate').onchange = updateTransferAdminConfirmText;
+
+  // Só school_admin ativo pode ver ou executar esta ação — nunca
+  // isAdvancedUser() (que também é true para coordenador com permissões
+  // avançadas). Esta function só é alcançável a partir do botão que só
+  // existe no ramo estritamente admin de openPermissions() abaixo, mas a
+  // checagem aqui é a segunda camada, independente do botão estar visível.
+  async function openTransferAdminManager() {
+    if (permission.role !== 'admin') return;
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
+    const schoolPermissionMap = await loadSchoolPermissions(membership.school_id);
+    // Filtro só de UX — quem protege de verdade é a revalidação completa
+    // dentro de transfer_school_admin() no banco.
+    transferAdminCandidates = [...schoolPermissionMap.values()]
+      .filter(item => item.member_status === 'active' && item.role !== 'admin' && item.user_id !== membership.user_id)
+      .map(item => ({
+        user_id: item.user_id,
+        member_id: item.memberId,
+        is_coordinator: !!item.is_coordinator,
+        name: item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário'
+      }))
+      .sort((first, second) => first.name.localeCompare(second.name, 'pt-BR', { sensitivity:'base' }));
+
+    const select = document.getElementById('transferAdminCandidate');
+    const empty = document.getElementById('transferAdminEmpty');
+    const form = document.getElementById('transferAdminForm');
+    if (!transferAdminCandidates.length) {
+      select.innerHTML = '<option value="">Nenhum candidato elegível</option>';
+      empty.classList.remove('hidden');
+      form.classList.add('hidden');
+    } else {
+      select.innerHTML = '<option value="">Selecione um coordenador ou professor</option>' +
+        transferAdminCandidates.map(item => `<option value="${esc(item.user_id)}">${esc(item.name)} — ${item.is_coordinator ? 'Coordenador(a)' : 'Professor(a)'}</option>`).join('');
+      empty.classList.add('hidden');
+      form.classList.remove('hidden');
+    }
+    document.getElementById('transferAdminConfirmText').classList.add('hidden');
+    document.getElementById('transferAdminSubmit').disabled = true;
+    document.querySelector('input[name="transferAdminAction"][value="coordinator"]').checked = true;
+    transferAdminModal.classList.remove('hidden');
+  }
+
+  document.getElementById('transferAdminForm').onsubmit = async event => {
+    event.preventDefault();
+    const select = document.getElementById('transferAdminCandidate');
+    const candidate = transferAdminCandidates.find(item => item.user_id === select.value);
+    if (!candidate) return;
+    const previousAction = document.querySelector('input[name="transferAdminAction"]:checked')?.value;
+    if (!previousAction) return;
+    const actionLabel = previousAction === 'coordinator' ? 'continuar como coordenador(a)' : previousAction === 'teacher' ? 'continuar como professor(a)' : 'sair desta escola';
+    if (!confirm(`Confirma transferir a administração desta escola para ${candidate.name}? Depois de confirmar, você vai ${actionLabel}. Esta ação não pode ser desfeita por este fluxo.`)) return;
+
+    const button = document.getElementById('transferAdminSubmit');
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('transfer_school_admin', {
+        p_target_member_id: candidate.member_id,
+        p_previous_admin_action: previousAction
+      });
+      if (error) { toast(error.message); button.disabled = false; return; }
+      transferAdminModal.classList.add('hidden');
+      document.getElementById('permissionsModal')?.classList.add('hidden');
+      toast('Administração transferida com sucesso.');
+      // Recarrega a aplicação inteira: é a forma segura de garantir que
+      // nenhuma tela/estado em memória continue mostrando o antigo
+      // administrador como admin (mesmo padrão já usado pelo seletor de
+      // escola). Se a conta saiu da escola, também limpa a escola ativa
+      // salva para não tentar restaurar um vínculo que não existe mais — a
+      // resolução normal de login decide a partir daí (escola única
+      // restante, seletor entre várias, ou nenhum acesso escolar).
+      if (previousAction === 'left_school') {
+        try { sessionStorage.removeItem('carometro:activeSchoolId'); } catch {}
+      }
+      location.reload();
+    } catch (error) {
+      toast(error.message || 'Não foi possível transferir a administração.');
+      button.disabled = false;
+    }
+  };
+
   async function openPermissions() {
     // Fonte única: a mesma checagem comercial (window.counselorCanManage,
     // que já delega para can_manage_class_counselors(target_school_id) em
@@ -476,7 +582,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
     const schoolCalendarManager = `<section class="coordinator-management"><div><b>Calendário letivo</b><div class="meta">Datas de início e fim de cada bimestre, usadas pelo Livro/Revisa.</div></div><button id="openSchoolCalendar" type="button" class="btn secondary">Calendário letivo</button></section>`;
-    const advancedPermissions = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}${schoolCalendarManager}<div id="advancedCoordinatorCards"></div></div></details>`;
+    const transferAdminManager = `<section class="coordinator-management"><div><b>Transferir administração</b><div class="meta">Escolha um coordenador ou professor ativo desta escola para se tornar o novo administrador.</div></div><button id="openTransferAdmin" type="button" class="btn secondary">Transferir administração</button></section>`;
+    const advancedPermissions = `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content">${coordinatorManager}${schoolCalendarManager}${transferAdminManager}<div id="advancedCoordinatorCards"></div></div></details>`;
     document.getElementById('permissionsList').innerHTML = `${advancedPermissions}<section><div class="permissions-heading"><b>Permissões gerais</b><div class="meta">Usuários cadastrados e seus acessos atuais.</div></div><form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div></section>`;
     const advancedCardTarget = document.getElementById('advancedCoordinatorCards');
     document.querySelectorAll('#permissionsList .perm[data-permission-scope="advanced"]').forEach(card => advancedCardTarget.appendChild(card));
@@ -487,6 +594,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('permissionsModal').classList.add('hidden');
       window.openSchoolCalendarManager?.();
     };
+    document.getElementById('openTransferAdmin').onclick = event => { event.preventDefault(); event.stopPropagation(); openTransferAdminManager(); };
     const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     window.filterPermissionUsers = value => {
       const query = normalizeSearch(value).trim();
