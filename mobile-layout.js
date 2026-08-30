@@ -411,6 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const homeButton = topbar.querySelector('.mobile-brand');
   const savedScreenKey = 'carometro:mobile-screen';
   let restoreAttempted = false;
+  let classRestoreAttempted = false;
 
   const currentModal = () => {
     if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
@@ -446,14 +447,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.render?.();
     window.scrollTo(0, 0);
   };
+  // Restauração puramente visual (busca, modal reaberto, posição de rolagem)
+  // — nenhuma dessas depende de classes/students já carregados, então
+  // continua no gatilho atual (MutationObserver em #app + fallback de
+  // tempo). classId/studentId NÃO são tratados aqui.
   const restoreCurrentScreen = () => {
     if (restoreAttempted || document.getElementById('app')?.classList.contains('hidden')) return;
     restoreAttempted = true;
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
     if (!saved) return;
-    if (saved.classId) selectedClassId = saved.classId;
-    if (saved.studentId) detailStudentId = saved.studentId;
     const search = document.getElementById('search');
     if (search) search.value = saved.search || '';
     window.render?.();
@@ -463,6 +466,32 @@ document.addEventListener('DOMContentLoaded', () => {
       window.scrollTo(0, Number(saved.scrollY) || 0);
     }, 140);
   };
+  // Restauração dependente de dados (classId/studentId): só pode ser
+  // avaliada depois que carometro:data-loaded confirma que `classes`/
+  // `students` já refletem a escola ativa — #app ficar visível (gatilho da
+  // função acima) acontece ANTES de window.load() no fluxo real
+  // (app-core.js: remove 'hidden' e só depois chama load()), então nunca é
+  // garantia de dado carregado. Não restaura duas vezes (classRestoreAttempted)
+  // e não consome a tentativa enquanto não houver escola ativa resolvida —
+  // conta multi-escola sem escolha feita dispara carometro:data-loaded com
+  // classes/students vazios, e isso não pode "gastar" a única tentativa.
+  const restoreClassAndStudent = () => {
+    if (classRestoreAttempted || !window.getActiveSchoolId?.()) return;
+    classRestoreAttempted = true;
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
+    if (!saved) return;
+    // A turma/aluno salvos podem pertencer a outra escola (conta
+    // multi-escola) ou já não existir mais — sessionStorage não é isolado
+    // por escola. Atribuição sempre explícita: se a validação falhar, volta
+    // para null mesmo que selectedClassId/detailStudentId já tivessem um
+    // valor anterior — nunca deixa um estado antigo sobreviver por a
+    // validação ter falhado.
+    selectedClassId = (saved.classId && classes.some(item => item.id === saved.classId)) ? saved.classId : null;
+    detailStudentId = (saved.studentId && students.some(item => item.id === saved.studentId)) ? saved.studentId : null;
+    window.render?.();
+  };
+  document.addEventListener('carometro:data-loaded', restoreClassAndStudent);
   const closeMobileMenuDialogs = () => {
     // Fecha qualquer janela do sistema antes da troca de navegação. Os
     // botões chamados em seguida continuam livres para abrir sua nova tela.
@@ -554,6 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const savedScreenKey = 'carometro:mobile-screen';
   let restoreAttempted = false;
+  let classRestoreAttempted = false;
   const currentModal = () => {
     if (!document.getElementById('counselorModal')?.classList.contains('hidden')) return 'counselorNav';
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
@@ -591,14 +621,16 @@ document.addEventListener('DOMContentLoaded', () => {
     window.render?.();
     window.scrollTo(0, 0);
   };
+  // Mesma separação da implementação acima (layout mobile/desktop): a parte
+  // visual (busca, modal, rolagem) não depende de dado carregado e continua
+  // no gatilho atual; classId/studentId só são avaliados em resposta a
+  // carometro:data-loaded, ver restoreClassAndStudent mais abaixo.
   const restoreScreen = () => {
     if (restoreAttempted || app.classList.contains('hidden')) return;
     restoreAttempted = true;
     let saved;
     try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
     if (!saved) return;
-    if (saved.classId) selectedClassId = saved.classId;
-    if (saved.studentId) detailStudentId = saved.studentId;
     const search = document.getElementById('search');
     if (search) search.value = saved.search || '';
     window.render?.();
@@ -608,6 +640,19 @@ document.addEventListener('DOMContentLoaded', () => {
       window.scrollTo(0, Number(saved.scrollY) || 0);
     }, 140);
   };
+  const restoreClassAndStudent = () => {
+    if (classRestoreAttempted || !window.getActiveSchoolId?.()) return;
+    classRestoreAttempted = true;
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem(savedScreenKey) || 'null'); } catch {}
+    if (!saved) return;
+    // Atribuição sempre explícita: se a validação falhar, volta para null
+    // mesmo que já houvesse um valor anterior.
+    selectedClassId = (saved.classId && classes.some(item => item.id === saved.classId)) ? saved.classId : null;
+    detailStudentId = (saved.studentId && students.some(item => item.id === saved.studentId)) ? saved.studentId : null;
+    window.render?.();
+  };
+  document.addEventListener('carometro:data-loaded', restoreClassAndStudent);
   window.addEventListener('pagehide', saveScreen);
   window.addEventListener('beforeunload', saveScreen);
   document.addEventListener('click', () => window.setTimeout(saveScreen, 0));
