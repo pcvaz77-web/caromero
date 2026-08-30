@@ -458,14 +458,28 @@
     target.classList.remove('hidden');
     target.dataset.userId = user.id;
     target.dataset.email = user.email;
-    const ownerWarning = user.is_owner ? '<p class="error">A conta proprietária não pode ser removida.</p>' : '';
+    // A proteção real está inteiramente no backend (manage-user); isto é só
+    // diagnóstico para a pessoa entender o bloqueio antes de tentar a ação.
+    const blocked = Boolean(user.is_owner) || Boolean(user.blocked);
+    const reasons = user.blocked_reasons || [];
+    const warnings = reasons.map(reason => `<p class="error">${esc(reason)}</p>`).join('');
+    const adminSchools = user.admin_schools || [];
+    const pendingInvitations = user.pending_invitations || [];
+    const adminSchoolsLine = adminSchools.length
+      ? `<p class="meta">Administra: ${adminSchools.map(s => esc(s.school_name || s.school_id)).join(', ')}</p>`
+      : '';
+    const pendingInvitationsLine = pendingInvitations.length
+      ? `<p class="meta">Convites pendentes: ${pendingInvitations.map(i => `${esc(i.school_name || i.school_id)} (${esc(i.role)})`).join(', ')}</p>`
+      : '';
     target.innerHTML = `
       <strong>${esc(user.full_name || 'Conta sem nome cadastrado')}</strong>
       <p class="meta">${esc(user.email)} · ${esc(user.memberships)} vínculo(s) escolar(es) · ${user.confirmed ? 'E-mail confirmado' : 'E-mail não confirmado'} · ${esc(STATUS_LABELS[user.status] || user.status)}</p>
-      ${ownerWarning}
+      ${adminSchoolsLine}
+      ${pendingInvitationsLine}
+      ${warnings}
       <div class="actions">
-        <button class="btn secondary" type="button" data-account-action="cancel_login" ${user.is_owner ? 'disabled' : ''}>Cancelar login</button>
-        <button class="btn danger" type="button" data-account-action="permanent_delete" ${user.is_owner ? 'disabled' : ''}>Excluir permanentemente</button>
+        <button class="btn secondary" type="button" data-account-action="cancel_login" ${blocked ? 'disabled' : ''}>Cancelar login</button>
+        <button class="btn danger" type="button" data-account-action="permanent_delete" ${blocked ? 'disabled' : ''}>Excluir permanentemente</button>
       </div>`;
     target.querySelectorAll('[data-account-action]').forEach(button => {
       button.onclick = () => manageAccount(button);

@@ -140,15 +140,39 @@ Deno.serve(async (request) => {
     }
     if (!targetAuth?.email) return json(request, { error: 'Usuário não encontrado.' }, 404)
 
-    const [{ data: profile, error: profileError }, { count: membershipCount, error: membershipError }, { data: access, error: accessError }, { data: owner, error: ownerError }] = await Promise.all([
+    const [
+      { data: profile, error: profileError },
+      { count: membershipCount, error: membershipError },
+      { data: access, error: accessError },
+      { data: owner, error: ownerError },
+      { data: adminSchools, error: adminSchoolsError },
+      { data: pendingInvitations, error: pendingInvitationsError },
+    ] = await Promise.all([
       admin.from('profiles').select('email,full_name').eq('id', targetAuth.id).maybeSingle(),
       admin.from('school_members').select('id', { count:'exact', head:true }).eq('user_id', targetAuth.id),
       admin.from('platform_account_access').select('status').eq('user_id', targetAuth.id).maybeSingle(),
       admin.from('platform_admins').select('user_id').eq('user_id', targetAuth.id).eq('role', 'owner').limit(1).maybeSingle(),
+      admin.from('school_members').select('school_id, schools(name)').eq('user_id', targetAuth.id).eq('role', 'school_admin'),
+      admin.from('school_invitations').select('id, role, school_id, schools(name), expires_at')
+        .eq('email', normalizedEmail).eq('status', 'pending').gt('expires_at', new Date().toISOString()),
     ])
-    if (profileError || membershipError || accessError || ownerError) {
+    if (profileError || membershipError || accessError || ownerError || adminSchoolsError || pendingInvitationsError) {
       return json(request, { error: 'Não foi possível consultar os dados da conta.' }, 500)
     }
+
+    // Mesmas duas proteções aplicadas antes de cancel_login/permanent_delete
+    // mais abaixo — aqui só para o painel exibir o motivo do bloqueio antes
+    // de a pessoa tentar a ação. A proteção real está no bloco de baixo,
+    // nunca só aqui.
+    const blockedReasons: string[] = []
+    if (owner) blockedReasons.push('O proprietário da plataforma não pode ser removido.')
+    if ((adminSchools ?? []).length > 0) {
+      blockedReasons.push('Esta conta administra uma ou mais escolas. Transfira a administração dessas escolas antes de bloquear ou excluir a conta.')
+    }
+    if ((pendingInvitations ?? []).length > 0) {
+      blockedReasons.push('Esta conta possui convites pendentes em uma ou mais escolas. Cancele esses convites antes de bloquear ou excluir a conta.')
+    }
+
     return json(request, {
       user: {
         id: targetAuth.id,
@@ -158,6 +182,19 @@ Deno.serve(async (request) => {
         memberships: membershipCount ?? 0,
         status: access?.status === 'suspended' ? 'suspended' : 'active',
         is_owner: Boolean(owner),
+        admin_schools: (adminSchools ?? []).map(row => ({
+          school_id: row.school_id,
+          school_name: (row.schools as { name?: string } | null)?.name ?? null,
+        })),
+        pending_invitations: (pendingInvitations ?? []).map(row => ({
+          id: row.id,
+          role: row.role,
+          school_id: row.school_id,
+          school_name: (row.schools as { name?: string } | null)?.name ?? null,
+          expires_at: row.expires_at,
+        })),
+        blocked: blockedReasons.length > 0,
+        blocked_reasons: blockedReasons,
       }
     })
   }
@@ -190,6 +227,50 @@ Deno.serve(async (request) => {
     ?? (typeof targetAuth.user.user_metadata?.full_name === 'string'
       ? targetAuth.user.user_metadata.full_name
       : null)
+
+  // Uma conta que ainda seja school_admin de qualquer escola existente não
+  // pode ter o login cancelado nem ser excluída permanentemente: o vínculo
+  // cai em cascata (school_members.user_id ON DELETE CASCADE) e a escola
+  // fica administrativamente órfã. Vale mesmo se a escola estiver suspensa
+  // ou arquivada — ainda pode ser restaurada. Não se calcula se existe
+  // outro administrador: a regra vale para qualquer vínculo school_admin,
+  // sem exceção.
+  const { data: adminMemberships, error: adminMembershipsError } = await admin
+    .from('school_members')
+    .select('school_id, schools(name)')
+    .eq('user_id', userId)
+    .eq('role', 'school_admin')
+  if (adminMembershipsError) {
+    return json(request, { error: 'Não foi possível validar os vínculos administrativos desta conta.' }, 500)
+  }
+  if ((adminMemberships ?? []).length > 0) {
+    return json(request, {
+      error: 'Esta conta administra uma ou mais escolas. Transfira a administração dessas escolas antes de bloquear ou excluir a conta.',
+    }, 400)
+  }
+
+  // school_invitations.email não tem FK para auth.users — um convite
+  // pendente (de qualquer papel: coordinator/teacher têm o mesmo risco de
+  // school_admin, já que nada os liga à conta original) sobrevive à
+  // exclusão do Auth e pode ser aceito depois por uma conta futura e
+  // diferente que venha a controlar o mesmo e-mail. cancel_login também
+  // chama deleteUser() logo abaixo, então a mesma checagem vale para as
+  // duas ações. Bloqueia e informa — nunca cancela convites silenciosamente
+  // aqui.
+  const { data: pendingInvitations, error: pendingInvitationsError } = await admin
+    .from('school_invitations')
+    .select('id, role, school_id, schools(name)')
+    .eq('email', targetEmail.trim().toLowerCase())
+    .eq('status', 'pending')
+    .gt('expires_at', new Date().toISOString())
+  if (pendingInvitationsError) {
+    return json(request, { error: 'Não foi possível validar os convites pendentes desta conta.' }, 500)
+  }
+  if ((pendingInvitations ?? []).length > 0) {
+    return json(request, {
+      error: 'Esta conta possui convites pendentes em uma ou mais escolas. Cancele esses convites antes de bloquear ou excluir a conta.',
+    }, 400)
+  }
 
   const { data: previousAccess, error: previousAccessError } = await admin
     .from('platform_account_access')
