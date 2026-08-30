@@ -36,7 +36,8 @@
     account_permanently_deleted: 'Conta excluída permanentemente',
     school_archived: 'Escola arquivada',
     school_restored: 'Escola restaurada',
-    school_permanently_deleted: 'Escola excluída permanentemente'
+    school_permanently_deleted: 'Escola excluída permanentemente',
+    plan_catalog_updated: 'Catálogo de planos atualizado'
   };
 
   function esc(value) {
@@ -96,6 +97,14 @@
       .platform-account-result .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
       .platform-account-result .danger { background:#b42318; color:#fff; border-color:#b42318; }
       .platform-plan-modal { width:min(520px,100%); }
+      .platform-plans-visibility { padding:16px; }
+      .platform-plans-visibility .check { display:flex; align-items:center; gap:9px; font-weight:650; }
+      .platform-plans-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; padding:0 22px 20px; }
+      .platform-plan-card { display:grid; gap:9px; padding:16px; border:1px solid var(--line); border-radius:11px; background:#f8faff; }
+      .platform-plan-card-head { display:flex; justify-content:space-between; align-items:baseline; }
+      .platform-plan-card-head .meta { font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+      .platform-plan-card .field { margin:0; }
+      .platform-plan-card .check { display:flex; align-items:center; gap:8px; font-size:13px; }
       @media(max-width:800px) {
         .platform-modal { width:100%; max-height:100vh; border-radius:0; }
         .platform-modal .form { padding:18px 14px; }
@@ -127,7 +136,18 @@
         </div>
         <div class="form">
           <div id="platformStats" class="platform-stats"></div>
-          <form id="platformSchoolForm" class="platform-school-form">
+          <section class="panel">
+            <div class="head"><h3>Oferta pública dos planos</h3></div>
+            <div class="platform-plans-visibility">
+              <label class="check"><input id="platformShowSubscription" type="checkbox"> Mostrar os planos do Carômetro na tela de login</label>
+              <p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p>
+            </div>
+          </section>
+          <section class="panel" style="margin-top:22px">
+            <div class="head"><h3>Planos do Carômetro</h3></div>
+            <div id="platformPlansList" class="platform-plans-list"></div>
+          </section>
+          <form id="platformSchoolForm" class="platform-school-form" style="margin-top:22px">
             <div class="field"><label for="platformSchoolName">Nome da escola</label><input id="platformSchoolName" maxlength="160" required></div>
             <div class="field"><label for="platformSchoolAdminEmail">E-mail do administrador</label><input id="platformSchoolAdminEmail" type="email" required></div>
             <div class="field"><label for="platformSchoolPlan">Plano</label><select id="platformSchoolPlan"><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
@@ -192,6 +212,7 @@
     modal.querySelector('#platformSchoolForm').onsubmit = provisionSchool;
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
+    modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
     modal.onclick = event => {
       if (event.target === modal) {
         modal.classList.add('hidden');
@@ -263,6 +284,131 @@
       modal.classList.add('hidden');
       toast('Plano alterado com sucesso.');
       await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  // Reutiliza exatamente a coluna/RPC já existentes (platform_settings.
+  // show_subscription / platform_set_subscription_visibility) — mesma
+  // fonte de verdade do botão antigo em subscription-settings.js, nunca
+  // uma configuração paralela.
+  //
+  // Três estados são possíveis na leitura, e cada um precisa de um
+  // resultado visual diferente — em especial, um erro de consulta
+  // (rede/RLS) NUNCA pode aparecer como "Ligado": isso mostraria ao
+  // proprietário uma configuração que não foi realmente confirmada.
+  //   - linha existe -> reflete o valor real (true/false).
+  //   - linha inexistente -> mesmo padrão legado já usado em
+  //     subscription-settings.js (trata como visível), pois este é um
+  //     estado que o sistema já suporta hoje.
+  //   - erro na consulta -> nunca marca como ligado; desabilita o
+  //     controle e mostra mensagem de estado indisponível.
+  function describeSubscriptionVisibility(result) {
+    if (result.error) return { state:'error', message:result.error.message };
+    if (!result.data) return { state:'missing' };
+    return { state:'known', value:result.data.show_subscription === true };
+  }
+
+  function refreshShowSubscriptionToggle(status) {
+    const checkbox = document.getElementById('platformShowSubscription');
+    const errorNote = document.getElementById('platformShowSubscriptionError');
+    if (!checkbox) return;
+    if (status.state === 'error') {
+      checkbox.checked = false;
+      checkbox.indeterminate = true;
+      checkbox.disabled = true;
+      if (errorNote) {
+        errorNote.textContent = 'Não foi possível confirmar esta configuração agora. Tente novamente.';
+        errorNote.classList.remove('hidden');
+      }
+      return;
+    }
+    checkbox.indeterminate = false;
+    checkbox.disabled = false;
+    if (errorNote) errorNote.classList.add('hidden');
+    checkbox.checked = status.state === 'missing' ? true : status.value;
+  }
+
+  async function toggleShowSubscription(event) {
+    const checkbox = event.currentTarget;
+    const show = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_subscription_visibility', { p_show_subscription: show });
+      if (error) { checkbox.checked = !show; toast(error.message); return; }
+      toast(show ? 'Planos exibidos na tela de login.' : 'Planos ocultados da tela de login.');
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
+
+  function planCardHtml(plan) {
+    const priceValue = plan.price === null || plan.price === undefined ? '' : plan.price;
+    return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}">
+      <div class="platform-plan-card-head"><b>${esc(plan.display_name)}</b><span class="meta">${esc(plan.plan_key)}</span></div>
+      <div class="field"><label>Nome</label><input data-field="display_name" value="${esc(plan.display_name)}" required></div>
+      <div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>
+      <div class="field"><label>Descrição</label><input data-field="description" value="${esc(plan.description || '')}"></div>
+      <div class="field"><label>Texto do botão</label><input data-field="cta_label" value="${esc(plan.cta_label)}" required></div>
+      <div class="field"><label>Ordem</label><input data-field="display_order" type="number" min="1" step="1" value="${esc(plan.display_order)}" required></div>
+      <label class="check"><input data-field="highlighted" type="checkbox" ${plan.highlighted ? 'checked' : ''}> Destacar como recomendado</label>
+      <label class="check"><input data-field="contact_only" type="checkbox" ${plan.contact_only ? 'checked' : ''}> Somente contato / Sob consulta</label>
+      <button class="btn primary" type="submit">Salvar alterações</button>
+    </form>`;
+  }
+
+  function renderPlans(plans) {
+    const target = document.getElementById('platformPlansList');
+    if (!target) return;
+    target.innerHTML = (plans || []).map(planCardHtml).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
+    target.querySelectorAll('.platform-plan-card').forEach(form => {
+      form.onsubmit = savePlanDetails;
+    });
+  }
+
+  async function refreshPlansSection() {
+    const { data, error } = await db.from('platform_plans').select('*').order('display_order');
+    if (error) { toast(error.message); return; }
+    renderPlans(data || []);
+  }
+
+  async function savePlanDetails(event) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const planKey = form.dataset.planKey;
+    const field = name => form.querySelector(`[data-field="${name}"]`);
+    const displayName = field('display_name').value.trim();
+    const priceRaw = field('price').value.trim();
+    const price = priceRaw === '' ? null : Number(priceRaw);
+    const description = field('description').value.trim();
+    const ctaLabel = field('cta_label').value.trim();
+    const displayOrder = Number(field('display_order').value);
+    const highlighted = field('highlighted').checked;
+    const contactOnly = field('contact_only').checked;
+    if (!displayName || !ctaLabel) { toast('Preencha o nome e o texto do botão.'); return; }
+    if (price !== null && (!Number.isFinite(price) || price < 0)) { toast('Informe um preço válido, ou deixe em branco para "sob consulta".'); return; }
+    if (!Number.isInteger(displayOrder) || displayOrder < 1) { toast('Informe uma ordem de apresentação válida.'); return; }
+
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_plan_details', {
+        p_plan_key: planKey,
+        p_display_name: displayName,
+        p_price: price,
+        p_description: description || null,
+        p_cta_label: ctaLabel,
+        p_highlighted: highlighted,
+        p_contact_only: contactOnly,
+        p_display_order: displayOrder
+      });
+      if (error) { toast(error.message); return; }
+      toast('Plano atualizado.');
+      // Relê o banco (em vez de só atualizar este card): marcar este plano
+      // como destaque pode ter removido o destaque de outro, então os
+      // demais cards precisam refletir isso também.
+      await refreshPlansSection();
     } finally {
       button.disabled = false;
     }
@@ -538,6 +684,9 @@
     const next = entry.new_state || {};
     if (entry.event_type === 'school_permanently_deleted') {
       return `${next.students_removed ?? 0} aluno(s), ${next.classes_removed ?? 0} turma(s) e ${next.storage_objects_removed ?? 0} arquivo(s) removidos`;
+    }
+    if (entry.event_type === 'plan_catalog_updated') {
+      return `${next.display_name ?? next.plan_key ?? 'Plano'} (${next.plan_key ?? ''})`;
     }
     const key = Object.prototype.hasOwnProperty.call(next, 'status')
       ? 'status'
@@ -843,11 +992,13 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
-      db.from('platform_school_deletion_jobs').select('school_id, status, error_message, updated_at')
+      db.from('platform_school_deletion_jobs').select('school_id, status, error_message, updated_at'),
+      db.from('platform_plans').select('*').order('display_order'),
+      db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle()
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -869,6 +1020,8 @@
     renderStats(summary);
     renderSchools(schoolsResult.data || [], jobsBySchoolId);
     renderAudit(auditResult.data || [], auditResult.error);
+    if (!plansResult.error) renderPlans(plansResult.data || []);
+    refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }
 
