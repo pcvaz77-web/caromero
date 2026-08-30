@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let assignments = [];
   let ownAssignments = [];
   let registeredUsers = [];
+  let ownProfile = null;
   let editingCounselorId = null;
   let lastLoadError = '';
   // Fonte de autorização de "Gerenciar Conselheiros": exclusivamente a RPC
@@ -79,14 +80,27 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeManager(); };
 
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value || ''; return element.innerHTML; };
-  const counselorName = item => item.counselor_name?.trim() || item.full_name?.trim() || item.profiles?.full_name?.trim() || item.email || item.profiles?.email || 'Usuário';
+  // class_counselors não guarda nome — só a identidade (counselor_user_id).
+  // O nome vem sempre de profiles.full_name, via os candidatos já
+  // carregados (registeredUsers, de list_counselor_candidates) ou, quando a
+  // pessoa não é candidata visível (ex.: professor não-coordenador vendo o
+  // próprio vínculo, sem autorização para listar candidatos), do próprio
+  // perfil autenticado (ownProfile) — nunca de uma cópia armazenada.
+  const resolveName = candidate => candidate?.full_name?.trim() || candidate?.email || 'Usuário';
+  const counselorDisplayName = userId => {
+    if (!userId) return null;
+    const candidate = registeredUsers.find(item => item.user_id === userId);
+    if (candidate) return resolveName(candidate);
+    if (ownProfile?.id === userId) return resolveName(ownProfile);
+    return null;
+  };
   // Fonte única: can_manage_class_counselors(target_school_id) já garante
   // role='coordinator' AND status='active' AND escola correta (e exclui
   // school_admin) — nada disso é reimplementado aqui.
   const canManageCounselors = () => !!counselorAuthorized;
   window.counselorCanManage = canManageCounselors;
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
-  const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => item.counselor_name?.trim()).filter(Boolean);
+  const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => counselorDisplayName(item.counselor_user_id)).filter(Boolean);
   const drawCounselorLabels = () => {
     document.querySelectorAll('#classList button').forEach(button => {
       const classId = button.getAttribute('onclick')?.match(/selectClass\('([^']+)'\)/)?.[1];
@@ -131,19 +145,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const enforceCounselorInterface = () => {};
 
+  async function refreshOwnProfile(userId) {
+    if (ownProfile?.id === userId) return;
+    const { data } = await db.from('profiles').select('full_name,email').eq('id', userId).maybeSingle();
+    ownProfile = { id: userId, full_name: data?.full_name || null, email: data?.email || null };
+  }
+
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
     await refreshCounselorMembership();
     syncCounselorNavigation();
+    await refreshOwnProfile(signedInUser.id);
     if (!counselorMembership) return;
-    const { data, error } = await db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id);
+    // Carrega os candidatos (fonte do nome) junto com os vínculos sempre que
+    // autorizado, para que a etiqueta "Conselheiro ..." na lista de turmas
+    // já resolva o nome mesmo sem o usuário nunca ter aberto o modal
+    // "Gerenciar Conselheiros" nesta sessão.
+    const [{ data, error }, usersResult] = await Promise.all([
+      db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id),
+      counselorAuthorized
+        ? db.rpc('list_counselor_candidates', { target_school_id: counselorMembership.school_id })
+        : Promise.resolve({ data: null, error: null }),
+    ]);
     if (error) {
       if (lastLoadError !== error.message) toast(`Não foi possível carregar os conselheiros: ${error.message}`);
       lastLoadError = error.message;
       return;
     }
     lastLoadError = '';
+    if (counselorAuthorized && !usersResult.error) registeredUsers = usersResult.data || [];
     const previous = JSON.stringify(assignments);
     assignments = data || [];
     ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
@@ -166,13 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderManager() {
     const classSelect = document.getElementById('counselorClass');
     classSelect.innerHTML = '<option value="" selected disabled>Selecione a turma</option>' + classes.map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('');
-    const sortedUsers = [...registeredUsers].sort((first, second) => counselorName(first).localeCompare(counselorName(second), 'pt-BR', { sensitivity:'base' }));
-    document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário</option>' + sortedUsers.map(item => `<option value="${item.user_id}">${escapeHtml(counselorName(item))}</option>`).join('');
+    const sortedUsers = [...registeredUsers].sort((first, second) => resolveName(first).localeCompare(resolveName(second), 'pt-BR', { sensitivity:'base' }));
+    document.getElementById('counselorUser').innerHTML = '<option value="" selected disabled>Selecione o usuário</option>' + sortedUsers.map(item => `<option value="${item.user_id}">${escapeHtml(resolveName(item))}</option>`).join('');
     document.getElementById('counselorList').innerHTML = assignments.length ? assignments.map(item => {
-      const person = registeredUsers.find(userItem => userItem.user_id === item.counselor_user_id);
       const currentClass = classes.find(classItem => classItem.id === item.class_id);
       const registered = !!item.counselor_user_id;
-      return `<article class="counselor-item"><div><b>${escapeHtml(counselorName(person || item))}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${registered ? 'Usuário cadastrado' : 'Registro antigo sem conta'}</div></div><div class="counselor-actions">${registered ? `<button class="btn secondary" type="button" data-edit-counselor-id="${item.id}">Editar</button>` : ''}<button class="delete" type="button" data-counselor-id="${item.id}">Excluir</button></div></article>`;
+      return `<article class="counselor-item"><div><b>${escapeHtml(counselorDisplayName(item.counselor_user_id) || 'Usuário')}</b><div class="meta">${escapeHtml(currentClass?.name || 'Turma removida')} · ${registered ? 'Usuário cadastrado' : 'Registro antigo sem conta'}</div></div><div class="counselor-actions">${registered ? `<button class="btn secondary" type="button" data-edit-counselor-id="${item.id}">Editar</button>` : ''}<button class="delete" type="button" data-counselor-id="${item.id}">Excluir</button></div></article>`;
     }).join('') : '<div class="empty">Nenhum conselheiro cadastrado.</div>';
   }
 
@@ -209,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectedUser = registeredUsers.find(item => item.user_id === userChoice);
     if (!selectedUser) { toast('Selecione um usuário cadastrado como conselheiro.'); return; }
     if (!counselorMembership) { toast('Selecione uma escola antes de gerenciar conselheiros.'); return; }
-    const row = { school_id:counselorMembership.school_id, class_id:document.getElementById('counselorClass').value, counselor_user_id:selectedUser.user_id, counselor_name:counselorName(selectedUser) };
+    const row = { school_id:counselorMembership.school_id, class_id:document.getElementById('counselorClass').value, counselor_user_id:selectedUser.user_id };
     const request = editingCounselorId
       ? db.from('class_counselors').update(row).eq('id', editingCounselorId).eq('school_id', counselorMembership.school_id)
       : selectedUser
