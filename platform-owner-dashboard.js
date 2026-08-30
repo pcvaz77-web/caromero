@@ -358,9 +358,13 @@
     </form>`;
   }
 
-  function renderPlans(plans) {
+  function renderPlans(plans, error) {
     const target = document.getElementById('platformPlansList');
     if (!target) return;
+    if (error) {
+      target.innerHTML = '<div class="error">Não foi possível carregar os planos agora. Tente novamente.</div>';
+      return;
+    }
     target.innerHTML = (plans || []).map(planCardHtml).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
     target.querySelectorAll('.platform-plan-card').forEach(form => {
       form.onsubmit = savePlanDetails;
@@ -1020,7 +1024,7 @@
     renderStats(summary);
     renderSchools(schoolsResult.data || [], jobsBySchoolId);
     renderAudit(auditResult.data || [], auditResult.error);
-    if (!plansResult.error) renderPlans(plansResult.data || []);
+    renderPlans(plansResult.data || [], plansResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }
