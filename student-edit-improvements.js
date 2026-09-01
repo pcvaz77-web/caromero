@@ -128,6 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
+  let positiveObservationLabels = new Set();
   const normalizeObservation = value => {
     try {
       const parsed = JSON.parse(value);
@@ -179,6 +180,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const values = decodeObservationValues(student?.report);
     const laudos = values.filter(observationIndicatesLaudo);
     const isRepresentative = values.includes('Representante de turma');
+    const positiveLabels = values.filter(value => positiveObservationLabels.has(value) && !laudos.includes(value) && value !== 'Representante de turma');
     subtitle.replaceChildren();
     subtitle.classList.toggle('student-laudo-label', laudos.length > 0);
     laudos.forEach((text, index) => {
@@ -194,7 +196,14 @@ document.addEventListener('DOMContentLoaded', () => {
       representative.textContent = 'Representante de turma';
       subtitle.appendChild(representative);
     }
-    subtitle.classList.toggle('hidden', !laudos.length && !isRepresentative);
+    positiveLabels.forEach(text => {
+      if (subtitle.childNodes.length) subtitle.appendChild(document.createElement('br'));
+      const positive = document.createElement('span');
+      positive.className = 'positive-highlight-label';
+      positive.textContent = /⭐/.test(text) ? text : `${text} ⭐`;
+      subtitle.appendChild(positive);
+    });
+    subtitle.classList.toggle('hidden', !laudos.length && !isRepresentative && !positiveLabels.length);
   };
   const syncStudentCardLaudoLabels = () => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -230,7 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
   reportField.appendChild(manageObservations);
   const observationManager = document.createElement('div');
   observationManager.className = 'photo-picker observation-manager-overlay hidden';
-  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Necessita acompanhamento"><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
+  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="positive-observation-toggle"><input id="newObservationPositive" type="checkbox"> <span><b>Destacar como elogio ⭐</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const observationChoices = document.createElement('div');
@@ -250,27 +259,35 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderCustomObservations = () => {
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
-      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
+      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><label class="custom-positive-toggle"><input type="checkbox" data-positive-id="${option.id}" ${option.isPositiveHighlight ? 'checked' : ''}> Elogio ⭐</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
       : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
   async function loadObservationOptions() {
     if (observationOptionsLoaded) return;
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { observations = [fallbackObservations[0]]; observationOptionsLoaded = true; return; }
-    let query = db.from('observation_options').select('id,label').order('display_order').order('created_at');
+    let query = db.from('observation_options').select('id,label,is_positive_highlight').order('display_order').order('created_at');
     query = query.eq('school_id', schoolId);
     const { data, error } = await query;
     if (error) return;
-    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false }))];
+    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false, isPositiveHighlight: item.is_positive_highlight === true }))];
+    positiveObservationLabels = new Set(observations.filter(option => option.isPositiveHighlight).map(option => option.value));
     observationOptionsLoaded = true;
     const selected = selectedObservationValues();
     configureObservationField('report');
     configureObservationField('bulkReport');
     renderObservationChoices(selected);
     renderCustomObservations();
+    syncStudentCardLaudoLabels();
+    document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   }
   document.addEventListener('carometro:observations-changed', () => {
     observationOptionsLoaded = false;
+    loadObservationOptions();
+  });
+  document.addEventListener('carometro:school-context-ready', () => {
+    observationOptionsLoaded = false;
+    positiveObservationLabels = new Set();
     loadObservationOptions();
   });
   const observationColorClass = text => ({
@@ -280,9 +297,11 @@ document.addEventListener('DOMContentLoaded', () => {
     'Não alfabetizado': 'observation-literacy'
   }[text] || `observation-custom-${[...text].reduce((total, char) => total + char.codePointAt(0), 0) % 5}`);
   const paintObservation = pill => {
-      const text = pill.textContent.trim();
-      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4');
-      pill.classList.add(observationColorClass(text));
+      const text = pill.dataset.observationValue || pill.textContent.replace(/\s*⭐\s*$/, '').trim();
+      pill.dataset.observationValue = text;
+      pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4', 'observation-positive');
+      pill.classList.add(positiveObservationLabels.has(text) ? 'observation-positive' : observationColorClass(text));
+      pill.textContent = positiveObservationLabels.has(text) && !/⭐/.test(text) ? `${text} ⭐` : text;
   };
   const ensureStudentEditActions = () => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -314,14 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const studentCard = pill.closest('.student');
       const values = decodeObservations(pill.textContent.trim());
       const isRepresentative = values.includes('Representante de turma');
-      if (studentCard && isRepresentative) {
-        representatives.push(studentCard);
+      if (studentCard) {
+        if (isRepresentative) representatives.push(studentCard);
         const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
         const student = students.find(item => item.id === studentId);
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
         if (meta) renderSpecialStudentLabels(meta, student);
       }
-      // A lista exibe somente Laudo e Representante abaixo do nome.
+      // A lista exibe Laudo, Representante e elogios configurados abaixo do nome.
       // Todas as observações continuam disponíveis no card de detalhes.
       const labelArea = pill.parentElement;
       if (labelArea) {
@@ -625,6 +644,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .pill.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .representative-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; font-size:12px; font-weight:750; }
     .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
+    .positive-highlight-label,.pill.observation-positive { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; background:#d1fae5; color:#047857; font-size:12px; font-weight:750; }
     .student-observation-labels { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
     @media(max-width:800px) {
       #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
@@ -644,7 +664,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .observation-manager input { width:100%; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
-    .custom-observation-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
+    .custom-observation-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
+    .positive-observation-toggle,.custom-positive-toggle { display:flex; align-items:center; gap:8px; color:var(--navy); cursor:pointer; }
+    .positive-observation-toggle { padding:10px; border:1px solid #d9e2f1; border-radius:8px; background:#f8fffb; }
+    .positive-observation-toggle span { display:grid; gap:2px; }
+    .positive-observation-toggle small { color:var(--muted); font-size:12px; font-weight:500; }
+    .custom-positive-toggle { white-space:nowrap; font-size:12px; font-weight:700; }
     .delete-custom-observation { padding:5px 7px; border-radius:6px; background:#fff; border:1px solid #fecdca; color:var(--danger); font-size:12px; font-weight:700; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
@@ -869,6 +894,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await loadObservationOptions();
     renderCustomObservations();
     document.getElementById('newObservation').value = '';
+    document.getElementById('newObservationPositive').checked = false;
     observationManager.classList.remove('hidden');
   };
   document.getElementById('closeObservationManager').onclick = () => observationManager.classList.add('hidden');
@@ -877,6 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
     event.preventDefault();
     const input = document.getElementById('newObservation');
     const label = input.value.trim().replace(/\s+/g, ' ');
+    const isPositiveHighlight = document.getElementById('newObservationPositive').checked;
     if (!label) return;
     if (observations.some(option => option.value.toLocaleLowerCase('pt-BR') === label.toLocaleLowerCase('pt-BR'))) {
       toast('Essa observação já existe.');
@@ -884,18 +911,37 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { toast('Selecione uma escola antes de gerenciar observações.'); return; }
-    const { data, error } = await db.from('observation_options').insert({ school_id:schoolId, label, display_order: observations.length }).select('id,label').single();
+    const { data, error } = await db.from('observation_options').insert({ school_id:schoolId, label, display_order: observations.length, is_positive_highlight:isPositiveHighlight }).select('id,label,is_positive_highlight').single();
     if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
-    observations.push({ id: data.id, value: data.label, label: data.label, standard: false });
+    observations.push({ id: data.id, value: data.label, label: data.label, standard: false, isPositiveHighlight:data.is_positive_highlight === true });
+    positiveObservationLabels = new Set(observations.filter(option => option.isPositiveHighlight).map(option => option.value));
     const selected = selectedObservationValues();
     configureObservationField('report');
     configureObservationField('bulkReport');
     renderObservationChoices(selected);
     renderCustomObservations();
     input.value = '';
+    document.getElementById('newObservationPositive').checked = false;
+    syncStudentCardLaudoLabels();
     toast('Observação adicionada.');
   };
   document.getElementById('customObservationList').onclick = async event => {
+    const positiveToggle = event.target.closest('[data-positive-id]');
+    if (positiveToggle) {
+      const option = observations.find(item => item.id === positiveToggle.dataset.positiveId);
+      const schoolId = window.getActiveSchoolId?.();
+      if (!option || !schoolId) return;
+      positiveToggle.disabled = true;
+      const { error } = await db.from('observation_options').update({ is_positive_highlight:positiveToggle.checked }).eq('id', option.id).eq('school_id', schoolId);
+      positiveToggle.disabled = false;
+      if (error) { positiveToggle.checked = !positiveToggle.checked; toast(error.message); return; }
+      option.isPositiveHighlight = positiveToggle.checked;
+      positiveObservationLabels = new Set(observations.filter(item => item.isPositiveHighlight).map(item => item.value));
+      syncStudentCardLaudoLabels();
+      document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
+      toast(positiveToggle.checked ? 'Elogio fixado nos alunos.' : 'Destaque fixo removido.');
+      return;
+    }
     const button = event.target.closest('.delete-custom-observation');
     if (!button) return;
     const option = observations.find(item => item.id === button.dataset.id);
@@ -905,6 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.from('observation_options').delete().eq('id', option.id).eq('school_id', schoolId);
     if (error) { toast(error.message); return; }
     observations = observations.filter(item => item.id !== option.id);
+    positiveObservationLabels = new Set(observations.filter(item => item.isPositiveHighlight).map(item => item.value));
     const selected = selectedObservationValues().filter(value => value !== option.value);
     configureObservationField('report');
     configureObservationField('bulkReport');

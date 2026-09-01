@@ -142,14 +142,14 @@ Deno.serve(async (request) => {
 
     const [
       { data: profile, error: profileError },
-      { count: membershipCount, error: membershipError },
+      { data: schoolMemberships, error: membershipError },
       { data: access, error: accessError },
       { data: owner, error: ownerError },
       { data: adminSchools, error: adminSchoolsError },
       { data: pendingInvitations, error: pendingInvitationsError },
     ] = await Promise.all([
       admin.from('profiles').select('email,full_name').eq('id', targetAuth.id).maybeSingle(),
-      admin.from('school_members').select('id', { count:'exact', head:true }).eq('user_id', targetAuth.id),
+      admin.from('school_members').select('school_id, role, status, created_at, schools(name)').eq('user_id', targetAuth.id).order('created_at'),
       admin.from('platform_account_access').select('status').eq('user_id', targetAuth.id).maybeSingle(),
       admin.from('platform_admins').select('user_id').eq('user_id', targetAuth.id).eq('role', 'owner').limit(1).maybeSingle(),
       admin.from('school_members').select('school_id, schools(name)').eq('user_id', targetAuth.id).eq('role', 'school_admin'),
@@ -177,11 +177,20 @@ Deno.serve(async (request) => {
       user: {
         id: targetAuth.id,
         email: targetAuth.email,
-        full_name: profile?.full_name ?? null,
+        full_name: profile?.full_name ?? (typeof targetAuth.user_metadata?.full_name === 'string' ? targetAuth.user_metadata.full_name : null),
         confirmed: Boolean(targetAuth.email_confirmed_at),
-        memberships: membershipCount ?? 0,
+        memberships: (schoolMemberships ?? []).length,
+        created_at: targetAuth.created_at,
+        last_sign_in_at: targetAuth.last_sign_in_at ?? null,
         status: access?.status === 'suspended' ? 'suspended' : 'active',
         is_owner: Boolean(owner),
+        school_memberships: (schoolMemberships ?? []).map(row => ({
+          school_id: row.school_id,
+          school_name: (row.schools as { name?: string } | null)?.name ?? null,
+          role: row.role,
+          status: row.status,
+          created_at: row.created_at,
+        })),
         admin_schools: (adminSchools ?? []).map(row => ({
           school_id: row.school_id,
           school_name: (row.schools as { name?: string } | null)?.name ?? null,

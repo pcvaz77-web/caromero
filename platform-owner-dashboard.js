@@ -837,6 +837,13 @@
     const warnings = reasons.map(reason => `<p class="error">${esc(reason)}</p>`).join('');
     const adminSchools = user.admin_schools || [];
     const pendingInvitations = user.pending_invitations || [];
+    const memberships = user.school_memberships || [];
+    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
+    const membershipStatusLabels = { active:'Ativo', suspended:'Suspenso', pending:'Pendente' };
+    const formatDateTime = value => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(new Date(value)) : 'Não informado';
+    const membershipCards = memberships.length
+      ? memberships.map(item => `<div class="platform-account-membership"><strong>${esc(item.school_name || item.school_id)}</strong><span>${esc(roleLabels[item.role] || item.role)} · ${esc(membershipStatusLabels[item.status] || item.status)}</span></div>`).join('')
+      : '<p class="meta">Esta conta não possui vínculo escolar.</p>';
     const adminSchoolsLine = adminSchools.length
       ? `<p class="meta">Administra: ${adminSchools.map(s => esc(s.school_name || s.school_id)).join(', ')}</p>`
       : '';
@@ -845,7 +852,15 @@
       : '';
     target.innerHTML = `
       <strong>${esc(user.full_name || 'Conta sem nome cadastrado')}</strong>
-      <p class="meta">${esc(user.email)} · ${esc(user.memberships)} vínculo(s) escolar(es) · ${user.confirmed ? 'E-mail confirmado' : 'E-mail não confirmado'} · ${esc(STATUS_LABELS[user.status] || user.status)}</p>
+      <p class="meta">${esc(user.email)}</p>
+      <div class="platform-account-facts">
+        <div><span>Nome do usuário</span><strong>${esc(user.full_name || 'Não informado')}</strong></div>
+        <div><span>Conta criada em</span><strong>${esc(formatDateTime(user.created_at))}</strong></div>
+        <div><span>Situação da conta</span><strong>${esc(STATUS_LABELS[user.status] || user.status)}</strong></div>
+        <div><span>E-mail</span><strong>${user.confirmed ? 'Confirmado' : 'Não confirmado'}</strong></div>
+        <div><span>Último acesso</span><strong>${esc(formatDateTime(user.last_sign_in_at))}</strong></div>
+      </div>
+      <div class="platform-account-memberships"><b>Escolas e funções (${esc(user.memberships)})</b>${membershipCards}</div>
       ${adminSchoolsLine}
       ${pendingInvitationsLine}
       ${warnings}
