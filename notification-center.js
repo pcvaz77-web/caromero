@@ -286,24 +286,62 @@ document.addEventListener('DOMContentLoaded', () => {
     panel.classList.add('hidden');
   });
 
-  let activeUserId = null;
-  async function startNotificationCenter() {
+  let activeScope = null;
+  let channelGeneration = 0;
+  let reconnectTimer = null;
+  let reconnectAttempt = 0;
+  let openingPromise = null;
+  let reopenQueued = false;
+  let hasConnectedBefore = false;
+  let stopped = true;
+  let hiddenSince = null;
+  const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000];
+
+  const clearRetry = () => {
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  };
+  const scheduleReconnect = generation => {
+    if (stopped || generation !== channelGeneration) return;
+    clearRetry();
+    const delay = RETRY_DELAYS[Math.min(reconnectAttempt, RETRY_DELAYS.length - 1)];
+    reconnectAttempt += 1;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      if (!stopped && generation === channelGeneration) requestNotificationChannel(true);
+    }, delay);
+  };
+
+  async function openNotificationChannel(force) {
+    if (stopped || document.getElementById('app').classList.contains('hidden')) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     const schoolId = window.getActiveSchoolId?.();
     if (!signedInUser || !schoolId) { bell.classList.add('hidden'); return; }
     bell.classList.remove('hidden');
-    const activeScope = `${signedInUser.id}:${schoolId}`;
-    if (activeUserId === activeScope) return;
-    activeUserId = activeScope;
+    const scope = `${signedInUser.id}:${schoolId}`;
+    if (!force && channel && activeScope === scope) return;
+
+    channelGeneration += 1;
+    const generation = channelGeneration;
+    clearRetry();
+    if (channel) {
+      const oldChannel = channel;
+      channel = null;
+      await db.removeChannel(oldChannel);
+    }
+    if (stopped || generation !== channelGeneration) return;
+    activeScope = scope;
     await loadNotifications();
-    if (channel) await db.removeChannel(channel);
-    channel = db.channel(`notification-center-${signedInUser.id}-${schoolId}`)
+    channel = db.channel(`notification-center-${signedInUser.id}-${schoolId}-${generation}`)
       .on('postgres_changes', { event: 'INSERT', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
         if (payload.new.recipient_id !== signedInUser.id) return;
         notifications.unshift(payload.new);
         if (notifications.length > 50) notifications.length = 50;
         renderList();
         await refreshUnreadCount();
+        if (['occurrence', 'occurrence_deleted'].includes(payload.new.target_type)) {
+          document.dispatchEvent(new Event('carometro:occurrences-changed'));
+        }
       })
       .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
         if (payload.new.recipient_id !== signedInUser.id) return;
@@ -313,11 +351,76 @@ document.addEventListener('DOMContentLoaded', () => {
         renderList();
         await refreshUnreadCount();
       })
-      .subscribe();
+      .subscribe((status, error) => {
+        if (generation !== channelGeneration) return;
+        if (status === 'SUBSCRIBED') {
+          clearRetry();
+          reconnectAttempt = 0;
+          if (hasConnectedBefore) loadNotifications();
+          else hasConnectedBefore = true;
+        } else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) && !stopped) {
+          console.warn(`[Notificações] Canal encerrado inesperadamente (${status}).`, error || '');
+          scheduleReconnect(generation);
+        }
+      });
+  }
+
+  function requestNotificationChannel(force = false) {
+    if (stopped) return Promise.resolve();
+    if (openingPromise) { reopenQueued = reopenQueued || force; return openingPromise; }
+    openingPromise = (async () => {
+      let nextForce = force;
+      do {
+        reopenQueued = false;
+        await openNotificationChannel(nextForce);
+        nextForce = true;
+      } while (reopenQueued && !stopped);
+    })().catch(error => {
+      console.error('[Notificações] Falha ao abrir canal:', error);
+      scheduleReconnect(channelGeneration);
+    }).finally(() => { openingPromise = null; });
+    return openingPromise;
+  }
+
+  async function stopNotificationCenter() {
+    stopped = true;
+    clearRetry();
+    reconnectAttempt = 0;
+    hasConnectedBefore = false;
+    activeScope = null;
+    channelGeneration += 1;
+    bell.classList.add('hidden');
+    panel.classList.add('hidden');
+    if (channel) {
+      const oldChannel = channel;
+      channel = null;
+      await db.removeChannel(oldChannel);
+    }
+  }
+
+  async function startNotificationCenter() {
+    stopped = false;
+    await requestNotificationChannel(false);
   }
 
   new MutationObserver(() => {
     if (!document.getElementById('app').classList.contains('hidden')) startNotificationCenter();
-    else { bell.classList.add('hidden'); panel.classList.add('hidden'); activeUserId = null; }
+    else stopNotificationCenter();
   }).observe(document.getElementById('app'), { attributes: true, attributeFilter: ['class'] });
+  db.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT' || !session?.user) stopNotificationCenter();
+  });
+  window.addEventListener('online', () => {
+    if (!stopped) { clearRetry(); reconnectAttempt = 0; requestNotificationChannel(true); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { hiddenSince = Date.now(); return; }
+    const hiddenFor = hiddenSince ? Date.now() - hiddenSince : 0;
+    hiddenSince = null;
+    if (!stopped && hiddenFor >= 60000) {
+      clearRetry();
+      reconnectAttempt = 0;
+      requestNotificationChannel(true);
+    }
+  });
 });
