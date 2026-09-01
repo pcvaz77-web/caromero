@@ -12,10 +12,21 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasConnectedBefore = false;
   let stopped = true;
   let hiddenSince = null;
+  let revisionTimer = null;
+  let revisionPolling = false;
+  let lastRevisionId = null;
   const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
   const appIsOpen = () => !document.getElementById('app').classList.contains('hidden');
   const notify = name => document.dispatchEvent(new Event(name));
+  const handleSchoolEntityChange = entity => {
+    if (entity === 'student_occurrences') notify('carometro:occurrences-changed');
+    if (entity === 'observation_options') notify('carometro:observations-changed');
+    if (entity === 'class_counselors') {
+      window.refreshCounselorAssignments?.();
+      notify('carometro:permissions-changed');
+    }
+  };
   const runRefresh = async () => {
     if (refreshing) { refreshQueued = true; return; }
     if (!appIsOpen()) return;
@@ -30,6 +41,37 @@ document.addEventListener('DOMContentLoaded', () => {
   const refreshData = () => {
     clearTimeout(refreshTimer);
     refreshTimer = setTimeout(runRefresh, 120);
+  };
+  const pollSchoolRevisions = async () => {
+    if (stopped || revisionPolling || document.hidden || !appIsOpen() || navigator.onLine === false) return;
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) return;
+    revisionPolling = true;
+    try {
+      let query = db.from('school_realtime_events')
+        .select('id,entity_type')
+        .eq('school_id', schoolId)
+        .order('id', { ascending:false })
+        .limit(lastRevisionId === null ? 1 : 100);
+      if (lastRevisionId !== null) query = query.gt('id', lastRevisionId);
+      const { data, error } = await query;
+      if (error || !data?.length) return;
+      const newestId = Math.max(...data.map(item => Number(item.id)));
+      if (lastRevisionId !== null) {
+        new Set(data.map(item => item.entity_type)).forEach(handleSchoolEntityChange);
+        refreshData();
+      }
+      lastRevisionId = newestId;
+    } catch (error) {
+      console.warn('[Realtime] Não foi possível conferir revisões escolares.', error);
+    } finally {
+      revisionPolling = false;
+    }
+  };
+  const startRevisionChecks = () => {
+    if (revisionTimer) clearInterval(revisionTimer);
+    revisionTimer = setInterval(pollSchoolRevisions, 2500);
+    pollSchoolRevisions();
   };
   const clearRetry = () => {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -48,7 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function openOnce(force) {
-    if (stopped || !appIsOpen() || !db.channel) return;
+    // showApp() inicia o Realtime antes de revelar #app. A assinatura pode
+    // e deve ser aberta nesse intervalo; apenas a atualização visual precisa
+    // esperar a interface estar visível. Bloquear o canal aqui deixava
+    // principalmente celulares sem assinatura até uma recarga da página.
+    if (stopped || !db.channel) return;
     const { data:{ user } } = await db.auth.getUser();
     if (!user || stopped) return;
     const schoolId = window.getActiveSchoolId?.() || null;
@@ -77,12 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .on('postgres_changes', schoolChange('student_occurrences'), () => { notify('carometro:occurrences-changed'); refreshData(); })
         .on('postgres_changes', { event:'INSERT', schema:'public', table:'school_realtime_events', filter:`school_id=eq.${schoolId}` }, payload => {
           const entity = payload.new?.entity_type;
-          if (entity === 'student_occurrences') notify('carometro:occurrences-changed');
-          if (entity === 'observation_options') notify('carometro:observations-changed');
-          if (entity === 'class_counselors') {
-            window.refreshCounselorAssignments?.();
-            notify('carometro:permissions-changed');
-          }
+          lastRevisionId = Math.max(Number(lastRevisionId || 0), Number(payload.new?.id || 0));
+          handleSchoolEntityChange(entity);
           refreshData();
         });
     }
@@ -126,7 +168,10 @@ document.addEventListener('DOMContentLoaded', () => {
     reconnectAttempt = 0;
     hasConnectedBefore = false;
     activeScope = null;
+    lastRevisionId = null;
     generation += 1;
+    if (revisionTimer) clearInterval(revisionTimer);
+    revisionTimer = null;
     if (liveChannel) {
       const oldChannel = liveChannel;
       liveChannel = null;
@@ -139,13 +184,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolId = window.getActiveSchoolId?.() || null;
     const scope = `${signedInUser.id}:${schoolId || 'no-school'}`;
     stopped = false;
+    startRevisionChecks();
     await requestOpen(activeScope !== scope);
   };
+  const ensureRealtimeStarted = async () => {
+    if (!appIsOpen()) return;
+    const { data:{ user } } = await db.auth.getUser();
+    if (!user) return;
+    if (stopped) await window.startCarometroRealtime(user);
+    else requestOpen(!liveChannel);
+  };
+  new MutationObserver(ensureRealtimeStarted)
+    .observe(document.getElementById('app'), { attributes:true, attributeFilter:['class'] });
+  ensureRealtimeStarted();
   db.auth.onAuthStateChange((event, session) => {
     if (event === 'SIGNED_OUT' || !session?.user) stopRealtime();
   });
   window.addEventListener('online', () => {
-    if (!stopped) { clearRetry(); reconnectAttempt = 0; requestOpen(true); }
+    if (!stopped) { clearRetry(); reconnectAttempt = 0; requestOpen(true); pollSchoolRevisions(); }
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { hiddenSince = Date.now(); return; }
@@ -153,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hiddenSince = null;
     if (stopped) return;
     if (hiddenFor >= 60000) { clearRetry(); reconnectAttempt = 0; requestOpen(true); }
-    else refreshData();
+    pollSchoolRevisions();
+    refreshData();
   });
 });
