@@ -1,18 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const paymentUrl = 'https://mpago.la/299qqyC';
   const app = document.getElementById('app');
   const side = document.querySelector('.side');
   const originalShowApp = window.showApp;
   let accessChannel;
   let platformOwner = false;
+  let publicPlans = [];
+  let publicPlanFeatures = [];
+
+  if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
+    setTimeout(() => toast('Pagamento recebido pelo Mercado Pago. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
+    history.replaceState({}, document.title, location.pathname + location.hash);
+  }
 
   const style = document.createElement('style');
   style.textContent = `
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
-    .subscription-login-link { margin-top:12px; text-decoration:none; }
-    .subscription-summary { display:flex; justify-content:space-between; gap:16px; align-items:center; background:#f4f7ff; border:1px solid #dbe5ff; border-radius:10px; padding:16px; margin-bottom:20px; }
-    .subscription-summary b { font-size:17px; display:block; }
     .subscription-visibility { padding:12px; border:1px solid #dbe5ff; border-radius:9px; background:#f8faff; }
     .access-users { display:grid; gap:10px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
@@ -22,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .access-suspended { color:#b42318; font-weight:700; }
     .access-pending { color:#9a6b00; font-weight:700; }
     .access-unknown { color:#6b5bd6; font-weight:700; }
-    @media(max-width:800px) { .subscription-summary,.access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } }
+    @media(max-width:800px) { .access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } }
   `;
   document.head.appendChild(style);
 
@@ -33,19 +36,192 @@ document.addEventListener('DOMContentLoaded', () => {
   side.insertBefore(nav, document.getElementById('signOut'));
 
   const loginCard = document.querySelector('#login .card');
-  const subscribe = document.createElement('a');
-  subscribe.className = 'btn secondary full subscription-login-link';
-  subscribe.href = paymentUrl;
-  subscribe.target = '_blank';
-  subscribe.rel = 'noopener';
-  subscribe.textContent = 'Assinar CARÔMETRO — R$ 97/mês';
-  loginCard.querySelector('.hint').insertAdjacentElement('afterend', subscribe);
+  const plansButton = document.createElement('button');
+  plansButton.id = 'openPublicPlans';
+  plansButton.type = 'button';
+  plansButton.className = 'btn secondary full public-plans-login-button hidden';
+  plansButton.textContent = 'Conheça os planos do CARÔMETRO';
+  loginCard.querySelector('.hint').insertAdjacentElement('afterend', plansButton);
+
+  const publicPlansModal = document.createElement('div');
+  publicPlansModal.id = 'publicPlansModal';
+  publicPlansModal.className = 'public-plans-modal hidden';
+  publicPlansModal.innerHTML = `
+    <header class="public-plans-header">
+      <div class="public-plans-brand"><span>C</span><b>CARÔMETRO</b></div>
+      <button class="public-plans-close" type="button" aria-label="Voltar ao login">×</button>
+    </header>
+    <main class="public-plans-content">
+      <div class="public-plans-hero">
+        <span class="public-plans-eyebrow">PLANOS CARÔMETRO</span>
+        <h1>Escolha o plano ideal<br>para sua escola</h1>
+        <p>Planos flexíveis para escolas de todos os tamanhos. Comece com a estrutura adequada e evolua quando precisar.</p>
+      </div>
+      <div id="publicPlansGrid" class="public-plans-grid"></div>
+      <div class="public-plans-trust"><span>◇ Dados protegidos</span><span>☁ Acesso de qualquer lugar</span><span>♧ Suporte humano</span><span>↗ Evolução sem complicação</span></div>
+      <nav class="public-plans-legal" aria-label="Informações legais"><a href="legal.html#privacidade">Privacidade</a><a href="legal.html#cookies">Cookies</a><a href="legal.html#termos">Termos de Uso</a><a href="legal.html#suporte">Suporte</a></nav>
+      <footer class="public-plans-rights">© 2026 CARÔMETRO® · Todos os direitos reservados · Marca registrada</footer>
+    </main>`;
+  document.body.appendChild(publicPlansModal);
+  publicPlansModal.querySelector('.public-plans-close').onclick = () => publicPlansModal.classList.add('hidden');
+
+  const applicationModal = document.createElement('div');
+  applicationModal.id = 'schoolApplicationModal';
+  applicationModal.className = 'modal-bg school-application-bg hidden';
+  applicationModal.innerHTML = `<div class="modal school-application-modal">
+    <div class="modal-head"><div><h3>Comece com o CARÔMETRO</h3><p id="schoolApplicationPlanLabel" class="meta"></p></div><button class="close" type="button" aria-label="Fechar">×</button></div>
+    <form id="schoolApplicationForm" class="form">
+      <input id="schoolApplicationPlan" type="hidden">
+      <div class="application-honeypot" aria-hidden="true"><label>Website<input id="schoolApplicationWebsite" tabindex="-1" autocomplete="off"></label></div>
+      <p class="sub">Preencha os dados para solicitar a entrada da sua escola. Após a aprovação, o responsável receberá por e-mail o convite seguro para criar o acesso.</p>
+      <div class="grid">
+        <div class="field span"><label for="schoolApplicationName">Nome da escola</label><input id="schoolApplicationName" maxlength="160" required></div>
+        <div class="field span"><label for="schoolApplicationResponsible">Nome do responsável</label><input id="schoolApplicationResponsible" maxlength="160" autocomplete="name" required></div>
+        <div class="field"><label for="schoolApplicationEmail">E-mail</label><input id="schoolApplicationEmail" type="email" maxlength="320" autocomplete="email" required></div>
+        <div class="field"><label for="schoolApplicationPhone">Telefone / WhatsApp</label><input id="schoolApplicationPhone" type="tel" maxlength="40" autocomplete="tel" required></div>
+        <div class="field"><label for="schoolApplicationCity">Cidade</label><input id="schoolApplicationCity" maxlength="120" autocomplete="address-level2" required></div>
+        <div class="field"><label for="schoolApplicationState">UF</label><input id="schoolApplicationState" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="address-level1" placeholder="GO" required></div>
+        <div class="field span"><label for="schoolApplicationStudents">Quantidade estimada de alunos</label><input id="schoolApplicationStudents" type="number" min="0" max="1000000" step="1" required></div>
+      </div>
+      <label class="check school-application-legal"><input id="schoolApplicationLegal" type="checkbox" required> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
+      <p id="schoolApplicationError" class="error hidden"></p>
+      <div class="actions"><button class="btn secondary" type="button" data-cancel-application>Voltar</button><button class="btn primary" type="submit">Enviar solicitação</button></div>
+    </form>
+  </div>`;
+  document.body.appendChild(applicationModal);
+
+  function closeApplication() { applicationModal.classList.add('hidden'); }
+  applicationModal.querySelector('.close').onclick = closeApplication;
+  applicationModal.querySelector('[data-cancel-application]').onclick = closeApplication;
+  applicationModal.onclick = event => { if (event.target === applicationModal) closeApplication(); };
+
+  function openApplication(planKey) {
+    const plan = publicPlans.find(item => item.plan_key === planKey);
+    if (!plan) return;
+    const form = document.getElementById('schoolApplicationForm');
+    form.reset();
+    document.getElementById('schoolApplicationPlan').value = plan.plan_key;
+    document.getElementById('schoolApplicationPlanLabel').textContent = `Plano escolhido: ${plan.display_name} · ${formatPlanPrice(plan)}${plan.contact_only ? '' : '/mês'}`;
+    document.getElementById('schoolApplicationError').classList.add('hidden');
+    applicationModal.classList.remove('hidden');
+    document.getElementById('schoolApplicationName').focus();
+  }
+
+  document.getElementById('schoolApplicationForm').onsubmit = async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    const errorTarget = document.getElementById('schoolApplicationError');
+    button.disabled = true;
+    button.textContent = 'Enviando…';
+    errorTarget.classList.add('hidden');
+    try {
+      const studentsValue = document.getElementById('schoolApplicationStudents').value;
+      const planKey = document.getElementById('schoolApplicationPlan').value;
+      const { data:applicationId, error } = await db.rpc('submit_school_application', {
+        p_plan_key:planKey,
+        p_school_name:document.getElementById('schoolApplicationName').value.trim(),
+        p_responsible_name:document.getElementById('schoolApplicationResponsible').value.trim(),
+        p_email:document.getElementById('schoolApplicationEmail').value.trim(),
+        p_phone:document.getElementById('schoolApplicationPhone').value.trim(),
+        p_city:document.getElementById('schoolApplicationCity').value.trim(),
+        p_state:document.getElementById('schoolApplicationState').value.trim().toUpperCase(),
+        p_estimated_students:studentsValue === '' ? null : Number(studentsValue),
+        p_legal_accepted:document.getElementById('schoolApplicationLegal').checked,
+        p_website:document.getElementById('schoolApplicationWebsite').value
+      });
+      if (error) throw error;
+      if (['basic','professional'].includes(planKey)) {
+        button.textContent = 'Abrindo Mercado Pago…';
+        const { data:payment, error:paymentError } = await db.functions.invoke('create-mercado-pago-subscription', {
+          body:{ applicationId }
+        });
+        if (paymentError || payment?.error || !payment?.checkout_url) {
+          throw new Error(payment?.error || paymentError?.message || 'Não foi possível abrir o pagamento.');
+        }
+        location.assign(payment.checkout_url);
+        return;
+      }
+      closeApplication();
+      publicPlansModal.classList.add('hidden');
+      toast('Solicitação gratuita enviada. Após a aprovação, você receberá o convite por e-mail.');
+    } catch (error) {
+      errorTarget.textContent = error.message || 'Não foi possível enviar a solicitação.';
+      errorTarget.classList.remove('hidden');
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Enviar solicitação';
+    }
+  };
+
+  function formatPlanPrice(plan) {
+    if (plan.contact_only || plan.price === null || plan.price === undefined) return 'Sob consulta';
+    return Number(plan.price).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  }
+
+  function formatLimit(value, label) {
+    return value === null || value === undefined
+      ? `${label} ilimitados`
+      : `Até ${Number(value).toLocaleString('pt-BR')} ${label}`;
+  }
+
+  function renderPublicPlans() {
+    const grid = document.getElementById('publicPlansGrid');
+    if (!grid) return;
+    grid.innerHTML = publicPlans.map(plan => {
+      const features = publicPlanFeatures
+        .filter(item => item.plan_key === plan.plan_key && item.enabled)
+        .map(item => item.platform_features?.label || item.feature_key);
+      const benefits = [
+        formatLimit(plan.max_students, 'alunos'),
+        formatLimit(plan.max_staff, 'profissionais'),
+        formatLimit(plan.max_classes, 'turmas'),
+        ...features
+      ];
+      return `<article class="public-plan-card ${plan.highlighted ? 'highlighted' : ''}">
+        ${plan.highlighted ? '<span class="public-plan-highlight">MAIS ESCOLHIDO</span>' : ''}
+        <div class="public-plan-icon">${plan.plan_key === 'free' ? '◇' : plan.plan_key === 'basic' ? '♢' : plan.plan_key === 'professional' ? '★' : '▦'}</div>
+        <h2>${esc(plan.display_name)}</h2>
+        <p class="public-plan-description">${esc(plan.description || 'Uma opção flexível para sua escola.')}</p>
+        <strong class="public-plan-price">${esc(formatPlanPrice(plan))}${plan.price !== null && !plan.contact_only ? '<small>/mês</small>' : ''}</strong>
+        <button class="btn ${plan.highlighted ? 'primary' : 'secondary'} full" type="button" data-public-plan-cta="${esc(plan.plan_key)}">${esc(plan.cta_label || (plan.contact_only ? 'Fale conosco' : 'Começar'))}</button>
+        <ul>${benefits.map(item => `<li>✓ ${esc(item)}</li>`).join('')}</ul>
+      </article>`;
+    }).join('') || '<div class="empty">Os planos estão temporariamente indisponíveis.</div>';
+    grid.querySelectorAll('[data-public-plan-cta]').forEach(button => {
+      button.onclick = () => openApplication(button.dataset.publicPlanCta);
+    });
+  }
+
+  async function loadPublicPlans() {
+    const [plansResult, featuresResult] = await Promise.all([
+      db.from('platform_plans').select('*').eq('publicly_available', true).order('display_order'),
+      db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)')
+    ]);
+    if (plansResult.error) return false;
+    publicPlans = plansResult.data || [];
+    publicPlanFeatures = featuresResult.error ? [] : (featuresResult.data || []);
+    renderPublicPlans();
+    return publicPlans.length > 0;
+  }
+
+  plansButton.onclick = async () => {
+    plansButton.disabled = true;
+    try {
+      if (!publicPlans.length && !await loadPublicPlans()) {
+        toast('Não foi possível carregar os planos agora.');
+        return;
+      }
+      publicPlansModal.classList.remove('hidden');
+    } finally {
+      plansButton.disabled = false;
+    }
+  };
 
   // platform_settings.show_subscription representa a visibilidade da
-  // OFERTA PÚBLICA de planos do Carômetro. Hoje só controla este botão
-  // legado ("Assinar CARÔMETRO"), mas deve futuramente controlar toda a
-  // vitrine pública (Grátis / Básico / Profissional / Empresarial) — não
-  // criar outro campo/config para isso, reaproveitar sempre este mesmo.
+  // OFERTA PÚBLICA de planos do Carômetro. O link legado de preço único
+  // foi removido: esta flag será consumida pela vitrine baseada em
+  // platform_plans (Grátis / Básico / Profissional / Empresarial).
   //
   // Fail-closed deliberado: só mostra a oferta quando a leitura confirma
   // show_subscription === true. Erro de leitura e linha ausente também
@@ -55,22 +231,23 @@ document.addEventListener('DOMContentLoaded', () => {
   // login falhar, e o fallback então mostrava a oferta mesmo com
   // show_subscription=false. Uma falha de banco/permissão/rede nunca deve
   // fazer uma oferta comercial aparecer indevidamente.
-  async function refreshSubscriptionButton() {
+  async function readSubscriptionVisibility() {
     const { data, error } = await db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle();
     const visible = !error && data?.show_subscription === true;
-    subscribe.classList.toggle('hidden', !visible);
+    plansButton.classList.toggle('hidden', !visible);
+    if (!visible) publicPlansModal.classList.add('hidden');
     return visible;
   }
-  refreshSubscriptionButton();
+  readSubscriptionVisibility();
 
   const modal = document.createElement('div');
   modal.id = 'settingsModal';
   modal.className = 'modal-bg hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><h3>Configurações da plataforma</h3><button class="close" type="button">×</button></div><div class="form"><div class="subscription-summary"><div><b>Assinatura CARÔMETRO — R$ 97,00/mês</b><span class="meta">A liberação é feita pelo administrador após confirmar o pagamento.</span></div><a class="btn primary" href="${paymentUrl}" target="_blank" rel="noopener">Abrir assinatura</a></div><h4 style="margin:0 0 7px">Acesso dos usuários</h4><p class="sub" style="margin:0 0 15px">Suspenda quem não deve acessar. Você pode reativar a qualquer momento.</p><div id="accessUsers" class="access-users"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><h3>Configurações da plataforma</h3><button class="close" type="button">×</button></div><div class="form"><h4 style="margin:0 0 7px">Acesso dos usuários</h4><p class="sub" style="margin:0 0 15px">Suspenda quem não deve acessar. Você pode reativar a qualquer momento.</p><div id="accessUsers" class="access-users"></div></div></div>`;
   document.body.appendChild(modal);
   const subscriptionVisibility = document.createElement('label');
   subscriptionVisibility.className = 'check subscription-visibility';
-  subscriptionVisibility.innerHTML = '<input id="showSubscriptionButton" type="checkbox"> Exibir botão de assinatura na página de login';
+  subscriptionVisibility.innerHTML = '<input id="showSubscriptionButton" type="checkbox"> Disponibilizar a oferta pública de planos';
   modal.querySelector('h4').before(subscriptionVisibility);
   modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
@@ -148,7 +325,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const target = document.getElementById('accessUsers');
-    const showSubscription = await refreshSubscriptionButton();
+    const showSubscription = await readSubscriptionVisibility();
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
@@ -242,11 +419,10 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Execute primeiro a configuração de assinatura no Supabase.');
       return;
     }
-    await refreshSubscriptionButton();
-    toast(show ? 'Botão de assinatura exibido no login.' : 'Botão de assinatura ocultado do login.');
+    toast(show ? 'Oferta pública de planos habilitada.' : 'Oferta pública de planos desabilitada.');
   };
   document.addEventListener('carometro:platform-settings-changed', () => {
-    refreshSubscriptionButton();
+    readSubscriptionVisibility();
   });
   document.addEventListener('carometro:profiles-changed', () => {
     if (!modal.classList.contains('hidden') && isPlatformOwner()) openSettings();

@@ -1,2 +1,5 @@
 .push-secrets.local
 .push-webhook.local.sql
+.wrangler/
+supabase/.temp/
+tmp/
