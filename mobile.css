@@ -222,8 +222,6 @@
   .login input { min-height: 42px !important; padding: 9px 12px !important; }
   .login .forgot { margin-top: 10px !important; }
   .login .hint { margin-top: 12px !important; padding: 10px !important; }
-  .login .subscription-login-link { min-height: 40px !important; margin-top: 9px !important; font-size: 13px !important; }
-
   /* Login mobile: identificação limpa no topo e mensagem institucional no rodapé. */
   .login {
     position: relative !important;

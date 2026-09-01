@@ -16,6 +16,13 @@ function initializeSchoolContext() {
   modal.id = 'schoolContextModal'; modal.className = 'modal-bg school-context-modal hidden';
   modal.innerHTML = '<div class="modal"><div class="modal-head"><div><h3>Escolha a escola</h3><div class="meta">Selecione em qual escola você quer trabalhar agora.</div></div></div><div class="form"><div id="schoolContextList" class="school-context-list"></div></div></div>';
   document.body.appendChild(modal);
+  // Ao trocar uma escola que já está ativa, clicar no fundo apenas
+  // recolhe o seletor e preserva o contexto atual. Na primeira escolha
+  // obrigatória, o fundo não fecha: sem escola ativa a aplicação não pode
+  // carregar dados com segurança.
+  modal.onclick = event => {
+    if (event.target === modal && activeSchoolId) modal.classList.add('hidden');
+  };
   const roleLabel = role => role === 'school_admin' ? 'Administrador' : role === 'coordinator' ? 'Coordenador' : 'Professor(a)';
   const persist = id => { try { sessionStorage.setItem(STORAGE_KEY, id); } catch {} };
   function setActive(item) {

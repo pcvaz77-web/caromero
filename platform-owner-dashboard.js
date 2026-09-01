@@ -51,82 +51,8 @@
   }
 
   function injectStyle() {
-
-    if (document.getElementById('platformDashboardStyle')) {
-      return;
-    }
-
-    const style = document.createElement('style');
-    style.id = 'platformDashboardStyle';
-    style.textContent = `
-      .platform-modal { width:min(1180px,100%); }
-      .platform-modal .form { padding:23px 24px; }
-      .platform-stats { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; margin-bottom:24px; }
-      .platform-stats .stat strong { font-size:24px; }
-      .platform-table-wrap { width:100%; overflow-x:auto; padding:8px 22px 20px; }
-      .platform-table { width:100%; border-collapse:collapse; }
-      .platform-schools-table { min-width:850px; }
-      .platform-audit-table { min-width:680px; }
-      .platform-table th, .platform-table td { text-align:left; padding:11px 10px; border-bottom:1px solid var(--line); font-size:14px; }
-      .platform-table th { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.05em; font-weight:700; }
-      .platform-badge { font-size:12px; font-weight:750; border-radius:99px; padding:4px 9px; display:inline-flex; }
-      .platform-badge.active { background:#eaf8f1; color:#08784b; }
-      .platform-badge.suspended, .platform-badge.expired, .platform-badge.missing { background:#fee4e2; color:#b42318; }
-      .platform-badge.archived { background:#eef0f4; color:#5b6472; }
-      .platform-badge.free { background:#f1f4f8; color:#40516f; }
-      .platform-badge.basic, .platform-badge.professional, .platform-badge.enterprise { background:#eaf1ff; color:#315dbb; }
-      .platform-school-admin { display:block; margin-top:3px; color:var(--muted); font-size:12px; }
-      .platform-school-admin.pending { color:#b7791f; }
-      .platform-school-admin.none { font-style:italic; }
-      .platform-billing-contact { display:block; margin-top:3px; color:#315dbb; font-size:12px; }
-      .platform-billing-contact.none { font-style:italic; color:var(--muted); }
-      .platform-billing-contact .label { font-weight:700; }
-      .platform-billing-modal { width:min(480px,100%); }
-      .platform-archived-section { margin-top:26px; padding:0 22px 18px; }
-      .platform-archived-section .head h4 { margin:0 0 10px; font-size:14px; color:var(--muted); }
-      .platform-archived-item { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:12px 14px; border:1px solid var(--line); border-radius:9px; margin-bottom:8px; opacity:.85; flex-wrap:wrap; }
-      .platform-archived-item b { display:block; }
-      .platform-archived-item .platform-school-actions { display:flex; gap:8px; flex-wrap:wrap; }
-      .platform-job-note { margin:4px 0 0; font-size:12px; color:#b42318; font-weight:600; }
-      .platform-archive-modal { width:min(480px,100%); }
-      .platform-archive-modal .warning { background:#fef3f2; border:1px solid #fecdca; border-radius:9px; padding:12px 14px; font-size:13px; color:#7a271a; margin-bottom:16px; }
-      .platform-archive-modal .school-name-confirm { font-weight:800; }
-      .platform-archive-modal .ack-field label { display:flex; align-items:center; gap:8px; font-weight:600; font-size:13px; }
-      .platform-archive-modal .ack-field input[type="checkbox"] { width:auto; }
-      .platform-modal .btn.danger, .platform-archive-modal .btn.danger { background:#b42318; color:#fff; border-color:#b42318; }
-      .platform-head-actions { display:flex; justify-content:space-between; align-items:center; gap:12px; }
-      .platform-school-actions { white-space:nowrap; }
-      .platform-school-actions .btn { min-height:34px; padding:7px 10px; }
-      .platform-school-form { display:grid; grid-template-columns:1.4fr 1.4fr .8fr .7fr auto; gap:10px; align-items:end; margin-bottom:22px; padding:16px; border:1px solid var(--line); border-radius:11px; background:#f8faff; }
-      .platform-school-form .field { margin:0; }
-      .platform-account-form { display:grid; grid-template-columns:minmax(240px,1fr) auto; gap:10px; align-items:end; padding:16px; }
-      .platform-account-form .field { margin:0; }
-      .platform-account-result { margin:0 16px 18px; padding:14px; border:1px solid var(--line); border-radius:11px; background:#f8faff; }
-      .platform-account-result .actions { display:flex; flex-wrap:wrap; gap:9px; margin-top:12px; }
-      .platform-account-result .danger { background:#b42318; color:#fff; border-color:#b42318; }
-      .platform-plan-modal { width:min(520px,100%); }
-      .platform-plan-context { padding:14px 16px; margin-bottom:16px; border:1px solid var(--line); border-radius:9px; background:#f8faff; display:grid; gap:6px; font-size:13px; }
-      .platform-plan-context .label { font-weight:700; }
-      .platform-plan-modal .btn.danger-outline.full { margin-top:12px; }
-      .platform-plans-visibility { padding:16px; }
-      .platform-plans-visibility .check { display:flex; align-items:center; gap:9px; font-weight:650; }
-      .platform-plans-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:14px; padding:0 22px 20px; }
-      .platform-plan-card { display:grid; gap:9px; padding:16px; border:1px solid var(--line); border-radius:11px; background:#f8faff; }
-      .platform-plan-card-head { display:flex; justify-content:space-between; align-items:baseline; }
-      .platform-plan-card-head .meta { font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
-      .platform-plan-card .field { margin:0; }
-      .platform-plan-card .check { display:flex; align-items:center; gap:8px; font-size:13px; }
-      @media(max-width:800px) {
-        .platform-modal { width:100%; max-height:100vh; border-radius:0; }
-        .platform-modal .form { padding:18px 14px; }
-        .platform-stats { grid-template-columns:repeat(2,1fr); }
-        .platform-table-wrap { padding:8px 12px 16px; }
-        .platform-school-form { grid-template-columns:1fr; }
-        .platform-account-form { grid-template-columns:1fr; }
-      }
-    `;
-    document.head.appendChild(style);
-
+    // O visual do workspace vive em platform-owner-dashboard.css. Manter
+    // esta função preserva o contrato de inicialização do módulo.
   }
 
 
@@ -138,41 +64,50 @@
 
     const modal = document.createElement('div');
     modal.id = 'platformDashboardModal';
-    modal.className = 'modal-bg hidden';
+    modal.className = 'modal-bg platform-workspace-bg hidden';
     modal.innerHTML = `
-      <div class="modal platform-modal">
-        <div class="modal-head">
-          <h3>👑 Painel da Plataforma</h3>
-          <button class="close" type="button" data-close="platformDashboardModal">×</button>
-        </div>
-        <div class="form">
-          <div id="platformStats" class="platform-stats"></div>
-          <section class="panel">
-            <div class="head"><h3>Oferta pública dos planos</h3></div>
-            <div class="platform-plans-visibility">
-              <label class="check"><input id="platformShowSubscription" type="checkbox"> Exibir oferta de planos na área pública do Carômetro</label>
-              <p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p>
-            </div>
-          </section>
-          <section class="panel" style="margin-top:22px">
-            <div class="head"><h3>Planos do Carômetro</h3></div>
-            <div id="platformPlansList" class="platform-plans-list"></div>
-          </section>
-          <form id="platformSchoolForm" class="platform-school-form" style="margin-top:22px">
+      <div class="platform-workspace">
+        <aside class="platform-sidebar">
+          <div class="platform-brand"><span class="platform-brand-mark">C</span><div><strong>CARÔMETRO</strong><small>Plataforma</small></div></div>
+          <nav class="platform-nav" aria-label="Painel da plataforma">
+            <button type="button" class="active" data-platform-page="overview"><span class="platform-nav-icon">◈</span>Visão geral</button>
+            <button type="button" data-platform-page="schools"><span class="platform-nav-icon">▦</span>Escolas</button>
+            <button type="button" data-platform-page="applications"><span class="platform-nav-icon">✉</span>Novos clientes</button>
+            <button type="button" data-platform-page="subscriptions"><span class="platform-nav-icon">▣</span>Assinaturas</button>
+            <button type="button" data-platform-page="plans"><span class="platform-nav-icon">☆</span>Planos</button>
+            <button type="button" data-platform-page="contacts"><span class="platform-nav-icon">♧</span>Responsáveis</button>
+            <button type="button" data-platform-page="audit"><span class="platform-nav-icon">◷</span>Auditoria</button>
+            <button type="button" data-platform-page="settings"><span class="platform-nav-icon">⚙</span>Configurações</button>
+          </nav>
+          <div class="platform-sidebar-foot"><div class="platform-owner-chip"><span class="platform-owner-avatar">P</span><div><strong>Proprietário</strong><small>Dono da Plataforma</small></div></div></div>
+        </aside>
+        <div class="platform-shell">
+          <header class="platform-topbar">
+            <div style="display:flex;align-items:center;gap:12px"><button class="platform-menu-toggle" type="button" aria-label="Abrir menu">☰</button><div><h2 id="platformPageTitle">Olá, Proprietário! 👋</h2><p id="platformPageSubtitle">Aqui está o resumo da sua plataforma.</p></div></div>
+            <div class="platform-top-actions"><span class="platform-date" id="platformCurrentDate"></span><button class="platform-close" type="button" aria-label="Fechar painel">×</button></div>
+          </header>
+          <main class="platform-content">
+            <section class="platform-page active" data-platform-section="overview">
+              <div class="platform-stats" id="platformStats"></div>
+              <div class="platform-grid-2">
+                <section class="platform-panel"><div class="platform-panel-head"><h4>Escolas cadastradas</h4><button class="btn primary" type="button" data-go-page="schools">+ Nova escola</button></div><div class="platform-panel-body"><div id="platformOverviewSchools" class="platform-subscription-grid"></div></div></section>
+                <section class="platform-panel"><div class="platform-panel-head"><h4>Assinaturas por plano</h4></div><div id="platformPlanDistribution" class="platform-panel-body platform-plan-distribution"></div></section>
+              </div>
+            </section>
+            <section class="platform-page" data-platform-section="schools">
+              <div class="platform-page-heading"><div><h3>Escolas</h3><p>Cadastre e administre as escolas da plataforma.</p></div></div>
+              <section class="platform-panel"><div class="platform-panel-head"><h4>Nova escola</h4></div><form id="platformSchoolForm" class="platform-school-form">
             <div class="field"><label for="platformSchoolName">Nome da escola</label><input id="platformSchoolName" maxlength="160" required></div>
             <div class="field"><label for="platformSchoolAdminEmail">E-mail do administrador</label><input id="platformSchoolAdminEmail" type="email" required></div>
-            <div class="field"><label for="platformSchoolPlan">Plano</label><select id="platformSchoolPlan"><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
+            <div class="field"><label for="platformSchoolPlan">Plano</label><select id="platformSchoolPlan"></select></div>
             <div class="field"><label for="platformSchoolPrice">Preço mensal</label><input id="platformSchoolPrice" type="number" min="0" step="0.01" value="0" required></div>
             <button class="btn primary" type="submit">Criar escola</button>
-          </form>
+          </form></section>
           <div id="platformAdminInvite" class="hidden" style="margin:-6px 0 18px">
             <p id="platformAdminInviteStatus" class="meta"></p>
             <button id="platformAdminInviteRetry" class="btn secondary" type="button">Reenviar convite ao administrador</button>
           </div>
-          <section class="panel">
-            <div class="head">
-              <h3>Escolas cadastradas</h3>
-            </div>
+          <section class="platform-panel" style="margin-top:18px"><div class="platform-panel-head"><h4>Escolas cadastradas</h4></div>
             <div class="platform-table-wrap">
               <table class="platform-table platform-schools-table">
                 <thead>
@@ -190,48 +125,120 @@
               </table>
             </div>
             <div id="platformArchivedSection" class="platform-archived-section hidden">
-              <div class="head"><h4>Escolas arquivadas</h4></div>
+              <h4>Escolas arquivadas</h4>
               <div id="platformArchivedList"></div>
             </div>
           </section>
-          <section class="panel" style="margin-top:22px">
-            <div class="head"><h3>Gerenciar conta</h3></div>
+            </section>
+            <section class="platform-page" data-platform-section="applications"><div class="platform-page-heading"><div><h3>Novos clientes</h3><p>Solicitações enviadas pela vitrine pública de planos.</p></div></div><div id="platformApplicationsList" class="platform-applications-list"></div></section>
+            <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos pelo Mercado Pago</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
+            <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
+            <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
+            <section class="platform-page" data-platform-section="audit"><div class="platform-page-heading"><div><h3>Auditoria</h3><p>Operações administrativas registradas pela plataforma.</p></div></div>
+          <section class="platform-panel">
+            <div class="platform-panel-head"><h4>Gerenciar conta</h4></div>
             <form id="platformAccountForm" class="platform-account-form">
               <div class="field"><label for="platformAccountEmail">E-mail exato da conta</label><input id="platformAccountEmail" type="email" required autocomplete="off"></div>
               <button class="btn secondary" type="submit">Localizar conta</button>
             </form>
             <div id="platformAccountResult" class="platform-account-result hidden"></div>
           </section>
-          <section class="panel" style="margin-top:22px">
-            <div class="head">
-              <h3>Atividade administrativa recente</h3>
-            </div>
+          <section class="platform-panel" style="margin-top:18px">
+            <div class="platform-panel-head"><h4>Atividade administrativa recente</h4></div>
             <div class="platform-table-wrap">
               <table class="platform-table platform-audit-table">
                 <thead><tr><th>Data</th><th>Ação</th><th>Escola/conta</th><th>Alteração</th></tr></thead>
                 <tbody id="platformAuditBody"></tbody>
               </table>
             </div>
-          </section>
+          </section></section>
+          <section class="platform-page" data-platform-section="settings"><div class="platform-page-heading"><div><h3>Configurações</h3><p>Opções globais sustentadas pelo backend atual.</p></div></div><section class="platform-panel"><div class="platform-settings-row"><div><h4>Oferta pública dos planos</h4><p>Exibir a oferta de planos na área pública do Carômetro.</p><p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p></div><label class="platform-switch"><input id="platformShowSubscription" type="checkbox"><span></span></label></div></section></section>
+          </main>
         </div>
       </div>
     `;
 
     document.body.appendChild(modal);
 
-    modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
+    modal.querySelector('.platform-close').onclick = closeDashboard;
+    modal.querySelector('.platform-menu-toggle').onclick = event => {
+      event.stopPropagation();
+      const workspace = modal.querySelector('.platform-workspace');
+      if (window.matchMedia('(max-width: 800px)').matches) {
+        workspace.classList.toggle('menu-open');
+      } else {
+        workspace.classList.toggle('menu-collapsed');
+      }
+    };
+    modal.querySelectorAll('[data-platform-page]').forEach(button => button.onclick = () => showPlatformPage(button.dataset.platformPage));
+    modal.querySelectorAll('[data-go-page]').forEach(button => button.onclick = () => showPlatformPage(button.dataset.goPage));
     modal.querySelector('#platformSchoolForm').onsubmit = provisionSchool;
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
+    modal.querySelector('.platform-shell').onclick = event => {
+      if (event.target.closest('.platform-menu-toggle')) return;
+      const workspace = modal.querySelector('.platform-workspace');
+      if (window.matchMedia('(max-width: 800px)').matches) {
+        workspace.classList.remove('menu-open');
+      } else {
+        workspace.classList.add('menu-collapsed');
+      }
+    };
     modal.onclick = event => {
       if (event.target === modal) {
-        modal.classList.add('hidden');
+        closeDashboard();
       }
     };
 
     return modal;
 
+  }
+
+  const PLATFORM_PAGE_COPY = {
+    overview: ['Olá, Proprietário! 👋', 'Aqui está o resumo da sua plataforma.'],
+    schools: ['Escolas', 'Cadastre e administre as escolas do Carômetro.'],
+    applications: ['Novos clientes', 'Analise solicitações recebidas pela página de planos.'],
+    subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
+    plans: ['Planos', 'Configure o catálogo comercial da plataforma.'],
+    contacts: ['Responsáveis pela assinatura', 'Gerencie os contatos comerciais das escolas.'],
+    audit: ['Auditoria', 'Consulte as operações administrativas recentes.'],
+    settings: ['Configurações', 'Controle opções globais da plataforma.']
+  };
+
+  let cachedPlatformPlans = [];
+
+  function closeDashboard() {
+    document.getElementById('platformDashboardModal')?.classList.add('hidden');
+    document.querySelector('.platform-workspace')?.classList.remove('menu-open');
+    document.body.classList.remove('platform-workspace-open');
+  }
+
+  function showPlatformPage(page) {
+    const modal = document.getElementById('platformDashboardModal');
+    if (!modal || !PLATFORM_PAGE_COPY[page]) return;
+    modal.querySelectorAll('[data-platform-section]').forEach(section => {
+      section.classList.toggle('active', section.dataset.platformSection === page);
+    });
+    modal.querySelectorAll('[data-platform-page]').forEach(button => {
+      button.classList.toggle('active', button.dataset.platformPage === page);
+    });
+    const [title, subtitle] = PLATFORM_PAGE_COPY[page];
+    document.getElementById('platformPageTitle').textContent = title;
+    document.getElementById('platformPageSubtitle').textContent = subtitle;
+    const workspace = modal.querySelector('.platform-workspace');
+    workspace?.classList.remove('menu-open');
+    if (!window.matchMedia('(max-width: 800px)').matches) workspace?.classList.add('menu-collapsed');
+    modal.querySelector('.platform-content')?.scrollTo({ top:0, behavior:'smooth' });
+  }
+
+  function currency(value) {
+    if (value === null || value === undefined || value === '') return 'Sob consulta';
+    return Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  }
+
+  function limitLabel(value, singular, plural) {
+    return value === null || value === undefined ? `${plural} ilimitados` : `Até ${Number(value).toLocaleString('pt-BR')} ${Number(value) === 1 ? singular : plural}`;
   }
 
   // O plano contratado/concessão administrativa/plano efetivo mostrados
@@ -258,7 +265,7 @@
           </div>
           <p class="meta">Conceder ou alterar a concessão administrativa desta escola. Isso é uma decisão administrativa e não representa uma contratação financeira.</p>
           <form id="platformPlanForm">
-            <div class="field"><label for="platformPlanValue">Plano</label><select id="platformPlanValue" required><option value="free">Gratuito</option><option value="basic">Básico</option><option value="professional">Profissional</option><option value="enterprise">Empresarial</option></select></div>
+            <div class="field"><label for="platformPlanValue">Plano</label><select id="platformPlanValue" required></select></div>
             <div class="field"><label for="platformPlanReason">Motivo</label><input id="platformPlanReason" maxlength="500" placeholder="Ex.: cortesia, teste, parceria" required></div>
             <button id="platformPlanSubmit" class="btn primary full" type="submit">Salvar concessão</button>
           </form>
@@ -270,6 +277,7 @@
     modal.querySelector('#platformPlanForm').onsubmit = savePlanOverride;
     modal.querySelector('#platformPlanRemoveOverride').onclick = removePlanOverride;
     modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    syncPlanSelectors(cachedPlatformPlans);
     return modal;
   }
 
@@ -486,10 +494,12 @@
     }
   }
 
-  function planCardHtml(plan) {
+  function planCardHtml(plan, features) {
     const priceValue = plan.price === null || plan.price === undefined ? '' : plan.price;
-    return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}">
-      <div class="platform-plan-card-head"><b>${esc(plan.display_name)}</b><span class="meta">${esc(plan.plan_key)}</span></div>
+    const enabledFeatures = (features || []).filter(item => item.plan_key === plan.plan_key && item.enabled);
+    return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}" data-highlighted="${plan.highlighted === true}">
+      <div class="platform-plan-card-head"><b>${esc(plan.display_name)}</b><span class="platform-plan-price">${esc(currency(plan.price))}${plan.price === null || plan.contact_only ? '' : '<small style="font-size:11px;font-weight:600">/mês</small>'}</span><span class="meta">${esc(plan.plan_key)}</span></div>
+      <div class="platform-plan-limits"><span>✓ ${esc(limitLabel(plan.max_students, 'aluno', 'alunos'))}</span><span>✓ ${esc(limitLabel(plan.max_staff, 'profissional', 'profissionais'))}</span><span>✓ ${esc(limitLabel(plan.max_classes, 'turma', 'turmas'))}</span>${enabledFeatures.map(item => `<span>✓ ${esc(item.platform_features?.label || item.feature_key)}</span>`).join('')}</div>
       <div class="field"><label>Nome</label><input data-field="display_name" value="${esc(plan.display_name)}" required></div>
       <div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>
       <div class="field"><label>Descrição</label><input data-field="description" value="${esc(plan.description || '')}"></div>
@@ -501,23 +511,27 @@
     </form>`;
   }
 
-  function renderPlans(plans, error) {
+  function renderPlans(plans, error, features) {
     const target = document.getElementById('platformPlansList');
     if (!target) return;
     if (error) {
       target.innerHTML = '<div class="error">Não foi possível carregar os planos agora. Tente novamente.</div>';
       return;
     }
-    target.innerHTML = (plans || []).map(planCardHtml).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
+    target.innerHTML = (plans || []).map(plan => planCardHtml(plan, features)).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
     target.querySelectorAll('.platform-plan-card').forEach(form => {
       form.onsubmit = savePlanDetails;
     });
   }
 
   async function refreshPlansSection() {
-    const { data, error } = await db.from('platform_plans').select('*').order('display_order');
-    if (error) { toast(error.message); return; }
-    renderPlans(data || []);
+    const [plansResult, featuresResult] = await Promise.all([
+      db.from('platform_plans').select('*').order('display_order'),
+      db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)')
+    ]);
+    if (plansResult.error) { toast(plansResult.error.message); return; }
+    renderPlans(plansResult.data || [], null, featuresResult.error ? [] : (featuresResult.data || []));
+    syncPlanSelectors(plansResult.data || []);
   }
 
   async function savePlanDetails(event) {
@@ -1022,7 +1036,164 @@
   }
 
 
-  function renderStats(summary) {
+  function syncPlanSelectors(plans) {
+    cachedPlatformPlans = plans || [];
+    const options = cachedPlatformPlans.map(plan => `<option value="${esc(plan.plan_key)}">${esc(plan.display_name)}</option>`).join('');
+    const schoolSelect = document.getElementById('platformSchoolPlan');
+    if (schoolSelect) {
+      const current = schoolSelect.value;
+      schoolSelect.innerHTML = options;
+      if ([...schoolSelect.options].some(option => option.value === current)) schoolSelect.value = current;
+      schoolSelect.onchange = () => {
+      const selected = cachedPlatformPlans.find(plan => plan.plan_key === schoolSelect.value);
+      const price = document.getElementById('platformSchoolPrice');
+      if (price && selected?.price !== null && selected?.price !== undefined) price.value = selected.price;
+      };
+    }
+    const overrideSelect = document.getElementById('platformPlanValue');
+    if (overrideSelect) {
+      const current = overrideSelect.value;
+      overrideSelect.innerHTML = options;
+      if ([...overrideSelect.options].some(option => option.value === current)) overrideSelect.value = current;
+    }
+  }
+
+  function renderApplications(applications, paymentSubscriptions, error) {
+    const target = document.getElementById('platformApplicationsList');
+    if (!target) return;
+    if (error) {
+      target.innerHTML = '<div class="empty">O funil de novos clientes será exibido depois que a migration 060 for aplicada.</div>';
+      return;
+    }
+    const statusLabels = { pending:'Aguardando análise', approved:'Aprovada', rejected:'Recusada', cancelled:'Cancelada', expired:'Expirada' };
+    target.innerHTML = (applications || []).map(item => {
+      const plan = cachedPlatformPlans.find(entry => entry.plan_key === item.plan_key);
+      const payment = (paymentSubscriptions || []).find(entry => entry.application_id === item.id);
+      const paymentNote = payment ? `<p><b>Mercado Pago:</b> ${esc(payment.last_payment_status || payment.provider_status || payment.status)} · ${esc(currency(payment.amount))}/mês</p>` : '';
+      const actions = item.status === 'pending' && !payment
+        ? `<div class="platform-application-actions"><button class="btn primary" type="button" data-approve-application="${esc(item.id)}">Aprovar e enviar convite</button><button class="btn secondary" type="button" data-reject-application="${esc(item.id)}">Recusar</button></div>`
+        : item.status === 'pending' && payment
+          ? `<p class="meta">A ativação será automática somente após o pagamento aprovado pelo Mercado Pago.</p><div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Cancelar solicitação</button></div>`
+          : item.status === 'expired' && payment
+            ? `<div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Encerrar no Mercado Pago</button></div>`
+          : '';
+      return `<article class="platform-application-card">
+        <h4>${esc(item.school_name)} <span class="platform-badge ${esc(item.status)}">${esc(statusLabels[item.status] || item.status)}</span></h4>
+        <p><b>Plano:</b> ${esc(plan?.display_name || item.plan_key)} · <b>Alunos estimados:</b> ${esc(item.estimated_students ?? 'Não informado')}</p>
+        <p><b>Responsável:</b> ${esc(item.responsible_name)} · ${esc(item.email)} · ${esc(item.phone)}</p>
+        <p><b>Localidade:</b> ${esc(item.city)}/${esc(item.state)} · <b>Recebida em:</b> ${esc(new Date(item.created_at).toLocaleString('pt-BR'))}</p>
+        ${paymentNote}
+        ${actions}
+      </article>`;
+    }).join('') || '<div class="empty">Nenhuma solicitação recebida.</div>';
+
+    target.querySelectorAll('[data-approve-application]').forEach(button => {
+      button.onclick = async () => {
+        const application = applications.find(item => item.id === button.dataset.approveApplication);
+        if (!application || !confirm(`Aprovar ${application.school_name}, criar a escola e enviar o convite para ${application.email}?`)) return;
+        button.disabled = true;
+        button.textContent = 'Aprovando…';
+        try {
+          const { data, error: approveError } = await db.rpc('platform_approve_school_application', { p_application_id:application.id });
+          if (approveError) throw approveError;
+          if (data?.admin_state === 'invited' && data.invitation_id) {
+            await sendAdminInvite(data.invitation_id, data.admin_email);
+          } else {
+            toast('Solicitação aprovada e escola vinculada ao administrador.');
+          }
+          await openDashboard();
+          showPlatformPage('applications');
+        } catch (approveError) {
+          toast(approveError.message || 'Não foi possível aprovar a solicitação.');
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Aprovar e enviar convite';
+        }
+      };
+    });
+    target.querySelectorAll('[data-reject-application]').forEach(button => {
+      button.onclick = async () => {
+        const application = applications.find(item => item.id === button.dataset.rejectApplication);
+        if (!application || !confirm(`Recusar a solicitação de ${application.school_name}?`)) return;
+        button.disabled = true;
+        const { error: rejectError } = await db.rpc('platform_decide_school_application', { p_application_id:application.id, p_status:'rejected', p_school_id:null });
+        if (rejectError) toast(rejectError.message); else { toast('Solicitação recusada.'); await openDashboard(); showPlatformPage('applications'); }
+        button.disabled = false;
+      };
+    });
+    target.querySelectorAll('[data-cancel-paid-application]').forEach(button => {
+      button.onclick = async () => {
+        const application = applications.find(item => item.id === button.dataset.cancelPaidApplication);
+        if (!application || !confirm(`Cancelar a solicitação de ${application.school_name}?`)) return;
+        button.disabled = true;
+        button.textContent = 'Cancelando…';
+        const { data:cancelResult, error:cancelError } = await db.functions.invoke('cancel-mercado-pago-subscription', { body:{ applicationId:application.id } });
+        if (cancelError || cancelResult?.error) toast(cancelResult?.error || cancelError.message); else {
+          toast('Solicitação cancelada. O e-mail foi liberado para uma nova tentativa.');
+          await openDashboard();
+          showPlatformPage('applications');
+        }
+        button.disabled = false;
+        button.textContent = 'Cancelar solicitação';
+      };
+    });
+  }
+
+  function renderOverview(schools, billingContacts, plans) {
+    const active = (schools || []).filter(school => school.school_status !== 'archived');
+    const preview = document.getElementById('platformOverviewSchools');
+    if (preview) {
+      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p></article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+    }
+    const distribution = document.getElementById('platformPlanDistribution');
+    if (distribution) {
+      distribution.innerHTML = (plans || []).map(plan => {
+        const count = active.filter(school => school.plan === plan.plan_key).length;
+        const percentage = active.length ? Math.round((count / active.length) * 100) : 0;
+        return `<div class="platform-plan-row"><b>${esc(plan.display_name)}</b><span class="platform-plan-bar"><i style="width:${percentage}%"></i></span><strong>${count}</strong></div>`;
+      }).join('');
+    }
+  }
+
+  function renderSubscriptions(schools, plans) {
+    const target = document.getElementById('platformSubscriptionsList');
+    if (!target) return;
+    target.innerHTML = (schools || []).filter(school => school.school_status !== 'archived').map(school => {
+      const plan = plans.find(item => item.plan_key === school.plan);
+      const override = school.override_plan ? `<p>Concessão: <b>${esc(plans.find(item => item.plan_key === school.override_plan)?.display_name || school.override_plan)}</b>${school.override_expires_at ? ` até ${esc(new Date(school.override_expires_at).toLocaleDateString('pt-BR'))}` : ' · permanente'}</p>` : '<p>Sem concessão administrativa</p>';
+      return `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>Plano efetivo: <b>${esc(plan?.display_name || school.plan || 'Não configurado')}</b></p><p>Plano contratado: ${esc(plans.find(item => item.plan_key === school.contracted_plan)?.display_name || school.contracted_plan || 'Não configurado')}</p>${override}<p>Condição: <b>${esc(currency(school.price))}</b> · ${esc(school.billing_type || 'Não configurada')}</p><span class="platform-badge ${esc(school.subscription_status || 'missing')}">${esc(STATUS_LABELS[school.subscription_status] || school.subscription_status)}</span></article>`;
+    }).join('') || '<div class="empty">Nenhuma assinatura cadastrada.</div>';
+  }
+
+  function renderPaymentSubscriptions(payments, applications, error) {
+    const target = document.getElementById('platformPaymentSubscriptionsList');
+    if (!target) return;
+    if (error) {
+      target.innerHTML = '<div class="empty">A integração do Mercado Pago será exibida depois que a migration 061 for aplicada.</div>';
+      return;
+    }
+    const statusLabels = { creating:'Criando', pending:'Aguardando pagamento', authorized:'Autorizada', paused:'Pausada', cancelled:'Cancelada', expired:'Expirada', failed:'Falhou' };
+    target.innerHTML = (payments || []).map(payment => {
+      const application = (applications || []).find(item => item.id === payment.application_id);
+      const plan = cachedPlatformPlans.find(item => item.plan_key === payment.plan_key);
+      return `<article class="platform-subscription-card"><h4>${esc(application?.school_name || payment.payer_email)}</h4><p>Plano: <b>${esc(plan?.display_name || payment.plan_key)}</b></p><p>Valor: <b>${esc(currency(payment.amount))}/mês</b></p><p>Responsável: ${esc(payment.payer_email)}</p><p>Último pagamento: ${esc(payment.last_payment_status || 'Ainda não confirmado')}</p><span class="platform-badge ${esc(payment.status)}">${esc(statusLabels[payment.status] || payment.status)}</span></article>`;
+    }).join('') || '<div class="empty">Nenhuma assinatura iniciada pelo Mercado Pago.</div>';
+  }
+
+  function renderBillingContacts(schools, contactsBySchoolId) {
+    const target = document.getElementById('platformBillingContactsList');
+    if (!target) return;
+    target.innerHTML = (schools || []).filter(school => school.school_status !== 'archived').map(school => {
+      const contact = contactsBySchoolId[school.school_id];
+      return `<article class="platform-contact-card"><h4>${esc(school.school_name)}</h4>${contact ? `<p><b>${esc(contact.out_full_name)}</b></p><p>${esc(contact.out_email)}</p><p>${esc(contact.out_phone || 'Telefone não informado')}</p><p>${contact.out_has_linked_user ? 'Conta vinculada' : 'Sem conta vinculada'}</p>` : '<p>Responsável comercial ainda não definido.</p>'}<button class="btn secondary" type="button" data-contact-school="${esc(school.school_id)}">${contact ? 'Editar responsável' : 'Definir responsável'}</button></article>`;
+    }).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+    target.querySelectorAll('[data-contact-school]').forEach(button => {
+      const school = schools.find(item => item.school_id === button.dataset.contactSchool);
+      button.onclick = () => openBillingContactModal({ dataset:{ schoolId:school.school_id, schoolName:school.school_name } }, contactsBySchoolId[school.school_id] || null);
+    });
+  }
+
+  function renderStats(summary, schools, contactsBySchoolId) {
 
     const target = document.getElementById('platformStats');
 
@@ -1030,16 +1201,19 @@
       return;
     }
 
+    const currentSchools = (schools || []).filter(school => school.school_status !== 'archived');
+    const totalUsers = currentSchools.reduce((total, school) => total + Number(school.user_count || 0), 0);
+    const totalStudents = currentSchools.reduce((total, school) => total + Number(school.student_count || 0), 0);
+    const activeSubscriptions = currentSchools.filter(school => school.subscription_status === 'active').length;
     const cards = [
-      ['Total de escolas', summary?.total_schools ?? 0],
-      ['Escolas ativas', summary?.active_schools ?? 0],
-      ['Escolas suspensas', summary?.suspended_schools ?? 0],
-      ['Planos gratuitos', summary?.free_schools ?? 0],
-      ['Planos pagos', summary?.paid_schools ?? 0]
+      ['Escolas ativas', summary?.active_schools ?? 0, `de ${summary?.total_schools ?? 0} no total`, '▦'],
+      ['Usuários no total', totalUsers, 'Membros das escolas', '♥'],
+      ['Alunos no total', totalStudents, 'Em todas as escolas', '◆'],
+      ['Assinaturas ativas', activeSubscriptions, `${Object.keys(contactsBySchoolId || {}).length} responsável(is) definido(s)`, '$']
     ];
 
     target.innerHTML = cards
-      .map(([label, value]) => `<div class="stat"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`)
+      .map(([label, value, detail, icon]) => `<div class="platform-stat"><div class="platform-stat-top"><span>${esc(label)}</span><i class="platform-stat-icon">${esc(icon)}</i></div><strong>${esc(Number(value).toLocaleString('pt-BR'))}</strong><small>${esc(detail)}</small></div>`)
       .join('');
 
   }
@@ -1110,13 +1284,13 @@
         const billingContactButton = `<button class="btn secondary" type="button" data-billing-contact data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${billingContact ? 'Editar responsável' : 'Definir responsável'}</button>`;
 
         return `<tr>
-          <td><b>${esc(school.school_name)}</b>${adminLine(school)}${billingContactLine(billingContact)}</td>
-          <td><span class="platform-badge ${esc(plan)}">${esc(PLAN_LABELS[plan] || plan)}</span></td>
-          <td><span class="platform-badge ${esc(status)}">${esc(STATUS_LABELS[status] || status)}</span></td>
-          <td><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
-          <td>${esc(school.user_count ?? 0)}</td>
-          <td>${esc(school.student_count ?? 0)}</td>
-          <td class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td data-label="Escola"><b>${esc(school.school_name)}</b>${adminLine(school)}${billingContactLine(billingContact)}</td>
+          <td data-label="Plano"><span class="platform-badge ${esc(plan)}">${esc(PLAN_LABELS[plan] || plan)}</span></td>
+          <td data-label="Status"><span class="platform-badge ${esc(status)}">${esc(STATUS_LABELS[status] || status)}</span></td>
+          <td data-label="Assinatura"><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
+          <td data-label="Usuários">${esc(school.user_count ?? 0)}</td>
+          <td data-label="Alunos">${esc(school.student_count ?? 0)}</td>
+          <td data-label="Ações" class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
@@ -1230,6 +1404,8 @@
 
     const modal = createDashboardModal();
     modal.classList.remove('hidden');
+    document.body.classList.add('platform-workspace-open');
+    document.getElementById('platformCurrentDate').textContent = new Intl.DateTimeFormat('pt-BR', { dateStyle:'long' }).format(new Date());
 
     const statsTarget = document.getElementById('platformStats');
     const bodyTarget = document.getElementById('platformSchoolsBody');
@@ -1247,14 +1423,17 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
       db.from('platform_school_deletion_jobs').select('school_id, status, error_message, updated_at'),
       db.from('platform_plans').select('*').order('display_order'),
       db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle(),
-      db.rpc('platform_list_billing_contacts')
+      db.rpc('platform_list_billing_contacts'),
+      db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)'),
+      db.rpc('platform_list_school_applications'),
+      db.rpc('platform_list_payment_subscriptions')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1265,6 +1444,18 @@
         bodyTarget.innerHTML = '<tr><td colspan="7" class="error">Não foi possível carregar os dados da plataforma.</td></tr>';
       }
       return;
+    }
+
+    const expiredPaidApplications = (applicationsResult.data || []).filter(application =>
+      application.status === 'expired' && (paymentSubscriptionsResult.data || []).some(payment =>
+        payment.application_id === application.id && payment.status === 'expired'
+      )
+    );
+    if (expiredPaidApplications.length) {
+      const cancellations = await Promise.all(expiredPaidApplications.map(application =>
+        db.functions.invoke('cancel-mercado-pago-subscription', { body:{ applicationId:application.id } })
+      ));
+      if (cancellations.some(result => !result.error && !result.data?.error)) return openDashboard();
     }
 
     const summary = Array.isArray(summaryResult.data) ? summaryResult.data[0] : summaryResult.data;
@@ -1279,10 +1470,16 @@
       (billingContactsResult.data || []).forEach(contact => { billingContactsBySchoolId[contact.out_school_id] = contact; });
     }
 
-    renderStats(summary);
+    renderStats(summary, schoolsResult.data || [], billingContactsBySchoolId);
     renderSchools(schoolsResult.data || [], jobsBySchoolId, billingContactsBySchoolId);
     renderAudit(auditResult.data || [], auditResult.error);
-    renderPlans(plansResult.data || [], plansResult.error);
+    renderPlans(plansResult.data || [], plansResult.error, featuresResult.error ? [] : (featuresResult.data || []));
+    syncPlanSelectors(plansResult.data || []);
+    renderApplications(applicationsResult.data || [], paymentSubscriptionsResult.data || [], applicationsResult.error);
+    renderOverview(schoolsResult.data || [], billingContactsBySchoolId, plansResult.data || []);
+    renderSubscriptions(schoolsResult.data || [], plansResult.data || []);
+    renderPaymentSubscriptions(paymentSubscriptionsResult.data || [], applicationsResult.data || [], paymentSubscriptionsResult.error);
+    renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }
