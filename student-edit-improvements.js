@@ -245,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const select = document.getElementById(id);
     if (!select) return;
     select.closest('.field').querySelector('label').textContent = 'Observações do aluno';
-    select.innerHTML = observations.map(option => `<option value="${option.value}">${option.label}</option>`).join('');
+    select.innerHTML = observations.map(option => `<option value="${option.value}">${observationDisplayLabel(option.label)}</option>`).join('');
   };
   configureObservationField('report');
   configureObservationField('bulkReport');
@@ -282,14 +282,14 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('report').classList.add('observation-select-hidden');
   const renderObservationChoices = (selected = []) => {
     const selectedValues = new Set(selected);
-    observationChoices.innerHTML = observations.filter(option => option.value).map(option => `<label class="observation-choice"><input type="checkbox" value="${escapeHtml(option.value)}" ${selectedValues.has(option.value) ? 'checked' : ''}> <span>${escapeHtml(option.label)}</span></label>`).join('');
+    observationChoices.innerHTML = observations.filter(option => option.value).map(option => `<label class="observation-choice"><input type="checkbox" value="${escapeHtml(option.value)}" ${selectedValues.has(option.value) ? 'checked' : ''}> <span>${escapeHtml(observationDisplayLabel(option.label))}</span></label>`).join('');
   };
   const selectedObservationValues = () => [...observationChoices.querySelectorAll('input:checked')].map(input => input.value);
   renderObservationChoices();
   const renderCustomObservations = () => {
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
-      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(option.label)}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
+      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
       : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
   async function loadObservationOptions() {
