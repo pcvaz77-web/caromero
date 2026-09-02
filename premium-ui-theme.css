@@ -408,7 +408,7 @@ body #newBulk::before {
   body .top-actions .btn { min-height:46px;padding:10px 17px;white-space:nowrap; }
   body #newStudent { flex-basis:100%;width:max-content;max-width:205px;margin-left:auto; }
 }
-body #roleLabel { margin-top:25px;color:#6654c8;font-size:11px;font-weight:800;letter-spacing:.16em; }
+body #roleLabel { margin:3px 0 14px;color:#6654c8;font-size:11px;font-weight:850;letter-spacing:.16em; }
 body #pageTitle { font-size:38px;text-shadow:none; }
 body #pageTitle.carometro-title::after { content:none; }
 body #pageSubtitle { color:#667085;font-size:14px; }
@@ -447,7 +447,7 @@ body .stat strong::before { right:20px;top:31px;width:54px;height:54px;border-ra
 }
 
 @media(max-width:800px) {
-  body #roleLabel { margin-top:16px; }
+  body #roleLabel { margin:3px 0 12px; }
   body #pageTitle { font-size:29px; }
   body .top-actions .btn { box-shadow:none; }
   body .stat { min-height:92px;padding:14px 6px 12px 55px;border-radius:14px; }

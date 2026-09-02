@@ -91,9 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const rolePermissionFields = [...permissionFields, ...dormantPermissionFields];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
-    if (item.role === 'admin') return 'Administrador';
-    if (item.is_coordinator) return 'Coordenador';
-    return 'Acesso de professor(a)';
+    if (item.role === 'admin') return 'Administrador(a)';
+    if (item.is_coordinator) return 'Coordenador(a)';
+    return 'Professor(a)';
   };
   const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 

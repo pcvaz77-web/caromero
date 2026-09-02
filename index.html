@@ -11,14 +11,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="modern-ui-typography.css?v=2">
-<link rel="stylesheet" href="premium-ui-theme.css?v=19">
+<link rel="stylesheet" href="premium-ui-theme.css?v=20">
 <script src="carometro-config.js?v=4"></script>
 <script>
 if (window.CAROMETRO_RUNTIME_CONFIG?.backendConfigured) {
   document.write([
     'compatibility.js?v=1', 'school-context.js?v=7',
     'password-recovery-flow.js?v=4', 'class-delete-fix.js?v=4',
-    'class-periods.js?v=8', 'permissions-and-details.js?v=50',
+    'class-periods.js?v=8', 'permissions-and-details.js?v=51',
     'school-invitations.js?v=4', 'student-edit-improvements.js?v=97',
     'class-counselors.js?v=32', 'school-calendar.js?v=3',
     'reports.js?v=9', 'uniform-management.js?v=69',
@@ -46,7 +46,7 @@ const db=window.supabase.createClient(window.CAROMETRO_RUNTIME_CONFIG.supabaseUr
 // Deep link do push: captura ?notification=<id> assim que a página carrega
 // (antes de saber se há sessão), para sobreviver à volta do login.
 (function(){try{const id=new URLSearchParams(location.search).get('notification');if(id)sessionStorage.setItem('carometroPendingNotification',id)}catch{}})();
-async function profile(){await db.from('profiles').upsert({id:user.id,email:user.email},{onConflict:'id'});const {data}=await db.from('user_permissions').select('*').eq('user_id',user.id).single();permission=data||permission;const admin=permission.role==='admin';if(admin)permission={...permission,can_add_students:true,can_edit_students:true};$('roleLabel').textContent=admin?'Administrador':permission.is_coordinator?'Coordenador':'Acesso de professor(a)';$('permissionsNav').classList.toggle('hidden',!admin);$('newStudent').classList.toggle('hidden',!permission.can_add_students);$('newBulk').classList.toggle('hidden',!permission.can_add_students);$('newClass').classList.toggle('hidden',!permission.can_add_students)}
+async function profile(){await db.from('profiles').upsert({id:user.id,email:user.email},{onConflict:'id'});const {data}=await db.from('user_permissions').select('*').eq('user_id',user.id).single();permission=data||permission;const admin=permission.role==='admin';if(admin)permission={...permission,can_add_students:true,can_edit_students:true};$('roleLabel').textContent=admin?'Administrador(a)':permission.is_coordinator?'Coordenador(a)':'Professor(a)';$('permissionsNav').classList.toggle('hidden',!admin);$('newStudent').classList.toggle('hidden',!permission.can_add_students);$('newBulk').classList.toggle('hidden',!permission.can_add_students);$('newClass').classList.toggle('hidden',!permission.can_add_students)}
 // Autorização real de convite: vem de school_members.role==='school_admin' ativo,
 // nunca do user_permissions legado (que só controla o restante desta tela).
 let mySchool=null;async function schoolMembership(){const {data}=await db.from('school_members').select('id,school_id,role,status').eq('user_id',user.id).eq('status','active');mySchool=(data||[]).find(m=>m.role==='school_admin')||null;$('inviteNav').classList.toggle('hidden',!mySchool)}
