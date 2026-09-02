@@ -29,12 +29,6 @@ body .toast {
   z-index: 500 !important;
 }
 
-.manage-observations {
-  display: inline-flex !important;
-  align-self: flex-start;
-  margin: 7px 0 16px !important;
-}
-
 @media (max-width: 800px) {
   .modal-bg {
     z-index: 300 !important;

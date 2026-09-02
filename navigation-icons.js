@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     counselorNav: ['users', 'Gerenciar Conselheiros'],
     uniformNav: ['box', 'Controle de Itens'],
     occurrenceNav: ['warning', 'Ocorrência'],
+    observationsNav: ['tag', 'Gerenciar observações'],
     profileNav: ['user', 'Meu Perfil'],
     settingsNav: ['settings', 'Configurações']
   };
