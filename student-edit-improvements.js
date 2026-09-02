@@ -199,24 +199,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.decodeObservationValues = decodeObservationValues;
   const renderSpecialStudentLabels = (subtitle, student) => {
     const values = decodeObservationValues(student?.report);
-    const laudos = values.filter(observationIndicatesLaudo);
-    const isRepresentative = values.includes('Representante de turma');
-    const pinnedLabels = values.filter(value => pinnedObservationLabels.has(value) && !laudos.includes(value) && value !== 'Representante de turma');
+    // Todas as observações — inclusive laudos e Representante de turma —
+    // obedecem à opção "Fixar" configurada pela escola. Ocorrência não
+    // passa por este fluxo: occurrence-management.js mantém sua etiqueta
+    // automática enquanto existir ao menos uma ocorrência para o aluno.
+    const pinnedLabels = values.filter(value => pinnedObservationLabels.has(value));
     subtitle.replaceChildren();
-    subtitle.classList.toggle('student-laudo-label', laudos.length > 0);
-    laudos.forEach((text, index) => {
-      if (index) subtitle.append(document.createTextNode(' · '));
-      const laudo = document.createElement('span');
-      laudo.textContent = text;
-      subtitle.appendChild(laudo);
-    });
-    if (isRepresentative) {
-      if (laudos.length) subtitle.appendChild(document.createElement('br'));
-      const representative = document.createElement('span');
-      representative.className = 'representative-label observation-custom-4';
-      representative.textContent = 'Representante de turma';
-      subtitle.appendChild(representative);
-    }
+    subtitle.classList.remove('student-laudo-label');
     pinnedLabels.forEach(text => {
       if (subtitle.childNodes.length) subtitle.appendChild(document.createElement('br'));
       const pinned = document.createElement('span');
@@ -224,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pinned.textContent = observationDisplayLabel(text);
       subtitle.appendChild(pinned);
     });
-    subtitle.classList.toggle('hidden', !laudos.length && !isRepresentative && !pinnedLabels.length);
+    subtitle.classList.toggle('hidden', !pinnedLabels.length);
   };
   const syncStudentCardLaudoLabels = () => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -370,8 +359,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
         if (meta) renderSpecialStudentLabels(meta, student);
       }
-      // A lista exibe Laudo, Representante e observações fixadas abaixo do nome.
-      // Todas as observações continuam disponíveis no card de detalhes.
+      // A lista exibe abaixo do nome somente observações marcadas como
+      // "Fixar". Todas continuam disponíveis no card de detalhes.
       const labelArea = pill.parentElement;
       if (labelArea) {
         labelArea.replaceChildren();
