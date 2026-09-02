@@ -9,45 +9,47 @@ document.addEventListener('DOMContentLoaded', () => {
   section.className = 'notification-preferences';
   section.innerHTML = `
     <div class="notification-preferences-head">
-      <p class="eyebrow">Notificações por turma</p>
+      <h3>Notificações por turma</h3>
       <div class="notification-preferences-actions">
         <button type="button" id="selectAllClassNotifications" class="link">Selecionar todas</button>
         <button type="button" id="clearAllClassNotifications" class="link">Desmarcar todas</button>
       </div>
     </div>
-    <div class="meta">Escolha de quais turmas você quer receber avisos de mudanças.</div>
+    <div class="notification-preferences-description">Escolha de quais turmas você quer receber avisos de mudanças.</div>
+    <div class="notification-autosave-note">As escolhas abaixo são salvas automaticamente.</div>
     <div id="classNotificationList" class="class-notification-list"></div>
   `;
   footer.before(section);
 
   const style = document.createElement('style');
   style.textContent = `
-    .notification-preferences { padding:0 24px 22px; flex:1 1 auto; min-height:100px; display:flex; flex-direction:column; }
-    .notification-preferences-head { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
-    .notification-preferences-head .eyebrow { margin:0; }
-    .notification-preferences-actions { display:flex; gap:12px; }
-    .notification-preferences-actions .link { font-size:12px; }
-    .class-notification-list { display:grid; align-content:start; gap:7px; margin-top:12px; max-height:none; flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; scrollbar-width:thin; scrollbar-color:#c9d3e8 transparent; }
+    .notification-preferences { padding:17px 20px 20px; flex:0 0 auto; min-height:100px; display:flex; flex-direction:column; background:#f8faff; border-bottom:1px solid var(--line); overflow:hidden; }
+    .notification-preferences-head { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap; }
+    .notification-preferences-head h3 { margin:0; font-size:20px; line-height:1.25; letter-spacing:-.35px; color:var(--navy); }
+    .notification-preferences-actions { display:flex; gap:8px; flex-wrap:wrap; }
+    .notification-preferences-actions .link { padding:7px 9px; border:1px solid #cbd5e1; border-radius:7px; background:#fff; font-size:12px; }
+    .notification-preferences-description { margin-top:7px; color:var(--muted); font-size:13px; line-height:1.45; }
+    .notification-autosave-note { margin-top:10px; padding:9px 11px; border-radius:8px; background:#eaf1ff; color:#315dbb; font-size:12px; font-weight:700; }
+    .class-notification-list { display:grid; align-content:start; gap:9px; height:286px; min-height:286px; margin-top:14px; flex:0 0 286px; overflow-y:auto; overscroll-behavior:contain; padding-right:4px; scrollbar-width:thin; scrollbar-color:#c9d3e8 transparent; }
     .class-notification-list::-webkit-scrollbar { width:10px; }
     .class-notification-list::-webkit-scrollbar-track { background:transparent; }
     .class-notification-list::-webkit-scrollbar-thumb { background:#c9d3e8; border-radius:99px; }
     .class-notification-list::-webkit-scrollbar-thumb:hover { background:#a9b8d6; }
-    .class-notification-item { display:flex; align-items:center; gap:9px; padding:10px 12px; border:1px solid var(--line); border-radius:9px; font-size:13px; font-weight:650; }
+    .class-notification-item { display:flex; align-items:center; gap:10px; padding:12px 13px; border:1px solid #d7deea; border-radius:10px; background:#fff; font-size:14px; font-weight:700; }
     .class-notification-item input { width:auto; min-height:0; }
     /* Piso real na lista rolável, não só no bloco que a envolve — sem isso o
        cabeçalho/descrição da seção tomavam todo o espaço mínimo reservado e a
        lista em si era comprimida até sumir. Só desktop por enquanto; celular
        será testado separadamente. */
     @media (min-width:801px) {
-      #notificationPreferences { min-height:300px; }
-      .class-notification-list { min-height:200px; }
+      #notificationPreferences { min-height:386px; }
     }
     /* Mesmo problema do desktop (lista comprimida a 0px pelo cabeçalho/
        descrição da seção), agora coberto também em telas menores, com pisos
        proporcionalmente menores. Não mexe no bloco acima, aprovado para desktop. */
     @media (max-width:800px) {
-      #notificationPreferences { min-height:236px; }
-      .class-notification-list { min-height:140px; }
+      #notificationPreferences { min-height:378px; }
+      .notification-preferences { padding:15px 18px 18px; }
     }
   `;
   document.head.appendChild(style);

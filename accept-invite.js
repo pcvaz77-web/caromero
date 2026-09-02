@@ -1,17 +1,17 @@
-// Fluxo comercial de aceite. A autorização definitiva continua no banco;
-// esta validação antecipada evita criar ou recuperar uma conta diferente do
-// e-mail associado ao convite.
 const db = window.createCarometroSupabaseClient();
 const $ = id => document.getElementById(id);
-let preview;
+const bootData = window.CAROMETRO_INVITE_BOOT || {};
+let authTokenHash = typeof bootData.authTokenHash === 'string' ? bootData.authTokenHash : null;
+const authTokenType = bootData.type === 'email' ? 'email' : null;
 
 function invitationToken() {
-  try { return sessionStorage.getItem('carometroInviteToken'); }
-  catch { return null; }
+  if (typeof bootData.token === 'string' && bootData.token) return bootData.token;
+  try { return sessionStorage.getItem('carometroInviteToken'); } catch { return null; }
 }
 
 const token = invitationToken();
 const normalizeEmail = value => String(value || '').trim().toLowerCase();
+const validName = value => String(value || '').trim().length >= 2;
 
 function showError(id, message) {
   $(id).textContent = message;
@@ -26,31 +26,21 @@ function clearErrors() {
 }
 
 function busy(value) {
-  ['signupSubmit', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn', 'onboardingSubmit', 'retryStatusBtn']
+  ['emailContinueBtn', 'loginSubmit', 'continueBtn', 'switchBtn', 'forgotBtn', 'onboardingSubmit', 'retryStatusBtn']
     .forEach(id => { $(id).disabled = value; });
 }
 
-// Nome funcionalmente válido para identificar professor/coordenador em
-// ocorrências e demais registros: sem exagerar na regra, só evita valores
-// obviamente inválidos (vazio, só espaços, 1 caractere). Preserva acentos e
-// nomes brasileiros normalmente — nenhuma outra restrição é aplicada.
-const validName = value => String(value || '').trim().length >= 2;
+function roleLabel(role) {
+  if (role === 'coordinator') return 'Coordenador(a)';
+  if (role === 'school_admin') return 'Administrador(a)';
+  return 'Professor(a)';
+}
 
-// Estados do primeiro acesso, sempre recalculados a partir do servidor
-// (current_user_onboarding_status), nunca assumidos a partir do sucesso
-// aparente de uma escrita anterior nem guardados como flag local que
-// sobreviva a um reload.
 async function loadOnboardingStatus() {
   const { data, error } = await db.rpc('current_user_onboarding_status');
-  if (
-    error ||
-    !Array.isArray(data) ||
-    !data[0] ||
-    typeof data[0].has_password !== 'boolean' ||
-    typeof data[0].has_name !== 'boolean'
-  ) {
-    return 'unknown';
-  }
+  if (error || !Array.isArray(data) || !data[0]
+      || typeof data[0].has_password !== 'boolean'
+      || typeof data[0].has_name !== 'boolean') return 'unknown';
   const { has_password, has_name } = data[0];
   if (!has_password && !has_name) return 'needs_both';
   if (!has_password && has_name) return 'needs_password';
@@ -70,13 +60,9 @@ function renderOnboarding(state) {
   $('onboardingPasswordConfirmField').classList.toggle('hidden', !needsPassword);
   $('onboardingPassword').required = needsPassword;
   $('onboardingPasswordConfirm').required = needsPassword;
-  if (state === 'needs_both') {
-    $('onboardingNote').textContent = 'Antes de continuar, informe seu nome e defina a senha desta conta.';
-  } else if (state === 'needs_password') {
-    $('onboardingNote').textContent = 'Antes de continuar, defina a senha desta conta.';
-  } else if (state === 'needs_name') {
-    $('onboardingNote').textContent = 'Antes de continuar, confirme seu nome completo.';
-  }
+  if (state === 'needs_both') $('onboardingNote').textContent = 'Antes de continuar, informe seu nome e defina a senha desta conta.';
+  else if (state === 'needs_password') $('onboardingNote').textContent = 'Antes de continuar, defina a senha desta conta.';
+  else if (state === 'needs_name') $('onboardingNote').textContent = 'Antes de continuar, confirme seu nome completo.';
 }
 
 async function refreshOnboarding() {
@@ -88,11 +74,16 @@ async function refreshOnboarding() {
 function showAuth() {
   $('sessionBox').classList.add('hidden');
   $('authBox').classList.remove('hidden');
+  $('emailContinueBtn').textContent = authTokenHash && authTokenType
+    ? 'Confirmar meu e-mail e continuar'
+    : 'Continuar com meu e-mail';
 }
 
-function showSession(email) {
+function showSession(email, matches) {
   $('authBox').classList.add('hidden');
   $('sessionEmail').textContent = email || '';
+  $('sessionMismatch').classList.toggle('hidden', matches);
+  $('sessionActions').classList.toggle('hidden', !matches);
   $('sessionBox').classList.remove('hidden');
 }
 
@@ -100,8 +91,8 @@ async function emailMatchesInvitation(email) {
   const normalized = normalizeEmail(email);
   if (!token || !normalized) return false;
   const { data, error } = await db.rpc('invitation_email_matches', {
-    invitation_token:token,
-    candidate_email:normalized
+    invitation_token: token,
+    candidate_email: normalized
   });
   if (error) throw error;
   return data === true;
@@ -113,14 +104,20 @@ async function requireInvitedEmail(email) {
   return false;
 }
 
+async function showCurrentSession(user) {
+  const matches = await emailMatchesInvitation(user?.email);
+  showSession(user?.email, matches);
+  if (matches) await refreshOnboarding();
+  return matches;
+}
+
 async function acceptInvitation() {
   clearErrors();
   busy(true);
   try {
-    const { error } = await db.rpc('accept_school_invitation', { invitation_token:token });
+    const { error } = await db.rpc('accept_school_invitation', { invitation_token: token });
     if (error) {
-      const target = $('sessionBox').classList.contains('hidden') ? 'formError' : 'sessionError';
-      showError(target, error.message === 'Este convite pertence a outro usuário.'
+      showError('sessionError', error.message === 'Este convite pertence a outro usuário.'
         ? 'Este convite pertence a outra conta. Entre com o e-mail exato do convite.'
         : error.message);
       return;
@@ -130,239 +127,103 @@ async function acceptInvitation() {
     $('authBox').classList.add('hidden');
     $('success').classList.remove('hidden');
     setTimeout(() => location.replace(new URL('./', location.href).href), 1500);
-  } finally {
-    busy(false);
-  }
+  } finally { busy(false); }
 }
 
-// Invariante central: NENHUM caminho deste arquivo pode chamar
-// acceptInvitation() sem, imediatamente antes, reconsultar
-// current_user_onboarding_status() e obter READY. Todos os handlers abaixo
-// (onboarding, "Continuar com esta conta", login e cadastro dentro do
-// convite) passam por aqui em vez de chamar acceptInvitation() direto —
-// assim a regra não depende de cada handler lembrar dela individualmente.
 async function acceptInvitationIfReady() {
   const state = await refreshOnboarding();
   if (state === 'unknown') {
     showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.');
     return;
   }
-  if (state !== 'ready') return; // renderOnboarding já mostrou o formulário certo (nome e/ou senha)
+  if (state !== 'ready') return;
   await acceptInvitation();
+}
+
+async function parseFunctionError(error) {
+  try {
+    const body = await error?.context?.json();
+    if (body && typeof body === 'object') return body;
+  } catch {}
+  return null;
+}
+
+async function requestAuthenticationEmail() {
+  const { data, error } = await db.functions.invoke('send-school-invitation', {
+    body: { mode: 'resume', token }
+  });
+  if (!error && data?.ok) return;
+  const body = data || await parseFunctionError(error);
+  const failure = new Error(body?.error || 'Não foi possível enviar o e-mail agora. Tente novamente.');
+  failure.code = body?.code;
+  failure.retryAfter = body?.retry_after_seconds;
+  throw failure;
+}
+
+async function verifyAuthenticationEmail() {
+  // O hash one-time é consumido somente após este clique e nunca é persistido.
+  const tokenHash = authTokenHash;
+  authTokenHash = null;
+  $('emailContinueBtn').textContent = 'Continuar com meu e-mail';
+  if (!tokenHash || !authTokenType) throw new Error('Este link de autenticação não está mais disponível. Solicite um novo envio.');
+  const { data, error } = await db.auth.verifyOtp({ token_hash: tokenHash, type: authTokenType });
+  if (error) throw new Error('Este link de autenticação expirou ou já foi utilizado. Solicite um novo envio.');
+  return data.user;
 }
 
 async function boot() {
   if (!token) { showError('fatal', 'Link inválido. Peça um novo convite.'); return; }
-  const { data, error } = await db.rpc('get_invitation_preview', { invitation_token:token });
-  if (error || !data?.length) {
+  const { data, error } = await db.rpc('get_invitation_preview_v2', { p_token: token });
+  const invitation = Array.isArray(data) ? data[0] : data;
+  if (error || !invitation || invitation.status !== 'pending') {
     showError('fatal', 'Este convite é inválido, expirou, foi cancelado ou já foi utilizado.');
     return;
   }
-  preview = data[0];
-  $('school').textContent = preview.school_name || '';
-  $('role').textContent = `Papel: ${preview.role === 'coordinator' ? 'Coordenador(a)' : preview.role === 'school_admin' ? 'Administrador(a)' : 'Professor(a)'}`;
-  $('email').textContent = `E-mail: ${preview.masked_email || ''}`;
+  $('school').textContent = invitation.school_name || '';
+  $('role').textContent = `Papel: ${roleLabel(invitation.role)}`;
+  $('email').textContent = `E-mail: ${invitation.masked_email || ''}`;
   $('content').classList.remove('hidden');
   const { data: { session } } = await db.auth.getSession();
-  if (session) {
-    showSession(session.user.email);
-    // Qualquer papel (school_admin, coordinator ou teacher) pode chegar
-    // aqui autenticado pelo convite nativo do Supabase, sem nunca ter
-    // definido senha nem nome próprios — o mecanismo é o mesmo para os
-    // três. O estado exato (senha? nome?) é sempre consultado ao vivo no
-    // servidor, nunca assumido a partir do papel do convite.
-    await refreshOnboarding();
-  }
+  if (session?.user) await showCurrentSession(session.user);
   else showAuth();
-  if (preview.email_has_account) {
-    $('loginTab').click();
-    $('existing').classList.remove('hidden');
-  }
 }
 
-$('continueBtn').onclick = acceptInvitationIfReady;
-$('retryStatusBtn').onclick = async () => {
-  busy(true);
-  await refreshOnboarding();
-  busy(false);
-};
-$('onboardingForm').onsubmit = async event => {
-  event.preventDefault();
-  clearErrors();
-  // Reconfirma o estado real antes de decidir o que gravar — nunca reusa um
-  // estado calculado antes deste clique (pode ter mudado, ex.: outra aba).
-  const state = await loadOnboardingStatus();
-  renderOnboarding(state);
-  if (state === 'unknown') {
-    showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.');
-    return;
-  }
-  if (state === 'ready') return;
-
-  const needsName = state === 'needs_both' || state === 'needs_name';
-  const needsPassword = state === 'needs_both' || state === 'needs_password';
-  const name = $('onboardingName').value;
-  if (needsName && !validName(name)) {
-    showError('sessionError', 'Informe um nome completo válido.');
-    return;
-  }
-  if (needsPassword) {
-    const password = $('onboardingPassword').value;
-    if (password !== $('onboardingPasswordConfirm').value) {
-      showError('sessionError', 'As duas senhas precisam ser iguais.');
+$('emailContinueBtn').onclick = async () => {
+  clearErrors(); busy(true);
+  try {
+    if (authTokenHash && authTokenType) {
+      const user = await verifyAuthenticationEmail();
+      if (await showCurrentSession(user)) await acceptInvitationIfReady();
       return;
     }
-  }
-
-  const trimmedName = needsName ? name.trim() : '';
-
-  busy(true);
-  try {
-    // 1) Auth (senha e/ou metadata.full_name, conforme o que este estado
-    // exige) — mesmo padrão já usado em "Meu Perfil"
-    // (student-edit-improvements.js): auth.updateUser({password?, data:
-    // {full_name}}) antes do upsert em profiles, para as duas fontes nunca
-    // ficarem dessincronizadas (profiles com nome novo e user_metadata
-    // vazio/antigo). NEEDS_PASSWORD não inclui full_name aqui — a conta já
-    // tem nome válido, que não deve ser reescrito nem pedido de novo.
-    if (needsPassword && needsName) {
-      const password = $('onboardingPassword').value;
-      const { error: authError } = await db.auth.updateUser({ password, data: { full_name: trimmedName } });
-      if (authError) { showError('sessionError', authError.message); return; }
-    } else if (needsPassword) {
-      const password = $('onboardingPassword').value;
-      const { error: authError } = await db.auth.updateUser({ password });
-      if (authError) { showError('sessionError', authError.message); return; }
-    } else if (needsName) {
-      const { error: authError } = await db.auth.updateUser({ data: { full_name: trimmedName } });
-      if (authError) { showError('sessionError', authError.message); return; }
-    }
-
-    // 1b) Marcador de senha — só gravado depois de uma prova real
-    // (updateUser({password}) bem-sucedido nesta mesma submissão).
-    // Bloqueante: se a gravação falhar, o convite NÃO pode ser aceito,
-    // mesmo que a senha já exista no GoTrue — sem o marcador,
-    // current_user_onboarding_status() continua reportando has_password
-    // falso, então a reconfirmação final (passo 3) não deixa aceitar.
-    if (needsPassword) {
-      const { error: markError } = await db.rpc('mark_current_user_password_set');
-      if (markError) {
-        showError('sessionError', 'Não foi possível confirmar sua senha agora. Tente novamente.');
-        await refreshOnboarding();
-        return;
-      }
-    }
-
-    // 2) profiles.full_name continua sendo a ÚNICA fonte que
-    // current_user_onboarding_status() lê para decidir has_name — por isso
-    // esta escrita é obrigatória sempre que needsName, mesmo que o passo
-    // acima já tenha sincronizado o metadata: uma atualização bem-sucedida
-    // só do metadata nunca pode, sozinha, produzir READY.
-    if (needsName) {
-      const { data: { user } } = await db.auth.getUser();
-      const { error: profileError } = await db.from('profiles')
-        .upsert({ id: user.id, full_name: trimmedName, email: user.email }, { onConflict: 'id' });
-      if (profileError) {
-        showError('sessionError', 'Não foi possível salvar seu nome. Tente novamente.');
-        await refreshOnboarding();
-        return;
-      }
-    }
-
-    // 3) Só aceita o convite através da guarda central, que reconsulta o
-    // servidor e só prossegue quando ele confirmar READY.
-    await acceptInvitationIfReady();
-  } finally {
-    busy(false);
-  }
-};
-$('switchBtn').onclick = async () => {
-  busy(true);
-  await db.auth.signOut();
-  busy(false);
-  showAuth();
-};
-$('signupTab').onclick = () => {
-  clearErrors();
-  $('signupTab').classList.add('active');
-  $('loginTab').classList.remove('active');
-  $('signupForm').classList.remove('hidden');
-  $('loginForm').classList.add('hidden');
-};
-$('loginTab').onclick = () => {
-  clearErrors();
-  $('loginTab').classList.add('active');
-  $('signupTab').classList.remove('active');
-  $('loginForm').classList.remove('hidden');
-  $('signupForm').classList.add('hidden');
-};
-
-$('signupForm').onsubmit = async event => {
-  event.preventDefault();
-  clearErrors();
-  const name = $('signupName').value.trim();
-  const email = normalizeEmail($('signupEmail').value);
-  const password = $('signupPassword').value;
-  if (password !== $('signupConfirm').value) {
-    showError('formError', 'As senhas precisam ser iguais.');
-    return;
-  }
-  busy(true);
-  try {
-    if (!await requireInvitedEmail(email)) return;
-    const redirectTo = new URL(`${location.pathname}?token=${encodeURIComponent(token)}`, location.origin).href;
-    const { data, error } = await db.auth.signUp({
-      email,
-      password,
-      options:{ emailRedirectTo:redirectTo, data:{ full_name:name } }
-    });
-    if (error) { showError('formError', error.message); return; }
-    if (data.session) {
-      // signUp com sessão imediata é prova real de senha própria escolhida
-      // agora mesmo pelo usuário — grava o marcador. has_name continua
-      // vindo exclusivamente de profiles.full_name (nunca de
-      // auth.user_metadata, mesmo que o próprio signUp já tenha colocado o
-      // nome lá via options.data), por isso gravamos em profiles aqui de
-      // forma explícita, não confiamos só no metadata do signUp.
-      await db.rpc('mark_current_user_password_set');
-      const { error: profileError } = await db.from('profiles')
-        .upsert({ id: data.user.id, full_name: name, email: data.user.email }, { onConflict: 'id' });
-      if (profileError) { showError('formError', 'Não foi possível salvar seu nome. Tente novamente.'); return; }
-      showSession(email);
-      await acceptInvitationIfReady();
-      return;
-    }
-    $('authBox').classList.add('hidden');
-    $('confirm').classList.remove('hidden');
+    await requestAuthenticationEmail();
+    $('authMessage').textContent = 'Enviamos um link de acesso para o e-mail deste convite. Abra a mensagem para continuar.';
+    $('authMessage').classList.remove('hidden');
   } catch (error) {
-    showError('formError', error.message || 'Não foi possível validar o convite.');
-  } finally {
-    busy(false);
-  }
+    if (error.code === 'rate_limited' && error.retryAfter) showError('formError', `Aguarde ${error.retryAfter} segundos antes de solicitar um novo envio.`);
+    else showError('formError', error.message || 'Não foi possível continuar. Tente novamente.');
+  } finally { busy(false); }
+};
+
+$('passwordLoginBtn').onclick = () => {
+  clearErrors();
+  $('loginForm').classList.toggle('hidden');
+  if (!$('loginForm').classList.contains('hidden')) $('loginEmail').focus();
 };
 
 $('loginForm').onsubmit = async event => {
-  event.preventDefault();
-  clearErrors();
-  const email = normalizeEmail($('loginEmail').value);
-  busy(true);
+  event.preventDefault(); clearErrors();
+  const email = normalizeEmail($('loginEmail').value); busy(true);
   try {
     if (!await requireInvitedEmail(email)) return;
-    const { error } = await db.auth.signInWithPassword({ email, password:$('loginPassword').value });
-    if (error) { showError('formError', error.message); return; }
-    // signInWithPassword bem-sucedido é prova real de que a senha existe.
-    // Não bloqueia aqui em caso de falha do marcador: a guarda central
-    // (acceptInvitationIfReady) reconsulta o estado real do servidor antes
-    // de aceitar, então uma falha nesta gravação naturalmente impede o
-    // aceite mesmo sem tratamento especial neste handler.
-    await db.rpc('mark_current_user_password_set');
-    showSession(email);
+    const { data, error } = await db.auth.signInWithPassword({ email, password: $('loginPassword').value });
+    if (error) { showError('formError', 'Não foi possível entrar. Confira o e-mail e a senha.'); return; }
+    const { error: markError } = await db.rpc('mark_current_user_password_set');
+    if (markError) { showError('formError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.'); return; }
+    await showCurrentSession(data.user);
     await acceptInvitationIfReady();
-  } catch (error) {
-    showError('formError', error.message || 'Não foi possível validar o convite.');
-  } finally {
-    busy(false);
-  }
+  } catch (error) { showError('formError', error.message || 'Não foi possível validar o convite.'); }
+  finally { busy(false); }
 };
 
 $('forgotBtn').onclick = async () => {
@@ -374,14 +235,54 @@ $('forgotBtn').onclick = async () => {
     if (!await requireInvitedEmail(email)) return;
     const next = `accept-invite.html?token=${encodeURIComponent(token)}`;
     const resetUrl = new URL(`reset-password.html?next=${encodeURIComponent(next)}`, location.href).href;
-    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo:resetUrl });
-    if (error) { showError('formError', error.message); return; }
+    const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: resetUrl });
+    if (error) throw error;
     $('recovery').classList.remove('hidden');
-  } catch (error) {
-    showError('formError', error.message || 'Não foi possível validar o convite.');
-  } finally {
-    busy(false);
-  }
+  } catch (error) { showError('formError', error.message || 'Não foi possível solicitar a recuperação.'); }
+  finally { busy(false); }
 };
 
-boot();
+$('continueBtn').onclick = acceptInvitationIfReady;
+$('retryStatusBtn').onclick = async () => { busy(true); try { await refreshOnboarding(); } finally { busy(false); } };
+
+$('onboardingForm').onsubmit = async event => {
+  event.preventDefault(); clearErrors();
+  const state = await loadOnboardingStatus();
+  renderOnboarding(state);
+  if (state === 'unknown') { showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.'); return; }
+  if (state === 'ready') return;
+  const needsName = state === 'needs_both' || state === 'needs_name';
+  const needsPassword = state === 'needs_both' || state === 'needs_password';
+  const name = $('onboardingName').value.trim();
+  if (needsName && !validName(name)) { showError('sessionError', 'Informe um nome completo válido.'); return; }
+  if (needsPassword && $('onboardingPassword').value !== $('onboardingPasswordConfirm').value) {
+    showError('sessionError', 'As duas senhas precisam ser iguais.'); return;
+  }
+  busy(true);
+  try {
+    const update = {};
+    if (needsPassword) update.password = $('onboardingPassword').value;
+    if (needsName) update.data = { full_name: name };
+    const { error: authError } = await db.auth.updateUser(update);
+    if (authError) { showError('sessionError', authError.message); return; }
+    if (needsPassword) {
+      const { error: markError } = await db.rpc('mark_current_user_password_set');
+      if (markError) { showError('sessionError', 'Não foi possível confirmar sua senha agora. Tente novamente.'); await refreshOnboarding(); return; }
+    }
+    if (needsName) {
+      const { data: { user } } = await db.auth.getUser();
+      const { error: profileError } = await db.from('profiles')
+        .upsert({ id: user.id, full_name: name, email: user.email }, { onConflict: 'id' });
+      if (profileError) { showError('sessionError', 'Não foi possível salvar seu nome. Tente novamente.'); await refreshOnboarding(); return; }
+    }
+    await acceptInvitationIfReady();
+  } finally { busy(false); }
+};
+
+$('switchBtn').onclick = async () => {
+  busy(true);
+  try { await db.auth.signOut(); showAuth(); }
+  finally { busy(false); }
+};
+
+boot().catch(() => showError('fatal', 'Não foi possível abrir este convite agora. Tente novamente.'));

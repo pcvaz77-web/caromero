@@ -403,6 +403,16 @@ document.addEventListener('DOMContentLoaded', () => {
     await requestNotificationChannel(false);
   }
 
+  // O aplicativo pode ficar visível antes de a escola ativa terminar de ser
+  // resolvida. Nesse caso a primeira tentativa não possui schoolId e o sino
+  // permaneceria oculto até um novo login. Reinicie assim que o contexto da
+  // escola estiver pronto, independentemente das notificações push.
+  document.addEventListener('carometro:school-context-ready', () => {
+    if (!document.getElementById('app').classList.contains('hidden')) {
+      startNotificationCenter();
+    }
+  });
+
   new MutationObserver(() => {
     if (!document.getElementById('app').classList.contains('hidden')) startNotificationCenter();
     else stopNotificationCenter();

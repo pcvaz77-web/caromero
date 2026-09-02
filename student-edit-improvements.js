@@ -6,15 +6,33 @@ document.addEventListener('DOMContentLoaded', () => {
     const hour = new Date().getHours();
     return hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
   };
-  const formatGreeting = name => name ? `${greetingForCurrentTime()}, ${name}!` : `${greetingForCurrentTime()}!`;
-  welcome.textContent = formatGreeting('');
+  const renderGreeting = name => {
+    welcome.replaceChildren();
+    const salutation = document.createElement('span');
+    salutation.className = 'welcome-salutation';
+    salutation.textContent = `${greetingForCurrentTime()},`;
+    welcome.appendChild(salutation);
+    if (name) {
+      const person = document.createElement('span');
+      person.className = 'welcome-person';
+      person.textContent = ` ${name}!`;
+      welcome.appendChild(person);
+    }
+  };
+  renderGreeting('');
+  const pageTitle = document.getElementById('pageTitle');
+  const syncTitleSparkle = () => pageTitle?.classList.toggle('carometro-title', pageTitle.textContent.trim() === 'CARÔMETRO');
+  if (pageTitle) {
+    syncTitleSparkle();
+    new MutationObserver(syncTitleSparkle).observe(pageTitle, { childList:true, characterData:true, subtree:true });
+  }
   document.querySelector('.top > div').prepend(welcome);
   const showWelcomeGreeting = async () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     const { data: userProfile } = await db.from('profiles').select('full_name').eq('id', signedInUser.id).maybeSingle();
     const fullName = userProfile?.full_name?.trim() || signedInUser.user_metadata?.full_name?.trim() || signedInUser.email?.split('@')[0] || '';
-    welcome.textContent = formatGreeting(fullName);
+    renderGreeting(fullName);
   };
   showWelcomeGreeting();
   document.addEventListener('carometro:profiles-changed', showWelcomeGreeting);
@@ -31,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const profileDrawer = document.createElement('aside');
   profileDrawer.id = 'profileDrawer';
   profileDrawer.className = 'profile-drawer';
-  profileDrawer.innerHTML = `<div class="profile-drawer-head"><div><p class="eyebrow">Minha conta</p><h2>Meu Perfil</h2></div><button type="button" class="close" id="closeProfileDrawer" aria-label="Fechar">×</button></div><form id="profileForm" class="profile-form"><div class="profile-user"><div class="profile-user-mark" id="profileInitial">U</div><div><b id="profileCurrentName">Usuário</b><div class="meta" id="profileCurrentEmail"></div></div></div><div class="field"><label for="profileName">Nome</label><input id="profileName" autocomplete="name" required maxlength="100"></div><div class="field"><label for="profileEmail">E-mail</label><input id="profileEmail" type="email" autocomplete="email" required></div><div class="field"><label for="profilePassword">Nova senha</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Deixe em branco para manter a atual"><div class="meta">Mínimo de 6 caracteres.</div></div><button class="btn primary full" type="submit">Salvar alterações</button></form><div class="profile-drawer-footer"><button type="button" class="btn danger-outline full" id="profileSignOut">Sair da conta</button></div>`;
+  profileDrawer.innerHTML = `<div class="profile-drawer-head"><div><p class="eyebrow">Minha conta</p><h2>Meu Perfil</h2></div><button type="button" class="close" id="closeProfileDrawer" aria-label="Fechar">×</button></div><form id="profileForm" class="profile-form"><h3 class="profile-section-title">Dados do perfil</h3><p class="profile-section-description">Atualize seu nome, e-mail ou senha.</p><div class="profile-user"><div class="profile-user-mark" id="profileInitial">U</div><div><b id="profileCurrentName">Usuário</b><div class="meta" id="profileCurrentEmail"></div></div></div><div class="field"><label for="profileName">Nome</label><input id="profileName" autocomplete="name" required maxlength="100"></div><div class="field"><label for="profileEmail">E-mail</label><input id="profileEmail" type="email" autocomplete="email" required></div><div class="field"><label for="profilePassword">Nova senha</label><input id="profilePassword" type="password" autocomplete="new-password" minlength="6" placeholder="Deixe em branco para manter a atual"><div class="meta">Mínimo de 6 caracteres.</div></div><button class="btn primary full profile-save" type="submit">Salvar dados do perfil</button></form><div class="profile-drawer-footer"><span class="profile-footer-label">Sessão</span><button type="button" class="btn danger-outline full" id="profileSignOut">Sair da conta</button></div>`;
   profileDrawer.querySelector('#profilePassword').closest('.field').insertAdjacentHTML('beforebegin', '<div class="field"><label for="profileCurrentPassword">Senha atual</label><input id="profileCurrentPassword" type="password" autocomplete="current-password" placeholder="Informe para trocar a senha"></div>');
   const profileBackdrop = document.createElement('div');
   profileBackdrop.id = 'profileBackdrop';
@@ -603,13 +621,21 @@ document.addEventListener('DOMContentLoaded', () => {
     .profile-backdrop { position:fixed; inset:0; z-index:39; background:#10182880; }
     .profile-drawer { position:fixed; z-index:40; top:0; right:0; width:min(420px,100%); height:100dvh; overflow-y:auto; display:flex; flex-direction:column; background:#fff; box-shadow:-18px 0 44px #10182833; transform:translateX(105%); transition:transform .24s ease; }
     .profile-drawer.open { transform:translateX(0); }
-    .profile-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:18px 24px 12px; border-bottom:1px solid var(--line); }
+    .profile-drawer-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:13px 20px 10px; border-bottom:1px solid var(--line); }
     .profile-drawer-head .eyebrow { margin:0 0 4px; }
-    .profile-drawer-head h2 { margin:0; font-size:24px; }
-    .profile-form { flex:0 0 auto; overflow:visible; padding:14px 24px 0; }
-    .profile-user { display:flex; align-items:center; gap:12px; padding:12px; margin-bottom:14px; border-radius:11px; background:#f4f7ff; }
-    .profile-user-mark { width:42px; height:42px; display:grid; place-items:center; flex:none; border-radius:50%; background:#dce6ff; color:#315dbb; font-weight:850; }
-    .profile-drawer-footer { padding:12px 24px 16px; border-top:1px solid var(--line); }
+    .profile-drawer-head h2 { margin:0; font-size:22px; }
+    .profile-form { flex:0 0 auto; overflow:visible; padding:13px 20px 15px; border-bottom:1px solid var(--line); }
+    .profile-section-title { margin:0; font-size:17px; letter-spacing:-.2px; }
+    .profile-section-description { margin:2px 0 10px; color:var(--muted); font-size:12px; }
+    .profile-user { display:flex; align-items:center; gap:10px; padding:8px 10px; margin-bottom:10px; border-radius:10px; background:#f4f7ff; }
+    .profile-user-mark { width:34px; height:34px; display:grid; place-items:center; flex:none; border-radius:50%; background:#dce6ff; color:#315dbb; font-weight:850; }
+    .profile-form .field { margin-bottom:10px; }
+    .profile-form .field label { margin-bottom:4px; font-size:13px; }
+    .profile-form input { min-height:39px; padding:8px 11px; }
+    .profile-form .meta { font-size:12px; }
+    .profile-save { min-height:40px; margin-top:2px; padding:8px 12px; }
+    .profile-drawer-footer { flex:0 0 auto; padding:18px 24px 20px; border-top:1px solid var(--line); background:#fff; }
+    .profile-footer-label { display:block; margin-bottom:10px; color:var(--muted); font-size:12px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
     #reportsNav, #permissionsNav, #profileNav { border:0; background:#2b3c5d; color:#fff; }
     #reportsNav:hover, #reportsNav:focus, #permissionsNav:hover, #permissionsNav:focus, #profileNav:hover, #profileNav:focus { background:#38527e; color:#fff; }
     @media(max-width:800px) {
@@ -623,6 +649,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .profile-nav-avatar::before { content:''; position:absolute; top:5px; left:10px; width:9px; height:9px; border-radius:50%; background:#f6f8fc; }
       .profile-nav-avatar span { position:absolute; bottom:-5px; left:5px; width:19px; height:16px; border-radius:50% 50% 0 0; background:#f6f8fc; }
       .profile-drawer { width:min(390px,92vw); }
+      .profile-drawer-head { padding:11px 18px 8px; }
+      .profile-form { padding:11px 18px 13px; }
+      .profile-form .field { margin-bottom:8px; }
+      .profile-form input { min-height:38px; }
     }
     @media(max-width:340px) { .side .nav { gap:6px; } .side .nav #reportsNav { flex-basis:115px !important; } .side .nav #profileNav { flex-basis:62px !important; } }
     .photo-source-actions { display:flex; flex-wrap:wrap; gap:8px; }

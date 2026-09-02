@@ -83,7 +83,7 @@
         </aside>
         <div class="platform-shell">
           <header class="platform-topbar">
-            <div style="display:flex;align-items:center;gap:12px"><button class="platform-menu-toggle" type="button" aria-label="Abrir menu">☰</button><div><h2 id="platformPageTitle">Olá, Proprietário! 👋</h2><p id="platformPageSubtitle">Aqui está o resumo da sua plataforma.</p></div></div>
+            <div style="display:flex;align-items:center;gap:12px"><button class="platform-menu-toggle" type="button" aria-label="Abrir menu">☰</button><div><h2 id="platformPageTitle">Olá, Proprietário!</h2><p id="platformPageSubtitle">Aqui está o resumo da sua plataforma.</p></div></div>
             <div class="platform-top-actions"><span class="platform-date" id="platformCurrentDate"></span><button class="platform-close" type="button" aria-label="Fechar painel">×</button></div>
           </header>
           <main class="platform-content">
@@ -152,7 +152,7 @@
               </table>
             </div>
           </section></section>
-          <section class="platform-page" data-platform-section="settings"><div class="platform-page-heading"><div><h3>Configurações</h3><p>Opções globais sustentadas pelo backend atual.</p></div></div><section class="platform-panel"><div class="platform-settings-row"><div><h4>Oferta pública dos planos</h4><p>Exibir a oferta de planos na área pública do Carômetro.</p><p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p></div><label class="platform-switch"><input id="platformShowSubscription" type="checkbox"><span></span></label></div></section></section>
+          <section class="platform-page" data-platform-section="settings"><div class="platform-page-heading"><div><h3>Configurações</h3><p>Opções globais sustentadas pelo backend atual.</p></div></div><section class="platform-panel"><div class="platform-settings-row"><div><h4>Oferta pública dos planos</h4><p>Exibir a oferta de planos na área pública do Carômetro.</p><p id="platformShowSubscriptionError" class="error hidden" style="margin-top:8px"></p></div><label class="platform-switch"><input id="platformShowSubscription" type="checkbox"><span></span></label></div></section><section class="platform-panel" style="margin-top:16px"><div class="platform-settings-row platform-account-settings-row"><div><h4>Contas e acessos</h4><p>Localize contas, suspenda acessos ou realize operações administrativas de usuários.</p></div><button id="platformOpenAccountSettings" type="button" class="btn primary">Gerenciar contas e acessos</button></div></section></section>
           </main>
         </div>
       </div>
@@ -176,6 +176,16 @@
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
+    modal.querySelector('#platformOpenAccountSettings').onclick = async () => {
+      // O gerenciador de contas é um modal independente. Feche o painel da
+      // plataforma primeiro para que ele não seja aberto atrás deste shell.
+      closeDashboard();
+      if (typeof window.openPlatformAccountSettings === 'function') {
+        await window.openPlatformAccountSettings();
+        return;
+      }
+      document.getElementById('settingsNav')?.click();
+    };
     modal.querySelector('.platform-shell').onclick = event => {
       if (event.target.closest('.platform-menu-toggle')) return;
       const workspace = modal.querySelector('.platform-workspace');
@@ -196,7 +206,7 @@
   }
 
   const PLATFORM_PAGE_COPY = {
-    overview: ['Olá, Proprietário! 👋', 'Aqui está o resumo da sua plataforma.'],
+    overview: ['Olá, Proprietário!', 'Aqui está o resumo da sua plataforma.'],
     schools: ['Escolas', 'Cadastre e administre as escolas do Carômetro.'],
     applications: ['Novos clientes', 'Analise solicitações recebidas pela página de planos.'],
     subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
@@ -838,6 +848,8 @@
     const adminSchools = user.admin_schools || [];
     const pendingInvitations = user.pending_invitations || [];
     const memberships = user.school_memberships || [];
+    const hasActiveMembership = memberships.some(item => item.status === 'active');
+    const awaitingInvitationAcceptance = pendingInvitations.length > 0 && !hasActiveMembership;
     const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
     const membershipStatusLabels = { active:'Ativo', suspended:'Suspenso', pending:'Pendente' };
     const formatDateTime = value => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(new Date(value)) : 'Não informado';
@@ -856,8 +868,8 @@
       <div class="platform-account-facts">
         <div><span>Nome do usuário</span><strong>${esc(user.full_name || 'Não informado')}</strong></div>
         <div><span>Conta criada em</span><strong>${esc(formatDateTime(user.created_at))}</strong></div>
-        <div><span>Situação da conta</span><strong>${esc(STATUS_LABELS[user.status] || user.status)}</strong></div>
-        <div><span>E-mail</span><strong>${user.confirmed ? 'Confirmado' : 'Não confirmado'}</strong></div>
+        <div><span>Situação da conta</span><strong>${awaitingInvitationAcceptance ? 'Convite pendente' : esc(STATUS_LABELS[user.status] || user.status)}</strong></div>
+        <div><span>E-mail</span><strong>${awaitingInvitationAcceptance ? 'Aguardando aceite do convite' : (user.confirmed ? 'Confirmado' : 'Não confirmado')}</strong></div>
         <div><span>Último acesso</span><strong>${esc(formatDateTime(user.last_sign_in_at))}</strong></div>
       </div>
       <div class="platform-account-memberships"><b>Escolas e funções (${esc(user.memberships)})</b>${membershipCards}</div>
@@ -1563,6 +1575,10 @@
       'hidden',
       !owner
     );
+
+    // Configurações foi centralizado dentro do painel Plataforma; o acionador
+    // legado permanece oculto e é chamado internamente pela nova opção.
+    document.getElementById('settingsNav')?.classList.add('hidden');
 
   }
 

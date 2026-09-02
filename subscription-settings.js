@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   nav.innerHTML = '⚙ &nbsp; Configurações';
   side.insertBefore(nav, document.getElementById('signOut'));
 
+
   const loginCard = document.querySelector('#login .card');
   const plansButton = document.createElement('button');
   plansButton.id = 'openPublicPlans';
@@ -189,7 +190,15 @@ document.addEventListener('DOMContentLoaded', () => {
       </article>`;
     }).join('') || '<div class="empty">Os planos estão temporariamente indisponíveis.</div>';
     grid.querySelectorAll('[data-public-plan-cta]').forEach(button => {
-      button.onclick = () => openApplication(button.dataset.publicPlanCta);
+      button.onclick = () => {
+        const planKey = button.dataset.publicPlanCta;
+        const plan = publicPlans.find(item => item.plan_key === planKey);
+        if (plan?.contact_only) {
+          window.location.href = 'mailto:contato@sistemacarometro.com.br?subject=Plano%20Empresarial%20-%20CAR%C3%94METRO';
+          return;
+        }
+        openApplication(planKey);
+      };
     });
   }
 
@@ -314,7 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // dados. A autorização definitiva continua sendo feita pelo banco.
     await originalShowApp();
     if (!user) return;
-    nav.classList.toggle('hidden', !isPlatformOwner());
+    // O acesso foi centralizado em Plataforma → Configurações. O botão
+    // continua existindo como acionador interno da função, mas não aparece
+    // mais isolado na barra lateral.
+    nav.classList.add('hidden');
     watchAccessStatus();
   };
 
@@ -329,13 +341,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
-    const { data, error } = await db.rpc('admin_list_accounts');
+    const { data, error } = await db.rpc('admin_list_accounts_v2');
     if (error) {
       target.innerHTML = '<div class="error">Execute primeiro o arquivo de configuração de acesso no Supabase.</div>';
       return;
     }
     function accountStatus(item) {
       if (item.role === 'platform_owner') return { cls:'access-active', label:'Acesso ativo', toggle:null };
+      if (Number(item.pending_invitations || 0) > 0 && Number(item.active_memberships || 0) === 0) {
+        return { cls:'access-pending', label:'Convite pendente de aceite', toggle:null };
+      }
       if (!item.email_confirmed) return { cls:'access-pending', label:'Aguardando confirmação de e-mail', toggle:null };
       if (item.access_status === 'active') return { cls:'access-active', label:'Acesso ativo', toggle:'suspended' };
       if (item.access_status === 'suspended') return { cls:'access-suspended', label:'Acesso suspenso', toggle:'active' };
@@ -370,6 +385,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Acionador público usado por Plataforma → Configurações. Evita depender
+  // de um clique sintético no botão legado oculto da barra lateral.
+  window.openPlatformAccountSettings = openSettings;
+
   window.setPlatformAccess = async (id, status) => {
     if (!await refreshPlatformOwner()) { toast('Acesso negado.'); return; }
     const { error } = await db.rpc('platform_set_account_access', {
@@ -397,7 +416,15 @@ document.addEventListener('DOMContentLoaded', () => {
     pendingAccountActions.add(actionKey);
     try {
       const { data, error } = await db.functions.invoke('manage-user', { body:{ action, userId:id } });
-      if (error || data?.error) { toast(data?.error || error?.message || 'Não foi possível concluir a ação.'); return; }
+      if (error || data?.error) {
+        let message = data?.error || error?.message || 'Não foi possível concluir a ação.';
+        try {
+          const payload = await error?.context?.json();
+          if (payload?.error) message = payload.error;
+        } catch {}
+        toast(message);
+        return;
+      }
       toast(action === 'cancel_login' ? 'Login cancelado. O e-mail está liberado para novo cadastro.' : 'Usuário excluído permanentemente.');
       openSettings();
     } finally {

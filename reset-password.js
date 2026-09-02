@@ -20,6 +20,10 @@ const status = document.getElementById('resetStatus');
 const backToLogin = document.getElementById('backToLogin');
 const message = text => { error.textContent = text; error.classList.remove('hidden'); };
 const goToLogin = async () => { await db.auth.signOut(); location.replace(returnUrl); };
+const settleWithin = (promise, milliseconds = 4000) => Promise.race([
+  Promise.resolve(promise).catch(() => null),
+  new Promise(resolve => setTimeout(() => resolve(null), milliseconds))
+]);
 const unlockRecoveryForm = () => {
   recoveryAuthorized = true;
   status.classList.add('hidden');
@@ -57,9 +61,12 @@ document.getElementById('resetForm').onsubmit = async event => {
   }
   const { error: updateError } = await db.auth.updateUser({ password });
   if (updateError) { save.disabled = false; message(updateError.message); return; }
+  // A senha já foi persistida neste ponto. As tarefas auxiliares abaixo não
+  // podem manter a tela indefinidamente em estado de carregamento.
+  save.textContent = 'Senha atualizada';
   // updateUser({password}) bem-sucedido é prova real de senha própria.
   // Melhor esforço, e precisa rodar antes do goToLogin (que faz signOut).
-  await db.rpc('mark_current_user_password_set').catch(() => {});
-  save.textContent = 'Senha atualizada';
-  await goToLogin();
+  await settleWithin(db.rpc('mark_current_user_password_set'));
+  await settleWithin(db.auth.signOut());
+  location.replace(returnUrl);
 };

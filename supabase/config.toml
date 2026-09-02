@@ -1,6 +1,9 @@
 [functions.send-web-push]
 verify_jwt = false
 
+[functions.send-school-invitation]
+verify_jwt = false
+
 [functions.create-mercado-pago-subscription]
 verify_jwt = false
 

@@ -1,0 +1,78 @@
+/* Tipografia de interface: mais arredondada nos controles e títulos, sem
+   sacrificar a leitura dos textos longos e informações dos estudantes. */
+:root {
+  --ui-rounded-font:"Manrope", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+}
+
+html {
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  text-rendering:optimizeLegibility;
+}
+
+body,
+button,
+input,
+select,
+textarea {
+  font-family:var(--ui-rounded-font);
+}
+
+button,
+.btn,
+.link,
+.logo,
+.nav,
+.class-sidebar,
+.top h1,
+.top h2,
+.head h3,
+.modal-head h3,
+.profile-drawer h2,
+.profile-drawer h3,
+.eyebrow,
+.stat,
+.pill,
+.name,
+label {
+  font-family:var(--ui-rounded-font);
+}
+
+button,
+.btn,
+.link {
+  font-weight:750;
+  letter-spacing:.005em;
+}
+
+.nav button,
+.top-actions .btn,
+.actions .btn,
+.actions-small button,
+.notification-preferences-actions .link {
+  border-radius:11px;
+}
+
+.side .nav button {
+  line-height:1.2;
+  font-weight:700;
+}
+
+.top h1,
+.profile-drawer h2,
+.modal-head h3,
+.head h3 {
+  font-weight:800;
+  letter-spacing:-.025em;
+}
+
+.name,
+.stat strong {
+  font-weight:750;
+  letter-spacing:-.015em;
+}
+
+.eyebrow,
+.class-head {
+  letter-spacing:.085em;
+}
