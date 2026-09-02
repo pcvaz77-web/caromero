@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     .uniform-dialog { border-radius:24px; background:#fff; box-shadow:0 28px 70px rgba(16,24,40,.28); }
     .uniform-dialog #uniformItemsPanel { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#c8d3e7 transparent; }
-    .uniform-dialog .uniform-modern-head { min-height:96px; padding:20px 28px; gap:17px; border:0; color:#fff; background:linear-gradient(120deg,#174f9b 0%,#284eb6 55%,#4937c9 100%); }
+    .uniform-dialog .uniform-modern-head { min-height:96px; padding:20px 28px; gap:17px; border:0; color:#fff; background:linear-gradient(120deg,#174f9b 0%,#284eb6 55%,#4937c9 100%)!important; }
     .uniform-modern-head > .uniform-icon { width:50px; height:50px; padding:13px; border-radius:16px; color:#fff; background-color:#fff; filter:drop-shadow(0 7px 13px rgba(27,38,113,.3)); }
     .uniform-modern-head > div { flex:1; }.uniform-modern-head h3 { color:#fff; font-size:24px; letter-spacing:-.5px; }.uniform-modern-head .meta { color:rgba(255,255,255,.78); font-size:14px; }
     .uniform-modern-head #closeUniform { width:42px; height:42px; display:grid; place-items:center; border-radius:13px; color:#fff; background:rgba(255,255,255,.12); font-size:28px; }
