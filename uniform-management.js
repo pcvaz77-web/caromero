@@ -260,11 +260,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (uniformPhotoObserver) uniformPhotoObserver.disconnect();
     const rows = listElement.querySelectorAll('[data-avatar-id]');
     if (!('IntersectionObserver' in window)) { rows.forEach(el => loadUniformRowPhoto(el.dataset.avatarId)); return; }
+    // No modo Itens, a rolagem pertence ao painel inteiro — a lista tem
+    // overflow visível para evitar duas rolagens concorrentes no celular.
+    // Usar a própria lista como root faria todas as linhas parecerem
+    // visíveis ao mesmo tempo, disparando centenas de URLs assinadas.
+    const photoScrollRoot = listElement.id === 'uniformList'
+      ? get('uniformItemsPanel')
+      : listElement;
     uniformPhotoObserver = new IntersectionObserver(entries => entries.forEach(entry => {
       if (!entry.isIntersecting) return;
       uniformPhotoObserver.unobserve(entry.target);
       loadUniformRowPhoto(entry.target.dataset.avatarId);
-    }), { root:listElement, rootMargin:'160px 0px' });
+    }), { root:photoScrollRoot, rootMargin:'160px 0px' });
     rows.forEach(el => uniformPhotoObserver.observe(el));
   }
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
