@@ -123,13 +123,14 @@ document.addEventListener('DOMContentLoaded', () => {
       .uniform-empty-modern { min-height:190px; margin:0 16px 16px; }.uniform-list { padding:0 16px 16px; }
     }
     @media(min-width:801px) {
-      .uniform-dialog .uniform-modern-head { min-height:84px; padding:15px 28px; }
-      .uniform-modern-head > .uniform-icon { width:44px; height:44px; }
-      .uniform-mode-toggle { margin-top:12px; margin-bottom:7px; }.uniform-mode-btn { min-height:40px; }
-      .uniform-summary { padding-top:8px; padding-bottom:12px; }.uniform-summary > div { min-height:86px; padding:12px 15px; }.uniform-summary > div > .uniform-icon { width:35px; height:35px; }.uniform-summary b { font-size:22px; }
-      .uniform-shift-section { padding:13px 16px; }.uniform-shift-card { padding:9px 10px; }.uniform-shift-card > b { margin-bottom:5px; }
-      .uniform-bulk-action { padding-top:12px; }.uniform-bulk-action .btn { min-height:42px; }
-      .uniform-controls { padding-top:10px; padding-bottom:10px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:42px; }
+      .uniform-dialog .uniform-modern-head { min-height:76px; padding:12px 24px; }
+      .uniform-modern-head > .uniform-icon { width:40px; height:40px; }
+      .uniform-modern-head h3 { font-size:21px; }.uniform-modern-head .meta { font-size:12.5px; }
+      .uniform-mode-toggle { margin:8px 24px 5px; padding:3px; }.uniform-mode-btn { min-height:34px; min-width:165px; padding:6px 18px; }
+      .uniform-summary { gap:10px; padding:7px 24px 9px; }.uniform-summary > div { min-height:66px; grid-template-columns:31px 1fr; column-gap:9px; padding:8px 12px; }.uniform-summary > div > .uniform-icon { width:29px; height:29px; }.uniform-summary span:not(.uniform-icon) { font-size:11.5px; }.uniform-summary b { font-size:19px; }
+      .uniform-shift-section { margin:0 24px; padding:8px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:11px; }.uniform-shift-title .uniform-icon { width:17px; height:17px; }.uniform-shift-card { padding:6px 8px; }.uniform-shift-card > b { margin-bottom:2px; font-size:11.5px; }.uniform-shift-card > b .uniform-icon { width:20px; height:20px; }.uniform-shift-cell { padding:2px 4px; }.uniform-shift-values span { font-size:9px; }.uniform-shift-values strong { font-size:13px; }
+      .uniform-bulk-action { padding:8px 24px 2px; }.uniform-bulk-action .btn { min-height:36px; }
+      .uniform-controls { padding:8px 24px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:40px; }
       .uniform-empty-modern { min-height:155px; }
     }
   `;
