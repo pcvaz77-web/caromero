@@ -123,16 +123,26 @@ document.addEventListener('DOMContentLoaded', () => {
       .uniform-empty-modern { min-height:190px; margin:0 16px 16px; }.uniform-list { padding:0 16px 16px; }
     }
     @media(min-width:801px) {
-      .uniform-dialog .uniform-modern-head { min-height:76px; padding:12px 24px; }
-      .uniform-modern-head > .uniform-icon { width:40px; height:40px; }
-      .uniform-modern-head h3 { font-size:21px; }.uniform-modern-head .meta { font-size:12.5px; }
-      .uniform-mode-toggle { margin:8px 24px 5px; padding:3px; }.uniform-mode-btn { min-height:34px; min-width:165px; padding:6px 18px; }
-      .uniform-summary { gap:10px; padding:7px 24px 9px; }.uniform-summary > div { min-height:66px; grid-template-columns:31px 1fr; column-gap:9px; padding:8px 12px; }.uniform-summary > div > .uniform-icon { width:29px; height:29px; }.uniform-summary span:not(.uniform-icon) { font-size:11.5px; }.uniform-summary b { font-size:19px; }
-      .uniform-shift-section { margin:0 24px; padding:8px 12px; }.uniform-shift-title { margin-bottom:6px; font-size:11px; }.uniform-shift-title .uniform-icon { width:17px; height:17px; }.uniform-shift-card { padding:6px 8px; }.uniform-shift-card > b { margin-bottom:2px; font-size:11.5px; }.uniform-shift-card > b .uniform-icon { width:20px; height:20px; }.uniform-shift-cell { padding:2px 4px; }.uniform-shift-values span { font-size:9px; }.uniform-shift-values strong { font-size:13px; }
-      .uniform-bulk-action { padding:8px 24px 2px; }.uniform-bulk-action .btn { min-height:36px; }
-      .uniform-controls { padding:8px 24px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:40px; }
-      .uniform-empty-modern { min-height:155px; }
+      .uniform-dialog .uniform-modern-head { min-height:62px; padding:8px 22px; }
+      .uniform-modern-head > .uniform-icon { width:34px; height:34px; }
+      .uniform-modern-head h3 { font-size:19px; }.uniform-modern-head .meta { font-size:11.5px; }
+      .uniform-modern-head #closeUniform { width:34px; height:34px; border-radius:10px; font-size:23px; }
+      .uniform-mode-toggle { margin:5px 22px 3px; padding:2px; }.uniform-mode-btn { min-height:29px; min-width:150px; padding:4px 15px; font-size:12.5px; }.uniform-mode-btn .uniform-icon { width:17px; height:17px; }
+      .uniform-summary { gap:8px; padding:5px 22px 6px; }.uniform-summary > div { min-height:50px; grid-template-columns:25px 1fr; column-gap:7px; padding:5px 10px; border-radius:12px; }.uniform-summary > div > .uniform-icon { width:24px; height:24px; }.uniform-summary span:not(.uniform-icon) { font-size:10px; }.uniform-summary b { font-size:16px; line-height:1; }
+      .uniform-shift-section { margin:0 22px; padding:5px 9px; border-radius:14px; }.uniform-shift-title { margin-bottom:3px; font-size:10px; }.uniform-shift-title .uniform-icon { width:15px; height:15px; }.uniform-shift-card { padding:4px 6px; border-radius:10px; }.uniform-shift-card > b { margin-bottom:1px; font-size:10.5px; }.uniform-shift-card > b .uniform-icon { width:17px; height:17px; }.uniform-shift-cell { padding:2px 3px; }.uniform-shift-values span { font-size:8px; }.uniform-shift-values strong { font-size:12px; }
+      .uniform-bulk-action { padding:5px 22px 1px; }.uniform-bulk-action .btn { min-height:31px; font-size:12px; }
+      .uniform-controls { padding:6px 22px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:36px; font-size:12.5px; }
+      .uniform-columns { padding-bottom:3px; }.uniform-empty-modern { min-height:130px; }
     }
+
+    /* Contadores com zero são apenas informativos; os que possuem alunos
+       se apresentam como controles interativos e o filtro ativo fica claro. */
+    .uniform-shift-cell:not(:disabled) { padding:4px 5px; border:1px solid #cbdcf7; background:#f3f7ff; box-shadow:0 2px 7px rgba(45,92,169,.08); transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease; }
+    .uniform-shift-cell:not(:disabled) strong { color:#1f67cf; font-weight:850; }
+    .uniform-shift-cell:not(:disabled):hover { transform:translateY(-1px); border-color:#7ba5eb; background:#e8f1ff; box-shadow:0 5px 12px rgba(45,92,169,.15); }
+    .uniform-shift-cell:disabled { opacity:.36; filter:grayscale(.75); cursor:default; box-shadow:none; }
+    .uniform-shift-cell[aria-pressed="true"] { border-color:#496ee8; color:#fff; background:linear-gradient(120deg,#3677e9,#6548df); box-shadow:0 5px 13px rgba(74,77,210,.22); }
+    .uniform-shift-cell[aria-pressed="true"] span,.uniform-shift-cell[aria-pressed="true"] strong { color:#fff; }
   `;
   document.head.appendChild(style);
 
