@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const byId = id => document.getElementById(id);
   const roleLabel = role => role === 'coordinator' ? 'Coordenador(a)' : 'Professor(a)';
-  const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin' || (window.getActiveSchoolRole?.() === 'coordinator' && !!permission.can_invite_teachers);
+  const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin' || (window.getActiveSchoolRole?.() === 'coordinator' && !!(permission.can_edit_all || permission.can_invite_teachers));
   const linkForToken = token => new URL(`accept-invite.html?token=${encodeURIComponent(token)}`, location.href).href;
   const copyText = async text => {
     try { await navigator.clipboard.writeText(text); }
@@ -120,6 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); cancelButton.disabled = false; return; }
     toast('Convite cancelado.'); await loadPending();
   };
-  document.addEventListener('carometro:school-context-ready', refreshVisibility);
+  // O contexto da escola fica pronto antes de a carga geral dos alunos. Antes,
+  // a visibilidade era calculada nesse intervalo usando a permissão legada e o
+  // botão só aparecia quando uma atualização posterior acontecia. Resolva a
+  // permissão comercial da escola ativa primeiro e então atualize o menu.
+  document.addEventListener('carometro:school-context-ready', async () => {
+    await window.refreshCarometroSchoolPermission?.();
+    refreshVisibility();
+  });
   document.addEventListener('carometro:permission-refresh', refreshVisibility);
 });
