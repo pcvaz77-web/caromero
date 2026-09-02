@@ -13,10 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.innerHTML = `<section class="modal uniform-dialog">
     <div class="modal-head uniform-modern-head"><span class="uniform-icon uniform-icon-bag" aria-hidden="true"></span><div><h3>Controle de Itens</h3><div class="meta">Consulte a situação por turno, turma ou aluno.</div></div><button class="close" type="button" id="closeUniform" aria-label="Fechar">×</button></div>
     <div class="uniform-mode-toggle" role="tablist"><button type="button" id="uniformModeItems" class="uniform-mode-btn active" role="tab" aria-pressed="true"><span class="uniform-icon uniform-icon-cart" aria-hidden="true"></span>Itens</button><button type="button" id="uniformModeLivroRevisa" class="uniform-mode-btn" role="tab" aria-pressed="false"><span class="uniform-icon uniform-icon-book" aria-hidden="true"></span>Livro/Revisa</button></div>
-    <div id="uniformItemsPanel"><div class="uniform-summary"><div class="uniform-summary-uniform"><span class="uniform-icon uniform-icon-shirt" aria-hidden="true"></span><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div class="uniform-summary-shoes"><span class="uniform-icon uniform-icon-shoe" aria-hidden="true"></span><span>Sem tênis</span><b id="pendingShoes">0</b></div><div class="uniform-summary-both"><span class="uniform-icon uniform-icon-users" aria-hidden="true"></span><span>Sem os dois</span><b id="pendingBoth">0</b></div><div class="uniform-summary-material"><span class="uniform-icon uniform-icon-backpack" aria-hidden="true"></span><span>Sem material</span><b id="pendingMaterial">0</b></div></div>
+    <div id="uniformItemsPanel"><div class="uniform-summary"><div class="uniform-summary-uniform"><span class="uniform-icon uniform-icon-shirt" aria-hidden="true"></span><span>Sem uniforme</span><b id="pendingUniform">0</b></div><div class="uniform-summary-shoes"><span class="uniform-icon uniform-icon-shoe" aria-hidden="true"></span><span>Sem tênis</span><b id="pendingShoes">0</b></div><div class="uniform-summary-both"><span class="uniform-icon-pair" aria-hidden="true"><span class="uniform-icon uniform-icon-shirt"></span><i>/</i><span class="uniform-icon uniform-icon-shoe"></span></span><span>Sem os dois</span><b id="pendingBoth">0</b></div><div class="uniform-summary-material"><span class="uniform-icon uniform-icon-backpack" aria-hidden="true"></span><span>Sem material</span><b id="pendingMaterial">0</b></div></div>
       <section class="uniform-shift-section" aria-label="Contagem por turno"><span class="uniform-shift-title"><span class="uniform-icon uniform-icon-chart" aria-hidden="true"></span>Contagem por turno</span><div id="uniformShiftSummary" class="uniform-shift-summary"></div></section>
       <div class="uniform-bulk-action"><button id="markAllUniformReceived" class="btn secondary" type="button"><span class="uniform-icon uniform-icon-check" aria-hidden="true"></span>Marcar todos como receberam</button></div>
-      <div class="uniform-controls"><label class="uniform-control-field"><span class="uniform-icon uniform-icon-calendar" aria-hidden="true"></span><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-users" aria-hidden="true"></span><select id="uniformClass"><option value="">Todas as turmas</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-user" aria-hidden="true"></span><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem uniforme e tênis</option><option value="material">Somente sem material</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-search" aria-hidden="true"></span><input id="uniformSearch" placeholder="Buscar aluno"></label></div>
+      <div class="uniform-controls"><label class="uniform-control-field"><span class="uniform-icon uniform-icon-calendar" aria-hidden="true"></span><select id="uniformShift"><option value="">Todos os turnos</option><option value="Matutino">Matutino</option><option value="Vespertino">Vespertino</option><option value="Noturno">Noturno</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-users" aria-hidden="true"></span><select id="uniformClass"><option value="">Todas as turmas</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-user" aria-hidden="true"></span><select id="uniformView"><option value="all">Todos os alunos</option><option value="pending">Somente alunos pendentes</option><option value="uniform">Somente sem uniforme</option><option value="shoes">Somente sem tênis</option><option value="both">Sem os dois</option><option value="material">Somente sem material</option></select></label><label class="uniform-control-field"><span class="uniform-icon uniform-icon-search" aria-hidden="true"></span><input id="uniformSearch" placeholder="Buscar aluno"></label></div>
       <div id="uniformActiveFilter" class="uniform-active-filter hidden" role="status" aria-live="polite"></div><div class="uniform-columns"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="uniformList" class="uniform-list"></div></div>
     <div id="livroRevisaPanel" class="livro-revisa-panel hidden"><div class="livro-revisa-controls"><select id="livroRevisaClass"><option value="">Selecione a turma</option></select><input id="livroRevisaYear" type="number" min="2000" max="2100" placeholder="Ano letivo"><select id="livroRevisaBimester"><option value="">Bimestre</option><option value="1">1º bimestre</option><option value="2">2º bimestre</option><option value="3">3º bimestre</option><option value="4">4º bimestre</option></select></div><div id="livroRevisaNotice" class="livro-revisa-notice hidden"></div><div id="livroRevisaColumns" class="uniform-columns livro-revisa-columns hidden"><span>Aluno</span><span>Situação</span><span>Registrar</span></div><div id="livroRevisaList" class="livro-revisa-list"></div><div class="livro-revisa-actions"><button id="finalizeLivroRevisa" class="btn secondary" type="button" disabled>Finalizar conferência</button></div></div>
   </section>`;
@@ -103,6 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .uniform-summary-uniform { border-color:#cfe5f9!important; background:#f5fbff!important; }.uniform-summary-uniform .uniform-icon,.uniform-summary-uniform b { color:#2584e8; }
     .uniform-summary-shoes { border-color:#ccefdc!important; background:#f5fdf8!important; }.uniform-summary-shoes .uniform-icon,.uniform-summary-shoes b { color:#12a66a; }
     .uniform-summary-both { border-color:#f5dfc7!important; background:#fffaf3!important; }.uniform-summary-both .uniform-icon,.uniform-summary-both b { color:#e57e18; }
+    .uniform-icon-pair { grid-row:1 / 3; align-self:center; display:flex!important; align-items:center; gap:2px; color:#e57e18!important; }
+    .uniform-icon-pair .uniform-icon { width:19px; height:19px; }.uniform-icon-pair i { color:#d3914c; font-size:14px; font-style:normal; font-weight:850; }
     .uniform-summary-material { border-color:#e5d7f8!important; background:#fbf8ff!important; }.uniform-summary-material .uniform-icon,.uniform-summary-material b { color:#8249d8; }
     .uniform-shift-section { margin:0 28px; padding:18px; border:1px solid #e6eaf2; border-radius:18px; background:#fff; }
     .uniform-shift-title { display:flex; align-items:center; gap:9px; margin-bottom:13px; color:#24324a; font-size:13px; }
@@ -113,14 +115,14 @@ document.addEventListener('DOMContentLoaded', () => {
     .uniform-empty-modern { min-height:210px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; margin:0 28px 20px; border:1px solid #edf0f5; border-radius:16px; background:#fff; }.uniform-empty-modern .uniform-empty-illustration { width:82px; height:82px; display:grid; place-items:center; margin-bottom:7px; border-radius:50%; color:#3687e8; background:#eef7ff; }.uniform-empty-modern .uniform-empty-illustration .uniform-icon { width:46px; height:46px; }.uniform-empty-modern b { color:#202c40; font-size:16px; }.uniform-empty-modern > span:last-child { font-size:14px; }
 
     @media(max-width:800px) {
-      .uniform-modal { padding:0; }.uniform-dialog { width:100%; height:100dvh; max-height:100dvh; border-radius:22px; }
+      #uniformModal.uniform-modal { inset:0!important; padding:0!important; align-items:stretch!important; }.uniform-dialog { width:100vw; height:100dvh; max-height:100dvh; border-radius:0; }
       .uniform-dialog .uniform-modern-head { min-height:82px; padding:12px 16px; }.uniform-modern-head > .uniform-icon { width:38px; height:38px; }.uniform-modern-head h3 { font-size:19px; }.uniform-modern-head .meta { font-size:11.5px; }.uniform-modern-head #closeUniform { width:36px; height:36px; }
       .uniform-mode-toggle { width:calc(100% - 24px); margin:10px 12px 7px; }.uniform-mode-btn { min-width:0; flex:1; min-height:36px; padding:6px 10px; font-size:12.5px; }.uniform-mode-btn .uniform-icon { width:17px; height:17px; }
-      .uniform-summary { grid-template-columns:repeat(4,1fr); gap:5px; padding:5px 12px 8px; }.uniform-summary > div { min-height:59px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px; padding:6px 7px; }.uniform-summary > div > .uniform-icon { width:22px; height:22px; }.uniform-summary span:not(.uniform-icon) { max-width:100%; font-size:8.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.uniform-summary b { font-size:16px; }
+      .uniform-summary { grid-template-columns:repeat(4,1fr); gap:5px; padding:5px 12px 8px; }.uniform-summary > div { min-height:56px; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:1px; padding:5px 6px; }.uniform-summary > div > .uniform-icon { width:21px; height:21px; }.uniform-summary span:not(.uniform-icon):not(.uniform-icon-pair) { max-width:100%; font-size:8px; line-height:1.05; white-space:normal; overflow:visible; }.uniform-summary b { font-size:15px; }.uniform-summary .uniform-icon-pair { min-height:21px; }.uniform-summary .uniform-icon-pair .uniform-icon { width:14px; height:14px; }.uniform-summary .uniform-icon-pair i { font-size:10px; }
       .uniform-shift-section { margin:0 12px; padding:8px; }.uniform-shift-title { margin-bottom:5px; font-size:10px; }.uniform-shift-summary { display:grid; grid-template-columns:1fr; gap:5px; }.uniform-shift-card { display:grid; grid-template-columns:92px minmax(0,1fr); align-items:center; gap:5px; padding:5px 7px; }.uniform-shift-card > b { display:flex; margin:0; font-size:11px; }.uniform-shift-card > b .uniform-icon { width:21px; height:21px; }.uniform-shift-values { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:3px; }.uniform-shift-cell { display:flex!important; flex-direction:column; gap:0; min-height:35px; padding:3px 1px!important; }.uniform-shift-values span { max-width:100%; font-size:7.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.uniform-shift-values strong { font-size:13px; }
       .uniform-bulk-action { padding:8px 12px 2px; }.uniform-bulk-action .btn { min-height:38px; font-size:12px; }
       .uniform-controls { grid-template-columns:1fr 1fr; gap:6px; padding:8px 12px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:39px; padding-left:37px; font-size:11.5px; }.uniform-control-field > .uniform-icon { left:11px; width:17px; height:17px; }
-      .uniform-active-filter { margin:0 12px 5px; padding:5px 9px; font-size:10.5px; }.uniform-empty-modern { min-height:145px; margin:0 12px 12px; }.uniform-list { min-height:240px; padding:0 12px 12px; }
+      .uniform-active-filter { margin:0 12px 5px; padding:5px 9px; font-size:10.5px; }.uniform-empty-modern { min-height:145px; margin:0 12px 12px; }.uniform-list { min-height:52dvh; padding:0 12px max(34px,env(safe-area-inset-bottom)); }
     }
     @media(min-width:801px) {
       .uniform-dialog .uniform-modern-head { min-height:62px; padding:8px 22px; }
@@ -535,7 +537,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .map(item => ({ ...item }));
     if (requestId === classStudentsRequest) render();
   }
-  async function open() {
+  let uniformOpenRefreshPromise = null;
+  function open() {
     if (!canAccessUniform()) { toast('O administrador precisa liberar o acesso ao Controle de Itens para este coordenador.'); return; }
     // NUNCA chame window.load?.() aqui: é a carga completa da tela principal
     // (todos os alunos, todas as turmas, e — em student-edit-improvements.js —
@@ -545,17 +548,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // segundos, sem necessidade: students/classes já são mantidos
     // atualizados pelo ciclo de vida normal do app. Só o estado específico de
     // Uniforme (colunas próprias, leves) precisa ser garantido fresco aqui.
-    uniformButton.disabled = true;
-    try {
-      await refreshUniformState({ renderWhenOpen:false });
-      classOptions();
-      setUniformMode('items');
-      modal.classList.remove('hidden');
-      if (get('uniformClass').value || get('uniformShift').value) await loadClassStudents();
-      else classStudents = [];
-      render();
-    } finally {
-      uniformButton.disabled = false;
+    // Abra primeiro com o estado já sincronizado pelo evento data-loaded.
+    // A leitura fresca acontece depois, sem bloquear a resposta ao clique.
+    classOptions();
+    setUniformMode('items');
+    modal.classList.remove('hidden');
+    if (get('uniformClass').value || get('uniformShift').value) loadClassStudents();
+    else { classStudents = []; render(); }
+    if (!uniformOpenRefreshPromise) {
+      uniformOpenRefreshPromise = refreshUniformState({ renderWhenOpen:true })
+        .catch(error => console.error('Não foi possível atualizar o Controle de Itens em segundo plano:', error))
+        .finally(() => { uniformOpenRefreshPromise = null; });
     }
   }
   const syncUniformNavigation = () => {
