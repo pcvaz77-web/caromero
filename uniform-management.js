@@ -242,19 +242,46 @@ document.addEventListener('DOMContentLoaded', () => {
   // demanda, um por vez, quando a linha realmente aparece na tela.
   const avatarHtml = item => `<div class="avatar" data-avatar-id="${item.id}">${item.photoUrl ? `<img src="${item.photoUrl}" alt="">` : ini(item.name)}</div>`;
   let uniformPhotoObserver = null;
-  async function loadUniformRowPhoto(studentId) {
+  const queuedUniformPhotoIds = new Set();
+  let uniformPhotoBatchTimer = null;
+  let uniformPhotoBatchRunning = false;
+  function paintUniformRowPhoto(studentId, signedUrl) {
+    modal.querySelectorAll(`[data-avatar-id="${studentId}"]`).forEach(avatar => {
+      avatar.innerHTML = `<img src="${signedUrl}" alt="">`;
+    });
+  }
+  async function flushUniformPhotoBatch() {
+    if (uniformPhotoBatchRunning) return;
+    uniformPhotoBatchTimer = null;
+    const batch = [...queuedUniformPhotoIds]
+      .map(id => students.find(student => student.id === id))
+      .filter(student => student?.photoPath && !student.photoUrl)
+      .slice(0, 30);
+    batch.forEach(student => queuedUniformPhotoIds.delete(student.id));
+    if (!batch.length) return;
+    uniformPhotoBatchRunning = true;
+    try {
+      const paths = [...new Set(batch.map(student => student.photoPath))];
+      const { data } = await db.storage.from('student-photos').createSignedUrls(paths, 3600);
+      const signedByPath = new Map((data || []).filter(item => item?.signedUrl).map(item => [item.path, item.signedUrl]));
+      batch.forEach(student => {
+        const signedUrl = signedByPath.get(student.photoPath);
+        if (!signedUrl) return;
+        student.photoUrl = signedUrl;
+        paintUniformRowPhoto(student.id, signedUrl);
+      });
+    } finally {
+      batch.forEach(student => { student.loadingUniformPhoto = false; });
+      uniformPhotoBatchRunning = false;
+      if (queuedUniformPhotoIds.size) uniformPhotoBatchTimer = setTimeout(flushUniformPhotoBatch, 10);
+    }
+  }
+  function loadUniformRowPhoto(studentId) {
     const student = students.find(item => item.id === studentId);
     if (!student?.photoPath || student.photoUrl || student.loadingUniformPhoto) return;
     student.loadingUniformPhoto = true;
-    const { data } = await db.storage.from('student-photos').createSignedUrl(student.photoPath, 3600);
-    student.loadingUniformPhoto = false;
-    if (!data?.signedUrl) return;
-    student.photoUrl = data.signedUrl;
-    // Atualiza só o avatar já em tela — nunca re-renderiza a lista inteira
-    // por causa de uma foto (evitaria piscar as outras linhas já prontas).
-    modal.querySelectorAll(`[data-avatar-id="${studentId}"]`).forEach(avatar => {
-      avatar.innerHTML = `<img src="${student.photoUrl}" alt="">`;
-    });
+    queuedUniformPhotoIds.add(studentId);
+    if (!uniformPhotoBatchTimer && !uniformPhotoBatchRunning) uniformPhotoBatchTimer = setTimeout(flushUniformPhotoBatch, 10);
   }
   function observeUniformPhotos(listElement) {
     if (uniformPhotoObserver) uniformPhotoObserver.disconnect();
@@ -271,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!entry.isIntersecting) return;
       uniformPhotoObserver.unobserve(entry.target);
       loadUniformRowPhoto(entry.target.dataset.avatarId);
-    }), { root:photoScrollRoot, rootMargin:'160px 0px' });
+    }), { root:photoScrollRoot, rootMargin:'320px 0px' });
     rows.forEach(el => uniformPhotoObserver.observe(el));
   }
   const labels = { uniform:'Não recebeu uniforme', shoes:'Não recebeu tênis', both:'Não recebeu uniforme e tênis', material:'Não recebeu material' };
