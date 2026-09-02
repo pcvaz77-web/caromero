@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(syncObservationsNavigation, 0);
   const observationManager = document.createElement('div');
   observationManager.className = 'photo-picker observation-manager-overlay hidden';
-  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div><button type="button" class="link" id="closeObservationManager">Fechar</button></form>';
+  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><div class="observation-manager-head"><div><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span></div><button type="button" class="close observation-manager-close" id="closeObservationManager" aria-label="Fechar">×</button></div><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div></form>';
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const observationChoices = document.createElement('div');
@@ -703,6 +703,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .clear-observations { margin-top:9px; color:var(--danger); }
     @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; max-height:35dvh; } }
     .observation-manager input { width:100%; }
+    .observation-manager-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+    .observation-manager-head > div { display:grid; gap:7px; min-width:0; }
+    .observation-manager-head > div > span { margin:0; }
+    .observation-manager-close { flex:none; width:36px; height:36px; display:grid; place-items:center; margin:-8px -8px 0 0; padding:0; border-radius:10px; background:#f1f4f9; color:var(--navy); font-size:25px; line-height:1; }
+    .observation-manager-close:hover,.observation-manager-close:focus-visible { background:#e5eaf3; color:var(--blue); }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
     .custom-observation-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
