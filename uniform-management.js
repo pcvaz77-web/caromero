@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     .uniform-dialog { border-radius:24px; background:#fff; box-shadow:0 28px 70px rgba(16,24,40,.28); }
     .uniform-dialog #uniformItemsPanel { overflow-y:auto; scrollbar-width:thin; scrollbar-color:#c8d3e7 transparent; }
+    body.uniform-modal-open { overflow:hidden!important; overscroll-behavior:none; }
     .uniform-dialog .uniform-modern-head { min-height:96px; padding:20px 28px; gap:17px; border:0; color:#fff; background:linear-gradient(120deg,#174f9b 0%,#284eb6 55%,#4937c9 100%)!important; }
     .uniform-modern-head > .uniform-icon { width:50px; height:50px; padding:13px; border-radius:16px; color:#fff; background-color:#fff; filter:drop-shadow(0 7px 13px rgba(27,38,113,.3)); }
     .uniform-modern-head > div { flex:1; }.uniform-modern-head h3 { color:#fff; font-size:24px; letter-spacing:-.5px; }.uniform-modern-head .meta { color:rgba(255,255,255,.78); font-size:14px; }
@@ -115,7 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .uniform-empty-modern { min-height:210px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; margin:0 28px 20px; border:1px solid #edf0f5; border-radius:16px; background:#fff; }.uniform-empty-modern .uniform-empty-illustration { width:82px; height:82px; display:grid; place-items:center; margin-bottom:7px; border-radius:50%; color:#3687e8; background:#eef7ff; }.uniform-empty-modern .uniform-empty-illustration .uniform-icon { width:46px; height:46px; }.uniform-empty-modern b { color:#202c40; font-size:16px; }.uniform-empty-modern > span:last-child { font-size:14px; }
 
     @media(max-width:800px) {
-      #uniformModal.uniform-modal { inset:0!important; padding:0!important; align-items:stretch!important; }.uniform-dialog { width:100vw; height:100dvh; max-height:100dvh; border-radius:0; }
+      #uniformModal.uniform-modal { inset:0!important; padding:0!important; align-items:stretch!important; }.uniform-dialog { width:100vw; height:100dvh; max-height:100dvh; border-radius:0; overscroll-behavior:contain; }
+      .uniform-dialog #uniformItemsPanel { overflow-y:auto; overflow-x:hidden; overscroll-behavior-y:contain; touch-action:pan-y; -webkit-overflow-scrolling:touch; scroll-behavior:auto; }
       .uniform-dialog .uniform-modern-head { min-height:82px; padding:12px 16px; }.uniform-modern-head > .uniform-icon { width:38px; height:38px; }.uniform-modern-head h3 { font-size:19px; }.uniform-modern-head .meta { font-size:11.5px; }.uniform-modern-head #closeUniform { width:36px; height:36px; }
       .uniform-mode-toggle { width:calc(100% - 24px); margin:10px 12px 7px; }.uniform-mode-btn { min-width:0; flex:1; min-height:36px; padding:6px 10px; font-size:12.5px; }.uniform-mode-btn .uniform-icon { width:17px; height:17px; }
       .uniform-summary { grid-template-columns:repeat(4,1fr); gap:5px; padding:5px 12px 8px; }.uniform-summary > div { position:relative; min-height:56px; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:2px; padding:6px 5px 18px; text-align:center; }.uniform-summary > div > .uniform-icon { width:21px; height:21px; margin-inline:auto; }.uniform-summary span:not(.uniform-icon):not(.uniform-icon-pair) { width:100%; max-width:100%; font-size:8px; line-height:1.05; text-align:center; white-space:normal; overflow:visible; }.uniform-summary b { position:absolute; left:7px; bottom:5px; font-size:15px; line-height:1; }.uniform-summary .uniform-icon-pair { min-height:21px; align-self:center; justify-content:center; margin-inline:auto; }.uniform-summary .uniform-icon-pair .uniform-icon { width:14px; height:14px; }.uniform-summary .uniform-icon-pair i { font-size:10px; }
@@ -123,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .uniform-bulk-action { padding:8px 12px 2px; }.uniform-bulk-action .btn { min-height:38px; font-size:12px; }
       .uniform-controls { grid-template-columns:1fr 1fr; gap:6px; padding:8px 12px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:39px; padding-left:37px; font-size:11.5px; }.uniform-control-field > .uniform-icon { left:11px; width:17px; height:17px; }
       .uniform-active-filter { margin:0 12px 5px; padding:5px 9px; font-size:10.5px; }.uniform-empty-modern { min-height:145px; margin:0 12px 12px; }.uniform-list { min-height:52dvh; padding:0 12px max(34px,env(safe-area-inset-bottom)); }
-      #uniformItemsPanel.uniform-results-active .uniform-list { height:58dvh; min-height:58dvh; max-height:58dvh; overflow-y:auto; overscroll-behavior:contain; }
+      #uniformItemsPanel.uniform-results-active .uniform-list { height:auto; min-height:58dvh; max-height:none; overflow:visible; overscroll-behavior:auto; touch-action:auto; }
       #uniformItemsPanel.uniform-results-active .uniform-row { padding-top:8px; padding-bottom:8px; }
       #uniformItemsPanel.uniform-results-active .uniform-action select { min-height:32px; font-size:11.5px; }
     }
@@ -575,6 +577,9 @@ document.addEventListener('DOMContentLoaded', () => {
         .finally(() => { uniformOpenRefreshPromise = null; });
     }
   }
+  const syncUniformModalPageLock = () => document.body.classList.toggle('uniform-modal-open', !modal.classList.contains('hidden'));
+  new MutationObserver(syncUniformModalPageLock).observe(modal, { attributes:true, attributeFilter:['class'] });
+  syncUniformModalPageLock();
   const syncUniformNavigation = () => {
     const allowed = canAccessUniform();
     uniformButton.classList.toggle('hidden', !allowed);
