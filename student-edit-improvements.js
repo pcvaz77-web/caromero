@@ -147,6 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
   let pinnedObservationLabels = new Set();
+  const observationDisplayLabel = value => String(value || '')
+    .replace(/\s*[⭐🌟]\uFE0F?\s*$/u, '')
+    .trim();
   const normalizeObservation = value => {
     try {
       const parsed = JSON.parse(value);
@@ -218,7 +221,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (subtitle.childNodes.length) subtitle.appendChild(document.createElement('br'));
       const pinned = document.createElement('span');
       pinned.className = 'pinned-label';
-      pinned.textContent = text;
+      pinned.textContent = observationDisplayLabel(text);
       subtitle.appendChild(pinned);
     });
     subtitle.classList.toggle('hidden', !laudos.length && !isRepresentative && !pinnedLabels.length);
@@ -328,7 +331,7 @@ document.addEventListener('DOMContentLoaded', () => {
       pill.dataset.observationValue = text;
       pill.classList.remove('observation-report', 'observation-severe', 'observation-light', 'observation-literacy', 'observation-custom-0', 'observation-custom-1', 'observation-custom-2', 'observation-custom-3', 'observation-custom-4', 'observation-pinned');
       pill.classList.add(pinnedObservationLabels.has(text) ? 'observation-pinned' : observationColorClass(text));
-      pill.textContent = text;
+      pill.textContent = observationDisplayLabel(text);
   };
   const ensureStudentEditActions = () => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -846,7 +849,14 @@ document.addEventListener('DOMContentLoaded', () => {
     classSelect.innerHTML = classOptions(student?.classId || selectedClassId || '');
     document.getElementById('fullName').value = student?.name || '';
     const currentObservations = decodeObservationValues(student?.report);
-    currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({ value, label: `${value} (opção removida)`, standard: true }));
+    currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({
+      value,
+      // "Representante de turma" é uma etiqueta especial histórica do
+      // Carômetro. Mesmo que ainda não exista na lista configurável da
+      // escola, ela continua válida e não deve parecer um dado excluído.
+      label: value === 'Representante de turma' ? value : `${observationDisplayLabel(value)} (opção removida)`,
+      standard: true
+    }));
     renderObservationChoices(currentObservations);
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
