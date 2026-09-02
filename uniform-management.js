@@ -123,11 +123,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .uniform-bulk-action { padding:8px 12px 2px; }.uniform-bulk-action .btn { min-height:38px; font-size:12px; }
       .uniform-controls { grid-template-columns:1fr 1fr; gap:6px; padding:8px 12px; }.uniform-controls .uniform-control-field input,.uniform-controls .uniform-control-field select { min-height:39px; padding-left:37px; font-size:11.5px; }.uniform-control-field > .uniform-icon { left:11px; width:17px; height:17px; }
       .uniform-active-filter { margin:0 12px 5px; padding:5px 9px; font-size:10.5px; }.uniform-empty-modern { min-height:145px; margin:0 12px 12px; }.uniform-list { min-height:52dvh; padding:0 12px max(34px,env(safe-area-inset-bottom)); }
-      #uniformItemsPanel.uniform-results-active .uniform-summary,
-      #uniformItemsPanel.uniform-results-active .uniform-shift-section { display:none; }
-      #uniformItemsPanel.uniform-results-active .uniform-bulk-action { padding-top:6px; }
-      #uniformItemsPanel.uniform-results-active .uniform-controls { padding-top:6px; }
-      #uniformItemsPanel.uniform-results-active .uniform-list { min-height:68dvh; }
+      #uniformItemsPanel.uniform-results-active .uniform-list { height:58dvh; min-height:58dvh; max-height:58dvh; overflow-y:auto; overscroll-behavior:contain; }
+      #uniformItemsPanel.uniform-results-active .uniform-row { padding-top:8px; padding-bottom:8px; }
+      #uniformItemsPanel.uniform-results-active .uniform-action select { min-height:32px; font-size:11.5px; }
     }
     @media(min-width:801px) {
       .uniform-dialog .uniform-modern-head { min-height:62px; padding:8px 22px; }
@@ -150,6 +148,10 @@ document.addEventListener('DOMContentLoaded', () => {
     .uniform-shift-cell:disabled { opacity:.36; filter:grayscale(.75); cursor:default; box-shadow:none; }
     .uniform-shift-cell[aria-pressed="true"] { border-color:#496ee8; color:#fff; background:linear-gradient(120deg,#3677e9,#6548df); box-shadow:0 5px 13px rgba(74,77,210,.22); }
     .uniform-shift-cell[aria-pressed="true"] span,.uniform-shift-cell[aria-pressed="true"] strong { color:#fff; }
+    .uniform-active-filter { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .uniform-active-filter > span { min-width:0; }
+    .uniform-clear-filter { flex:none; padding:5px 8px; border-radius:8px; color:#285fc4; background:#fff; border:1px solid #c8d8f4; font-size:11px; font-weight:800; }
+    .uniform-clear-filter:hover { background:#f4f8ff; }
   `;
   document.head.appendChild(style);
 
@@ -476,14 +478,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // mostrar — não cria informação visual redundante ("mostrando tudo").
     if (!parts.length && !query) {
       indicator.classList.add('hidden');
-      indicator.textContent = '';
+      indicator.replaceChildren();
       return;
     }
     indicator.classList.remove('hidden');
     const base = parts.length ? parts.join(' • ') : 'Busca';
     const countLabel = `${matchedByView} aluno${matchedByView === 1 ? '' : 's'}`;
     const searchSuffix = query && visibleCount !== matchedByView ? ` • mostrando ${visibleCount} com a busca atual` : '';
-    indicator.textContent = `${base} — ${countLabel}${searchSuffix}`;
+    const description = document.createElement('span');
+    description.textContent = `${base} — ${countLabel}${searchSuffix}`;
+    const clear = document.createElement('button');
+    clear.type = 'button';
+    clear.className = 'uniform-clear-filter';
+    clear.textContent = 'Limpar filtro';
+    indicator.replaceChildren(description, clear);
   }
   function render() {
     classOptions();
@@ -578,6 +586,15 @@ document.addEventListener('DOMContentLoaded', () => {
   get('uniformClass').onchange = loadClassStudents;
   get('uniformView').onchange = render;
   get('uniformSearch').oninput = render;
+  get('uniformActiveFilter').onclick = event => {
+    if (!event.target.closest('.uniform-clear-filter')) return;
+    get('uniformShift').value = '';
+    get('uniformClass').value = '';
+    get('uniformView').value = 'all';
+    get('uniformSearch').value = '';
+    classOptions();
+    loadClassStudents();
+  };
   get('uniformShiftSummary').onclick = event => {
     const button = event.target.closest('button.uniform-shift-cell');
     if (!button || button.disabled) return;
