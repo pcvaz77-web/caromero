@@ -10,8 +10,13 @@ document.addEventListener('DOMContentLoaded', () => {
   if (greeting && heading) {
     const greetingRow = document.createElement('div');
     greetingRow.className = 'welcome-notification-row';
+    const userContext = document.createElement('div');
+    userContext.className = 'welcome-user-context';
     heading.before(greetingRow);
-    greetingRow.append(greeting, bell);
+    userContext.appendChild(greeting);
+    const activeSchool = document.getElementById('activeSchoolGreeting');
+    if (activeSchool) userContext.appendChild(activeSchool);
+    greetingRow.append(userContext, bell);
   } else {
     document.querySelector('.top-actions')?.prepend(bell);
   }

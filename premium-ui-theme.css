@@ -912,7 +912,9 @@ body .top-actions #notificationBell:not(.hidden) {
 body .welcome-notification-row {
   width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 10px;
 }
-body .welcome-notification-row .welcome-greeting { min-width:0;margin:0!important; }
+body .welcome-user-context { min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px; }
+body .welcome-notification-row .welcome-greeting { min-width:0;margin:0!important;white-space:normal!important; }
+body .welcome-notification-row #activeSchoolGreeting { margin:0!important;color:#415273!important;font-size:14px!important;font-weight:750!important;line-height:1.35; }
 body .welcome-notification-row #notificationBell:not(.hidden) {
   position:relative!important;inset:auto!important;display:inline-grid!important;place-items:center;
   flex:0 0 48px;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;
@@ -950,12 +952,19 @@ body .welcome-notification-row #notificationUnreadCount {
     min-height:38px!important;padding:7px 9px!important;border-radius:9px!important;font-size:12px!important;
   }
   body .shift-classes button { padding-top:7px!important;padding-bottom:7px!important;font-size:12px!important; }
+  body .top-actions #classPanelButton:not(.hidden) {
+    grid-column:1 / -1!important;grid-row:3!important;justify-self:end!important;width:max-content!important;min-width:190px!important;
+  }
 }
 
 @media(max-width:800px) {
   body .welcome-notification-row { margin-bottom:8px; }
   body .welcome-notification-row #notificationBell:not(.hidden) {
     flex-basis:44px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+  }
+  body .welcome-notification-row #activeSchoolGreeting { font-size:13px!important; }
+  body .top-actions #classPanelButton:not(.hidden) {
+    grid-column:1 / -1!important;grid-row:3!important;width:100%!important;max-width:none!important;
   }
 }
 
