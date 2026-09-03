@@ -268,11 +268,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const recommendation = recommendedLayout(activeClassId);
       resizeLayout(recommendation.rows, recommendation.columns);
     };
-    document.getElementById('resetMap').onclick = () => {
-      if (!editingLayout.assignments.length || confirm('Esvaziar todas as mesas e devolver os alunos para a lista sem lugar?')) {
-        editingLayout = { ...editingLayout, assignments:[] };
-        renderMap(editingLayout, true, 'Rascunho ainda não publicado');
+    document.getElementById('resetMap').onclick = async event => {
+      if (editingLayout.assignments.length && !confirm('Esvaziar todas as mesas e apagar as posições salvas neste rascunho?')) return;
+      const resetButton = event.currentTarget;
+      resetButton.disabled = true;
+      resetButton.textContent = 'Resetando…';
+      const clearedLayout = { ...editingLayout, assignments:[] };
+      const { error } = await db.rpc('save_classroom_map_draft', { target_class_id:activeClassId, target_layout:clearedLayout });
+      if (error) {
+        resetButton.disabled = false;
+        resetButton.textContent = 'Resetar mapeamento';
+        toast(error.message);
+        return;
       }
+      editingLayout = clearedLayout;
+      renderMap(editingLayout, true, 'Rascunho resetado e salvo');
+      toast('Mapeamento resetado. Todas as posições salvas foram removidas.');
     };
     document.getElementById('saveMapDraft').onclick = saveDraft;
     document.getElementById('publishMap').onclick = publishMap;
