@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .occurrence-item-focused { outline:2px solid #2b3c5d; box-shadow:0 0 0 3px rgba(43,60,93,.18); }
     #occurrenceDeleteConfirmModal.occurrence-delete-confirm-modal { z-index:240!important; }.occurrence-delete-confirm-dialog { width:min(460px,100%); }.occurrence-delete-confirm-body { padding:20px 24px 24px; }.occurrence-delete-confirm-details { display:grid; gap:7px; margin:0 0 14px; }.occurrence-delete-confirm-details > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:13px; }.occurrence-delete-confirm-details dt { margin:0; color:var(--muted); font-weight:650; flex:0 0 auto; }.occurrence-delete-confirm-details dd { margin:0; font-weight:750; text-align:right; }.occurrence-delete-confirm-text { margin:0 0 16px; padding:10px 12px; border-left:3px solid #dbe4f5; border-radius:4px; background:#f8faff; font-size:13px; line-height:1.45; white-space:pre-wrap; color:#344054; }.occurrence-delete-confirm-warning { margin:0 0 16px; font-size:13px; font-weight:750; color:#b42318; }.occurrence-delete-confirm-actions { justify-content:flex-end; gap:10px; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit { background:#b42318; color:#fff; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit:hover { background:#932016; }
     @media(max-width:800px) { .occurrence-delete-confirm-dialog { width:100%; } .occurrence-delete-confirm-actions { display:grid; grid-template-columns:1fr; gap:8px; } .occurrence-delete-confirm-actions .btn { width:100%; } }
-    #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { margin-top:7px; }
+    #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { align-items:center; justify-content:center; gap:10px; min-height:44px; margin-top:11px; padding:11px 16px; border:1px solid #294985; border-radius:10px; background:#172b4d; font-family:inherit; font-size:14px; font-weight:850; letter-spacing:.01em; cursor:pointer; box-shadow:0 3px 8px rgba(16,24,40,.22); transition:background-color .16s ease, transform .16s ease, box-shadow .16s ease; }.occurrence-detail-label::after { content:'→'; display:grid; place-items:center; width:23px; height:23px; border-radius:6px; background:rgba(255,255,255,.14); font-size:16px; line-height:1; }.occurrence-detail-label:hover { background:#294985; transform:translateY(-1px); box-shadow:0 5px 12px rgba(16,24,40,.28); }.occurrence-detail-label:active { transform:translateY(0); box-shadow:0 1px 3px rgba(16,24,40,.22); }.occurrence-detail-label:focus-visible { outline:3px solid #82aeff; outline-offset:3px; box-shadow:0 0 0 1px #fff; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px!important; align-items:center!important; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
   document.head.appendChild(style);
@@ -114,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let tableErrorShown = false;
   let historyRecords = new Map();
   let editingOccurrence = null;
+  let focusedHistoryStudentId = null;
 
   function selectedClass() { return get('occurrenceClass').value; }
   function selectedStudent() { return get('occurrenceStudent').value; }
@@ -164,24 +165,44 @@ document.addEventListener('DOMContentLoaded', () => {
       holder.appendChild(label);
     });
     const detail = get('studentDetails');
-    const detailLabel = detail.querySelector('.occurrence-detail-label');
+    let detailLabel = detail.querySelector('.occurrence-detail-label');
     if (!detailStudentId || !occurrenceStudentIds.has(detailStudentId)) {
       detailLabel?.remove();
       return;
     }
     const count = occurrenceCounts.get(detailStudentId) || 0;
+    const labelText = `Ver ${count === 1 ? 'ocorrência' : 'ocorrências'} · ${count}`;
+    // Versões anteriores criavam uma etiqueta sem interação. Se uma delas
+    // ainda estiver renderizada, substitui pelo botão sem esperar o card ser
+    // aberto novamente.
+    if (detailLabel?.tagName !== 'BUTTON') {
+      detailLabel?.remove();
+      detailLabel = null;
+    }
     if (detailLabel) {
-      const labelText = `Ocorrência · ${count}`;
       if (detailLabel.textContent !== labelText) detailLabel.textContent = labelText;
+      detailLabel.setAttribute('aria-label', `Ver ${count} ocorrência${count === 1 ? '' : 's'} deste aluno`);
       return;
     }
     const detailHolder = detail.querySelector('.detail-head > div:last-child');
     if (!detailHolder) return;
-    const label = document.createElement('span');
+    const label = document.createElement('button');
+    label.type = 'button';
     label.className = 'occurrence-label occurrence-detail-label';
-    label.textContent = `Ocorrência · ${count}`;
+    label.textContent = labelText;
+    label.setAttribute('aria-label', `Ver ${count} ocorrência${count === 1 ? '' : 's'} deste aluno`);
     detailHolder.appendChild(label);
   }
+  // O conteúdo do perfil é recriado a cada renderização. A delegação mantém
+  // o clique funcionando no celular e no computador mesmo após esse redraw.
+  get('studentDetails').addEventListener('click', event => {
+    const button = event.target.closest('.occurrence-detail-label');
+    if (!button) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const student = students.find(item => item.id === detailStudentId);
+    window.openOccurrenceRecord?.({ studentId:detailStudentId, classId:student?.classId, reuseLoadedData:true });
+  });
   // Exposta para outros módulos (ex.: filtros de busca) lerem sem fazer uma
   // segunda consulta ao banco — sempre reflete o resultado da última
   // consulta real feita sob a RLS de student_occurrences, nunca um valor
@@ -221,7 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startDate = get('occurrenceStart').value;
     const endDate = get('occurrenceEnd').value;
     const normalizedName = get('occurrenceSearchName').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
-    const hasSearchFilter = !!(startDate || endDate || searchClassId || normalizedName);
+    const hasSearchFilter = !!(focusedHistoryStudentId || startDate || endDate || searchClassId || normalizedName);
     const list = get('occurrenceHistoryList');
     if (!hasSearchFilter) {
       historyRecords = new Map();
@@ -234,7 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .eq('school_id', occurrenceMembership.school_id)
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false });
-    if (normalizedName) {
+    if (focusedHistoryStudentId) {
+      query = query.eq('student_id', focusedHistoryStudentId);
+    } else if (normalizedName) {
       const matches = students.filter(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedName) && (!searchClassId || item.classId === searchClassId));
       if (!matches.length) {
         get('occurrenceHistoryMeta').textContent = 'Nenhum aluno encontrado com esse nome.';
@@ -260,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function open() {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
+    focusedHistoryStudentId = null;
     modal.classList.remove('hidden');
     await load();
     fillClasses();
@@ -275,16 +299,19 @@ document.addEventListener('DOMContentLoaded', () => {
   // Quem chama esta função (notification-center.js) já validou com uma
   // consulta nova ao Supabase que a ocorrência existe e está acessível —
   // aqui só reaproveitamos a busca e a renderização que já existem.
-  async function openFocused({ occurrenceId, studentId, classId } = {}) {
+  async function openFocused({ occurrenceId, studentId, classId, reuseLoadedData = false } = {}) {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
+    focusedHistoryStudentId = studentId || null;
+    get('occurrenceHistoryMeta').textContent = 'Carregando ocorrências deste aluno…';
+    get('occurrenceHistoryList').innerHTML = '<div class="occurrence-empty">Carregando…</div>';
     modal.classList.remove('hidden');
-    await load();
+    if (!reuseLoadedData) await load();
     fillClasses();
     fillSearchClasses();
     get('occurrenceClass').value = classId || '';
     fillStudents();
     if (studentId) get('occurrenceStudent').value = studentId;
-    await refreshLabelState();
+    if (!reuseLoadedData) await refreshLabelState();
     const studentName = students.find(item => item.id === studentId)?.name || '';
     get('occurrenceDateFilters').classList.remove('hidden');
     get('searchOccurrences').setAttribute('aria-expanded', 'true');
@@ -306,6 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.openOccurrenceRecord = openFocused;
   function resetOccurrenceScreen() {
     editingOccurrence = null;
+    focusedHistoryStudentId = null;
     get('occurrenceClass').value = '';
     fillStudents();
     get('occurrenceDate').value = '';
@@ -427,8 +455,8 @@ document.addEventListener('DOMContentLoaded', () => {
   get('occurrenceDeleteConfirmCancel').onclick = () => closeDeleteConfirm(false);
   get('occurrenceDeleteConfirmSubmit').onclick = () => closeDeleteConfirm(true);
   deleteConfirmModal.onclick = event => { if (event.target === deleteConfirmModal) closeDeleteConfirm(false); };
-  get('occurrenceClass').onchange = async () => { fillStudents(); await refreshHistory(); };
-  get('occurrenceStudent').onchange = refreshHistory;
+  get('occurrenceClass').onchange = async () => { focusedHistoryStudentId = null; fillStudents(); await refreshHistory(); };
+  get('occurrenceStudent').onchange = () => { focusedHistoryStudentId = null; refreshHistory(); };
   get('searchOccurrences').onclick = () => {
     const filters = get('occurrenceDateFilters');
     const opening = filters.classList.contains('hidden');
@@ -446,10 +474,10 @@ document.addEventListener('DOMContentLoaded', () => {
     input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
     input.dispatchEvent(new Event('input', { bubbles:true }));
   };
-  ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = refreshHistory; });
-  get('occurrenceSearchClass').onchange = refreshHistory;
+  ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = () => { focusedHistoryStudentId = null; refreshHistory(); }; });
+  get('occurrenceSearchClass').onchange = () => { focusedHistoryStudentId = null; refreshHistory(); };
   let nameSearchTimer;
-  get('occurrenceSearchName').oninput = () => { clearTimeout(nameSearchTimer); nameSearchTimer = setTimeout(refreshHistory, 250); };
+  get('occurrenceSearchName').oninput = () => { focusedHistoryStudentId = null; clearTimeout(nameSearchTimer); nameSearchTimer = setTimeout(refreshHistory, 250); };
   get('occurrenceHistoryList').onclick = event => {
     const editId = event.target.closest('[data-occurrence-edit]')?.dataset.occurrenceEdit;
     const deleteId = event.target.closest('[data-occurrence-delete]')?.dataset.occurrenceDelete;
