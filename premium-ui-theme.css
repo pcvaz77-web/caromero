@@ -910,7 +910,7 @@ body .top-actions #notificationBell:not(.hidden) {
 
 /* Layout v21: sino na linha da saudação e navegação lateral mais compacta. */
 body .welcome-notification-row {
-  width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 10px;
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0;
 }
 body .welcome-user-context { min-width:0;display:flex;flex-direction:column;align-items:flex-start;gap:4px; }
 body .welcome-notification-row .welcome-greeting { min-width:0;margin:0!important;white-space:normal!important; }
@@ -927,8 +927,12 @@ body .welcome-notification-row #notificationUnreadCount {
 }
 
 @media(min-width:801px) {
+  body .top { row-gap:2px!important; }
   body .top > .welcome-notification-row { grid-column:1 / -1;grid-row:1; }
   body .top > .welcome-notification-row + div { grid-column:1;grid-row:2; }
+  body .top > .welcome-notification-row + div #roleLabel {
+    margin:0 0 12px!important;font-size:14px!important;font-weight:900!important;letter-spacing:.11em!important;
+  }
   body .top > .top-actions { grid-column:2;grid-row:2; }
   body .side { padding:15px 16px 16px!important; }
   body .side .logo {
@@ -958,7 +962,11 @@ body .welcome-notification-row #notificationUnreadCount {
 }
 
 @media(max-width:800px) {
-  body .welcome-notification-row { margin-bottom:8px; }
+  body .top { row-gap:2px!important; }
+  body .welcome-notification-row { margin-bottom:0; }
+  body .top > .welcome-notification-row + div #roleLabel {
+    margin:0 0 10px!important;font-size:14px!important;font-weight:900!important;letter-spacing:.1em!important;
+  }
   body .welcome-notification-row #notificationBell:not(.hidden) {
     flex-basis:44px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
   }
