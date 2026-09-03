@@ -95,6 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body.classroom-map-printing .classroom-seat-coordinate { top:3px; left:4px; font-size:7px; }
       body.classroom-map-printing .classroom-student { gap:3px; }
       body.classroom-map-printing .classroom-student-avatar { width:34px; height:34px; font-size:9px; }
+      body.classroom-map-printing .classroom-student-avatar img { display:block !important; width:100% !important; height:100% !important; object-fit:cover !important; print-color-adjust:exact; -webkit-print-color-adjust:exact; }
       body.classroom-map-printing .classroom-student-name { max-width:100%; font-size:7px; line-height:1.15; }
     }
   `;
@@ -209,13 +210,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const recommendedCapacity = recommendation.rows * recommendation.columns;
     const roomWidth = Math.max(620, editingLayout.columns * 100 + (editingLayout.columns - 1) * 13);
     document.getElementById('classroomMapContent').innerHTML = `
-      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="resetMap" type="button" class="btn secondary">Resetar mapeamento</button><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span>${printable ? '<div class="classroom-map-print-actions"><button id="printClassroomMap" type="button" class="btn primary">Imprimir mapeamento</button></div>' : ''}</div>`}
+      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="resetMap" type="button" class="btn secondary">Resetar mapeamento</button><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span>${printable ? '<div class="classroom-map-print-actions"><button id="editPublishedClassroomMap" type="button" class="btn secondary">Editar mapeamento</button><button id="printClassroomMap" type="button" class="btn primary">Imprimir mapeamento</button></div>' : ''}</div>`}
       ${editable ? `<div class="classroom-map-suggestion"><div><strong>Sugestão automática para ${allClassStudents.length} aluno${allClassStudents.length === 1 ? '' : 's'}</strong><span>${recommendation.columns} fileira${recommendation.columns === 1 ? '' : 's'} × ${recommendation.rows} mesa${recommendation.rows === 1 ? '' : 's'} por fileira (${recommendedCapacity} lugares).</span></div><button id="applyMapSuggestion" type="button" class="btn secondary">Aplicar sugestão</button></div>` : ''}
       ${editable ? '<div class="classroom-map-instructions">Clique no aluno para selecioná-lo e depois clique na carteira de destino. Para deixá-lo sem lugar, clique em “Sem carteira”. No computador, também é possível arrastar; ao alcançar a borda, a tela rola automaticamente.</div>' : ''}
       <div class="classroom-map-stage ${editable ? '' : 'classroom-map-readonly'}"><div class="classroom-room-plan" style="--map-columns:${editingLayout.columns};width:${roomWidth}px"><div class="classroom-room-top"><div class="classroom-room-landmark classroom-teacher-desk"><span aria-hidden="true">▰</span> MESA DO PROFESSOR</div><div class="classroom-map-front">QUADRO · FRENTE DA SALA</div><div class="classroom-room-landmark classroom-door"><span aria-hidden="true">🚪</span> PORTA</div></div><div class="classroom-file-row-labels" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${fileRowLabels}</div><div class="classroom-map-grid" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${seats}</div></div></div>
       ${editable ? `<section class="classroom-unassigned" data-unassigned><h4>Alunos ainda sem lugar (${unassigned.length})</h4><div class="classroom-unassigned-dropzone" data-unassigned-dropzone>Sem carteira · clique aqui para retirar o aluno selecionado da sala</div><div class="classroom-unassigned-list">${unassigned.length ? unassigned.map(student => studentCard(student, true)).join('') : '<span class="meta">Todos os alunos estão posicionados.</span>'}</div></section>` : ''}`;
     if (editable) bindEditor();
-    if (printable) document.getElementById('printClassroomMap').onclick = () => printPublishedMap(activeClassId);
+    if (printable) {
+      document.getElementById('editPublishedClassroomMap').onclick = openEditor;
+      document.getElementById('printClassroomMap').onclick = () => printPublishedMap(activeClassId);
+    }
   }
 
   async function canPrintPublishedMap(classId) {
@@ -241,6 +245,16 @@ document.addEventListener('DOMContentLoaded', () => {
       await refreshClassPhotos(activeClassId);
       renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, true);
       modal.classList.remove('hidden');
+      const mapImages = [...document.querySelectorAll('#classroomMapModal .classroom-student-avatar img')];
+      await Promise.all(mapImages.map(image => {
+        if (image.complete && image.naturalWidth > 0) return image.decode?.().catch(() => {}) || Promise.resolve();
+        return new Promise(resolve => {
+          const done = () => resolve();
+          image.addEventListener('load', done, { once:true });
+          image.addEventListener('error', done, { once:true });
+          setTimeout(done, 4000);
+        });
+      }));
       const finishPrinting = () => document.body.classList.remove('classroom-map-printing');
       window.addEventListener('afterprint', finishPrinting, { once:true });
       document.body.classList.add('classroom-map-printing');

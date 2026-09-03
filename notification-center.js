@@ -317,7 +317,41 @@ document.addEventListener('DOMContentLoaded', () => {
   let hasConnectedBefore = false;
   let stopped = true;
   let hiddenSince = null;
+  let notificationPollTimer = null;
+  let notificationPollPromise = null;
   const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000];
+  const NOTIFICATION_POLL_INTERVAL = 2500;
+
+  const stopNotificationPolling = () => {
+    if (notificationPollTimer) clearInterval(notificationPollTimer);
+    notificationPollTimer = null;
+  };
+
+  async function pollLatestNotification() {
+    if (stopped || document.hidden || notificationPollPromise) return notificationPollPromise;
+    notificationPollPromise = (async () => {
+      const { data: { user: signedInUser } } = await db.auth.getUser();
+      const schoolId = window.getActiveSchoolId?.();
+      if (!signedInUser || !schoolId) return;
+      const { data, error } = await db.from('user_notifications')
+        .select('id')
+        .eq('recipient_id', signedInUser.id)
+        .eq('school_id', schoolId)
+        .is('dismissed_at', null)
+        .order('created_at', { ascending:false })
+        .limit(1);
+      if (error) return;
+      const latestId = data?.[0]?.id ?? null;
+      const currentId = notifications[0]?.id ?? null;
+      if (latestId !== currentId) await loadNotifications();
+    })().finally(() => { notificationPollPromise = null; });
+    return notificationPollPromise;
+  }
+
+  const startNotificationPolling = () => {
+    stopNotificationPolling();
+    notificationPollTimer = setInterval(pollLatestNotification, NOTIFICATION_POLL_INTERVAL);
+  };
 
   const clearRetry = () => {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -406,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function stopNotificationCenter() {
     stopped = true;
+    stopNotificationPolling();
     clearRetry();
     reconnectAttempt = 0;
     hasConnectedBefore = false;
@@ -423,6 +458,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function startNotificationCenter() {
     stopped = false;
     await requestNotificationChannel(false);
+    if (!stopped) startNotificationPolling();
   }
 
   // O aplicativo pode ficar visível antes de a escola ativa terminar de ser
@@ -443,16 +479,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (event === 'SIGNED_OUT' || !session?.user) stopNotificationCenter();
   });
   window.addEventListener('online', () => {
-    if (!stopped) { clearRetry(); reconnectAttempt = 0; requestNotificationChannel(true); }
+    if (!stopped) { clearRetry(); reconnectAttempt = 0; requestNotificationChannel(true); pollLatestNotification(); }
   });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) { hiddenSince = Date.now(); return; }
     const hiddenFor = hiddenSince ? Date.now() - hiddenSince : 0;
     hiddenSince = null;
-    if (!stopped && hiddenFor >= 60000) {
-      clearRetry();
-      reconnectAttempt = 0;
-      requestNotificationChannel(true);
+    if (!stopped) {
+      pollLatestNotification();
+      if (hiddenFor >= 60000) {
+        clearRetry();
+        reconnectAttempt = 0;
+        requestNotificationChannel(true);
+      }
     }
   });
 });
