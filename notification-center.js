@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // destino que já sabemos resolver hoje; qualquer outro target_type (ou um
   // item sem o id/turma necessário) fica sem indicação de link — continua
   // uma notificação normal, só não clicável.
-  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor']);
+  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor', 'classroom_map']);
   function isNotificationClickable(item) {
     if (!CLICKABLE_TARGET_TYPES.has(item.target_type)) return false;
     if (item.target_type === 'class_counselor') return !!item.class_id;
@@ -164,6 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.selectClass?.(data.id); };
+      }
+      if (item.target_type === 'classroom_map') {
+        if (!item.class_id) return null;
+        let query = db.from('classes').select('id').eq('id', item.class_id);
+        query = query.eq('school_id', schoolId);
+        const { data, error } = await query.maybeSingle();
+        if (error || !data) return null;
+        return () => { window.selectClass?.(data.id); window.openClassroomMap?.(data.id); };
       }
       return null;
     } catch {
