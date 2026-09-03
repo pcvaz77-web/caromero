@@ -242,6 +242,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const baseSelectClass = window.selectClass;
   window.selectClass = id => { baseSelectClass(id); refreshButtons(); };
+  document.addEventListener('carometro:data-loaded', () => setTimeout(refreshButtons, 0));
   document.addEventListener('carometro:permission-refresh', refreshButtons);
   document.addEventListener('carometro:school-context-ready', refreshButtons);
   document.addEventListener('carometro:realtime-refresh', refreshButtons);
