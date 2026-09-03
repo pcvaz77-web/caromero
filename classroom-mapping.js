@@ -25,6 +25,10 @@ document.addEventListener('DOMContentLoaded', () => {
     .classroom-map-toolbar label { display:flex; align-items:center; gap:7px; margin:0; font-size:13px; }
     .classroom-map-toolbar select { width:auto; min-width:66px; min-height:39px; padding:7px 9px; }
     .classroom-map-instructions { margin:-4px 0 14px; padding:10px 12px; border-radius:9px; background:#edf3ff; color:#40516f; font-size:12px; line-height:1.45; }
+    .classroom-map-suggestion { margin:0 0 14px; padding:12px 14px; border:1px solid #bfd0f5; border-radius:10px; background:#f5f8ff; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .classroom-map-suggestion strong, .classroom-map-suggestion span { display:block; }
+    .classroom-map-suggestion strong { margin-bottom:3px; font-size:13px; }
+    .classroom-map-suggestion span { color:#52627c; font-size:12px; }
     .classroom-map-stage { border:1px solid #d8dfeb; border-radius:14px; background:#f7f9fd; padding:18px; overflow:auto; }
     .classroom-room-plan { min-width:620px; }
     .classroom-room-top { display:grid; grid-template-columns:1fr minmax(260px,460px) 1fr; align-items:start; gap:14px; margin-bottom:24px; }
@@ -62,6 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .classroom-map-shell { padding:15px; }
       .classroom-map-stage { padding:12px; }
       .classroom-seat { min-height:102px; }
+      .classroom-map-suggestion { align-items:stretch; flex-direction:column; }
+      .classroom-map-suggestion .btn { width:100%; }
+      .classroom-unassigned-list { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; }
+      .classroom-unassigned .classroom-student { width:auto; min-width:0; padding:5px 2px; gap:4px; }
+      .classroom-unassigned .classroom-student-avatar { width:38px; height:38px; font-size:11px; }
+      .classroom-unassigned .classroom-student-name { max-width:100%; font-size:10px; overflow-wrap:anywhere; }
       #classPanelButton, #classroomMapButton { flex:1 1 auto; }
     }
   `;
@@ -73,7 +83,6 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3 id="classroomMapTitle">Mapeamento da sala</h3><div id="classroomMapMeta" class="meta"></div></div><button class="close" type="button" data-map-close>×</button></div><div id="classroomMapContent" class="classroom-map-shell"></div></div>`;
   document.body.appendChild(modal);
 
-  const defaultLayout = () => ({ rows:6, columns:5, assignments:[] });
   const fileRowOptions = Array.from({ length:20 }, (_, index) => index + 1);
   const deskOptions = Array.from({ length:30 }, (_, index) => index + 1);
   let availabilityGeneration = 0;
@@ -90,6 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const classStudents = classId => students
     .filter(student => student.classId === classId)
     .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
+  const recommendedLayout = classId => {
+    const count = classStudents(classId).length;
+    if (!count) return { rows:6, columns:5, assignments:[] };
+    const columns = Math.min(20, Math.max(1, Math.ceil(Math.sqrt(count))));
+    const rows = Math.min(30, Math.max(1, Math.ceil(count / columns)));
+    return { rows, columns, assignments:[] };
+  };
   const studentCard = (student, draggable) => `<div class="classroom-student" data-student-id="${student.id}" ${draggable ? 'draggable="true"' : ''}><div class="classroom-student-avatar">${student.photoUrl ? `<img src="${student.photoUrl}" alt="" draggable="false">` : ini(student.name)}</div><div class="classroom-student-name">${esc(student.name)}</div></div>`;
   const normalizeLayout = layout => {
     const rows = Math.min(30, Math.max(1, Number(layout?.rows) || 6));
@@ -163,10 +179,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }).join('')
     ).join('');
     const fileRowLabels = Array.from({ length:editingLayout.columns }, (_, index) => `<div class="classroom-file-row-label">FILEIRA ${index + 1}</div>`).join('');
-    const unassigned = classStudents(activeClassId).filter(student => !assignedIds.has(student.id));
+    const allClassStudents = classStudents(activeClassId);
+    const unassigned = allClassStudents.filter(student => !assignedIds.has(student.id));
+    const recommendation = recommendedLayout(activeClassId);
+    const recommendedCapacity = recommendation.rows * recommendation.columns;
     const roomWidth = Math.max(620, editingLayout.columns * 100 + (editingLayout.columns - 1) * 13);
     document.getElementById('classroomMapContent').innerHTML = `
-      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span></div>`}
+      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="resetMap" type="button" class="btn secondary">Resetar mapeamento</button><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span></div>`}
+      ${editable ? `<div class="classroom-map-suggestion"><div><strong>Sugestão automática para ${allClassStudents.length} aluno${allClassStudents.length === 1 ? '' : 's'}</strong><span>${recommendation.columns} fileira${recommendation.columns === 1 ? '' : 's'} × ${recommendation.rows} mesa${recommendation.rows === 1 ? '' : 's'} por fileira (${recommendedCapacity} lugares).</span></div><button id="applyMapSuggestion" type="button" class="btn secondary">Aplicar sugestão</button></div>` : ''}
       ${editable ? '<div class="classroom-map-instructions">Clique no aluno para selecioná-lo e depois clique na carteira de destino. Para deixá-lo sem lugar, clique em “Sem carteira”. No computador, também é possível arrastar; ao alcançar a borda, a tela rola automaticamente.</div>' : ''}
       <div class="classroom-map-stage ${editable ? '' : 'classroom-map-readonly'}"><div class="classroom-room-plan" style="width:${roomWidth}px"><div class="classroom-room-top"><div class="classroom-room-landmark classroom-teacher-desk"><span aria-hidden="true">▰</span> MESA DO PROFESSOR</div><div class="classroom-map-front">QUADRO · FRENTE DA SALA</div><div class="classroom-room-landmark classroom-door"><span aria-hidden="true">🚪</span> PORTA</div></div><div class="classroom-file-row-labels" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${fileRowLabels}</div><div class="classroom-map-grid" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${seats}</div></div></div>
       ${editable ? `<section class="classroom-unassigned" data-unassigned><h4>Alunos ainda sem lugar (${unassigned.length})</h4><div class="classroom-unassigned-dropzone" data-unassigned-dropzone>Sem carteira · clique aqui para retirar o aluno selecionado da sala</div><div class="classroom-unassigned-list">${unassigned.length ? unassigned.map(student => studentCard(student, true)).join('') : '<span class="meta">Todos os alunos estão posicionados.</span>'}</div></section>` : ''}`;
@@ -244,12 +264,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     document.getElementById('mapRows').onchange = event => resizeLayout(Number(event.target.value), editingLayout.columns);
     document.getElementById('mapColumns').onchange = event => resizeLayout(editingLayout.rows, Number(event.target.value));
+    document.getElementById('applyMapSuggestion').onclick = () => {
+      const recommendation = recommendedLayout(activeClassId);
+      resizeLayout(recommendation.rows, recommendation.columns);
+    };
+    document.getElementById('resetMap').onclick = () => {
+      if (!editingLayout.assignments.length || confirm('Esvaziar todas as mesas e devolver os alunos para a lista sem lugar?')) {
+        editingLayout = { ...editingLayout, assignments:[] };
+        renderMap(editingLayout, true, 'Rascunho ainda não publicado');
+      }
+    };
     document.getElementById('saveMapDraft').onclick = saveDraft;
     document.getElementById('publishMap').onclick = publishMap;
   }
 
   function resizeLayout(rows, columns) {
-    editingLayout = { rows, columns, assignments:editingLayout.assignments.filter(item => item.seatIndex < rows * columns) };
+    const previousRows = editingLayout.rows;
+    const assignments = editingLayout.assignments.flatMap(item => {
+      const fileRowIndex = Math.floor(item.seatIndex / previousRows);
+      const deskIndex = item.seatIndex % previousRows;
+      return fileRowIndex < columns && deskIndex < rows
+        ? [{ studentId:item.studentId, seatIndex:fileRowIndex * rows + deskIndex }]
+        : [];
+    });
+    editingLayout = { rows, columns, assignments };
     renderMap(editingLayout, true, 'Rascunho ainda não publicado');
   }
 
@@ -288,7 +326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('classroomMapContent').innerHTML = '<div class="empty">Carregando mapeamento…</div>';
     try {
       const [current] = await Promise.all([fetchMap(activeClassId, true), refreshClassPhotos(activeClassId)]);
-      const layout = current?.layout || defaultLayout();
+      const layout = current?.layout || recommendedLayout(activeClassId);
       renderMap(layout, true, current?.status === 'draft' ? 'Rascunho ainda não publicado' : current ? `Publicado · versão ${current.version}` : 'Novo mapeamento');
     } catch (error) { closeModal(); toast(error.message); }
   }
@@ -314,7 +352,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const baseSelectClass = window.selectClass;
   window.selectClass = id => { baseSelectClass(id); refreshButtons(); };
-  document.addEventListener('carometro:data-loaded', () => setTimeout(refreshButtons, 0));
+  document.addEventListener('carometro:data-loaded', () => setTimeout(async () => {
+    refreshButtons();
+    const editorIsOpen = !modal.classList.contains('hidden')
+      && document.getElementById('classroomMapTitle').textContent === 'Editar mapeamento'
+      && editingLayout;
+    if (editorIsOpen) {
+      await refreshClassPhotos(activeClassId);
+      renderMap(editingLayout, true, 'Rascunho ainda não publicado');
+    }
+  }, 0));
   document.addEventListener('carometro:permission-refresh', refreshButtons);
   document.addEventListener('carometro:school-context-ready', refreshButtons);
   document.addEventListener('carometro:realtime-refresh', refreshButtons);
