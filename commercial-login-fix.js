@@ -87,6 +87,69 @@ function initializeCommercialLoginFix() {
   }
   window.clearCommercialLoginState = clearCommercialLoginState;
 
+  let endingSession = false;
+  let sessionCheck = null;
+  const invalidSessionError = error => error?.status === 401 ||
+    ['user_not_found', 'session_not_found', 'refresh_token_not_found', 'refresh_token_already_used'].includes(error?.code) ||
+    error?.name === 'AuthSessionMissingError';
+
+  function returnToLogin() {
+    window.prepareCarometroSignOut?.();
+    window.clearActiveSchoolContext?.();
+    clearCommercialLoginState();
+    user = null;
+    students = [];
+    classes = [];
+    selectedClassId = null;
+    selectedShift = null;
+    detailStudentId = null;
+    permission = { role:'viewer', can_add_students:false, can_edit_students:false };
+    document.querySelectorAll('.modal-bg').forEach(item => item.classList.add('hidden'));
+    document.getElementById('app')?.classList.add('hidden');
+    document.getElementById('login')?.classList.remove('hidden');
+  }
+
+  window.endInvalidCarometroSession = async () => {
+    if (endingSession) return;
+    endingSession = true;
+    returnToLogin();
+    try {
+      // Remove a sessão deste aparelho, sem revogar sessões de outras contas/escolas.
+      await db.auth.signOut({ scope:'local' });
+    } finally {
+      returnToLogin();
+      endingSession = false;
+    }
+  };
+
+  window.verifyCarometroSession = () => {
+    if (sessionCheck) return sessionCheck;
+    sessionCheck = (async () => {
+      if (endingSession) return false;
+      const { data, error } = await db.auth.getUser();
+      if (error && !invalidSessionError(error)) return false; // Offline/5xx não apagam a sessão.
+      if (!data?.user || invalidSessionError(error)) {
+        await window.endInvalidCarometroSession();
+        return false;
+      }
+      return true;
+    })().finally(() => { sessionCheck = null; });
+    return sessionCheck;
+  };
+
+  const checkVisibleSession = () => {
+    if (document.hidden || window.isCarometroPasswordRecovery?.() || document.getElementById('app')?.classList.contains('hidden')) return;
+    void window.verifyCarometroSession().catch(() => {});
+  };
+  setInterval(checkVisibleSession, 10000);
+  window.addEventListener('focus', checkVisibleSession);
+  window.addEventListener('online', checkVisibleSession);
+  document.addEventListener('visibilitychange', checkVisibleSession);
+  db.auth.onAuthStateChange((event) => {
+    // Nenhuma chamada Auth assíncrona dentro deste callback (evita bloqueio do SDK).
+    if (event === 'SIGNED_OUT') returnToLogin();
+  });
+
   async function ensureSchoolSwitcherVisibility() {
     const { data: { user } } = await db.auth.getUser();
     if (!user) { clearCommercialLoginState(); return; }
@@ -149,6 +212,12 @@ function initializeCommercialLoginFix() {
     login?.classList.add('hidden');
 
     try {
+      if (!window.isCarometroPasswordRecovery?.() && !await window.verifyCarometroSession()) {
+        app?.classList.add('hidden');
+        login?.classList.remove('hidden');
+        hideBootShield();
+        return;
+      }
       // Não depende do término da escolha inicial: ela pode estar aguardando
       // interação do usuário quando ainda não existe escola salva na sessão.
       // O seletor (#schoolContextModal, z-index:200) fica acima da cortina
@@ -184,6 +253,7 @@ function initializeCommercialLoginFix() {
       // assíncrono, então isto é o que garante que a permissão já foi
       // aplicada antes de revelar #app, sem refazer o trabalho.
       await window.__waitForCarometroPermission?.();
+      if (!user || endingSession) { returnToLogin(); return; }
       // #app é liberado internamente aqui para que os MutationObservers
       // existentes (mobile-layout.js, permissions-and-details.js,
       // student-edit-improvements.js, notification-center.js,

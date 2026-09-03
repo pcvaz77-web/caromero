@@ -1,10 +1,10 @@
-const CACHE = 'carometro-commercial-v49';
+const CACHE = 'carometro-commercial-v50';
 const CORE = [
   './',
   './index.html',
   './app-core.js?v=3',
   './carometro-config.js?v=4',
-  './school-context.js?v=7',
+  './school-context.js?v=8',
   './mobile.css?v=12',
   './responsive-audit-fixes.css?v=10',
   './carometro-icon-192.png',

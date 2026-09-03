@@ -36,7 +36,8 @@ function initializeSchoolContext() {
     try {
       const checkedSchoolId = activeSchoolId;
       const { data, error } = await db.rpc('can_use_school', { target_school_id:checkedSchoolId });
-      if (error || checkedSchoolId !== activeSchoolId || data === true) return;
+      if (error) { await window.verifyCarometroSession?.(); return; }
+      if (checkedSchoolId !== activeSchoolId || data === true) return;
       accessLost = true;
       try { sessionStorage.removeItem(STORAGE_KEY); } catch {}
       toast('O acesso a esta escola foi suspenso ou está indisponível.');
@@ -58,7 +59,7 @@ function initializeSchoolContext() {
     noSchoolCheckRunning = true;
     try {
       const { data: { user } } = await db.auth.getUser();
-      if (!user) return;
+      if (!user) { await window.verifyCarometroSession?.(); return; }
       const { data, error } = await db.from('school_members')
         .select('id')
         .eq('user_id', user.id)
@@ -96,11 +97,15 @@ function initializeSchoolContext() {
       const button = document.getElementById('noSchoolSignOut');
       button.disabled = true;
       window.prepareCarometroSignOut?.();
-      await window.disableCarometroPush?.();
-      await window.clearCarometroNotificationChannel?.();
-      await db.auth.signOut();
-      window.clearActiveSchoolContext?.();
-      location.reload();
+      try {
+        await Promise.race([
+          Promise.resolve().then(() => window.disableCarometroPush?.()).catch(() => {}),
+          new Promise(resolve => setTimeout(resolve, 2500))
+        ]);
+      } finally {
+        if (window.endInvalidCarometroSession) await window.endInvalidCarometroSession();
+        else { await db.auth.signOut({ scope:'local' }); location.reload(); }
+      }
     };
   }
   window.resolveActiveSchoolContext = async () => {
