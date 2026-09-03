@@ -557,6 +557,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const requestId = ++latestLoadRequest;
     const schoolId = window.getActiveSchoolId?.() || null;
     if (!schoolId) { classes = []; students = []; render(); document.dispatchEvent(new CustomEvent('carometro:data-loaded')); return; }
+    // A lista precisa conhecer as opções fixadas antes de desenhar os cards.
+    // Professores normalmente não abrem o gerenciador de observações, então
+    // não podem depender dessa tela para carregar pinnedObservationLabels.
+    await loadObservationOptions();
     let classesQuery = db.from('classes').select('*').order('name');
     classesQuery = classesQuery.eq('school_id', schoolId);
     const [studentsResult, classesResult] = await Promise.all([
