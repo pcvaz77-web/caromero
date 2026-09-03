@@ -82,7 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
       body.classroom-map-printing #classroomMapModal .modal { width:100% !important; max-height:none !important; overflow:visible !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
       body.classroom-map-printing #classroomMapModal .modal-head { padding:0 0 10px !important; border-bottom:1px solid #9aa4b2 !important; }
       body.classroom-map-printing #classroomMapModal .modal-head .close,
-      body.classroom-map-printing .classroom-map-toolbar { display:none !important; }
+      body.classroom-map-printing .classroom-map-toolbar,
+      body.classroom-map-printing .classroom-map-suggestion,
+      body.classroom-map-printing .classroom-map-instructions,
+      body.classroom-map-printing .classroom-unassigned { display:none !important; }
+      body.classroom-map-printing .classroom-student.selected { outline:none !important; }
       body.classroom-map-printing .classroom-map-shell { padding:12px 0 0 !important; }
       body.classroom-map-printing .classroom-map-stage { padding:0 !important; overflow:visible !important; border:0 !important; background:#fff !important; }
       body.classroom-map-printing .classroom-room-plan { width:100% !important; min-width:0 !important; }
@@ -245,6 +249,11 @@ document.addEventListener('DOMContentLoaded', () => {
       await refreshClassPhotos(activeClassId);
       renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, true);
       modal.classList.remove('hidden');
+      await printVisibleMap();
+    } catch (error) { toast(error.message || 'Não foi possível preparar a impressão agora.'); }
+  }
+
+  async function printVisibleMap() {
       const mapImages = [...document.querySelectorAll('#classroomMapModal .classroom-student-avatar img')];
       await Promise.all(mapImages.map(image => {
         if (image.complete && image.naturalWidth > 0) return image.decode?.().catch(() => {}) || Promise.resolve();
@@ -259,7 +268,6 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('afterprint', finishPrinting, { once:true });
       document.body.classList.add('classroom-map-printing');
       window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
-    } catch (error) { toast(error.message || 'Não foi possível preparar a impressão agora.'); }
   }
 
   function moveStudent(studentId, seatIndex) {
@@ -355,6 +363,24 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Mapeamento resetado. Todas as posições salvas foram removidas.');
     };
     document.getElementById('saveMapDraft').onclick = saveDraft;
+    const printDraftButton = document.createElement('button');
+    printDraftButton.id = 'printEditingClassroomMap';
+    printDraftButton.type = 'button';
+    printDraftButton.className = 'btn secondary';
+    printDraftButton.textContent = 'Imprimir mapeamento';
+    document.getElementById('saveMapDraft').after(printDraftButton);
+    printDraftButton.onclick = async () => {
+      printDraftButton.disabled = true;
+      try {
+        if (!await canPrintPublishedMap(activeClassId)) {
+          toast('Somente o conselheiro da turma ou a gestão podem imprimir este mapeamento.');
+          return;
+        }
+        await printVisibleMap();
+      } catch (error) {
+        toast(error.message || 'Não foi possível preparar a impressão agora.');
+      } finally { printDraftButton.disabled = false; }
+    };
     document.getElementById('publishMap').onclick = publishMap;
   }
 
@@ -388,10 +414,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (current) {
       publishedByClass.set(activeClassId, current);
       const selected = classes.find(item => item.id === activeClassId);
-      document.getElementById('classroomMapTitle').textContent = 'Mapeamento';
+      document.getElementById('classroomMapTitle').textContent = 'Editar mapeamento';
       document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
-      renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, true);
-    } else closeModal();
+      renderMap(current.layout, true, `Mapeamento publicado · versão ${current.version}`);
+    } else renderMap(editingLayout, true, 'Mapeamento publicado');
     refreshButtons();
   }
 
