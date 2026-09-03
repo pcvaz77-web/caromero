@@ -50,6 +50,7 @@ document.getElementById('resetForm').onsubmit = async event => {
   event.preventDefault();
   const password = document.getElementById('password').value;
   const confirmation = document.getElementById('confirmation').value;
+  if (password.length < 8) { message('A senha precisa ter pelo menos 8 caracteres.'); return; }
   if (password !== confirmation) { message('As duas senhas precisam ser iguais.'); return; }
   const save = document.getElementById('save');
   save.disabled = true; error.classList.add('hidden');

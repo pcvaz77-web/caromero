@@ -21,8 +21,8 @@
         <div class="modal-head"><h3 id="passwordResetTitle">Criar nova senha</h3></div>
         <form id="passwordResetForm" class="form">
           <p class="sub">Defina sua nova senha para concluir a recuperação. Em seguida, entre novamente pelo navegador.</p>
-          <div class="field"><label for="newRecoveryPassword">Nova senha</label><input id="newRecoveryPassword" type="password" autocomplete="new-password" minlength="6" required></div>
-          <div class="field"><label for="confirmRecoveryPassword">Confirme a nova senha</label><input id="confirmRecoveryPassword" type="password" autocomplete="new-password" minlength="6" required></div>
+          <div class="field"><label for="newRecoveryPassword">Nova senha</label><input id="newRecoveryPassword" type="password" autocomplete="new-password" minlength="8" required><div class="meta">Mínimo de 8 caracteres.</div></div>
+          <div class="field"><label for="confirmRecoveryPassword">Confirme a nova senha</label><input id="confirmRecoveryPassword" type="password" autocomplete="new-password" minlength="8" required></div>
           <p id="passwordResetError" class="error hidden"></p>
           <div class="actions"><button class="btn secondary" type="button" id="cancelPasswordReset">Cancelar e voltar ao login</button><button class="btn primary" type="submit" id="saveRecoveryPassword">Salvar nova senha</button></div>
         </form>
@@ -79,6 +79,11 @@
       const password = document.getElementById('newRecoveryPassword').value;
       const confirmation = document.getElementById('confirmRecoveryPassword').value;
       const error = document.getElementById('passwordResetError');
+      if (password.length < 8) {
+        error.textContent = 'A senha precisa ter pelo menos 8 caracteres.';
+        error.classList.remove('hidden');
+        return;
+      }
       if (password !== confirmation) {
         error.textContent = 'As duas senhas precisam ser iguais.';
         error.classList.remove('hidden');

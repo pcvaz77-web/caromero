@@ -51,8 +51,8 @@
           <form id="onboardingForm" class="hidden">
             <p class="note" id="onboardingNote"></p>
             <div class="field" id="onboardingNameField"><label for="onboardingName">Nome completo</label><input id="onboardingName" autocomplete="name"></div>
-            <div class="field" id="onboardingPasswordField"><label for="onboardingPassword">Senha</label><input id="onboardingPassword" minlength="6" type="password" autocomplete="new-password"></div>
-            <div class="field" id="onboardingPasswordConfirmField"><label for="onboardingPasswordConfirm">Confirmar senha</label><input id="onboardingPasswordConfirm" minlength="6" type="password" autocomplete="new-password"></div>
+            <div class="field" id="onboardingPasswordField"><label for="onboardingPassword">Senha</label><input id="onboardingPassword" minlength="8" type="password" autocomplete="new-password"></div>
+            <div class="field" id="onboardingPasswordConfirmField"><label for="onboardingPasswordConfirm">Confirmar senha</label><input id="onboardingPasswordConfirm" minlength="8" type="password" autocomplete="new-password"></div>
             <button id="onboardingSubmit" class="btn">Concluir cadastro e continuar</button>
           </form>
           <button id="continueBtn" class="btn hidden" type="button">Continuar com esta conta</button>
@@ -78,7 +78,7 @@
   </main>
   <script>
     if (window.CAROMETRO_RUNTIME_CONFIG?.backendConfigured) {
-      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=5"><\/script>');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=6"><\/script>');
     } else {
       document.getElementById('fatal').textContent = 'O ambiente comercial ainda está em preparação.';
       document.getElementById('fatal').classList.remove('hidden');

@@ -255,6 +255,9 @@ $('onboardingForm').onsubmit = async event => {
   const needsPassword = state === 'needs_both' || state === 'needs_password';
   const name = $('onboardingName').value.trim();
   if (needsName && !validName(name)) { showError('sessionError', 'Informe um nome completo válido.'); return; }
+  if (needsPassword && $('onboardingPassword').value.length < 8) {
+    showError('sessionError', 'A senha precisa ter pelo menos 8 caracteres.'); return;
+  }
   if (needsPassword && $('onboardingPassword').value !== $('onboardingPasswordConfirm').value) {
     showError('sessionError', 'As duas senhas precisam ser iguais.'); return;
   }
