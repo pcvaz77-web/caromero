@@ -1,4 +1,4 @@
-const CACHE = 'carometro-commercial-v44';
+const CACHE = 'carometro-commercial-v45';
 const CORE = [
   './',
   './index.html',

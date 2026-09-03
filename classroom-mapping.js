@@ -55,9 +55,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .classroom-unassigned .classroom-student { width:112px; padding:8px; border:1px solid #e1e6ef; border-radius:10px; }
     .classroom-map-readonly .classroom-student { cursor:default; }
     .classroom-map-status { font-size:13px; font-weight:750; color:var(--muted); }
+    .classroom-map-print-actions { display:flex; align-items:center; gap:9px; }
     .classroom-panel-card { padding:18px; border:1px solid var(--line); border-radius:12px; background:#f8faff; }
     .classroom-panel-card h4 { margin:0 0 6px; font-size:17px; }
     .classroom-panel-card p { margin:0 0 15px; color:var(--muted); font-size:13px; }
+    .classroom-panel-actions { display:flex; gap:9px; flex-wrap:wrap; }
     @media(max-width:800px) {
       .classroom-map-modal { padding:8px; align-items:start; overflow:auto; }
       .classroom-map-modal .modal { max-height:calc(100dvh - 16px); }
@@ -71,6 +73,29 @@ document.addEventListener('DOMContentLoaded', () => {
       .classroom-unassigned .classroom-student-avatar { width:38px; height:38px; font-size:11px; }
       .classroom-unassigned .classroom-student-name { max-width:100%; font-size:10px; overflow-wrap:anywhere; }
       #classPanelButton, #classroomMapButton { flex:1 1 auto; }
+    }
+    @media print {
+      @page { size:landscape; margin:8mm; }
+      body.classroom-map-printing { background:#fff !important; }
+      body.classroom-map-printing > *:not(#classroomMapModal) { display:none !important; }
+      body.classroom-map-printing #classroomMapModal { position:static !important; inset:auto !important; display:block !important; padding:0 !important; background:#fff !important; }
+      body.classroom-map-printing #classroomMapModal .modal { width:100% !important; max-height:none !important; overflow:visible !important; border:0 !important; border-radius:0 !important; box-shadow:none !important; }
+      body.classroom-map-printing #classroomMapModal .modal-head { padding:0 0 10px !important; border-bottom:1px solid #9aa4b2 !important; }
+      body.classroom-map-printing #classroomMapModal .modal-head .close,
+      body.classroom-map-printing .classroom-map-toolbar { display:none !important; }
+      body.classroom-map-printing .classroom-map-shell { padding:12px 0 0 !important; }
+      body.classroom-map-printing .classroom-map-stage { padding:0 !important; overflow:visible !important; border:0 !important; background:#fff !important; }
+      body.classroom-map-printing .classroom-room-plan { width:100% !important; min-width:0 !important; }
+      body.classroom-map-printing .classroom-file-row-labels,
+      body.classroom-map-printing .classroom-map-grid { grid-template-columns:repeat(var(--map-columns), minmax(0,1fr)) !important; gap:5px !important; }
+      body.classroom-map-printing .classroom-room-top { grid-template-columns:1fr minmax(220px,2fr) 1fr !important; margin-bottom:12px !important; }
+      body.classroom-map-printing .classroom-room-landmark { min-height:38px !important; padding:5px !important; font-size:9px !important; }
+      body.classroom-map-printing .classroom-map-front { padding:7px !important; font-size:9px !important; }
+      body.classroom-map-printing .classroom-seat { min-height:76px !important; padding:18px 3px 3px !important; break-inside:avoid; }
+      body.classroom-map-printing .classroom-seat-coordinate { top:3px; left:4px; font-size:7px; }
+      body.classroom-map-printing .classroom-student { gap:3px; }
+      body.classroom-map-printing .classroom-student-avatar { width:34px; height:34px; font-size:9px; }
+      body.classroom-map-printing .classroom-student-name { max-width:100%; font-size:7px; line-height:1.15; }
     }
   `;
   document.head.appendChild(style);
@@ -164,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function renderMap(layout, editable, statusText) {
+  function renderMap(layout, editable, statusText, printable = false) {
     editingLayout = normalizeLayout(layout);
     selectedStudentId = null;
     const assigned = new Map(editingLayout.assignments.map(item => [item.seatIndex, item.studentId]));
@@ -184,12 +209,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const recommendedCapacity = recommendation.rows * recommendation.columns;
     const roomWidth = Math.max(620, editingLayout.columns * 100 + (editingLayout.columns - 1) * 13);
     document.getElementById('classroomMapContent').innerHTML = `
-      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="resetMap" type="button" class="btn secondary">Resetar mapeamento</button><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span></div>`}
+      ${editable ? `<div class="classroom-map-toolbar"><div class="classroom-map-toolbar-group"><label>Fileiras <select id="mapColumns">${fileRowOptions.map(value => `<option ${value === editingLayout.columns ? 'selected' : ''}>${value}</option>`).join('')}</select></label><label>Mesas por fileira <select id="mapRows">${deskOptions.map(value => `<option ${value === editingLayout.rows ? 'selected' : ''}>${value}</option>`).join('')}</select></label></div><div class="classroom-map-toolbar-group"><span class="classroom-map-status">${esc(statusText)}</span><button id="resetMap" type="button" class="btn secondary">Resetar mapeamento</button><button id="saveMapDraft" type="button" class="btn secondary">Salvar rascunho</button><button id="publishMap" type="button" class="btn primary">Publicar mapeamento</button></div></div>` : `<div class="classroom-map-toolbar"><span class="classroom-map-status">${esc(statusText)}</span>${printable ? '<div class="classroom-map-print-actions"><button id="printClassroomMap" type="button" class="btn primary">Imprimir mapeamento</button></div>' : ''}</div>`}
       ${editable ? `<div class="classroom-map-suggestion"><div><strong>Sugestão automática para ${allClassStudents.length} aluno${allClassStudents.length === 1 ? '' : 's'}</strong><span>${recommendation.columns} fileira${recommendation.columns === 1 ? '' : 's'} × ${recommendation.rows} mesa${recommendation.rows === 1 ? '' : 's'} por fileira (${recommendedCapacity} lugares).</span></div><button id="applyMapSuggestion" type="button" class="btn secondary">Aplicar sugestão</button></div>` : ''}
       ${editable ? '<div class="classroom-map-instructions">Clique no aluno para selecioná-lo e depois clique na carteira de destino. Para deixá-lo sem lugar, clique em “Sem carteira”. No computador, também é possível arrastar; ao alcançar a borda, a tela rola automaticamente.</div>' : ''}
-      <div class="classroom-map-stage ${editable ? '' : 'classroom-map-readonly'}"><div class="classroom-room-plan" style="width:${roomWidth}px"><div class="classroom-room-top"><div class="classroom-room-landmark classroom-teacher-desk"><span aria-hidden="true">▰</span> MESA DO PROFESSOR</div><div class="classroom-map-front">QUADRO · FRENTE DA SALA</div><div class="classroom-room-landmark classroom-door"><span aria-hidden="true">🚪</span> PORTA</div></div><div class="classroom-file-row-labels" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${fileRowLabels}</div><div class="classroom-map-grid" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${seats}</div></div></div>
+      <div class="classroom-map-stage ${editable ? '' : 'classroom-map-readonly'}"><div class="classroom-room-plan" style="--map-columns:${editingLayout.columns};width:${roomWidth}px"><div class="classroom-room-top"><div class="classroom-room-landmark classroom-teacher-desk"><span aria-hidden="true">▰</span> MESA DO PROFESSOR</div><div class="classroom-map-front">QUADRO · FRENTE DA SALA</div><div class="classroom-room-landmark classroom-door"><span aria-hidden="true">🚪</span> PORTA</div></div><div class="classroom-file-row-labels" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${fileRowLabels}</div><div class="classroom-map-grid" style="grid-template-columns:repeat(${editingLayout.columns}, minmax(100px, 1fr))">${seats}</div></div></div>
       ${editable ? `<section class="classroom-unassigned" data-unassigned><h4>Alunos ainda sem lugar (${unassigned.length})</h4><div class="classroom-unassigned-dropzone" data-unassigned-dropzone>Sem carteira · clique aqui para retirar o aluno selecionado da sala</div><div class="classroom-unassigned-list">${unassigned.length ? unassigned.map(student => studentCard(student, true)).join('') : '<span class="meta">Todos os alunos estão posicionados.</span>'}</div></section>` : ''}`;
     if (editable) bindEditor();
+    if (printable) document.getElementById('printClassroomMap').onclick = () => printPublishedMap(activeClassId);
+  }
+
+  async function canPrintPublishedMap(classId) {
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId || !classId) return false;
+    const { data, error } = await db.rpc('can_edit_classroom_map', { target_school_id:schoolId, target_class_id:classId });
+    return !error && !!data;
+  }
+
+  async function printPublishedMap(classId = activeClassId) {
+    try {
+      if (!await canPrintPublishedMap(classId)) {
+        toast('Somente o conselheiro da turma ou a gestão podem imprimir este mapeamento.');
+        return;
+      }
+      const current = publishedByClass.get(classId) || await fetchMap(classId, false);
+      if (!current) { toast('Esta turma ainda não possui um mapeamento publicado.'); return; }
+      activeClassId = classId;
+      publishedByClass.set(classId, current);
+      const selected = classes.find(item => item.id === activeClassId);
+      document.getElementById('classroomMapTitle').textContent = 'Mapeamento da sala';
+      document.getElementById('classroomMapMeta').textContent = `${selected?.name || 'Turma'} · versão ${current.version}`;
+      await refreshClassPhotos(activeClassId);
+      renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, true);
+      modal.classList.remove('hidden');
+      const finishPrinting = () => document.body.classList.remove('classroom-map-printing');
+      window.addEventListener('afterprint', finishPrinting, { once:true });
+      document.body.classList.add('classroom-map-printing');
+      window.requestAnimationFrame(() => window.requestAnimationFrame(() => window.print()));
+    } catch (error) { toast(error.message || 'Não foi possível preparar a impressão agora.'); }
   }
 
   function moveStudent(studentId, seatIndex) {
@@ -314,7 +370,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.rpc('publish_classroom_map', { target_class_id:activeClassId });
     if (error) { toast(error.message); return; }
     toast('Mapeamento publicado para os professores.');
-    closeModal();
+    const current = await fetchMap(activeClassId, false);
+    if (current) {
+      publishedByClass.set(activeClassId, current);
+      const selected = classes.find(item => item.id === activeClassId);
+      document.getElementById('classroomMapTitle').textContent = 'Mapeamento';
+      document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
+      renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, true);
+    } else closeModal();
     refreshButtons();
   }
 
@@ -327,8 +390,16 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('hidden');
     const content = document.getElementById('classroomMapContent');
     if (activeCanEdit) {
-      content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Organize visualmente onde cada estudante se senta. O rascunho só será compartilhado quando você publicar.</p><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button></div>';
+      let published = publishedByClass.get(activeClassId);
+      if (!published) {
+        try {
+          published = await fetchMap(activeClassId, false);
+          if (published) publishedByClass.set(activeClassId, published);
+        } catch {}
+      }
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Organize visualmente onde cada estudante se senta. O rascunho só será compartilhado quando você publicar.</p><div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${published ? '<button id="printPublishedClassroomMap" type="button" class="btn secondary">Imprimir mapeamento</button>' : ''}</div></div>`;
       document.getElementById('editClassroomMap').onclick = openEditor;
+      if (published) document.getElementById('printPublishedClassroomMap').onclick = () => printPublishedMap(activeClassId);
       return;
     }
     content.innerHTML = '<div class="empty">Consultando o mapeamento publicado…</div>';
@@ -367,9 +438,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('classroomMapContent').innerHTML = '<div class="empty">Carregando mapeamento…</div>';
     modal.classList.remove('hidden');
     try {
-      const [current] = await Promise.all([fetchMap(activeClassId, false), refreshClassPhotos(activeClassId)]);
+      const [current, printable] = await Promise.all([fetchMap(activeClassId, false), canPrintPublishedMap(activeClassId), refreshClassPhotos(activeClassId)]);
       if (!current) { closeModal(); toast('Esta turma ainda não possui um mapeamento publicado.'); return; }
-      renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`);
+      publishedByClass.set(activeClassId, current);
+      renderMap(current.layout, false, `Mapeamento publicado · versão ${current.version}`, printable);
     } catch (error) { closeModal(); toast(error.message); }
   }
   window.openClassroomMap = openViewer;
