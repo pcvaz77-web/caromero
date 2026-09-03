@@ -154,12 +154,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data:canEdit, error:permissionError } = await db.rpc('can_edit_classroom_map', { target_school_id:schoolId, target_class_id:classId });
     if (generation !== availabilityGeneration || classId !== selectedClassId) return;
     activeCanEdit = !permissionError && !!canEdit;
-    panelButton.classList.toggle('hidden', !activeCanEdit);
+    panelButton.classList.remove('hidden');
     try {
       const published = await fetchMap(classId, false);
       if (generation !== availabilityGeneration || classId !== selectedClassId) return;
       if (published) publishedByClass.set(classId, published); else publishedByClass.delete(classId);
-      viewButton.classList.toggle('hidden', !published || activeCanEdit);
     } catch {
       publishedByClass.delete(classId);
     }
@@ -319,15 +318,32 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshButtons();
   }
 
-  function openClassPanel() {
+  async function openClassPanel() {
     if (!selectedClassId) return;
     activeClassId = selectedClassId;
     const selected = classes.find(item => item.id === activeClassId);
     document.getElementById('classroomMapTitle').textContent = 'Painel da turma';
     document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
-    document.getElementById('classroomMapContent').innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Organize visualmente onde cada estudante se senta. O rascunho só será compartilhado quando você publicar.</p><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button></div>';
     modal.classList.remove('hidden');
-    document.getElementById('editClassroomMap').onclick = openEditor;
+    const content = document.getElementById('classroomMapContent');
+    if (activeCanEdit) {
+      content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Organize visualmente onde cada estudante se senta. O rascunho só será compartilhado quando você publicar.</p><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button></div>';
+      document.getElementById('editClassroomMap').onclick = openEditor;
+      return;
+    }
+    content.innerHTML = '<div class="empty">Consultando o mapeamento publicado…</div>';
+    try {
+      const published = publishedByClass.get(activeClassId) || await fetchMap(activeClassId, false);
+      if (!published) {
+        content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>O mapeamento desta turma ainda não foi publicado pelo conselheiro ou pela gestão.</p></div>';
+        return;
+      }
+      publishedByClass.set(activeClassId, published);
+      content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Consulte onde cada estudante se senta no mapeamento atualmente publicado.</p><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button></div>';
+      document.getElementById('viewPublishedClassroomMap').onclick = () => openViewer(activeClassId);
+    } catch {
+      content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Não foi possível consultar o mapeamento agora. Tente novamente.</p></div>';
+    }
   }
 
   async function openEditor() {
