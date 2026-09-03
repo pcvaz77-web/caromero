@@ -430,16 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.remove('hidden');
     const content = document.getElementById('classroomMapContent');
     if (activeCanEdit) {
-      let published = publishedByClass.get(activeClassId);
-      if (!published) {
-        try {
-          published = await fetchMap(activeClassId, false);
-          if (published) publishedByClass.set(activeClassId, published);
-        } catch {}
-      }
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Organize visualmente onde cada estudante se senta. O rascunho só será compartilhado quando você publicar.</p><div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${published ? '<button id="printPublishedClassroomMap" type="button" class="btn secondary">Imprimir mapeamento</button>' : ''}</div></div>`;
+      content.innerHTML = '<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button></div>';
       document.getElementById('editClassroomMap').onclick = openEditor;
-      if (published) document.getElementById('printPublishedClassroomMap').onclick = () => printPublishedMap(activeClassId);
       return;
     }
     content.innerHTML = '<div class="empty">Consultando o mapeamento publicado…</div>';
