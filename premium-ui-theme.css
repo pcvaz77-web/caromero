@@ -908,6 +908,57 @@ body .top-actions #notificationBell:not(.hidden) {
   }
 }
 
+/* Layout v21: sino na linha da saudação e navegação lateral mais compacta. */
+body .welcome-notification-row {
+  width:100%;display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 10px;
+}
+body .welcome-notification-row .welcome-greeting { min-width:0;margin:0!important; }
+body .welcome-notification-row #notificationBell:not(.hidden) {
+  position:relative!important;inset:auto!important;display:inline-grid!important;place-items:center;
+  flex:0 0 48px;width:48px!important;height:48px!important;min-width:48px!important;min-height:48px!important;
+  padding:0!important;border:1px solid #d8deea!important;border-radius:11px!important;background:#fff!important;
+  box-shadow:0 4px 12px rgba(32,45,81,.07)!important;font-size:0!important;
+}
+body .welcome-notification-row #notificationBell::before { content:'🔔';font-size:20px;line-height:1; }
+body .welcome-notification-row #notificationUnreadCount {
+  position:absolute;top:-7px;right:-7px;min-width:19px;height:19px;font-size:10px;
+}
+
+@media(min-width:801px) {
+  body .top > .welcome-notification-row { grid-column:1 / -1;grid-row:1; }
+  body .top > .welcome-notification-row + div { grid-column:1;grid-row:2; }
+  body .top > .top-actions { grid-column:2;grid-row:2; }
+  body .side { padding:15px 16px 16px!important; }
+  body .side .logo {
+    min-height:36px;padding:0 8px 4px!important;display:flex;align-items:center;
+    font-size:17px!important;font-weight:780!important;line-height:1.1;
+  }
+  body .side .logo .mark { width:30px;height:30px;margin-right:8px;border-radius:9px;font-size:14px; }
+  body .side .nav { gap:4px!important;margin-top:4px!important; }
+  body .side .nav button,
+  body .side #settingsNav:not(.hidden) {
+    min-height:36px!important;margin-top:0!important;padding:7px 12px!important;
+    border-radius:10px!important;font-size:13px!important;
+  }
+  body .side .nav .navigation-vector { width:17px;height:17px;flex-basis:17px;mask-size:17px 17px;-webkit-mask-size:17px 17px; }
+  body .class-sidebar { margin-top:10px!important; }
+  body .class-head { padding:0 8px 5px!important;font-size:10px!important; }
+  body .class-add,body .class-delete { width:22px!important;height:22px!important; }
+  body .class-list { padding-top:2px!important; }
+  body .class-list > .all-students-tab,
+  body .class-list > .shift-group .shift-tab {
+    min-height:38px!important;padding:7px 9px!important;border-radius:9px!important;font-size:12px!important;
+  }
+  body .shift-classes button { padding-top:7px!important;padding-bottom:7px!important;font-size:12px!important; }
+}
+
+@media(max-width:800px) {
+  body .welcome-notification-row { margin-bottom:8px; }
+  body .welcome-notification-row #notificationBell:not(.hidden) {
+    flex-basis:44px;width:44px!important;height:44px!important;min-width:44px!important;min-height:44px!important;
+  }
+}
+
 /* Navegação móvel final v18: abas sóbrias, compactas e bem diferenciadas. */
 @media(max-width:800px) {
   body .class-sidebar {

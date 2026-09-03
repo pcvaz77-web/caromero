@@ -5,7 +5,16 @@ document.addEventListener('DOMContentLoaded', () => {
   bell.className = 'notification-bell hidden';
   bell.setAttribute('aria-label', 'Notificações');
   bell.innerHTML = '🔔 <span id="notificationUnreadCount" class="notification-count hidden">0</span>';
-  document.querySelector('.top-actions')?.prepend(bell);
+  const greeting = document.getElementById('welcomeGreeting');
+  const heading = document.querySelector('.top > div:first-child');
+  if (greeting && heading) {
+    const greetingRow = document.createElement('div');
+    greetingRow.className = 'welcome-notification-row';
+    heading.before(greetingRow);
+    greetingRow.append(greeting, bell);
+  } else {
+    document.querySelector('.top-actions')?.prepend(bell);
+  }
 
   const panel = document.createElement('div');
   panel.id = 'notificationPanel';

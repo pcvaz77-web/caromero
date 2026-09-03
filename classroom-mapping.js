@@ -11,9 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
   viewButton.className = 'btn secondary hidden';
   viewButton.textContent = 'Mapeamento';
 
-  const actions = document.querySelector('.top-actions');
-  actions?.prepend(viewButton);
-  actions?.prepend(panelButton);
+  document.querySelector('.top-actions')?.prepend(panelButton);
 
   const style = document.createElement('style');
   style.textContent = `
@@ -149,7 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const classId = selectedClassId;
     panelButton.classList.add('hidden');
     viewButton.classList.add('hidden');
-    if (!classId || !window.getActiveSchoolId?.()) return;
+    const canViewPanel = permission?.role === 'admin' || !!permission?.can_view_class_summary;
+    if (!classId || !canViewPanel || !window.getActiveSchoolId?.()) return;
     const schoolId = window.getActiveSchoolId();
     const { data:canEdit, error:permissionError } = await db.rpc('can_edit_classroom_map', { target_school_id:schoolId, target_class_id:classId });
     if (generation !== availabilityGeneration || classId !== selectedClassId) return;
@@ -379,6 +378,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const baseSelectClass = window.selectClass;
   window.selectClass = id => { baseSelectClass(id); refreshButtons(); };
+  document.getElementById('classList')?.addEventListener('click', event => {
+    if (!event.target.closest('[data-select-shift],[data-all-students]')) return;
+    window.setTimeout(refreshButtons, 0);
+  });
   document.addEventListener('carometro:data-loaded', () => setTimeout(async () => {
     refreshButtons();
     const editorIsOpen = !modal.classList.contains('hidden')
