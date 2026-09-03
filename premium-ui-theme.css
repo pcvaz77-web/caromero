@@ -972,7 +972,7 @@ body .welcome-notification-row #notificationUnreadCount {
   }
   body .welcome-notification-row #activeSchoolGreeting { font-size:13px!important; }
   body .top-actions #classPanelButton:not(.hidden) {
-    grid-column:1 / -1!important;grid-row:3!important;width:100%!important;max-width:none!important;
+    grid-column:1 / -1!important;grid-row:4!important;width:100%!important;max-width:none!important;
   }
 }
 
