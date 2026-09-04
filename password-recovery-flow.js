@@ -58,15 +58,36 @@
       return `${location.origin}${basePath}reset-password.html`;
     })();
 
-    document.getElementById('recoveryForm').onsubmit = async event => {
+    const recoveryForm = document.getElementById('recoveryForm');
+    const recoveryFeedback = document.createElement('p');
+    recoveryFeedback.id = 'recoveryRequestFeedback';
+    recoveryFeedback.className = 'sub hidden';
+    recoveryFeedback.setAttribute('role', 'status');
+    recoveryFeedback.setAttribute('aria-live', 'polite');
+    recoveryFeedback.style.cssText = 'padding:14px;border:1px solid var(--line);border-radius:10px;line-height:1.5';
+    recoveryForm.querySelector('.actions').before(recoveryFeedback);
+    let recoveryRequestPending = false;
+    recoveryForm.onsubmit = async event => {
       event.preventDefault();
+      if (recoveryRequestPending) return;
       const email = document.getElementById('recoveryEmail').value.trim();
-      const { error } = await db.auth.resetPasswordForEmail(email, {
-        redirectTo: recoveryPageUrl
-      });
-      if (error) { toast(error.message); return; }
-      document.getElementById('recoveryModal').classList.add('hidden');
-      toast('Link de recuperação enviado. Abra-o no navegador para criar a nova senha.');
+      const sendButton = recoveryForm.querySelector('.btn.primary');
+      recoveryRequestPending = true;
+      sendButton.disabled = true;
+      recoveryFeedback.classList.remove('hidden');
+      recoveryFeedback.textContent = 'Solicitando recuperação…';
+      try {
+        const { error } = await db.auth.resetPasswordForEmail(email, {
+          redirectTo: recoveryPageUrl
+        });
+        if (error) throw error;
+        recoveryFeedback.textContent = 'Se houver uma conta com este e-mail, você receberá o link de recuperação. Se a conta foi excluída, solicite um novo convite à escola.';
+      } catch (error) {
+        recoveryFeedback.textContent = error.message || 'Não foi possível solicitar a recuperação agora. Tente novamente.';
+      } finally {
+        recoveryRequestPending = false;
+        sendButton.disabled = false;
+      }
     };
 
     document.getElementById('cancelPasswordReset').onclick = async () => {
