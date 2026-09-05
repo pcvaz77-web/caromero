@@ -1,6 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const fs = require('node:fs');
+const path = require('node:path');
 const core = require('../siap-attendance-core.js');
+
+test('exige consulta e escolha do componente antes da frequência', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../siap-integration.js'), 'utf8');
+  assert.match(source, /SIAP_COMPONENTS_REQUEST/);
+  assert.match(source, /siapAttendanceComponent/);
+  assert.match(source, /if \(!componentId\)/);
+});
 
 test('normaliza diferenças comuns sem depender da ordem da lista', () => {
   assert.equal(core.normalizeName(' João  Pedro da Silva '), 'JOAO PEDRO DA SILVA');
@@ -27,4 +36,11 @@ test('classifica o percentual de presença combinado', () => {
   assert.deepEqual(core.classifyAttendance({ present:6, total:10 }), { key:'attention', label:'Costuma faltar', percentage:60 });
   assert.deepEqual(core.classifyAttendance({ present:4, total:10 }), { key:'critical', label:'Falta muito', percentage:40 });
   assert.deepEqual(core.classifyAttendance({ transferred:true, present:10, total:10 }), { key:'transferred', label:'Transferido', percentage:null });
+});
+
+test('respeita exatamente os limites de 75% e 50%', () => {
+  assert.deepEqual(core.classifyAttendance({ present:3, total:4 }), { key:'frequent', label:'Frequente', percentage:75 });
+  assert.deepEqual(core.classifyAttendance({ present:1, total:2 }), { key:'attention', label:'Costuma faltar', percentage:50 });
+  assert.deepEqual(core.classifyAttendance({ present:49, total:100 }), { key:'critical', label:'Falta muito', percentage:49 });
+  assert.deepEqual(core.classifyAttendance({ present:0, total:0 }), { key:'unknown', label:'Sem dados', percentage:null });
 });
