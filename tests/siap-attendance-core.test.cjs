@@ -4,8 +4,9 @@ const core = require('../siap-attendance-core.js');
 
 test('normaliza diferenças comuns sem depender da ordem da lista', () => {
   assert.equal(core.normalizeName(' João  Pedro da Silva '), 'JOAO PEDRO DA SILVA');
+  assert.equal(core.normalizeName('12. João Pedro da Silva'), 'JOAO PEDRO DA SILVA');
   const result = core.matchStudents(
-    [{ id:'1', name:'Maria Eduarda Souza' }, { id:'2', name:'João Pedro da Silva' }],
+    [{ id:'1', name:'7. Maria Eduarda Souza' }, { id:'2', name:'12. João Pedro da Silva' }],
     [{ name:'JOAO PEDRO DA SILVA', present:8, total:10 }, { name:'Maria Eduarda Souza', present:10, total:10 }]
   );
   assert.deepEqual(result.matches.map(item => item.student.id), ['2', '1']);
