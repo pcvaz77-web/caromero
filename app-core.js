@@ -3,7 +3,7 @@
 const db = window.createCarometroSupabaseClient();
 const $ = id => document.getElementById(id);
 let user;
-const emptySchoolPermission = () => ({ role:'viewer', is_coordinator:false, can_add_students:false, can_edit_students:false });
+const emptySchoolPermission = () => ({ role:'viewer', is_coordinator:false, can_add_students:false, can_edit_students:false, can_use_siap_assistant:false, can_import_siap_attendance:false });
 let permission = emptySchoolPermission();
 let students = [];
 let classes = [];

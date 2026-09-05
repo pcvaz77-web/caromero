@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .member-status.suspended { background:#fee4e2; color:#b42318; }
     .perm.member-suspended { background:#fafafa; }
     .permission-basic { display:flex; flex-wrap:wrap; gap:8px; }
+    .permission-siap { display:grid; gap:8px; padding:11px; border:1px solid #b9d4ff; border-radius:10px; background:#eef5ff; }
+    .permission-siap > b { color:#1f3d78; font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+    .permission-siap .check { min-height:36px; padding:8px 9px; border-radius:8px; background:#fff; }
     .permission-primary .check, .permission-basic .check { min-height:42px; padding:10px 12px; border:1px solid #d9e2f4; border-radius:8px; background:#f7f9fc; }
     .permission-primary .check { background:#e8efff; color:#214dba; }
     .edit-rights { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4, minmax(132px, 1fr)); gap:9px; padding-top:15px; border-top:1px solid var(--line); }
@@ -49,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .permission-search { min-width:0; min-height:42px; padding:9px 11px; font-size:14px; }
       .permission-search-form .btn { min-height:42px; padding:9px 12px; font-size:13px; }
       .perm { grid-template-columns:1fr; gap:10px; padding:13px; min-width:0; }
-      .permission-primary, .permission-basic, .edit-rights { display:grid; grid-template-columns:1fr; gap:7px; min-width:0; }
+      .permission-primary, .permission-basic, .permission-siap, .edit-rights { display:grid; grid-template-columns:1fr; gap:7px; min-width:0; }
       .edit-rights { grid-column:auto; padding-top:10px; }
       .coordinator-right-group { grid-column:auto; }
       .coordinator-right-group .edit-rights { padding:8px; }
@@ -87,17 +90,18 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
   const permissionFields = ['can_add_students', 'can_edit_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_manage_observation_options', 'can_invite_teachers', 'can_manage_member_permissions', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors', 'can_view_class_summary'];
+  const siapPermissionFields = ['can_use_siap_assistant', 'can_import_siap_attendance'];
   const dormantPermissionFields = ['can_view_dashboard', 'can_view_history', 'can_manage_alerts', 'can_record_followups', 'can_export_reports', 'can_use_bulk_actions', 'can_view_audit'];
-  const rolePermissionFields = [...permissionFields, ...dormantPermissionFields];
+  const rolePermissionFields = [...permissionFields, ...siapPermissionFields, ...dormantPermissionFields];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador(a)';
     if (item.is_coordinator) return 'Coordenador(a)';
     return 'Professor(a)';
   };
-  const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
+  const hasGrantedPermission = item => item.role === 'admin' || [...permissionFields, ...siapPermissionFields].some(key => item[key]);
 
-  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary';
+  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance';
   const permissionFromMembership = membership => {
     if (!membership) return null;
     const rights = Array.isArray(membership.school_member_permissions)
@@ -161,18 +165,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await db.rpc('list_school_member_directory_v2', { target_school_id:schoolId });
     if (error) { toast(error.message); return new Map(); }
     const { data:panelRows, error:panelError } = await db.from('school_members')
-      .select('id,school_member_permissions(can_view_class_summary)')
+      .select('id,school_member_permissions(can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance)')
       .eq('school_id', schoolId);
     if (panelError) { toast(panelError.message); return new Map(); }
     const panelPermissionByMember = new Map((panelRows || []).map(item => {
       const rights = Array.isArray(item.school_member_permissions) ? item.school_member_permissions[0] : item.school_member_permissions;
-      return [item.id, !!rights?.can_view_class_summary];
+      return [item.id, {
+        can_view_class_summary:!!rights?.can_view_class_summary,
+        can_use_siap_assistant:!!rights?.can_use_siap_assistant,
+        can_import_siap_attendance:!!rights?.can_import_siap_attendance
+      }];
     }));
     const map = new Map();
     (data || []).forEach(item => {
       const normalized = {
         ...item,
-        can_view_class_summary:panelPermissionByMember.get(item.member_id) || false,
+        ...(panelPermissionByMember.get(item.member_id) || {}),
         member_id:item.member_id,
         school_id:schoolId,
         member_status:item.member_status || 'active',
@@ -585,6 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolScopedData = [...schoolPermissionMap.values()];
     const occMap = schoolPermissionMap;
     const check = (item, key, label, admin) => `<label class="check"><input ${admin || item.member_status !== 'active' || (item.can_edit_all && key !== 'can_edit_all') ? 'disabled' : ''} type="checkbox" ${item[key] || (item.can_edit_all && key !== 'can_edit_all') ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
+    const siapCheck = (item, key, label, admin) => `<label class="check"><input ${admin || item.member_status !== 'active' ? 'disabled' : ''} type="checkbox" ${admin || item[key] ? 'checked' : ''} onchange="setSiapPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const sortedUsers = [...schoolScopedData].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
       const secondName = second.profiles?.full_name?.trim() || second.profiles?.email || '';
@@ -596,8 +605,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.profiles?.email || 'Usuário';
       const active = item.member_status === 'active';
       const access = `<div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span>${admin ? '' : `<button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button>`}</div>`;
-      if (!isCoordinator(item)) return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_view_class_summary','Visualizar Painel da Turma',false).replace('setUserPermission','setGeneralPermission')}</div>${access}</article>`;
-      return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div>${access}<div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}${check(item,'can_view_class_summary','Visualizar Painel da Turma',admin)}</div><details class="coordinator-right-group"><summary>Cadastro, gestão, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_manage_observation_options','Gerenciar opções de observação',admin)}${check(item,'can_invite_teachers','Convidar professores',admin)}${check(item,'can_manage_member_permissions','Gerenciar permissões de professores',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
+      const siapRights = `<div class="permission-siap"><b>Integração SIAP</b>${siapCheck(item,'can_use_siap_assistant','Usar Assistente SIAP',admin)}${siapCheck(item,'can_import_siap_attendance','Importar frequência do SIAP',admin)}</div>`;
+      if (!isCoordinator(item)) return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_view_class_summary','Visualizar Painel da Turma',false).replace('setUserPermission','setGeneralPermission')}</div>${siapRights}${access}</article>`;
+      return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div>${access}<div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}${check(item,'can_view_class_summary','Visualizar Painel da Turma',admin)}</div>${siapRights}<details class="coordinator-right-group"><summary>Cadastro, gestão, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_manage_observation_options','Gerenciar opções de observação',admin)}${check(item,'can_invite_teachers','Convidar professores',admin)}${check(item,'can_manage_member_permissions','Gerenciar permissões de professores',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
     }).join('');
     const coordinatorManager = `<section class="coordinator-management"><div><b>Coordenadores</b><div class="meta">Escolha usuários cadastrados e libere permissões avançadas somente para eles.</div></div><button id="openCoordinators" type="button" class="btn secondary">Gerenciar coordenadores</button></section>`;
     const schoolCalendarManager = `<section class="coordinator-management"><div><b>Calendário letivo</b><div class="meta">Datas de início e fim de cada bimestre, usadas pelo Livro/Revisa.</div></div><button id="openSchoolCalendar" type="button" class="btn secondary">Calendário letivo</button></section>`;
@@ -661,6 +671,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error:commercialError } = await db.rpc('set_school_member_permission', { target_member_id:memberId, permission_name:key, permission_value:value });
     if (commercialError) { toast(commercialError.message); return; }
     toast('Permissão geral atualizada.');
+    openPermissions();
+  };
+  window.setSiapPermission = async (id, key, value) => {
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
+    const memberId = await findSchoolMemberId(id, membership.school_id);
+    if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
+    const { error } = await db.rpc('set_school_member_siap_permission', {
+      target_member_id:memberId,
+      permission_name:key,
+      permission_value:value
+    });
+    if (error) { toast(error.message); return; }
+    toast('Permissão do SIAP atualizada.');
     openPermissions();
   };
   window.setSchoolMemberStatus = async (memberId, status, email) => {
