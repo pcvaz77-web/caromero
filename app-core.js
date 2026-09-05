@@ -19,6 +19,7 @@ const esc = value => {
 };
 const ini = value => (value || '').split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const badge = value => value ? `<span class="pill ${value === 'Laudo' ? 'report' : value === 'Dificuldade leve' ? 'light' : 'severe'}">${esc(value)}</span>` : '';
+const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;
 const toast = message => {
   $('toast').textContent = message;
   $('toast').classList.remove('hidden');
@@ -69,7 +70,7 @@ function render() {
     ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}`
     : '<div class="empty">👈<br><br>Selecione um aluno para ver os detalhes.</div>';
   $('list').innerHTML = items.length
-    ? items.map(student => `<article class="student clickable" onclick="showStudentDetails('${student.id}')"><div class="avatar">${student.photoUrl ? `<img src="${student.photoUrl}" alt="">` : ini(student.name)}</div><div><div class="name">${esc(student.name)}</div><div class="meta hidden"></div></div><div><div class="meta">Turma</div><div>${esc(student.className)}</div></div><div>${badge(student.report)}</div>${canEdit ? `<div class="actions-small"><button class="edit" onclick="editStudent('${student.id}')">Editar</button><button class="delete" onclick="deleteStudent('${student.id}')">Excluir</button></div>` : '<div></div>'}</article>`).join('')
+    ? items.map(student => `<article class="student clickable" onclick="showStudentDetails('${student.id}')"><div class="avatar">${student.photoUrl ? `<img src="${student.photoUrl}" alt="">` : ini(student.name)}</div><div><div class="name">${esc(student.name)}</div><div class="meta hidden"></div></div><div><div class="meta">Turma</div><div>${esc(student.className)}</div></div><div>${studentBadges(student)}</div>${canEdit ? `<div class="actions-small"><button class="edit" onclick="editStudent('${student.id}')">Editar</button><button class="delete" onclick="deleteStudent('${student.id}')">Excluir</button></div>` : '<div></div>'}</article>`).join('')
     : `<div class="empty">👩‍🎓<br><br>${selected ? 'Nenhum aluno nesta turma.' : 'Nenhum aluno encontrado.'}</div>`;
 }
 

@@ -2,7 +2,9 @@
 
 ## Estado desta etapa
 
-O Carômetro exibe a entrada da integração apenas para usuários autorizados. Nenhum dado de frequência é lido, enviado ou gravado nesta etapa.
+O Carômetro exibe a entrada da integração apenas para usuários autorizados. A implementação local já possui seleção de meses, ponte com a extensão, prévia temporária, correspondência conservadora por nome e classificação por percentual de presença. Nada é gravado no banco nesta etapa.
+
+A extensão 0.16.2 localiza turma e turno no Diário do Professor e percorre todos os componentes encontrados e as chamadas salvas dos meses escolhidos, consolidando-os em uma única prévia da turma.
 
 ## Autorizações obrigatórias
 
@@ -15,7 +17,7 @@ O Carômetro exibe a entrada da integração apenas para usuários autorizados. 
 
 1. A extensão lê a tela de frequência já aberta e autenticada no SIAP.
 2. Antes de transmitir, apresenta escola, turma, período e quantidade de registros.
-3. A correspondência de estudantes usa matrícula. Nome nunca é a chave automática definitiva.
+3. Enquanto o Carômetro não possuir matrícula, a correspondência usa nome normalizado com bloqueio de ambiguidades e nunca usa a posição da lista. Matrícula deverá substituir o nome como chave principal quando estiver disponível nos dois sistemas.
 4. O Carômetro recebe uma prévia temporária e aponta registros correspondentes, ausentes ou conflitantes.
 5. O professor revisa a prévia. Analisar não grava.
 6. Uma confirmação separada autoriza a gravação idempotente por escola, turma, estudante, data e origem.
