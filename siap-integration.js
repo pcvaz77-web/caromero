@@ -178,7 +178,16 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPreview(payload) {
     clearAttendancePreview();
     const classStudents = students.filter(student => String(student.classId) === String(payload.classId));
+    if (!Array.isArray(payload.students) || !payload.students.length) {
+      pendingAttendancePreview = null;
+      return setStatus('Nenhuma chamada salva foi encontrada nos meses selecionados para esta turma e componente curricular.', true);
+    }
     const result = window.CarometroSiapAttendance.matchStudents(classStudents, payload.students || []);
+    if (!result.matches.length) {
+      pendingAttendancePreview = null;
+      const warnings = result.conflicts.length + result.unmatched.length + result.missing.length;
+      return setStatus(`Nenhum aluno pôde ser relacionado com segurança. ${warnings} nome(s) precisam de conferência; nenhuma etiqueta foi aplicada.`, true);
+    }
     pendingAttendancePreview = {
       classId:String(payload.classId),
       periodLabel:String(payload.periodLabel || ''),

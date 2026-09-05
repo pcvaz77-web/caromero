@@ -17,6 +17,8 @@ test('mantem a previa separada e exige confirmacao para aplicar etiquetas', () =
   assert.match(source, /Aplicar etiquetas nesta turma/);
   assert.match(source, /sessionStorage\.setItem\(ATTENDANCE_SESSION_KEY/);
   assert.match(source, /restoreAttendanceSession\(\)/);
+  assert.match(source, /if \(!Array\.isArray\(payload\.students\) \|\| !payload\.students\.length\)/);
+  assert.match(source, /if \(!result\.matches\.length\)/);
 });
 
 test('normaliza diferenças comuns sem depender da ordem da lista', () => {
