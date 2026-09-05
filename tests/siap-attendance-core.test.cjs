@@ -21,6 +21,14 @@ test('mantem a previa separada e exige confirmacao para aplicar etiquetas', () =
   assert.match(source, /if \(!result\.matches\.length\)/);
 });
 
+test('mostra e preserva a quantidade de faltas do periodo selecionado', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../siap-integration.js'), 'utf8');
+  assert.match(source, /Quantidade de faltas/);
+  assert.match(source, /item\.attendance\?\.absent/);
+  assert.match(source, /absences:Math\.max\(0, Number\(item\.absences\) \|\| 0\)/);
+  assert.match(source, /absences === 1 \? 'falta' : 'faltas'/);
+});
+
 test('normaliza diferenças comuns sem depender da ordem da lista', () => {
   assert.equal(core.normalizeName(' João  Pedro da Silva '), 'JOAO PEDRO DA SILVA');
   assert.equal(core.normalizeName('12. João Pedro da Silva'), 'JOAO PEDRO DA SILVA');

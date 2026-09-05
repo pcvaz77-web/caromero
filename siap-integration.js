@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!item?.studentId || !item?.classification) return;
         attendanceByStudentId.set(String(item.studentId), {
           classification:item.classification,
+          absences:Math.max(0, Number(item.absences) || 0),
           periodLabel:String(saved.periodLabel || '')
         });
       });
@@ -85,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.setItem(ATTENDANCE_SESSION_KEY, JSON.stringify({
       classId:String(classId || ''),
       periodLabel:String(periodLabel || ''),
-      items:items.map(item => ({ studentId:String(item.studentId), classification:item.classification }))
+      items:items.map(item => ({ studentId:String(item.studentId), classification:item.classification, absences:Math.max(0, Number(item.absences) || 0) }))
     }));
   };
 
@@ -95,7 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const item = attendanceByStudentId.get(String(studentId));
     if (!item) return '';
     const percentage = item.classification.percentage;
-    return `<span class="siap-attendance-pill siap-${item.classification.key}" title="Frequência SIAP · ${safe(item.periodLabel || 'período selecionado')}">${safe(item.classification.label)}${percentage === null ? '' : ` · ${percentage}%`}</span>`;
+    const absences = Math.max(0, Number(item.absences) || 0);
+    return `<span class="siap-attendance-pill siap-${item.classification.key}" title="Frequência SIAP · ${safe(item.periodLabel || 'período selecionado')}">${safe(item.classification.label)}${percentage === null ? '' : ` · ${percentage}%`}</span><span class="siap-attendance-pill siap-unknown" title="Faltas no período selecionado">${absences} ${absences === 1 ? 'falta' : 'faltas'}</span>`;
   };
 
   function attendanceForm(classId, className) {
@@ -193,22 +195,25 @@ document.addEventListener('DOMContentLoaded', () => {
       periodLabel:String(payload.periodLabel || ''),
       items:result.matches.map(item => ({
         studentId:String(item.student.id),
-        classification:window.CarometroSiapAttendance.classifyAttendance(item.attendance)
+        classification:window.CarometroSiapAttendance.classifyAttendance(item.attendance),
+        absences:Math.max(0, Number(item.attendance?.absent) || 0)
       }))
     };
     const rows = result.matches.map(item => {
       const classification = window.CarometroSiapAttendance.classifyAttendance(item.attendance);
-      return `<tr><td>${safe(item.student.name)}</td><td><span class="siap-attendance-pill siap-${classification.key}">${safe(classification.label)}</span></td><td>${classification.percentage === null ? '—' : `${classification.percentage}%`}</td><td>${item.method === 'exact-name' ? 'Nome confirmado' : 'Nome semelhante'}</td></tr>`;
+      const absences = Math.max(0, Number(item.attendance?.absent) || 0);
+      return `<tr><td>${safe(item.student.name)}</td><td><span class="siap-attendance-pill siap-${classification.key}">${safe(classification.label)}</span></td><td>${classification.percentage === null ? '—' : `${classification.percentage}%`}</td><td>${absences}</td><td>${item.method === 'exact-name' ? 'Nome confirmado' : 'Nome semelhante'}</td></tr>`;
     }).join('');
     const warnings = result.conflicts.length + result.unmatched.length + result.missing.length;
     setStatus(`<strong>Prévia recebida.</strong> ${result.matches.length} aluno(s) identificado(s) e ${warnings} pendência(s). Confira antes de aplicar as etiquetas.`);
     const target = document.getElementById('siapAttendanceStatus');
-    if (target) target.insertAdjacentHTML('afterend', `<div class="siap-preview-summary"><span class="pill light">${result.matches.length} identificados</span><span class="pill ${warnings ? 'report' : 'light'}">${warnings} pendências</span></div>${rows ? `<table class="siap-preview-table"><thead><tr><th>Aluno</th><th>Situação</th><th>Presença</th><th>Correspondência</th></tr></thead><tbody>${rows}</tbody></table>` : ''}<div class="siap-integration-actions siap-preview-actions"><button id="applySiapAttendancePreview" class="btn primary" type="button">Aplicar etiquetas nesta turma</button></div>`);
+    if (target) target.insertAdjacentHTML('afterend', `<div class="siap-preview-summary"><span class="pill light">${result.matches.length} identificados</span><span class="pill ${warnings ? 'report' : 'light'}">${warnings} pendências</span></div>${rows ? `<table class="siap-preview-table"><thead><tr><th>Aluno</th><th>Situação</th><th>Presença</th><th>Quantidade de faltas</th><th>Correspondência</th></tr></thead><tbody>${rows}</tbody></table>` : ''}<div class="siap-integration-actions siap-preview-actions"><button id="applySiapAttendancePreview" class="btn primary" type="button">Aplicar etiquetas nesta turma</button></div>`);
     document.getElementById('applySiapAttendancePreview')?.addEventListener('click', () => {
       if (!pendingAttendancePreview) return;
       classStudents.forEach(student => attendanceByStudentId.delete(String(student.id)));
       pendingAttendancePreview.items.forEach(item => attendanceByStudentId.set(item.studentId, {
         classification:item.classification,
+        absences:item.absences,
         periodLabel:pendingAttendancePreview.periodLabel
       }));
       saveAttendanceSession(pendingAttendancePreview.classId, pendingAttendancePreview.periodLabel, pendingAttendancePreview.items);
