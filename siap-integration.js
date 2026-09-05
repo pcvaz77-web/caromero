@@ -2,7 +2,9 @@ document.addEventListener('DOMContentLoaded', () => {
   'use strict';
   const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
   const SHIFTS = ['Matutino','Vespertino','Noturno'];
+  const ATTENDANCE_SESSION_KEY = 'carometro.siapAttendancePreview.v1';
   const attendanceByStudentId = new Map();
+  let pendingAttendancePreview = null;
   let activeRequestId = null;
   let returnModal = null;
   let returnFocus = null;
@@ -65,6 +67,30 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const safe = value => esc(String(value || ''));
 
+  const restoreAttendanceSession = () => {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(ATTENDANCE_SESSION_KEY) || 'null');
+      if (!saved || !Array.isArray(saved.items)) return;
+      saved.items.forEach(item => {
+        if (!item?.studentId || !item?.classification) return;
+        attendanceByStudentId.set(String(item.studentId), {
+          classification:item.classification,
+          periodLabel:String(saved.periodLabel || '')
+        });
+      });
+    } catch { sessionStorage.removeItem(ATTENDANCE_SESSION_KEY); }
+  };
+
+  const saveAttendanceSession = (classId, periodLabel, items) => {
+    sessionStorage.setItem(ATTENDANCE_SESSION_KEY, JSON.stringify({
+      classId:String(classId || ''),
+      periodLabel:String(periodLabel || ''),
+      items:items.map(item => ({ studentId:String(item.studentId), classification:item.classification }))
+    }));
+  };
+
+  restoreAttendanceSession();
+
   window.getSiapAttendanceBadge = studentId => {
     const item = attendanceByStudentId.get(String(studentId));
     if (!item) return '';
@@ -104,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function clearAttendancePreview() {
-    modal.querySelectorAll('.siap-preview-summary,.siap-preview-table').forEach(element => element.remove());
+    modal.querySelectorAll('.siap-preview-summary,.siap-preview-table,.siap-preview-actions').forEach(element => element.remove());
   }
 
   function requestComponents(classId, className) {
@@ -133,8 +159,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!shift) return setStatus('Escolha o turno.', true);
     if (!componentId) return setStatus('Consulte o SIAP e escolha um componente curricular.', true);
     cancelActiveRequest();
-    students.filter(student => String(student.classId) === String(classId)).forEach(student => attendanceByStudentId.delete(String(student.id)));
-    render();
     const requestId = crypto.randomUUID();
     activeRequestId = requestId;
     clearAttendancePreview();
@@ -154,18 +178,36 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPreview(payload) {
     clearAttendancePreview();
     const classStudents = students.filter(student => String(student.classId) === String(payload.classId));
-    classStudents.forEach(student => attendanceByStudentId.delete(String(student.id)));
     const result = window.CarometroSiapAttendance.matchStudents(classStudents, payload.students || []);
-    result.matches.forEach(item => attendanceByStudentId.set(String(item.student.id), { classification:window.CarometroSiapAttendance.classifyAttendance(item.attendance), periodLabel:payload.periodLabel || '' }));
-    render();
+    pendingAttendancePreview = {
+      classId:String(payload.classId),
+      periodLabel:String(payload.periodLabel || ''),
+      items:result.matches.map(item => ({
+        studentId:String(item.student.id),
+        classification:window.CarometroSiapAttendance.classifyAttendance(item.attendance)
+      }))
+    };
     const rows = result.matches.map(item => {
       const classification = window.CarometroSiapAttendance.classifyAttendance(item.attendance);
       return `<tr><td>${safe(item.student.name)}</td><td><span class="siap-attendance-pill siap-${classification.key}">${safe(classification.label)}</span></td><td>${classification.percentage === null ? '—' : `${classification.percentage}%`}</td><td>${item.method === 'exact-name' ? 'Nome confirmado' : 'Nome semelhante'}</td></tr>`;
     }).join('');
     const warnings = result.conflicts.length + result.unmatched.length + result.missing.length;
-    setStatus(`<strong>Prévia recebida.</strong> ${result.matches.length} aluno(s) identificado(s) e ${warnings} pendência(s). Esta prévia não foi gravada.`);
+    setStatus(`<strong>Prévia recebida.</strong> ${result.matches.length} aluno(s) identificado(s) e ${warnings} pendência(s). Confira antes de aplicar as etiquetas.`);
     const target = document.getElementById('siapAttendanceStatus');
-    if (target) target.insertAdjacentHTML('afterend', `<div class="siap-preview-summary"><span class="pill light">${result.matches.length} identificados</span><span class="pill ${warnings ? 'report' : 'light'}">${warnings} pendências</span></div>${rows ? `<table class="siap-preview-table"><thead><tr><th>Aluno</th><th>Situação</th><th>Presença</th><th>Correspondência</th></tr></thead><tbody>${rows}</tbody></table>` : ''}`);
+    if (target) target.insertAdjacentHTML('afterend', `<div class="siap-preview-summary"><span class="pill light">${result.matches.length} identificados</span><span class="pill ${warnings ? 'report' : 'light'}">${warnings} pendências</span></div>${rows ? `<table class="siap-preview-table"><thead><tr><th>Aluno</th><th>Situação</th><th>Presença</th><th>Correspondência</th></tr></thead><tbody>${rows}</tbody></table>` : ''}<div class="siap-integration-actions siap-preview-actions"><button id="applySiapAttendancePreview" class="btn primary" type="button">Aplicar etiquetas nesta turma</button></div>`);
+    document.getElementById('applySiapAttendancePreview')?.addEventListener('click', () => {
+      if (!pendingAttendancePreview) return;
+      classStudents.forEach(student => attendanceByStudentId.delete(String(student.id)));
+      pendingAttendancePreview.items.forEach(item => attendanceByStudentId.set(item.studentId, {
+        classification:item.classification,
+        periodLabel:pendingAttendancePreview.periodLabel
+      }));
+      saveAttendanceSession(pendingAttendancePreview.classId, pendingAttendancePreview.periodLabel, pendingAttendancePreview.items);
+      render();
+      const applyButton = document.getElementById('applySiapAttendancePreview');
+      if (applyButton) { applyButton.disabled = true; applyButton.textContent = 'Etiquetas aplicadas'; }
+      setStatus(`<strong>Etiquetas aplicadas nesta sessão.</strong> ${pendingAttendancePreview.items.length} aluno(s) atualizado(s).`);
+    });
   }
 
   window.addEventListener('message', event => {

@@ -11,6 +11,14 @@ test('exige consulta e escolha do componente antes da frequência', () => {
   assert.match(source, /if \(!componentId\)/);
 });
 
+test('mantem a previa separada e exige confirmacao para aplicar etiquetas', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../siap-integration.js'), 'utf8');
+  assert.match(source, /pendingAttendancePreview/);
+  assert.match(source, /Aplicar etiquetas nesta turma/);
+  assert.match(source, /sessionStorage\.setItem\(ATTENDANCE_SESSION_KEY/);
+  assert.match(source, /restoreAttendanceSession\(\)/);
+});
+
 test('normaliza diferenças comuns sem depender da ordem da lista', () => {
   assert.equal(core.normalizeName(' João  Pedro da Silva '), 'JOAO PEDRO DA SILVA');
   assert.equal(core.normalizeName('12. João Pedro da Silva'), 'JOAO PEDRO DA SILVA');
