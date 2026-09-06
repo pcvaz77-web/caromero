@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3 id="siapIntegrationTitle">Assistente SIAP</h3><div id="siapIntegrationMeta" class="meta"></div></div><button class="close" type="button" aria-label="Fechar" data-siap-close>×</button></div><div id="siapIntegrationContent" class="siap-integration-content"></div></div>`;
   document.body.appendChild(modal);
   const style = document.createElement('style');
-  style.textContent = `body.carometro-modal-open{overflow:hidden!important}.modal-bg{overscroll-behavior:contain}.siap-integration-modal{z-index:340!important;overscroll-behavior:contain}.siap-integration-modal .modal{width:min(780px,100%);overscroll-behavior:contain}.siap-integration-content{padding:24px}.siap-brand-card{display:grid;grid-template-columns:58px 1fr;gap:15px;align-items:center;padding:18px;border:1px solid #cbd9f6;border-radius:16px;background:linear-gradient(145deg,#f8faff,#edf3ff)}.siap-brand-mark{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:#17233a;color:#82aeff;font-size:30px;font-weight:900}.siap-brand-card h4{margin:0 0 5px;font-size:18px}.siap-brand-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}.siap-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.siap-feature{padding:15px;border:1px solid var(--line);border-radius:13px;background:#fff}.siap-feature strong{display:block;margin-bottom:4px}.siap-feature span{color:var(--muted);font-size:12px;line-height:1.45}.siap-integration-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.siap-integration-note{margin-top:14px;padding:12px 14px;border-radius:11px;background:#fff8e8;color:#7a5313;font-size:12px;line-height:1.5}@media(max-width:640px){.siap-feature-grid{grid-template-columns:1fr}.siap-integration-actions .btn{width:100%}}`;
+  style.textContent = `body.carometro-modal-open{overflow:hidden!important}.modal-bg{overscroll-behavior:contain}.siap-integration-modal{z-index:340!important;overscroll-behavior:contain}.siap-integration-modal .modal{width:min(780px,100%);overscroll-behavior:contain}.siap-integration-content{padding:24px}.siap-brand-card{display:grid;grid-template-columns:58px 1fr;gap:15px;align-items:center;padding:18px;border:1px solid #cbd9f6;border-radius:16px;background:linear-gradient(145deg,#f8faff,#edf3ff)}.siap-brand-mark{width:58px;height:58px;border-radius:17px;display:grid;place-items:center;background:#17233a;color:#82aeff;font-size:30px;font-weight:900}.siap-brand-card h4{margin:0 0 5px;font-size:18px}.siap-brand-card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5}.siap-feature-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.siap-feature{padding:15px;border:1px solid var(--line);border-radius:13px;background:#fff}.siap-feature strong{display:block;margin-bottom:4px}.siap-feature span{color:var(--muted);font-size:12px;line-height:1.45}.siap-integration-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}.siap-integration-note{margin-top:14px;padding:12px 14px;border-radius:11px;background:#fff8e8;color:#7a5313;font-size:12px;line-height:1.5}.welcome-notification-row #openSiapAssistant{flex:0 0 auto;margin-left:auto;min-height:38px;padding:8px 13px;border-radius:10px;font-size:12px;white-space:nowrap;box-shadow:0 4px 12px rgba(76,51,193,.14)}@media(max-width:640px){.siap-feature-grid{grid-template-columns:1fr}.siap-integration-actions .btn{width:100%}.welcome-notification-row #openSiapAssistant{min-height:36px;padding:7px 10px;font-size:11px}}`;
   document.head.appendChild(style);
   let returnModal = null;
   let returnFocus = null;
@@ -44,11 +44,12 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.querySelector('[data-siap-close]')?.focus();
   };
   const syncMainAssistantButton = () => {
-    const actions = document.querySelector('.top-actions');
-    const addStudent = document.getElementById('newStudent');
-    if (!actions || !addStudent) return;
+    const greetingRow = document.querySelector('.welcome-notification-row');
+    const bell = document.getElementById('notificationBell');
+    if (!greetingRow || !bell) return;
     const rights = typeof permission === 'object' && permission ? permission : {};
     const allowed = rights.role === 'admin' || rights.can_use_siap_assistant;
+    const onMainPage = !selectedClassId && document.getElementById('pageTitle')?.textContent.trim() === 'CARÔMETRO';
     let button = document.getElementById('openSiapAssistant');
     if (!allowed) {
       button?.remove();
@@ -60,11 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
       button.type = 'button';
       button.className = 'btn primary';
       button.textContent = 'Assistente SIAP';
-      actions.insertBefore(button, addStudent);
+      greetingRow.insertBefore(button, bell);
     }
+    button.classList.toggle('hidden', !onMainPage);
     button.onclick = () => {
-      const selected = classes.find(item => String(item.id) === String(selectedClassId));
-      openAssistantModal(selected?.name || 'Página principal');
+      openAssistantModal('Página principal');
     };
   };
   const app = document.getElementById('app');
