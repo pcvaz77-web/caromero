@@ -17,6 +17,11 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .classroom-map-modal { z-index:135; }
     .classroom-map-modal .modal { width:min(1080px,100%); }
+    .classroom-map-modal.classroom-panel-mode .modal { width:min(460px,100%); }
+    .classroom-map-modal.classroom-panel-mode .modal-head { padding:15px 18px 12px; }
+    .classroom-map-modal.classroom-panel-mode .modal-head h3 { font-size:18px; }
+    .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:14px 18px 18px; }
+    .classroom-map-modal.classroom-panel-mode .classroom-panel-actions .btn { min-width:0; }
     .classroom-map-shell { padding:20px 24px 26px; }
     .classroom-map-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
     .classroom-map-toolbar-group { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
@@ -424,6 +429,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openClassPanel() {
     if (!selectedClassId) return;
+    modal.classList.add('classroom-panel-mode');
     activeClassId = selectedClassId;
     const selected = classes.find(item => item.id === activeClassId);
     document.getElementById('classroomMapTitle').textContent = 'Painel da turma';
@@ -455,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function openEditor() {
+    modal.classList.remove('classroom-panel-mode');
     const selected = classes.find(item => item.id === activeClassId);
     document.getElementById('classroomMapTitle').textContent = 'Editar mapeamento';
     document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
@@ -468,6 +475,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openViewer(classId = selectedClassId) {
     if (!classId) return;
+    modal.classList.remove('classroom-panel-mode');
     activeClassId = classId;
     const selected = classes.find(item => item.id === activeClassId);
     document.getElementById('classroomMapTitle').textContent = 'Mapeamento';
