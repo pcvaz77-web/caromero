@@ -1,4 +1,5 @@
 .push-secrets.local
+.env.local
 .push-webhook.local.sql
 .wrangler/
 supabase/.temp/

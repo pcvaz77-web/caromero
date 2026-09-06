@@ -27,7 +27,32 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeModal(); };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
   const safe = value => esc(String(value || ''));
+  const assistantExtensionId = 'fgpjjlikinpcjpmmjehbgbfonnbfibnc';
   const assistantInstallUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantInstallUrl || '').trim();
+  const connectAssistantAi = async statusElement => {
+    if (!globalThis.chrome?.runtime?.sendMessage) {
+      statusElement.textContent = 'Instale ou atualize a extensão e recarregue esta página.';
+      return;
+    }
+    statusElement.textContent = 'Conectando com segurança…';
+    const { data, error } = await db.auth.getSession();
+    const session = data?.session;
+    if (error || !session?.access_token || !session?.expires_at) {
+      statusElement.textContent = 'Sua sessão do Carômetro expirou. Entre novamente.';
+      return;
+    }
+    chrome.runtime.sendMessage(assistantExtensionId, {
+      type:'CAROMETRO_SIAP_CONNECT',
+      accessToken:session.access_token,
+      expiresAt:Number(session.expires_at) * 1000
+    }, response => {
+      if (chrome.runtime.lastError || response?.ok !== true) {
+        statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
+        return;
+      }
+      statusElement.textContent = 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
+    });
+  };
   const openAssistantModal = className => {
     returnFocus = document.activeElement;
     const classroomModal = document.getElementById('classroomMapModal');
@@ -38,8 +63,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('siapIntegrationTitle').textContent = 'Assistente SIAP';
     document.getElementById('siapIntegrationMeta').textContent = className || 'Turma selecionada';
     const installUrl = assistantInstallUrl();
-    document.getElementById('siapIntegrationContent').innerHTML = `<section class="siap-brand-card"><div class="siap-brand-mark">✦</div><div><h4>Assistente SIAP do Professor</h4><p>Planejamento, conteúdo, frequência e PEI com revisão do professor e sem captura de credenciais.</p></div></section><div class="siap-feature-grid"><div class="siap-feature"><strong>Instalação controlada</strong><span>O acesso aparece somente para usuários autorizados nesta escola.</span></div><div class="siap-feature"><strong>Privacidade</strong><span>Login e senha do SIAP nunca passam pelo Carômetro.</span></div></div><div class="siap-integration-actions">${installUrl ? `<a class="btn primary" href="${safe(installUrl)}" target="_blank" rel="noopener noreferrer">Instalar extensão</a>` : '<button class="btn primary" type="button" disabled>Link de instalação em preparação</button>'}<button id="closeSiapAssistant" class="btn secondary" type="button">Voltar</button></div>${installUrl ? '' : '<div class="siap-integration-note">O endereço oficial de distribuição da extensão ainda precisa ser configurado.</div>'}`;
+    document.getElementById('siapIntegrationContent').innerHTML = `<section class="siap-brand-card"><div class="siap-brand-mark">✦</div><div><h4>Assistente SIAP do Professor</h4><p>Planejamento, conteúdo, frequência e PEI com revisão do professor e sem captura de credenciais.</p></div></section><div class="siap-feature-grid"><div class="siap-feature"><strong>Instalação controlada</strong><span>O acesso aparece somente para usuários autorizados nesta escola.</span></div><div class="siap-feature"><strong>Privacidade</strong><span>Login e senha do SIAP nunca passam pelo Carômetro.</span></div></div><div class="siap-integration-actions">${installUrl ? `<a class="btn primary" href="${safe(installUrl)}" target="_blank" rel="noopener noreferrer">Instalar extensão</a>` : '<button class="btn primary" type="button" disabled>Link de instalação em preparação</button>'}<button id="connectSiapAi" class="btn primary" type="button">Conectar IA</button><button id="closeSiapAssistant" class="btn secondary" type="button">Voltar</button></div><div id="siapAiConnectionStatus" class="siap-integration-note">A conexão com IA é temporária e usa sua permissão do Carômetro. Nome, matrícula e senha do SIAP não são enviados.</div>${installUrl ? '' : '<div class="siap-integration-note">O endereço oficial de distribuição da extensão ainda precisa ser configurado.</div>'}`;
     modal.classList.remove('hidden');
+    document.getElementById('connectSiapAi').onclick = () => connectAssistantAi(document.getElementById('siapAiConnectionStatus'));
     document.getElementById('closeSiapAssistant').onclick = closeModal;
     modal.querySelector('[data-siap-close]')?.focus();
   };
