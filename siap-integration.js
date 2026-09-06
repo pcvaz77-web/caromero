@@ -27,7 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeModal(); };
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
   const safe = value => esc(String(value || ''));
-  const assistantExtensionId = 'fgpjjlikinpcjpmmjehbgbfonnbfibnc';
+  const assistantExtensionIds = [
+    'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    'mohcmojnkjjkphgjaogcbokjmnijmggl'
+  ];
   const assistantInstallUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantInstallUrl || '').trim();
   const connectAssistantAi = async statusElement => {
     if (!globalThis.chrome?.runtime?.sendMessage) {
@@ -41,17 +44,24 @@ document.addEventListener('DOMContentLoaded', () => {
       statusElement.textContent = 'Sua sessão do Carômetro expirou. Entre novamente.';
       return;
     }
-    chrome.runtime.sendMessage(assistantExtensionId, {
+    const payload = {
       type:'CAROMETRO_SIAP_CONNECT',
       accessToken:session.access_token,
       expiresAt:Number(session.expires_at) * 1000
-    }, response => {
-      if (chrome.runtime.lastError || response?.ok !== true) {
-        statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
+    };
+    for (const extensionId of assistantExtensionIds) {
+      const connected = await new Promise(resolve => {
+        chrome.runtime.sendMessage(extensionId, payload, response => {
+          const failed = Boolean(chrome.runtime.lastError) || response?.ok !== true;
+          resolve(!failed);
+        });
+      });
+      if (connected) {
+        statusElement.textContent = 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
         return;
       }
-      statusElement.textContent = 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
-    });
+    }
+    statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
   };
   const openAssistantModal = className => {
     returnFocus = document.activeElement;
