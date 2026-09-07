@@ -1256,18 +1256,24 @@
     target.querySelectorAll('[data-cancel-paid-application]').forEach(button => {
       button.onclick = async () => {
         const application = applications.find(item => item.id === button.dataset.cancelPaidApplication);
-        if (!application || !confirm(`Cancelar a solicitação de ${application.school_name}?`)) return;
+        if (!application) return;
         const payment = paymentByApplication.get(application.id);
-        if (payment?.provider === 'hotmart') {
-          toast(payment.status === 'authorized'
-            ? 'Cancele a assinatura na Hotmart. O webhook manterá o acesso até o fim do período pago.'
-            : 'A solicitação Hotmart ainda não paga deve ser recusada neste painel.');
-          return;
-        }
+        const approvedHotmartPayment = payment?.provider === 'hotmart'
+          && (payment.status === 'authorized' || payment.last_payment_status === 'approved');
+        const confirmationText = approvedHotmartPayment
+          ? `Cancelar a solicitação de ${application.school_name} e liberar o e-mail ${application.email}? O pagamento continuará registrado e eventual reembolso ou assinatura deverá ser tratado também na Hotmart.`
+          : `Cancelar a solicitação de ${application.school_name} e liberar o e-mail ${application.email}?`;
+        if (!confirm(confirmationText)) return;
         button.disabled = true;
         button.textContent = 'Cancelando…';
-        const { data:cancelResult, error:cancelError } = await db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } });
-        if (cancelError || cancelResult?.error) toast(cancelResult?.error || cancelError.message); else {
+        let cancelError = null;
+        if (payment?.provider === 'hotmart') {
+          ({ error:cancelError } = await db.rpc('platform_cancel_school_application', { p_application_id:application.id }));
+        } else {
+          const { data:cancelResult, error:functionError } = await db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } });
+          cancelError = functionError || (cancelResult?.error ? new Error(cancelResult.error) : null);
+        }
+        if (cancelError) toast(cancelError.message); else {
           toast('Solicitação cancelada. O e-mail foi liberado para uma nova tentativa.');
           await openDashboard();
           showPlatformPage('applications');
