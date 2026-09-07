@@ -17,6 +17,7 @@ const hotmartAssistantCheckout = read('supabase/functions/create-hotmart-assista
 const hotmartSchoolCheckout = read('supabase/functions/create-hotmart-school-checkout/index.ts');
 const hotmartBillingCycles = read('supabase/migrations/088_hotmart_school_billing_cycles.sql');
 const safeHotmartPriceSync = read('supabase/migrations/090_safe_hotmart_assistant_price_sync.sql');
+const safeSchoolPriceSync = read('supabase/migrations/091_safe_hotmart_school_price_sync.sql');
 const hotmartWebhook = read('supabase/functions/hotmart-payment-webhook/index.ts');
 const schoolFrontend = read('subscription-settings.js');
 const dashboard = read('platform-owner-dashboard.js');
@@ -118,4 +119,18 @@ test('Carometro oferece mensal e semestral com links Hotmart distintos', () => {
   assert.match(hotmartSchoolCheckout, /eq\('billing_cycle',billingCycle\)/);
   assert.match(hotmartWebhook, /purchase\.offer\?\.code/);
   assert.match(hotmartWebhook, /addUtcMonths\(paidAt,6\)/);
+});
+
+test('sincroniza os quatro precos do Carometro de forma atomica e confirmada', () => {
+  assert.match(safeSchoolPriceSync, /platform_list_school_commercial_mappings/);
+  assert.match(safeSchoolPriceSync, /platform_sync_school_plan/);
+  assert.match(safeSchoolPriceSync, /p_monthly_hotmart_confirmed is not true/);
+  assert.match(safeSchoolPriceSync, /p_semiannual_hotmart_confirmed is not true/);
+  assert.match(safeSchoolPriceSync, /update public\.platform_plans/);
+  assert.match(safeSchoolPriceSync, /update public\.hotmart_product_mappings/g);
+  assert.match(safeSchoolPriceSync, /school_hotmart_plan_synchronized/);
+  assert.match(dashboard, /platform_sync_school_plan/);
+  assert.match(dashboard, /Confirmo que salvei este valor na Hotmart/);
+  assert.doesNotMatch(dashboard, /db\.rpc\('platform_set_plan_details'/);
+  assert.doesNotMatch(dashboard, /db\.rpc\('platform_update_plan_billing_options'/);
 });

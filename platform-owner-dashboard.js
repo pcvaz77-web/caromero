@@ -561,15 +561,24 @@
   function planCardHtml(plan, features) {
     const priceValue = plan.price === null || plan.price === undefined ? '' : plan.price;
     const semiannualPriceValue = plan.semiannual_price === null || plan.semiannual_price === undefined ? '' : plan.semiannual_price;
+    const hotmartPlan = ['basic','professional'].includes(plan.plan_key);
+    const monthlyMapping = plan.hotmart_mappings?.monthly;
+    const semiannualMapping = plan.hotmart_mappings?.semiannual;
     const enabledFeatures = (features || []).filter(item => item.plan_key === plan.plan_key && item.enabled);
-    return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}" data-highlighted="${plan.highlighted === true}">
+    const hotmartPriceField = (cycle, label, value, mapping) => `<div class="platform-plan-price-sync" data-hotmart-cycle="${cycle}">
+      <div class="field"><label>${label}</label><input data-field="${cycle === 'monthly' ? 'price' : 'semiannual_price'}" type="number" min="0.01" step="0.01" value="${esc(value)}" required></div>
+      <p>Valor registrado para validação: <b>${esc(currency(mapping?.expected_amount))}</b></p>
+      <a class="btn secondary" href="https://app.hotmart.com/products/manage/${esc(mapping?.product_id || '')}" target="_blank" rel="noopener">1. Alterar na Hotmart</a>
+      <small>Oferta ${esc(mapping?.offer_code || 'não encontrada')}. Salve nela exatamente o novo valor.</small>
+      <label class="check platform-plan-hotmart-confirm"><input data-field="${cycle}_hotmart_confirmed" type="checkbox"> Confirmo que salvei este valor na Hotmart</label>
+    </div>`;
+    return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}" data-highlighted="${plan.highlighted === true}" data-original-price="${esc(priceValue)}" data-original-semiannual-price="${esc(semiannualPriceValue)}">
       <div class="platform-plan-card-head"><b>${esc(plan.display_name)}</b><span class="platform-plan-price">${esc(currency(plan.price))}${plan.price === null || plan.contact_only ? '' : '<small style="font-size:11px;font-weight:600">/mês</small>'}</span><span class="meta">${esc(plan.plan_key)}</span></div>
       <div class="platform-plan-limits"><span>✓ ${esc(limitLabel(plan.max_students, 'aluno', 'alunos'))}</span><span>✓ ${esc(limitLabel(plan.max_staff, 'profissional', 'profissionais'))}</span><span>✓ ${esc(limitLabel(plan.max_classes, 'turma', 'turmas'))}</span>${enabledFeatures.map(item => `<span>✓ ${esc(item.platform_features?.label || item.feature_key)}</span>`).join('')}</div>
       <div class="field"><label>Nome</label><input data-field="display_name" value="${esc(plan.display_name)}" required></div>
-      <div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>
-      <div class="field"><label>Preço por 6 meses</label><input data-field="semiannual_price" type="number" min="0" step="0.01" value="${esc(semiannualPriceValue)}" placeholder="Pagamento único"></div>
+      ${hotmartPlan ? hotmartPriceField('monthly', 'Preço mensal', priceValue, monthlyMapping) : `<div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>`}
+      ${hotmartPlan ? hotmartPriceField('semiannual', 'Preço por 6 meses', semiannualPriceValue, semiannualMapping) : `<div class="field"><label>Preço por 6 meses</label><input data-field="semiannual_price" type="number" min="0" step="0.01" value="${esc(semiannualPriceValue)}" placeholder="Pagamento único"></div>`}
       <label class="check"><input data-field="semiannual_active" type="checkbox" ${plan.semiannual_active ? 'checked' : ''}> Oferecer pagamento único por 6 meses</label>
-      ${['basic','professional'].includes(plan.plan_key) ? '<p class="meta">Atenção: depois de mudar um preço, atualize a oferta correspondente na Hotmart antes de reabrir as vendas.</p>' : ''}
       <div class="field"><label>Descrição</label><input data-field="description" value="${esc(plan.description || '')}"></div>
       <div class="field"><label>Texto do botão</label><input data-field="cta_label" value="${esc(plan.cta_label)}" required></div>
       <div class="field"><label>Ordem</label><input data-field="display_order" type="number" min="1" step="1" value="${esc(plan.display_order)}" required></div>
@@ -588,18 +597,40 @@
     }
     target.innerHTML = (plans || []).map(plan => planCardHtml(plan, features)).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
     target.querySelectorAll('.platform-plan-card').forEach(form => {
+      const refreshConfirmationState = cycle => {
+        const input = form.querySelector(`[data-field="${cycle === 'monthly' ? 'price' : 'semiannual_price'}"]`);
+        const confirmation = form.querySelector(`[data-field="${cycle}_hotmart_confirmed"]`);
+        if (!input || !confirmation) return;
+        const original = Number(form.dataset[cycle === 'monthly' ? 'originalPrice' : 'originalSemiannualPrice']);
+        const changed = Number(input.value) !== original;
+        confirmation.disabled = !changed;
+        if (!changed) confirmation.checked = false;
+      };
+      ['monthly','semiannual'].forEach(cycle => {
+        const input = form.querySelector(`[data-field="${cycle === 'monthly' ? 'price' : 'semiannual_price'}"]`);
+        if (input) input.oninput = () => refreshConfirmationState(cycle);
+        refreshConfirmationState(cycle);
+      });
       form.onsubmit = savePlanDetails;
     });
   }
 
+  function attachSchoolHotmartMappings(plans, mappings) {
+    return (plans || []).map(plan => ({ ...plan, hotmart_mappings:(mappings || [])
+      .filter(mapping => mapping.plan_key === plan.plan_key)
+      .reduce((result, mapping) => ({ ...result, [mapping.billing_cycle]:mapping }), {}) }));
+  }
+
   async function refreshPlansSection() {
-    const [plansResult, featuresResult] = await Promise.all([
+    const [plansResult, featuresResult, mappingsResult] = await Promise.all([
       db.from('platform_plans').select('*').order('display_order'),
-      db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)')
+      db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)'),
+      db.rpc('platform_list_school_commercial_mappings')
     ]);
     if (plansResult.error) { toast(plansResult.error.message); return; }
-    renderPlans(plansResult.data || [], null, featuresResult.error ? [] : (featuresResult.data || []));
-    syncPlanSelectors(plansResult.data || []);
+    const plans = attachSchoolHotmartMappings(plansResult.data || [], mappingsResult.error ? [] : mappingsResult.data);
+    renderPlans(plans, null, featuresResult.error ? [] : (featuresResult.data || []));
+    syncPlanSelectors(plans);
   }
 
   async function savePlanDetails(event) {
@@ -618,32 +649,37 @@
     const displayOrder = Number(field('display_order').value);
     const highlighted = field('highlighted').checked;
     const contactOnly = field('contact_only').checked;
+    const hotmartPlan = ['basic','professional'].includes(planKey);
+    const monthlyChanged = Number(form.dataset.originalPrice) !== price;
+    const semiannualChanged = Number(form.dataset.originalSemiannualPrice) !== semiannualPrice;
+    const monthlyConfirmed = field('monthly_hotmart_confirmed')?.checked === true;
+    const semiannualConfirmed = field('semiannual_hotmart_confirmed')?.checked === true;
     if (!displayName || !ctaLabel) { toast('Preencha o nome e o texto do botão.'); return; }
     if (price !== null && (!Number.isFinite(price) || price < 0)) { toast('Informe um preço válido, ou deixe em branco para "sob consulta".'); return; }
     if (semiannualActive && (semiannualPrice === null || !Number.isFinite(semiannualPrice) || semiannualPrice <= 0)) { toast('Informe um preço semestral válido.'); return; }
     if (!Number.isInteger(displayOrder) || displayOrder < 1) { toast('Informe uma ordem de apresentação válida.'); return; }
+    if (hotmartPlan && monthlyChanged && !monthlyConfirmed) { toast('Altere o valor mensal na Hotmart e marque a confirmação.'); return; }
+    if (hotmartPlan && semiannualChanged && !semiannualConfirmed) { toast('Altere o valor semestral na Hotmart e marque a confirmação.'); return; }
 
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     try {
-      const { error } = await db.rpc('platform_set_plan_details', {
+      const { error } = await db.rpc('platform_sync_school_plan', {
         p_plan_key: planKey,
         p_display_name: displayName,
         p_price: price,
+        p_semiannual_price: semiannualPrice,
+        p_semiannual_active: semiannualActive,
         p_description: description || null,
         p_cta_label: ctaLabel,
         p_highlighted: highlighted,
         p_contact_only: contactOnly,
-        p_display_order: displayOrder
+        p_display_order: displayOrder,
+        p_monthly_hotmart_confirmed: monthlyConfirmed,
+        p_semiannual_hotmart_confirmed: semiannualConfirmed
       });
       if (error) { toast(error.message); return; }
-      const { error:billingError } = await db.rpc('platform_update_plan_billing_options', {
-        p_plan_key: planKey,
-        p_semiannual_price: semiannualPrice,
-        p_semiannual_active: semiannualActive
-      });
-      if (billingError) { toast(billingError.message); return; }
-      toast('Plano atualizado.');
+      toast(hotmartPlan ? 'Plano e valores de validação da Hotmart sincronizados.' : 'Plano atualizado.');
       // Relê o banco (em vez de só atualizar este card): marcar este plano
       // como destaque pode ter removido o destaque de outro, então os
       // demais cards precisam refletir isso também.
@@ -1526,7 +1562,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1537,7 +1573,8 @@
       db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)'),
       db.rpc('platform_list_school_applications'),
       db.rpc('platform_list_payment_subscriptions'),
-      db.rpc('platform_list_siap_assistant_commercial_plans')
+      db.rpc('platform_list_siap_assistant_commercial_plans'),
+      db.rpc('platform_list_school_commercial_mappings')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1577,7 +1614,8 @@
     renderStats(summary, schoolsResult.data || [], billingContactsBySchoolId);
     renderSchools(schoolsResult.data || [], jobsBySchoolId, billingContactsBySchoolId);
     renderAudit(auditResult.data || [], auditResult.error);
-    renderPlans(plansResult.data || [], plansResult.error, featuresResult.error ? [] : (featuresResult.data || []));
+    const commercialPlans = attachSchoolHotmartMappings(plansResult.data || [], schoolMappingsResult.error ? [] : schoolMappingsResult.data);
+    renderPlans(commercialPlans, plansResult.error, featuresResult.error ? [] : (featuresResult.data || []));
     syncPlanSelectors(plansResult.data || []);
     renderApplications(applicationsResult.data || [], paymentSubscriptionsResult.data || [], applicationsResult.error);
     renderOverview(schoolsResult.data || [], billingContactsBySchoolId, plansResult.data || []);
