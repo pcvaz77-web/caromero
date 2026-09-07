@@ -34,11 +34,20 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   const assistantInstallUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantInstallUrl || '').trim();
   const assistantPresentationUrl = () => new URL('assistente-siap.html?origem=carometro', window.location.href).href;
-  const connectAssistantAi = async statusElement => {
-    if (!globalThis.chrome?.runtime?.sendMessage) {
-      statusElement.textContent = 'Instale ou atualize a extensão e recarregue esta página.';
-      return;
+  const connectThroughPageBridge = payload => new Promise(resolve => {
+    const requestId = crypto.randomUUID();
+    const timeout = setTimeout(() => { window.removeEventListener('message', receive); resolve(null); }, 2500);
+    function receive(event) {
+      const result = event.data;
+      if (event.source !== window || event.origin !== location.origin || result?.source !== 'CAROMETRO_EXTENSION' || result?.type !== 'CAROMETRO_SIAP_CONNECT_RESULT' || result?.requestId !== requestId) return;
+      clearTimeout(timeout);
+      window.removeEventListener('message', receive);
+      resolve(result.response || null);
     }
+    window.addEventListener('message', receive);
+    window.postMessage({ source:'CAROMETRO_WEB', type:'CAROMETRO_SIAP_CONNECT_BRIDGE', requestId, ...payload }, location.origin);
+  });
+  const connectAssistantAi = async statusElement => {
     statusElement.textContent = 'Conectando com segurança…';
     const { data, error } = await db.auth.getSession();
     const session = data?.session;
@@ -51,22 +60,26 @@ document.addEventListener('DOMContentLoaded', () => {
       accessToken:session.access_token,
       expiresAt:Number(session.expires_at) * 1000
     };
-    for (const extensionId of assistantExtensionIds) {
-      const result = await new Promise(resolve => {
-        chrome.runtime.sendMessage(extensionId, payload, response => {
-          const failed = Boolean(chrome.runtime.lastError) || response?.ok !== true;
-          resolve(failed ? null : response);
+    if (globalThis.chrome?.runtime?.sendMessage) {
+      for (const extensionId of assistantExtensionIds) {
+        const result = await new Promise(resolve => {
+          chrome.runtime.sendMessage(extensionId, payload, response => {
+            const failed = Boolean(chrome.runtime.lastError) || response?.ok !== true;
+            resolve(failed ? null : response);
+          });
         });
-      });
-      if (result) {
-        const days = Number(result.license?.daysRemaining);
-        statusElement.textContent = Number.isFinite(days)
-          ? `IA conectada. Seu acesso tem ${days} dia${days === 1 ? '' : 's'} restante${days === 1 ? '' : 's'}. Nenhuma senha foi compartilhada.`
-          : 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
-        return;
+        if (result) return showConnectedStatus(statusElement, result);
       }
     }
+    const bridgedResult = await connectThroughPageBridge(payload);
+    if (bridgedResult?.ok) return showConnectedStatus(statusElement, bridgedResult);
     statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
+  };
+  const showConnectedStatus = (statusElement, result) => {
+    const days = Number(result.license?.daysRemaining);
+    statusElement.textContent = Number.isFinite(days)
+      ? `IA conectada. Seu acesso tem ${days} dia${days === 1 ? '' : 's'} restante${days === 1 ? '' : 's'}. Nenhuma senha foi compartilhada.`
+      : 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
   };
   const openAssistantModal = className => {
     returnFocus = document.activeElement;

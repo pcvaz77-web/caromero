@@ -23,6 +23,20 @@
     target.classList.toggle('error', error);
   };
 
+  const connectThroughPageBridge = payload => new Promise(resolve => {
+    const requestId = crypto.randomUUID();
+    const timeout = setTimeout(() => { window.removeEventListener('message', receive); resolve(null); }, 2500);
+    function receive(event) {
+      const result = event.data;
+      if (event.source !== window || event.origin !== location.origin || result?.source !== 'CAROMETRO_EXTENSION' || result?.type !== 'CAROMETRO_SIAP_CONNECT_RESULT' || result?.requestId !== requestId) return;
+      clearTimeout(timeout);
+      window.removeEventListener('message', receive);
+      resolve(result.response || null);
+    }
+    window.addEventListener('message', receive);
+    window.postMessage({ source:'CAROMETRO_WEB', type:'CAROMETRO_SIAP_CONNECT_BRIDGE', requestId, ...payload }, location.origin);
+  });
+
   async function loadPlan() {
     const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
       .eq('plan_key', planKey).eq('active', true).maybeSingle();
@@ -70,19 +84,29 @@
     location.assign(data.checkoutUrl);
   };
   document.getElementById('connectAssistantAccount').onclick = async () => {
-    if (!currentSession?.access_token || !globalThis.chrome?.runtime?.sendMessage) {
-      message('checkoutMessage', 'Use o Google Chrome com a extensão instalada para conectar.', true);
+    if (!currentSession?.access_token) {
+      message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
       return;
     }
     message('checkoutMessage', 'Conectando extensão…');
-    for (const extensionId of extensionIds) {
-      const response = await new Promise(resolve => chrome.runtime.sendMessage(extensionId, {
-        type:'CAROMETRO_SIAP_CONNECT', accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
-      }, result => resolve(chrome.runtime.lastError ? null : result)));
-      if (response?.ok) {
-        message('checkoutMessage', 'Extensão conectada. Abra o SIAP para continuar.');
-        return;
+    const payload = {
+      type:'CAROMETRO_SIAP_CONNECT', accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
+    };
+    if (globalThis.chrome?.runtime?.sendMessage) {
+      for (const extensionId of extensionIds) {
+        const response = await new Promise(resolve => chrome.runtime.sendMessage(extensionId, {
+          ...payload
+        }, result => resolve(chrome.runtime.lastError ? null : result)));
+        if (response?.ok) {
+          message('checkoutMessage', 'Extensão conectada. Abra o SIAP para continuar.');
+          return;
+        }
       }
+    }
+    const bridgedResponse = await connectThroughPageBridge(payload);
+    if (bridgedResponse?.ok) {
+      message('checkoutMessage', 'Extensão conectada. Abra o SIAP para continuar.');
+      return;
     }
     message('checkoutMessage', 'A extensão não respondeu. Instale ou atualize o Assistente SIAP e tente novamente.', true);
   };
