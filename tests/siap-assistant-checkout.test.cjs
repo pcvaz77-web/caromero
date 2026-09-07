@@ -16,8 +16,10 @@ const hotmartMigration = read('supabase/migrations/087_hotmart_payment_provider.
 const hotmartAssistantCheckout = read('supabase/functions/create-hotmart-assistant-checkout/index.ts');
 const hotmartSchoolCheckout = read('supabase/functions/create-hotmart-school-checkout/index.ts');
 const hotmartBillingCycles = read('supabase/migrations/088_hotmart_school_billing_cycles.sql');
+const safeHotmartPriceSync = read('supabase/migrations/090_safe_hotmart_assistant_price_sync.sql');
 const hotmartWebhook = read('supabase/functions/hotmart-payment-webhook/index.ts');
 const schoolFrontend = read('subscription-settings.js');
+const dashboard = read('platform-owner-dashboard.js');
 
 test('mantem checkout do Assistente separado das assinaturas das escolas', () => {
   assert.match(migration, /create table if not exists public\.siap_assistant_payment_subscriptions/);
@@ -31,6 +33,16 @@ test('permite ao proprietário editar valores sem liberar acesso a outros usuár
   assert.match(migration, /platform_list_siap_assistant_plans/);
   assert.match(migration, /platform_update_siap_assistant_plan/);
   assert.match(migration, /if not public\.is_platform_owner\(\)/);
+});
+
+test('sincroniza preco do Assistente somente depois da confirmacao da Hotmart', () => {
+  assert.match(safeHotmartPriceSync, /revoke execute on function public\.platform_update_siap_assistant_plan/);
+  assert.match(safeHotmartPriceSync, /p_hotmart_confirmed is not true/);
+  assert.match(safeHotmartPriceSync, /update public\.siap_assistant_plans/);
+  assert.match(safeHotmartPriceSync, /update public\.hotmart_product_mappings/);
+  assert.match(safeHotmartPriceSync, /siap_hotmart_price_synchronized/);
+  assert.match(dashboard, /platform_sync_siap_assistant_plan_price/);
+  assert.match(dashboard, /Confirmo que salvei o mesmo valor na Hotmart/);
 });
 
 test('oferece duas utilizações externas por função e persiste a contagem no servidor', () => {

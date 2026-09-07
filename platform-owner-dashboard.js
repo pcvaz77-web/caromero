@@ -268,26 +268,32 @@
       return;
     }
     target.innerHTML = (plans || []).map(plan => `<form class="platform-siap-plan-card" data-siap-plan="${esc(plan.plan_key)}">
-      <div><b>${esc(plan.display_name)}</b><span>${esc(plan.billing_months === 6 ? 'Cobrança a cada 6 meses' : 'Cobrança mensal')}</span></div>
-      <label>Valor (R$)<input name="amount" type="number" min="0.01" max="999999.99" step="0.01" value="${esc(plan.amount)}" required></label>
+      <div class="platform-siap-plan-summary"><b>${esc(plan.display_name)}</b><span>${esc(plan.billing_months === 6 ? 'Pagamento único por 6 meses' : 'Cobrança mensal')}</span><small>Valor registrado para validação: <b>${esc(currency(plan.hotmart_expected_amount))}</b></small></div>
+      <label>Novo valor (R$)<input name="amount" type="number" min="0.01" max="999999.99" step="0.01" value="${esc(plan.amount)}" required></label>
+      <div class="platform-siap-hotmart-step"><a class="btn secondary" href="https://app.hotmart.com/products/manage/${esc(plan.hotmart_product_id)}" target="_blank" rel="noopener">1. Alterar na Hotmart</a><span>Salve este mesmo valor na oferta antes de continuar.</span></div>
+      <label class="check platform-siap-confirm"><input name="hotmart_confirmed" type="checkbox"> Confirmo que salvei o mesmo valor na Hotmart</label>
       <label class="check"><input name="active" type="checkbox" ${plan.active ? 'checked' : ''}> Disponível para contratação</label>
-      <button class="btn primary" type="submit">Salvar preço</button>
+      <button class="btn primary" type="submit" disabled>2. Sincronizar e publicar</button>
     </form>`).join('');
     target.querySelectorAll('[data-siap-plan]').forEach(form => {
+      const confirmation = form.elements.hotmart_confirmed;
+      const button = form.querySelector('button[type="submit"]');
+      confirmation.onchange = () => { button.disabled = !confirmation.checked; };
       form.onsubmit = async event => {
         event.preventDefault();
         const amount = Number(form.elements.amount.value);
         if (!Number.isFinite(amount) || amount <= 0) { toast('Informe um valor válido.'); return; }
-        const button = form.querySelector('button[type="submit"]');
+        if (!confirmation.checked) { toast('Confirme primeiro a alteração na Hotmart.'); return; }
         button.disabled = true;
         try {
-          const { error:saveError } = await db.rpc('platform_update_siap_assistant_plan', {
+          const { error:saveError } = await db.rpc('platform_sync_siap_assistant_plan_price', {
             p_plan_key:form.dataset.siapPlan,
             p_amount:amount,
-            p_active:form.elements.active.checked
+            p_active:form.elements.active.checked,
+            p_hotmart_confirmed:true
           });
           if (saveError) { toast(saveError.message); return; }
-          toast('Preço do Assistente atualizado.');
+          toast('Preço sincronizado com a oferta confirmada da Hotmart.');
           await openDashboard();
           showPlatformPage('siap');
         } finally { button.disabled = false; }
@@ -1531,7 +1537,7 @@
       db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)'),
       db.rpc('platform_list_school_applications'),
       db.rpc('platform_list_payment_subscriptions'),
-      db.rpc('platform_list_siap_assistant_plans')
+      db.rpc('platform_list_siap_assistant_commercial_plans')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
