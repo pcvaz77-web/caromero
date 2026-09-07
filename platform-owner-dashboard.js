@@ -74,6 +74,7 @@
             <button type="button" data-platform-page="schools"><span class="platform-nav-icon">▦</span>Escolas</button>
             <button type="button" data-platform-page="applications"><span class="platform-nav-icon">✉</span>Novos clientes</button>
             <button type="button" data-platform-page="subscriptions"><span class="platform-nav-icon">▣</span>Assinaturas</button>
+            <button type="button" data-platform-page="siap"><span class="platform-nav-icon">✦</span>Assistente SIAP</button>
             <button type="button" data-platform-page="plans"><span class="platform-nav-icon">☆</span>Planos</button>
             <button type="button" data-platform-page="contacts"><span class="platform-nav-icon">♧</span>Responsáveis</button>
             <button type="button" data-platform-page="audit"><span class="platform-nav-icon">◷</span>Auditoria</button>
@@ -131,7 +132,18 @@
           </section>
             </section>
             <section class="platform-page" data-platform-section="applications"><div class="platform-page-heading"><div><h3>Novos clientes</h3><p>Solicitações enviadas pela vitrine pública de planos.</p></div></div><div id="platformApplicationsList" class="platform-applications-list"></div></section>
-            <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos pelo Mercado Pago</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
+            <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos online</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
+            <section class="platform-page" data-platform-section="siap">
+              <div class="platform-page-heading"><div><h3>Assistente SIAP</h3><p>Área independente para a futura gestão comercial da extensão.</p></div><a class="btn primary" href="assistente-siap.html" target="_blank" rel="noopener">Ver página pública</a></div>
+              <div class="platform-siap-readiness">
+                <article><span>1</span><div><h4>Página comercial</h4><p>Apresentação pública, recursos, formas de acesso e planos em preparação.</p></div><b class="platform-badge pending">Preparada localmente</b></article>
+                <article><span>2</span><div><h4>Publicação da extensão</h4><p>Acompanhada separadamente pela Chrome Web Store.</p></div><b class="platform-badge pending">Revisão pendente</b></article>
+                <article><span>3</span><div><h4>Licenças individuais</h4><p>Terão fonte de dados própria, sem reutilizar assinaturas ou permissões escolares.</p></div><b class="platform-badge missing">Backend não conectado</b></article>
+                <article><span>4</span><div><h4>Pagamento recorrente</h4><p>Será ativado somente após definição de preços e integração homologada.</p></div><b class="platform-badge missing">Não configurado</b></article>
+              </div>
+              <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
+              <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual serão avaliadas de forma independente.</p></div></section>
+            </section>
             <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
             <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
             <section class="platform-page" data-platform-section="audit"><div class="platform-page-heading"><div><h3>Auditoria</h3><p>Operações administrativas registradas pela plataforma.</p></div></div>
@@ -210,6 +222,7 @@
     schools: ['Escolas', 'Cadastre e administre as escolas do Carômetro.'],
     applications: ['Novos clientes', 'Analise solicitações recebidas pela página de planos.'],
     subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
+    siap: ['Assistente SIAP', 'Prepare e acompanhe o produto independente.'],
     plans: ['Planos', 'Configure o catálogo comercial da plataforma.'],
     contacts: ['Responsáveis pela assinatura', 'Gerencie os contatos comerciais das escolas.'],
     audit: ['Auditoria', 'Consulte as operações administrativas recentes.'],
@@ -245,6 +258,41 @@
   function currency(value) {
     if (value === null || value === undefined || value === '') return 'Sob consulta';
     return Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  }
+
+  function renderSiapPlans(plans, error) {
+    const target = document.getElementById('platformSiapPlans');
+    if (!target) return;
+    if (error) {
+      target.innerHTML = '<div class="empty">A configuração ficará disponível após a aplicação da etapa de checkout do Assistente.</div>';
+      return;
+    }
+    target.innerHTML = (plans || []).map(plan => `<form class="platform-siap-plan-card" data-siap-plan="${esc(plan.plan_key)}">
+      <div><b>${esc(plan.display_name)}</b><span>${esc(plan.billing_months === 6 ? 'Cobrança a cada 6 meses' : 'Cobrança mensal')}</span></div>
+      <label>Valor (R$)<input name="amount" type="number" min="0.01" max="999999.99" step="0.01" value="${esc(plan.amount)}" required></label>
+      <label class="check"><input name="active" type="checkbox" ${plan.active ? 'checked' : ''}> Disponível para contratação</label>
+      <button class="btn primary" type="submit">Salvar preço</button>
+    </form>`).join('');
+    target.querySelectorAll('[data-siap-plan]').forEach(form => {
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const amount = Number(form.elements.amount.value);
+        if (!Number.isFinite(amount) || amount <= 0) { toast('Informe um valor válido.'); return; }
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          const { error:saveError } = await db.rpc('platform_update_siap_assistant_plan', {
+            p_plan_key:form.dataset.siapPlan,
+            p_amount:amount,
+            p_active:form.elements.active.checked
+          });
+          if (saveError) { toast(saveError.message); return; }
+          toast('Preço do Assistente atualizado.');
+          await openDashboard();
+          showPlatformPage('siap');
+        } finally { button.disabled = false; }
+      };
+    });
   }
 
   function limitLabel(value, singular, plural) {
@@ -506,12 +554,16 @@
 
   function planCardHtml(plan, features) {
     const priceValue = plan.price === null || plan.price === undefined ? '' : plan.price;
+    const semiannualPriceValue = plan.semiannual_price === null || plan.semiannual_price === undefined ? '' : plan.semiannual_price;
     const enabledFeatures = (features || []).filter(item => item.plan_key === plan.plan_key && item.enabled);
     return `<form class="platform-plan-card" data-plan-key="${esc(plan.plan_key)}" data-highlighted="${plan.highlighted === true}">
       <div class="platform-plan-card-head"><b>${esc(plan.display_name)}</b><span class="platform-plan-price">${esc(currency(plan.price))}${plan.price === null || plan.contact_only ? '' : '<small style="font-size:11px;font-weight:600">/mês</small>'}</span><span class="meta">${esc(plan.plan_key)}</span></div>
       <div class="platform-plan-limits"><span>✓ ${esc(limitLabel(plan.max_students, 'aluno', 'alunos'))}</span><span>✓ ${esc(limitLabel(plan.max_staff, 'profissional', 'profissionais'))}</span><span>✓ ${esc(limitLabel(plan.max_classes, 'turma', 'turmas'))}</span>${enabledFeatures.map(item => `<span>✓ ${esc(item.platform_features?.label || item.feature_key)}</span>`).join('')}</div>
       <div class="field"><label>Nome</label><input data-field="display_name" value="${esc(plan.display_name)}" required></div>
       <div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>
+      <div class="field"><label>Preço por 6 meses</label><input data-field="semiannual_price" type="number" min="0" step="0.01" value="${esc(semiannualPriceValue)}" placeholder="Pagamento único"></div>
+      <label class="check"><input data-field="semiannual_active" type="checkbox" ${plan.semiannual_active ? 'checked' : ''}> Oferecer pagamento único por 6 meses</label>
+      ${['basic','professional'].includes(plan.plan_key) ? '<p class="meta">Atenção: depois de mudar um preço, atualize a oferta correspondente na Hotmart antes de reabrir as vendas.</p>' : ''}
       <div class="field"><label>Descrição</label><input data-field="description" value="${esc(plan.description || '')}"></div>
       <div class="field"><label>Texto do botão</label><input data-field="cta_label" value="${esc(plan.cta_label)}" required></div>
       <div class="field"><label>Ordem</label><input data-field="display_order" type="number" min="1" step="1" value="${esc(plan.display_order)}" required></div>
@@ -552,6 +604,9 @@
     const displayName = field('display_name').value.trim();
     const priceRaw = field('price').value.trim();
     const price = priceRaw === '' ? null : Number(priceRaw);
+    const semiannualPriceRaw = field('semiannual_price').value.trim();
+    const semiannualPrice = semiannualPriceRaw === '' ? null : Number(semiannualPriceRaw);
+    const semiannualActive = field('semiannual_active').checked;
     const description = field('description').value.trim();
     const ctaLabel = field('cta_label').value.trim();
     const displayOrder = Number(field('display_order').value);
@@ -559,6 +614,7 @@
     const contactOnly = field('contact_only').checked;
     if (!displayName || !ctaLabel) { toast('Preencha o nome e o texto do botão.'); return; }
     if (price !== null && (!Number.isFinite(price) || price < 0)) { toast('Informe um preço válido, ou deixe em branco para "sob consulta".'); return; }
+    if (semiannualActive && (semiannualPrice === null || !Number.isFinite(semiannualPrice) || semiannualPrice <= 0)) { toast('Informe um preço semestral válido.'); return; }
     if (!Number.isInteger(displayOrder) || displayOrder < 1) { toast('Informe uma ordem de apresentação válida.'); return; }
 
     const button = form.querySelector('button[type="submit"]');
@@ -575,6 +631,12 @@
         p_display_order: displayOrder
       });
       if (error) { toast(error.message); return; }
+      const { error:billingError } = await db.rpc('platform_update_plan_billing_options', {
+        p_plan_key: planKey,
+        p_semiannual_price: semiannualPrice,
+        p_semiannual_active: semiannualActive
+      });
+      if (billingError) { toast(billingError.message); return; }
       toast('Plano atualizado.');
       // Relê o banco (em vez de só atualizar este card): marcar este plano
       // como destaque pode ter removido o destaque de outro, então os
@@ -1096,13 +1158,14 @@
     target.innerHTML = (applications || []).map(item => {
       const plan = cachedPlatformPlans.find(entry => entry.plan_key === item.plan_key);
       const payment = (paymentSubscriptions || []).find(entry => entry.application_id === item.id);
-      const paymentNote = payment ? `<p><b>Mercado Pago:</b> ${esc(payment.last_payment_status || payment.provider_status || payment.status)} · ${esc(currency(payment.amount))}/mês</p>` : '';
+      const paymentProvider = payment?.provider === 'hotmart' ? 'Hotmart' : payment?.provider === 'asaas' ? 'Asaas' : 'Mercado Pago';
+      const paymentNote = payment ? `<p><b>${paymentProvider}:</b> ${esc(payment.last_payment_status || payment.provider_status || payment.status)} · ${esc(currency(payment.amount))}/mês</p>` : '';
       const actions = item.status === 'pending' && !payment
         ? `<div class="platform-application-actions"><button class="btn primary" type="button" data-approve-application="${esc(item.id)}">Aprovar e enviar convite</button><button class="btn secondary" type="button" data-reject-application="${esc(item.id)}">Recusar</button></div>`
         : item.status === 'pending' && payment
-          ? `<p class="meta">A ativação será automática somente após o pagamento aprovado pelo Mercado Pago.</p><div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Cancelar solicitação</button></div>`
+          ? `<p class="meta">A ativação será automática somente após o pagamento confirmado.</p><div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Cancelar solicitação</button></div>`
           : item.status === 'expired' && payment
-            ? `<div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Encerrar no Mercado Pago</button></div>`
+            ? `<div class="platform-application-actions"><button class="btn secondary" type="button" data-cancel-paid-application="${esc(item.id)}">Encerrar assinatura</button></div>`
           : '';
       return `<article class="platform-application-card">
         <h4>${esc(item.school_name)} <span class="platform-badge ${esc(item.status)}">${esc(statusLabels[item.status] || item.status)}</span></h4>
@@ -1152,9 +1215,16 @@
       button.onclick = async () => {
         const application = applications.find(item => item.id === button.dataset.cancelPaidApplication);
         if (!application || !confirm(`Cancelar a solicitação de ${application.school_name}?`)) return;
+        const payment = paymentByApplication.get(application.id);
+        if (payment?.provider === 'hotmart') {
+          toast(payment.status === 'authorized'
+            ? 'Cancele a assinatura na Hotmart. O webhook manterá o acesso até o fim do período pago.'
+            : 'A solicitação Hotmart ainda não paga deve ser recusada neste painel.');
+          return;
+        }
         button.disabled = true;
         button.textContent = 'Cancelando…';
-        const { data:cancelResult, error:cancelError } = await db.functions.invoke('cancel-mercado-pago-subscription', { body:{ applicationId:application.id } });
+        const { data:cancelResult, error:cancelError } = await db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } });
         if (cancelError || cancelResult?.error) toast(cancelResult?.error || cancelError.message); else {
           toast('Solicitação cancelada. O e-mail foi liberado para uma nova tentativa.');
           await openDashboard();
@@ -1196,7 +1266,7 @@
     const target = document.getElementById('platformPaymentSubscriptionsList');
     if (!target) return;
     if (error) {
-      target.innerHTML = '<div class="empty">A integração do Mercado Pago será exibida depois que a migration 061 for aplicada.</div>';
+      target.innerHTML = '<div class="empty">A integração de pagamentos será exibida após a configuração do banco.</div>';
       return;
     }
     const statusLabels = { creating:'Criando', pending:'Aguardando pagamento', authorized:'Autorizada', paused:'Pausada', cancelled:'Cancelada', expired:'Expirada', failed:'Falhou' };
@@ -1204,7 +1274,7 @@
       const application = (applications || []).find(item => item.id === payment.application_id);
       const plan = cachedPlatformPlans.find(item => item.plan_key === payment.plan_key);
       return `<article class="platform-subscription-card"><h4>${esc(application?.school_name || payment.payer_email)}</h4><p>Plano: <b>${esc(plan?.display_name || payment.plan_key)}</b></p><p>Valor: <b>${esc(currency(payment.amount))}/mês</b></p><p>Responsável: ${esc(payment.payer_email)}</p><p>Último pagamento: ${esc(payment.last_payment_status || 'Ainda não confirmado')}</p><span class="platform-badge ${esc(payment.status)}">${esc(statusLabels[payment.status] || payment.status)}</span></article>`;
-    }).join('') || '<div class="empty">Nenhuma assinatura iniciada pelo Mercado Pago.</div>';
+    }).join('') || '<div class="empty">Nenhuma assinatura de pagamento iniciada.</div>';
   }
 
   function renderBillingContacts(schools, contactsBySchoolId) {
@@ -1450,7 +1520,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1460,7 +1530,8 @@
       db.rpc('platform_list_billing_contacts'),
       db.from('platform_plan_features').select('plan_key, feature_key, enabled, platform_features(label)'),
       db.rpc('platform_list_school_applications'),
-      db.rpc('platform_list_payment_subscriptions')
+      db.rpc('platform_list_payment_subscriptions'),
+      db.rpc('platform_list_siap_assistant_plans')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1475,12 +1546,12 @@
 
     const expiredPaidApplications = (applicationsResult.data || []).filter(application =>
       application.status === 'expired' && (paymentSubscriptionsResult.data || []).some(payment =>
-        payment.application_id === application.id && payment.status === 'expired'
+        payment.application_id === application.id && payment.status === 'expired' && payment.provider === 'asaas'
       )
     );
     if (expiredPaidApplications.length) {
       const cancellations = await Promise.all(expiredPaidApplications.map(application =>
-        db.functions.invoke('cancel-mercado-pago-subscription', { body:{ applicationId:application.id } })
+        db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } })
       ));
       if (cancellations.some(result => !result.error && !result.data?.error)) return openDashboard();
     }
@@ -1507,6 +1578,7 @@
     renderSubscriptions(schoolsResult.data || [], plansResult.data || []);
     renderPaymentSubscriptions(paymentSubscriptionsResult.data || [], applicationsResult.data || [], paymentSubscriptionsResult.error);
     renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
+    renderSiapPlans(siapPlansResult.data || [], siapPlansResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }

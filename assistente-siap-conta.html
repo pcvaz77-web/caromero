@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Minha assinatura — Assistente SIAP</title>
+  <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="assistente-siap.css">
+  <link rel="stylesheet" href="assistente-siap-support.css">
+  <link rel="stylesheet" href="assistente-siap-conta.css">
+</head>
+<body class="account-page">
+  <header class="site-header">
+    <a class="brand" href="assistente-siap.html"><img src="carometro-icon.svg" alt=""><span><strong>Assistente SIAP</strong><small>ASSINATURA INDIVIDUAL</small></span></a>
+    <a class="button button-small button-outline" href="assistente-siap.html#planos">Voltar aos planos</a>
+  </header>
+  <main class="account-shell">
+    <section class="account-copy">
+      <span class="eyebrow">PAGAMENTO PROTEGIDO</span>
+      <h1>Ative seu acesso individual</h1>
+      <p>Entre com seu e-mail, confirme o plano e conclua o pagamento no ambiente seguro da Hotmart.</p>
+      <div class="payment-methods" aria-label="Formas de pagamento">
+        <span>◆ Pix no semestral</span><span>▣ Cartão e boleto</span>
+      </div>
+      <ul><li>O site não recebe dados do seu cartão.</li><li>A licença é vinculada ao seu e-mail.</li><li>O cancelamento vale para o mensal recorrente; o semestral é pagamento único.</li></ul>
+    </section>
+    <section class="account-card">
+      <div id="accountLoading">Verificando sua conta…</div>
+      <form id="loginForm" hidden>
+        <h2>Entrar por e-mail</h2>
+        <p>Enviaremos um link seguro para confirmar seu acesso.</p>
+        <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
+        <button class="button" type="submit">Enviar link de acesso</button>
+        <p id="loginMessage" class="account-message" aria-live="polite"></p>
+      </form>
+      <div id="checkoutPanel" hidden>
+        <h2>Confirme a assinatura</h2>
+        <p id="accountIdentity" class="account-identity"></p>
+        <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
+        <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
+        <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
+        <button id="connectAssistantAccount" class="button button-outline" type="button">Conectar extensão a esta conta</button>
+        <a class="account-link" href="https://consumer.hotmart.com" target="_blank" rel="noopener">Gerenciar ou cancelar assinatura na Hotmart</a>
+        <button id="signOutAssistant" class="account-link" type="button">Entrar com outro e-mail</button>
+        <p id="checkoutMessage" class="account-message" aria-live="polite"></p>
+      </div>
+    </section>
+  </main>
+  <script src="carometro-config.js?v=4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
+  <script src="assistente-siap-conta.js?v=3"></script>
+</body>
+</html>

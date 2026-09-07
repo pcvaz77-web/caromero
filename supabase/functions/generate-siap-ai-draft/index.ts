@@ -28,6 +28,17 @@ type DraftPayload = {
   tense?: 'planned' | 'realized'
 }
 
+type LicenseStatus = {
+  active?: boolean
+  status?: 'trial' | 'subscribed' | 'free' | 'expired' | 'suspended'
+  mode?: 'carometro' | 'subscription' | 'external'
+  freeUses?: Record<string, number> | null
+  trialStartedAt?: string
+  trialEndsAt?: string
+  accessEndsAt?: string
+  daysRemaining?: number
+}
+
 const json = (request: Request, body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -129,9 +140,8 @@ Deno.serve(async (request) => {
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? ''
-  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   const openAiKey = Deno.env.get('OPENAI_API_KEY') ?? ''
-  if (!supabaseUrl || !anonKey || !serviceKey || !openAiKey) {
+  if (!supabaseUrl || !anonKey) {
     console.error('generate-siap-ai-draft: configuração ausente')
     return json(request, { ok: false, code: 'server_not_configured' }, 503)
   }
@@ -140,31 +150,41 @@ Deno.serve(async (request) => {
   const { data: { user } } = await callerClient.auth.getUser()
   if (!user) return json(request, { ok: false, code: 'unauthorized' }, 401)
 
-  const admin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } })
-  const { data: memberships, error: membershipError } = await admin
-    .from('school_members')
-    .select('id, role, school_member_permissions(can_use_siap_assistant)')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
-
-  if (membershipError) {
-    console.error('generate-siap-ai-draft: falha ao validar permissão', membershipError.code)
-    return json(request, { ok: false, code: 'permission_check_failed' }, 500)
+  const { data: licenseData, error: licenseError } = await callerClient.rpc('get_siap_assistant_access_status')
+  if (licenseError) {
+    console.error('generate-siap-ai-draft: falha ao validar licença', licenseError.code)
+    return json(request, { ok: false, code: 'license_check_failed' }, 500)
   }
-
-  const authorized = (memberships ?? []).some((membership: Record<string, unknown>) => {
-    if (membership.role === 'school_admin') return true
-    const rawPermissions = membership.school_member_permissions
-    const permissions = Array.isArray(rawPermissions) ? rawPermissions[0] : rawPermissions
-    return !!permissions && typeof permissions === 'object'
-      && (permissions as Record<string, unknown>).can_use_siap_assistant === true
-  })
-  if (!authorized) return json(request, { ok: false, code: 'assistant_not_allowed' }, 403)
+  const license = (licenseData ?? {}) as LicenseStatus
 
   let rawBody: unknown
   try { rawBody = await request.json() } catch { return json(request, { ok: false, code: 'invalid_payload' }, 400) }
+  if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string, unknown>).action === 'license_status') {
+    return json(request, { ok: true, license })
+  }
+  if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string, unknown>).action === 'consume_feature') {
+    const feature = cleanText((rawBody as Record<string, unknown>).feature, 20)
+    if (!['planning','content','attendance','pei'].includes(feature)) return json(request, { ok:false, code:'invalid_feature' }, 400)
+    const { data:usage, error:usageError } = await callerClient.rpc('consume_siap_assistant_feature', { p_feature_key:feature })
+    if (usageError) return json(request, { ok:false, code:'usage_check_failed' }, 500)
+    return usage?.allowed === true
+      ? json(request, { ok:true, usage, license:usage.access ?? license })
+      : json(request, { ok:false, code:'free_limit_reached', usage, license:usage?.access ?? license }, 402)
+  }
+  if (license.active !== true) {
+    return json(request, { ok: false, code: 'license_expired', license }, 402)
+  }
+  if (!openAiKey) {
+    console.error('generate-siap-ai-draft: OPENAI_API_KEY ausente')
+    return json(request, { ok: false, code: 'server_not_configured' }, 503)
+  }
+
   const payload = parsePayload(rawBody)
   if (!payload) return json(request, { ok: false, code: 'invalid_payload' }, 400)
+  const featureKey = payload.kind === 'pei' ? 'pei' : 'planning'
+  if (license.mode === 'external' && Number(license.freeUses?.[featureKey] ?? 0) <= 0) {
+    return json(request, { ok:false, code:'free_limit_reached', license }, 402)
+  }
 
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
@@ -191,5 +211,11 @@ Deno.serve(async (request) => {
   const fields = cleanList(parsed.fields, 4, 2600)
   if (fields.length !== 4) return json(request, { ok: false, code: 'invalid_model_output' }, 502)
 
-  return json(request, { ok: true, fields })
+  const { data:usage, error:usageError } = await callerClient.rpc('consume_siap_assistant_feature', {
+    p_feature_key:featureKey,
+  })
+  if (usageError) return json(request, { ok: false, code: 'usage_check_failed' }, 500)
+  if (usage?.allowed !== true) return json(request, { ok: false, code: 'free_limit_reached', license:usage?.access ?? license }, 402)
+
+  return json(request, { ok: true, fields, license:usage?.access ?? license, usage })
 })

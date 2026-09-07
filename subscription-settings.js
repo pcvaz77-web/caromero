@@ -8,7 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let publicPlanFeatures = [];
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
-    setTimeout(() => toast('Pagamento recebido pelo Mercado Pago. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
+    setTimeout(() => toast('Pagamento recebido pela Hotmart. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
     history.replaceState({}, document.title, location.pathname + location.hash);
   }
 
@@ -17,6 +17,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
     .subscription-visibility { padding:12px; border:1px solid #dbe5ff; border-radius:9px; background:#f8faff; }
+    .billing-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .billing-option { display:flex; gap:10px; align-items:flex-start; padding:13px; border:1px solid #cbd7ef; border-radius:10px; cursor:pointer; }
+    .billing-option:has(input:checked) { border-color:#3157d5; background:#f2f5ff; box-shadow:0 0 0 1px #3157d5; }
+    .billing-option input { margin-top:3px; }
+    .billing-option strong,.billing-option small { display:block; }
+    .billing-option small { color:#60708e; margin-top:3px; }
     .access-users { display:grid; gap:10px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
     .access-user .access-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -25,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .access-suspended { color:#b42318; font-weight:700; }
     .access-pending { color:#9a6b00; font-weight:700; }
     .access-unknown { color:#6b5bd6; font-weight:700; }
-    @media(max-width:800px) { .access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } }
+    @media(max-width:800px) { .access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } .billing-options { grid-template-columns:1fr; } }
   `;
   document.head.appendChild(style);
 
@@ -60,7 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div id="publicPlansGrid" class="public-plans-grid"></div>
       <div class="public-plans-trust"><span>◇ Dados protegidos</span><span>☁ Acesso de qualquer lugar</span><span>♧ Suporte humano</span><span>↗ Evolução sem complicação</span></div>
-      <nav class="public-plans-legal" aria-label="Informações legais"><a href="legal.html#privacidade">Privacidade</a><a href="legal.html#cookies">Cookies</a><a href="legal.html#termos">Termos de Uso</a><a href="legal.html#suporte">Suporte</a></nav>
+      <nav class="public-plans-legal" aria-label="Informações legais"><a href="legal.html#privacidade">Privacidade</a><a href="legal.html#cookies">Cookies</a><a href="legal.html#termos">Termos de Uso</a><a href="legal.html#suporte">Suporte</a><a href="https://consumer.hotmart.com" target="_blank" rel="noopener">Gerenciar assinatura</a></nav>
       <footer class="public-plans-rights">© 2026 CARÔMETRO® · Todos os direitos reservados · Marca registrada</footer>
     </main>`;
   document.body.appendChild(publicPlansModal);
@@ -75,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <input id="schoolApplicationPlan" type="hidden">
       <div class="application-honeypot" aria-hidden="true"><label>Website<input id="schoolApplicationWebsite" tabindex="-1" autocomplete="off"></label></div>
       <p class="sub">Preencha os dados para solicitar a entrada da sua escola. Após a aprovação, o responsável receberá por e-mail o convite seguro para criar o acesso.</p>
+      <fieldset id="schoolBillingOptions" class="field span"><legend>Forma de contratação</legend><div class="billing-options"></div></fieldset>
       <div class="grid">
         <div class="field span"><label for="schoolApplicationName">Nome da escola</label><input id="schoolApplicationName" maxlength="160" required></div>
         <div class="field span"><label for="schoolApplicationResponsible">Nome do responsável</label><input id="schoolApplicationResponsible" maxlength="160" autocomplete="name" required></div>
@@ -102,7 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('schoolApplicationForm');
     form.reset();
     document.getElementById('schoolApplicationPlan').value = plan.plan_key;
-    document.getElementById('schoolApplicationPlanLabel').textContent = `Plano escolhido: ${plan.display_name} · ${formatPlanPrice(plan)}${plan.contact_only ? '' : '/mês'}`;
+    document.getElementById('schoolApplicationPlanLabel').textContent = `Plano escolhido: ${plan.display_name}`;
+    const billingField=document.getElementById('schoolBillingOptions');
+    const billingOptions=billingField.querySelector('.billing-options');
+    const monthly=`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="monthly" checked><span><strong>Mensal · ${esc(formatPlanPrice(plan))}/mês</strong><small>Renovação mensal; cancele quando quiser.</small></span></label>`;
+    const semiannual=plan.semiannual_active&&plan.semiannual_price?`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="semiannual"><span><strong>6 meses · ${esc(Number(plan.semiannual_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>Pagamento único por Pix ou cartão; equivalente a 5 mensalidades.</small></span></label>`:'';
+    billingOptions.innerHTML=monthly+semiannual;
+    billingField.classList.toggle('hidden',plan.contact_only||plan.price===null);
     document.getElementById('schoolApplicationError').classList.add('hidden');
     applicationModal.classList.remove('hidden');
     document.getElementById('schoolApplicationName').focus();
@@ -119,6 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const studentsValue = document.getElementById('schoolApplicationStudents').value;
       const planKey = document.getElementById('schoolApplicationPlan').value;
+      const billingCycle=form.querySelector('input[name="schoolBillingCycle"]:checked')?.value||'monthly';
       const { data:applicationId, error } = await db.rpc('submit_school_application', {
         p_plan_key:planKey,
         p_school_name:document.getElementById('schoolApplicationName').value.trim(),
@@ -133,9 +147,9 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       if (error) throw error;
       if (['basic','professional'].includes(planKey)) {
-        button.textContent = 'Abrindo Mercado Pago…';
-        const { data:payment, error:paymentError } = await db.functions.invoke('create-mercado-pago-subscription', {
-          body:{ applicationId }
+        button.textContent = 'Abrindo pagamento seguro…';
+        const { data:payment, error:paymentError } = await db.functions.invoke('create-hotmart-school-checkout', {
+          body:{ applicationId, billingCycle }
         });
         if (paymentError || payment?.error || !payment?.checkout_url) {
           throw new Error(payment?.error || paymentError?.message || 'Não foi possível abrir o pagamento.');

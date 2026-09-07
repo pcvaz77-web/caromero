@@ -12,3 +12,39 @@ verify_jwt = false
 
 [functions.cancel-mercado-pago-subscription]
 verify_jwt = false
+
+[functions.create-siap-assistant-subscription]
+verify_jwt = true
+
+[functions.cancel-siap-assistant-subscription]
+verify_jwt = true
+
+[functions.siap-assistant-mercado-pago-webhook]
+verify_jwt = false
+
+[functions.send-siap-license-reminders]
+verify_jwt = false
+
+[functions.create-asaas-school-checkout]
+verify_jwt = false
+
+[functions.create-asaas-assistant-checkout]
+verify_jwt = true
+
+[functions.cancel-asaas-school-subscription]
+verify_jwt = false
+
+[functions.cancel-asaas-assistant-subscription]
+verify_jwt = true
+
+[functions.asaas-payment-webhook]
+verify_jwt = false
+
+[functions.create-hotmart-school-checkout]
+verify_jwt = false
+
+[functions.create-hotmart-assistant-checkout]
+verify_jwt = true
+
+[functions.hotmart-payment-webhook]
+verify_jwt = false
