@@ -5,8 +5,16 @@ const baseCorsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
-const allowedOrigins = () => (Deno.env.get('ALLOWED_ORIGINS') ?? '')
-  .split(',').map((value) => value.trim()).filter(Boolean)
+const extensionOrigins = [
+  'chrome-extension://fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+  'chrome-extension://mohcmojnkjjkphgjaogcbokjmnijmggl',
+  'chrome-extension://iobkgohpoeoimlhlgdeiojlghbhcijli',
+]
+
+const allowedOrigins = () => [...new Set([
+  ...(Deno.env.get('ALLOWED_ORIGINS') ?? '').split(',').map((value) => value.trim()).filter(Boolean),
+  ...extensionOrigins,
+])]
 
 const corsHeadersFor = (request: Request) => {
   const origin = request.headers.get('Origin') ?? ''
