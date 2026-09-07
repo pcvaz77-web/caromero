@@ -33,6 +33,15 @@ document.addEventListener('DOMContentLoaded', () => {
     'iobkgohpoeoimlhlgdeiojlghbhcijli'
   ];
   const assistantInstallUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantInstallUrl || '').trim();
+  const assistantStoreUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl || '').trim();
+  const compareVersions = (left, right) => {
+    const a = String(left || '').split('.').map(part => Number.parseInt(part, 10) || 0);
+    const b = String(right || '').split('.').map(part => Number.parseInt(part, 10) || 0);
+    for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+      if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) > (b[index] || 0) ? 1 : -1;
+    }
+    return 0;
+  };
   const assistantPresentationUrl = () => new URL('assistente-siap.html?origem=carometro', window.location.href).href;
   const connectThroughPageBridge = payload => new Promise(resolve => {
     const requestId = crypto.randomUUID();
@@ -76,10 +85,24 @@ document.addEventListener('DOMContentLoaded', () => {
     statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
   };
   const showConnectedStatus = (statusElement, result) => {
+    const installedVersion = String(result.extensionVersion || '').trim();
+    const minimumVersion = String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantMinimumVersion || '').trim();
+    const recommendedVersion = String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantRecommendedVersion || '').trim();
+    if (installedVersion && minimumVersion && compareVersions(installedVersion, minimumVersion) < 0) {
+      const storeUrl = assistantStoreUrl();
+      statusElement.innerHTML = `Atualização obrigatória: sua extensão é a versão ${safe(installedVersion)}. <a href="${safe(storeUrl)}" target="_blank" rel="noopener noreferrer">Atualize pela Chrome Web Store</a> para continuar com segurança.`;
+      return;
+    }
     const days = Number(result.license?.daysRemaining);
-    statusElement.textContent = Number.isFinite(days)
+    const connectedText = Number.isFinite(days)
       ? `IA conectada. Seu acesso tem ${days} dia${days === 1 ? '' : 's'} restante${days === 1 ? '' : 's'}. Nenhuma senha foi compartilhada.`
       : 'IA conectada até o fim desta sessão. Nenhuma senha foi compartilhada.';
+    if (installedVersion && recommendedVersion && compareVersions(installedVersion, recommendedVersion) < 0) {
+      const storeUrl = assistantStoreUrl();
+      statusElement.innerHTML = `${safe(connectedText)} Atualização recomendada: versão ${safe(installedVersion)} instalada. <a href="${safe(storeUrl)}" target="_blank" rel="noopener noreferrer">Ver atualização na Chrome Web Store</a>.`;
+      return;
+    }
+    statusElement.textContent = installedVersion ? `${connectedText} Versão ${installedVersion}.` : connectedText;
   };
   const openAssistantModal = className => {
     returnFocus = document.activeElement;

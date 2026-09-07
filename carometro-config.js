@@ -8,6 +8,11 @@
     supabaseProjectRef: 'ppkndfwmqdmomkjoemre',
     supabaseUrl: 'https://ppkndfwmqdmomkjoemre.supabase.co',
     supabasePublishableKey: 'sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn',
+    siapAssistantStoreUrl: 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    // A loja faz as atualizações comuns automaticamente. Altere o mínimo
+    // somente quando uma versão antiga deixar de ser compatível ou segura.
+    siapAssistantMinimumVersion: '0.20.0',
+    siapAssistantRecommendedVersion: '0.22.1',
     vapidPublicKey: 'BDLdmN6b1fg7AQeIVLx1oQ5qJxEWN2vX-MpBFo_0iw3NUAR2bpLCt3iYduD7KZRpqnostep-Iq68xzvTBmLKewU'
   });
   window.CAROMETRO_RUNTIME_CONFIG = config;

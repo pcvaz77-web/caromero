@@ -17,6 +17,14 @@
   ];
 
   const money = value => Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+  const compareVersions = (left, right) => {
+    const a = String(left || '').split('.').map(part => Number.parseInt(part, 10) || 0);
+    const b = String(right || '').split('.').map(part => Number.parseInt(part, 10) || 0);
+    for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+      if ((a[index] || 0) !== (b[index] || 0)) return (a[index] || 0) > (b[index] || 0) ? 1 : -1;
+    }
+    return 0;
+  };
   const message = (id, text, error=false) => {
     const target = document.getElementById(id);
     target.textContent = text;
@@ -36,6 +44,18 @@
     window.addEventListener('message', receive);
     window.postMessage({ source:'CAROMETRO_WEB', type:'CAROMETRO_SIAP_CONNECT_BRIDGE', requestId, ...payload }, location.origin);
   });
+  const showExtensionStatus = response => {
+    const installedVersion = String(response.extensionVersion || '').trim();
+    const minimumVersion = String(config.siapAssistantMinimumVersion || '').trim();
+    const recommendedVersion = String(config.siapAssistantRecommendedVersion || '').trim();
+    if (installedVersion && minimumVersion && compareVersions(installedVersion, minimumVersion) < 0) {
+      message('checkoutMessage', `Extensão ${installedVersion} conectada, mas precisa ser atualizada antes do uso. Abra a Chrome Web Store.`, true);
+      return;
+    }
+    message('checkoutMessage', installedVersion && recommendedVersion && compareVersions(installedVersion, recommendedVersion) < 0
+      ? `Extensão ${installedVersion} conectada. Há uma atualização recomendada na Chrome Web Store.`
+      : `Extensão conectada${installedVersion ? ` na versão ${installedVersion}` : ''}. Abra o SIAP para continuar.`);
+  };
 
   async function loadPlan() {
     const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
@@ -98,14 +118,14 @@
           ...payload
         }, result => resolve(chrome.runtime.lastError ? null : result)));
         if (response?.ok) {
-          message('checkoutMessage', 'Extensão conectada. Abra o SIAP para continuar.');
+          showExtensionStatus(response);
           return;
         }
       }
     }
     const bridgedResponse = await connectThroughPageBridge(payload);
     if (bridgedResponse?.ok) {
-      message('checkoutMessage', 'Extensão conectada. Abra o SIAP para continuar.');
+      showExtensionStatus(bridgedResponse);
       return;
     }
     message('checkoutMessage', 'A extensão não respondeu. Instale ou atualize o Assistente SIAP e tente novamente.', true);
