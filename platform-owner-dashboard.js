@@ -1257,7 +1257,7 @@
       button.onclick = async () => {
         const application = applications.find(item => item.id === button.dataset.cancelPaidApplication);
         if (!application) return;
-        const payment = paymentByApplication.get(application.id);
+        const payment = (paymentSubscriptions || []).find(entry => entry.application_id === application.id);
         const approvedHotmartPayment = payment?.provider === 'hotmart'
           && (payment.status === 'authorized' || payment.last_payment_status === 'approved');
         const confirmationText = approvedHotmartPayment
@@ -1266,20 +1266,24 @@
         if (!confirm(confirmationText)) return;
         button.disabled = true;
         button.textContent = 'Cancelando…';
-        let cancelError = null;
-        if (payment?.provider === 'hotmart') {
-          ({ error:cancelError } = await db.rpc('platform_cancel_school_application', { p_application_id:application.id }));
-        } else {
-          const { data:cancelResult, error:functionError } = await db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } });
-          cancelError = functionError || (cancelResult?.error ? new Error(cancelResult.error) : null);
-        }
-        if (cancelError) toast(cancelError.message); else {
+        try {
+          let cancelError = null;
+          if (payment?.provider === 'hotmart') {
+            ({ error:cancelError } = await db.rpc('platform_cancel_school_application', { p_application_id:application.id }));
+          } else {
+            const { data:cancelResult, error:functionError } = await db.functions.invoke('cancel-asaas-school-subscription', { body:{ applicationId:application.id } });
+            cancelError = functionError || (cancelResult?.error ? new Error(cancelResult.error) : null);
+          }
+          if (cancelError) throw cancelError;
           toast('Solicitação cancelada. O e-mail foi liberado para uma nova tentativa.');
           await openDashboard();
           showPlatformPage('applications');
+        } catch (cancelFailure) {
+          toast(cancelFailure.message || 'Não foi possível cancelar a solicitação.');
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Cancelar solicitação';
         }
-        button.disabled = false;
-        button.textContent = 'Cancelar solicitação';
       };
     });
   }
