@@ -1,5 +1,6 @@
 /* CARÔMETRO COMERCIAL — Painel do Proprietário */
 body.platform-workspace-open { overflow:hidden; }
+.platform-workspace button:not(:disabled),.platform-workspace a[href],.platform-workspace [role="button"]{cursor:pointer}.platform-workspace button:disabled{cursor:not-allowed}
 .public-plans-login-button { margin-top:12px; }
 .login-legal-links { margin-top:13px; display:flex; justify-content:center; gap:12px; flex-wrap:wrap; }.login-legal-links a { color:#667085; font-size:10px; font-weight:700; text-decoration:none; }.login-legal-links a:hover { color:#356ae6; text-decoration:underline; }
 .brand-rights { display:block; margin-top:28px; color:#aebedb; font-size:10px; letter-spacing:.02em; }
