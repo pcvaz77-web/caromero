@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import type { User } from 'https://esm.sh/@supabase/supabase-js@2'
 
 type Json = Record<string, any>
 const response=(body:Json,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}})
@@ -59,11 +60,12 @@ Deno.serve(async request=>{
     ??(mappings??[]).find((item:Json)=>Number.isFinite(amount)&&Math.abs(amount-Number(item.expected_amount))<=0.009)
     ??(mappings??[])[0]
   if(!mapping){await markInbox('ignored');return response({ok:true,ignored:true,reason:'unmapped_product'})}
+  let activeMapping:Json=mapping
 
   const subscriptionId=String(data.subscription?.id??'')
   const resourceId=transaction||subscriberCode||subscriptionId||String(productId)
-  const table=mapping.target==='school'?'platform_payment_subscriptions':'siap_assistant_payment_subscriptions'
-  const eventsTable=mapping.target==='school'?'platform_payment_events':'siap_assistant_payment_events'
+  const table=activeMapping.target==='school'?'platform_payment_subscriptions':'siap_assistant_payment_subscriptions'
+  const eventsTable=activeMapping.target==='school'?'platform_payment_events':'siap_assistant_payment_events'
 
   let query=admin.from(table).select('*').eq('provider','hotmart')
   if(subscriberCode) query=query.eq('provider_subscriber_code',subscriberCode)
@@ -75,9 +77,9 @@ Deno.serve(async request=>{
     payment=result.data
   }
   if(!payment){await markInbox('unlinked');return response({ok:true,ignored:true,reason:'payment_not_linked'})}
-  mapping=(mappings??[]).find((item:Json)=>item.billing_cycle===payment.billing_cycle)??mapping
+  activeMapping=(mappings??[]).find((item:Json)=>item.billing_cycle===payment.billing_cycle)??activeMapping
 
-  const eventRow={provider:'hotmart',provider_event_id:eventId,event_type:event,resource_id:resourceId,signature_valid:true,payload,processed:false,...(mapping.target==='school'?{action:event}:{})}
+  const eventRow={provider:'hotmart',provider_event_id:eventId,event_type:event,resource_id:resourceId,signature_valid:true,payload,processed:false,...(activeMapping.target==='school'?{action:event}:{})}
   const {error:eventError}=await admin.from(eventsTable).insert(eventRow)
   if(eventError?.code==='23505') return response({ok:true,duplicate:true})
   if(eventError) return response({ok:false},500)
@@ -88,36 +90,37 @@ Deno.serve(async request=>{
     const revoked=['PURCHASE_REFUNDED','PURCHASE_CHARGEBACK','PURCHASE_CANCELED'].includes(event)
     if(approved){
       const currency=String(purchase.price?.currency_value??purchase.full_price?.currency_value??'BRL')
-      if(!transaction||currency!=='BRL'||!Number.isFinite(amount)||Math.abs(amount-Number(mapping.expected_amount))>0.009) throw new Error('payment_mismatch')
+      if(!transaction||currency!=='BRL'||!Number.isFinite(amount)||Math.abs(amount-Number(activeMapping.expected_amount))>0.009) throw new Error('payment_mismatch')
       const alreadyActivated=payment.provider_transaction_id===transaction&&payment.last_payment_status==='approved'
       const changes={provider_subscription_id:subscriptionId||payment.provider_subscription_id,provider_subscriber_code:subscriberCode||payment.provider_subscriber_code,provider_transaction_id:transaction,last_payment_id:transaction,last_invoice_id:transaction,last_payment_status:'approved',provider_status:String(data.subscription?.status??purchase.status??event),status:'authorized',last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()}
       const {error:updateError}=await admin.from(table).update(changes).eq('id',payment.id);if(updateError) throw updateError
       if(!alreadyActivated){
-        const rpc=mapping.target==='school'?'platform_activate_paid_subscription':'siap_activate_paid_subscription'
-        const args=mapping.target==='school'?{p_payment_subscription_id:payment.id}:{p_payment_subscription_id:payment.id,p_paid_at:new Date().toISOString()}
+        const rpc=activeMapping.target==='school'?'platform_activate_paid_subscription':'siap_activate_paid_subscription'
+        const args=activeMapping.target==='school'?{p_payment_subscription_id:payment.id}:{p_payment_subscription_id:payment.id,p_paid_at:new Date().toISOString()}
         const {data:activation,error}=await admin.rpc(rpc,args);if(error) throw error
-        if(mapping.target==='school'){
+        if(activeMapping.target==='school'){
+          if(activation?.invitation_id) await sendAdministratorInvite(admin,activation.invitation_id)
           const schoolId=activation?.school_id??payment.school_id
           if(schoolId){
             const paidAtValue=Number(purchase.approved_date??Date.now())
             const paidAt=Number.isFinite(paidAtValue)?new Date(paidAtValue):new Date()
-            const periodEnd=mapping.billing_cycle==='semiannual'?addUtcMonths(paidAt,6).toISOString():null
+            const periodEnd=activeMapping.billing_cycle==='semiannual'?addUtcMonths(paidAt,6).toISOString():null
             const {error:accessError}=await admin.from('school_subscriptions').update({status:'active',grant_expires_at:periodEnd,updated_at:new Date().toISOString()}).eq('school_id',schoolId);if(accessError) throw accessError
             const {error:periodError}=await admin.from(table).update({current_period_end:periodEnd,updated_at:new Date().toISOString()}).eq('id',payment.id);if(periodError) throw periodError
           }
         }
-      }else if(mapping.target==='school'&&payment.school_id){
+      }else if(activeMapping.target==='school'&&payment.school_id){
         const {error:accessError}=await admin.rpc('platform_sync_paid_subscription_access',{p_payment_subscription_id:payment.id,p_access_active:true});if(accessError) throw accessError
       }
     }else if(isCancellation){
       const accessEndsAt=millisDate(data.date_next_charge)
       const {error}=await admin.from(table).update({status:'cancelled',provider_subscription_id:subscriptionId||payment.provider_subscription_id,provider_subscriber_code:subscriberCode||payment.provider_subscriber_code,provider_status:event,last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',payment.id);if(error) throw error
-      if(mapping.target==='school'&&payment.school_id&&accessEndsAt){
+      if(activeMapping.target==='school'&&payment.school_id&&accessEndsAt){
         const {error:subscriptionError}=await admin.from('school_subscriptions').update({grant_expires_at:accessEndsAt,updated_at:new Date().toISOString()}).eq('school_id',payment.school_id);if(subscriptionError) throw subscriptionError
       }
     }else if(revoked){
       const {error}=await admin.from(table).update({status:'cancelled',last_payment_status:event.toLowerCase(),provider_status:String(purchase.status??event),last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',payment.id);if(error) throw error
-      if(mapping.target==='school'){
+      if(activeMapping.target==='school'){
         const {error:accessError}=await admin.rpc('platform_sync_paid_subscription_access',{p_payment_subscription_id:payment.id,p_access_active:false});if(accessError) throw accessError
       }else{
         const {error:licenseError}=await admin.from('siap_assistant_licenses').update({suspended_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('user_id',payment.user_id);if(licenseError) throw licenseError
@@ -134,3 +137,27 @@ Deno.serve(async request=>{
     return response({ok:false},500)
   }
 })
+
+async function sendAdministratorInvite(admin:any,invitationId:string){
+  const {data:invitation,error}=await admin.from('school_invitations')
+    .select('email,token,status,expires_at').eq('id',invitationId).single()
+  if(error||!invitation||invitation.status!=='pending'||new Date(invitation.expires_at).getTime()<=Date.now()) throw new Error('administrator_invitation_unavailable')
+  const site=(Deno.env.get('PUBLIC_SITE_URL')??'').replace(/\/$/,'')
+  if(!site) throw new Error('public_site_url_not_configured')
+  const redirectTo=`${site}/accept-invite.html?token=${invitation.token}`
+  let target:User|undefined
+  for(let page=1;page<=50&&!target;page+=1){
+    const {data,error:listError}=await admin.auth.admin.listUsers({page,perPage:200})
+    if(listError) throw listError
+    target=data.users.find((user:User)=>user.email?.trim().toLowerCase()===invitation.email)
+    if(data.users.length<200) break
+  }
+  if(!target){
+    const {error:inviteError}=await admin.auth.admin.inviteUserByEmail(invitation.email,{redirectTo})
+    if(inviteError) throw inviteError
+    return
+  }
+  const anon=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_ANON_KEY')!)
+  const {error:otpError}=await anon.auth.signInWithOtp({email:invitation.email,options:{emailRedirectTo:redirectTo,shouldCreateUser:false}})
+  if(otpError) throw otpError
+}

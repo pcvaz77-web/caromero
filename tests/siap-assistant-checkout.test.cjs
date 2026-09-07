@@ -89,6 +89,10 @@ test('webhook Hotmart falha fechado e processa aprovação, estorno e cancelamen
   assert.match(hotmartWebhook, /SUBSCRIPTION_CANCELLATION/);
   assert.match(hotmartWebhook, /platform_activate_paid_subscription/);
   assert.match(hotmartWebhook, /siap_activate_paid_subscription/);
+  assert.match(hotmartWebhook, /activation\?\.invitation_id/);
+  assert.match(hotmartWebhook, /sendAdministratorInvite/);
+  assert.match(hotmartWebhook, /inviteUserByEmail/);
+  assert.match(hotmartWebhook, /accept-invite\.html\?token=/);
   assert.match(hotmartMigration, /p_paid_at-interval '30 days'/);
   assert.match(hotmartMigration, /case when v_had_license then v_license\.trial_ends_at else p_paid_at end/);
 });
