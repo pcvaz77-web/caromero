@@ -41,7 +41,8 @@
     billing_contact_changed: 'Responsável pela assinatura alterado',
     plan_override_set: 'Concessão administrativa de plano definida',
     plan_override_removed: 'Concessão administrativa de plano removida',
-    subscription_commercial_terms_changed: 'Condições comerciais da escola alteradas'
+    subscription_commercial_terms_changed: 'Condições comerciais da escola alteradas',
+    unactivated_school_application_cancelled: 'Solicitação sem ativação cancelada'
   };
 
   function esc(value) {
@@ -131,7 +132,7 @@
             </div>
           </section>
             </section>
-            <section class="platform-page" data-platform-section="applications"><div class="platform-page-heading"><div><h3>Novos clientes</h3><p>Solicitações enviadas pela vitrine pública de planos.</p></div></div><div id="platformApplicationsList" class="platform-applications-list"></div></section>
+            <section class="platform-page" data-platform-section="applications"><div class="platform-page-heading"><div><h3>Novos clientes</h3><p>Solicitações pendentes que exigem atenção.</p></div><button id="platformToggleApplicationHistory" class="btn secondary" type="button">Mostrar histórico</button></div><div id="platformApplicationsList" class="platform-applications-list"></div></section>
             <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos online</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
             <section class="platform-page" data-platform-section="siap">
               <div class="platform-page-heading"><div><h3>Assistente SIAP</h3><p>Gestão comercial da extensão, separada dos dados e das assinaturas das escolas.</p></div><a class="btn primary" href="assistente-siap.html" target="_blank" rel="noopener">Ver página pública</a></div>
@@ -188,6 +189,11 @@
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
+    modal.querySelector('#platformToggleApplicationHistory').onclick = async () => {
+      showApplicationHistory = !showApplicationHistory;
+      await openDashboard();
+      showPlatformPage('applications');
+    };
     modal.querySelector('#platformOpenAccountSettings').onclick = async () => {
       // O gerenciador de contas é um modal independente. Feche o painel da
       // plataforma primeiro para que ele não seja aberto atrás deste shell.
@@ -230,6 +236,7 @@
   };
 
   let cachedPlatformPlans = [];
+  let showApplicationHistory = false;
 
   function closeDashboard() {
     document.getElementById('platformDashboardModal')?.classList.add('hidden');
@@ -1196,8 +1203,17 @@
       target.innerHTML = '<div class="empty">O funil de novos clientes será exibido depois que a migration 060 for aplicada.</div>';
       return;
     }
+    const allApplications = applications || [];
+    const actionableApplications = allApplications.filter(item => item.status === 'pending' || item.status === 'expired');
+    const visibleApplications = showApplicationHistory ? allApplications : actionableApplications;
+    const historyCount = allApplications.length - actionableApplications.length;
+    const historyButton = document.getElementById('platformToggleApplicationHistory');
+    if (historyButton) {
+      historyButton.textContent = showApplicationHistory ? 'Ocultar histórico' : `Mostrar histórico (${historyCount})`;
+      historyButton.classList.toggle('hidden', historyCount === 0);
+    }
     const statusLabels = { pending:'Aguardando análise', approved:'Aprovada', rejected:'Recusada', cancelled:'Cancelada', expired:'Expirada' };
-    target.innerHTML = (applications || []).map(item => {
+    target.innerHTML = visibleApplications.map(item => {
       const plan = cachedPlatformPlans.find(entry => entry.plan_key === item.plan_key);
       const payment = (paymentSubscriptions || []).find(entry => entry.application_id === item.id);
       const paymentProvider = payment?.provider === 'hotmart' ? 'Hotmart' : payment?.provider === 'asaas' ? 'Asaas' : 'Mercado Pago';
@@ -1217,7 +1233,7 @@
         ${paymentNote}
         ${actions}
       </article>`;
-    }).join('') || '<div class="empty">Nenhuma solicitação recebida.</div>';
+    }).join('') || '<div class="empty">Nenhuma solicitação pendente.</div>';
 
     target.querySelectorAll('[data-approve-application]').forEach(button => {
       button.onclick = async () => {
