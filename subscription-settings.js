@@ -355,19 +355,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
-    const { data, error } = await db.rpc('admin_list_accounts_v2');
+    const { data, error } = await db.rpc('admin_list_accounts_v3');
     if (error) {
       target.innerHTML = '<div class="error">Execute primeiro o arquivo de configuração de acesso no Supabase.</div>';
       return;
     }
     function accountStatus(item) {
-      if (item.role === 'platform_owner') return { cls:'access-active', label:'Acesso ativo', toggle:null };
+      if (item.role === 'platform_owner') return { cls:'access-active', label:'Proprietário da plataforma', toggle:null };
+      if (item.access_status === 'suspended') return { cls:'access-suspended', label:'Login suspenso', toggle:'active' };
       if (Number(item.pending_invitations || 0) > 0 && Number(item.active_memberships || 0) === 0) {
         return { cls:'access-pending', label:'Convite pendente de aceite', toggle:null };
       }
       if (!item.email_confirmed) return { cls:'access-pending', label:'Aguardando confirmação de e-mail', toggle:null };
-      if (item.access_status === 'active') return { cls:'access-active', label:'Acesso ativo', toggle:'suspended' };
-      if (item.access_status === 'suspended') return { cls:'access-suspended', label:'Acesso suspenso', toggle:'active' };
+      if (Number(item.active_memberships || 0) > 0) return { cls:'access-active', label:'Vínculo escolar ativo', toggle:'suspended' };
+      if (item.assistant_paid_active) return { cls:'access-active', label:'Licença paga ativa', toggle:'suspended' };
+      if (['creating','pending'].includes(item.assistant_payment_status)) {
+        return { cls:'access-pending', label:'Pagamento pendente — acesso não comprado', toggle:'suspended' };
+      }
+      if (['expired','cancelled','failed'].includes(item.assistant_payment_status)) {
+        return { cls:'access-unknown', label:'Checkout abandonado — acesso gratuito', toggle:'suspended' };
+      }
+      if (item.access_status === 'active') return { cls:'access-unknown', label:'Cadastro confirmado — acesso gratuito', toggle:'suspended' };
       // E-mail confirmado mas sem access_status definido (sem linha em user_permissions,
       // ou valor inesperado): não deve ser classificado como ativo nem como suspenso.
       return { cls:'access-unknown', label:'Acesso sem permissão configurada', toggle:null };
@@ -378,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const name = item.full_name?.trim() || 'Nome não informado';
       const email = item.email || 'Usuário';
       const toggleButton = status.toggle
-        ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender acesso' : 'Reativar acesso'}</button>`
+        ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender login' : 'Reativar login'}</button>`
         : '';
       return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${owner ? '<span class="meta">Proprietário da plataforma</span>' : toggleButton}</div></article>`;
     }).join('') || '<div class="empty">Nenhum usuário encontrado.</div>';
@@ -410,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
       target_status: status
     });
     if (error) { toast(error.message); return; }
-    toast(status === 'active' ? 'Acesso liberado.' : 'Acesso suspenso.');
+    toast(status === 'active' ? 'Login reativado.' : 'Login suspenso.');
     openSettings();
   };
   const pendingAccountActions = new Set();

@@ -18,6 +18,7 @@ const hotmartSchoolCheckout = read('supabase/functions/create-hotmart-school-che
 const hotmartBillingCycles = read('supabase/migrations/088_hotmart_school_billing_cycles.sql');
 const safeHotmartPriceSync = read('supabase/migrations/090_safe_hotmart_assistant_price_sync.sql');
 const safeSchoolPriceSync = read('supabase/migrations/091_safe_hotmart_school_price_sync.sql');
+const accountCommercialStatus = read('supabase/migrations/092_account_commercial_status.sql');
 const hotmartWebhook = read('supabase/functions/hotmart-payment-webhook/index.ts');
 const schoolFrontend = read('subscription-settings.js');
 const dashboard = read('platform-owner-dashboard.js');
@@ -133,4 +134,17 @@ test('sincroniza os quatro precos do Carometro de forma atomica e confirmada', (
   assert.match(dashboard, /Confirmo que salvei este valor na Hotmart/);
   assert.doesNotMatch(dashboard, /db\.rpc\('platform_set_plan_details'/);
   assert.doesNotMatch(dashboard, /db\.rpc\('platform_update_plan_billing_options'/);
+});
+
+test('distingue login confirmado de compra e aceita pagamento Hotmart tardio', () => {
+  assert.match(accountCommercialStatus, /admin_list_accounts_v3/);
+  assert.match(accountCommercialStatus, /assistant_payment_status text/);
+  assert.match(accountCommercialStatus, /assistant_paid_active boolean/);
+  assert.match(accountCommercialStatus, /CHECKOUT_ABANDONED/);
+  assert.match(accountCommercialStatus, /created_at < now\(\) - interval '24 hours'/);
+  assert.match(schoolFrontend, /admin_list_accounts_v3/);
+  assert.match(schoolFrontend, /Pagamento pendente — acesso não comprado/);
+  assert.match(schoolFrontend, /Cadastro confirmado — acesso gratuito/);
+  assert.match(schoolFrontend, /Licença paga ativa/);
+  assert.match(hotmartWebhook, /'pending','authorized','paused','expired'/);
 });

@@ -70,10 +70,10 @@ Deno.serve(async request=>{
   let query=admin.from(table).select('*').eq('provider','hotmart')
   if(subscriberCode) query=query.eq('provider_subscriber_code',subscriberCode)
   else if(transaction) query=query.eq('provider_transaction_id',transaction)
-  else query=query.eq('provider_checkout_id',String(productId)).eq('payer_email',buyerEmail).in('status',['pending','authorized','paused'])
+  else query=query.eq('provider_checkout_id',String(productId)).eq('payer_email',buyerEmail).in('status',['pending','authorized','paused','expired'])
   let {data:payment}=await query.order('created_at',{ascending:false}).limit(1).maybeSingle()
   if(!payment&&buyerEmail&&!isCancellation){
-    const result=await admin.from(table).select('*').eq('provider','hotmart').eq('provider_checkout_id',String(productId)).eq('payer_email',buyerEmail).in('status',['pending','authorized','paused']).order('created_at',{ascending:false}).limit(1).maybeSingle()
+    const result=await admin.from(table).select('*').eq('provider','hotmart').eq('provider_checkout_id',String(productId)).eq('payer_email',buyerEmail).in('status',['pending','authorized','paused','expired']).order('created_at',{ascending:false}).limit(1).maybeSingle()
     payment=result.data
   }
   if(!payment){await markInbox('unlinked');return response({ok:true,ignored:true,reason:'payment_not_linked'})}
