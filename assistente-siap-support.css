@@ -192,3 +192,23 @@
 @media (max-width: 680px) {
   .support-section { margin: 0 13px 55px; padding: 25px 18px; }
 }
+
+button:not(:disabled),
+a[href],
+summary { cursor: pointer; }
+
+.checkout-button:not(:disabled):hover,
+.price-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 30px #5146d342;
+}
+
+.checkout-button,
+.price-link { transition: transform .2s ease, box-shadow .2s ease; }
+
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 3px solid #82a7ff;
+  outline-offset: 3px;
+}
