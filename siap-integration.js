@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const safe = value => esc(String(value || ''));
   const assistantExtensionIds = [
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
-    'mohcmojnkjjkphgjaogcbokjmnijmggl'
+    'mohcmojnkjjkphgjaogcbokjmnijmggl',
+    'iobkgohpoeoimlhlgdeiojlghbhcijli'
   ];
   const assistantInstallUrl = () => String(window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantInstallUrl || '').trim();
   const assistantPresentationUrl = () => new URL('assistente-siap.html?origem=carometro', window.location.href).href;

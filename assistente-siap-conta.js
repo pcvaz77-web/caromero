@@ -10,7 +10,11 @@
   const checkoutButton = document.getElementById('startCheckout');
   let selectedPlan = null;
   let currentSession = null;
-  const extensionIds = ['fgpjjlikinpcjpmmjehbgbfonnbfibnc', 'mohcmojnkjjkphgjaogcbokjmnijmggl'];
+  const extensionIds = [
+    'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    'mohcmojnkjjkphgjaogcbokjmnijmggl',
+    'iobkgohpoeoimlhlgdeiojlghbhcijli'
+  ];
 
   const money = value => Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   const message = (id, text, error=false) => {
