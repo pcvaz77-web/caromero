@@ -66,6 +66,13 @@ test('checkout exige login e aceite antes de abrir a Hotmart', () => {
   assert.match(landing, /R\$ 129,90 \/ 6 meses/);
 });
 
+test('mostra a marca Hotmart somente depois de entrar no checkout de pagamento', () => {
+  assert.doesNotMatch(landing, /Hotmart/i);
+  assert.doesNotMatch(accountHtml, /Hotmart/i);
+  assert.doesNotMatch(account, /confirmação da Hotmart/i);
+  assert.match(account, /create-hotmart-assistant-checkout/);
+});
+
 test('distingue demonstração gratuita de assinatura ou acesso institucional ao conectar a extensão', () => {
   assert.match(account, /get_siap_assistant_access_status/);
   assert.match(account, /Experimentar gratuitamente na extensão/);

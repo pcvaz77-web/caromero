@@ -171,7 +171,7 @@
       const status = await loadAccessStatus();
       if (status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
-        message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação da Hotmart.');
+        message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação do pagamento.');
       }
     }
   }

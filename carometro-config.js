@@ -12,7 +12,7 @@
     // A loja faz as atualizações comuns automaticamente. Altere o mínimo
     // somente quando uma versão antiga deixar de ser compatível ou segura.
     siapAssistantMinimumVersion: '0.20.0',
-    siapAssistantRecommendedVersion: '0.22.1',
+    siapAssistantRecommendedVersion: '0.22.5',
     vapidPublicKey: 'BDLdmN6b1fg7AQeIVLx1oQ5qJxEWN2vX-MpBFo_0iw3NUAR2bpLCt3iYduD7KZRpqnostep-Iq68xzvTBmLKewU'
   });
   window.CAROMETRO_RUNTIME_CONFIG = config;
