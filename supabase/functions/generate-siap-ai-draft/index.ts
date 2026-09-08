@@ -81,19 +81,31 @@ const parsePayload = (value: unknown): DraftPayload | null => {
   }
 }
 
-const schema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    fields: {
-      type: 'array',
-      minItems: 4,
-      maxItems: 4,
-      items: { type: 'string', minLength: 80, maxLength: 2600 },
+const schemaFor = (kind: DraftKind) => kind === 'planning'
+  ? {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      objectives: { type: 'string', minLength: 10, maxLength: 150 },
+      description: { type: 'string', minLength: 15, maxLength: 60 },
+      methodology: { type: 'string', minLength: 200, maxLength: 340 },
+      evaluation: { type: 'string', minLength: 160, maxLength: 280 },
     },
-  },
-  required: ['fields'],
-}
+    required: ['objectives', 'description', 'methodology', 'evaluation'],
+  }
+  : {
+    type: 'object',
+    additionalProperties: false,
+    properties: {
+      fields: {
+        type: 'array',
+        minItems: 4,
+        maxItems: 4,
+        items: { type: 'string', minLength: 50, maxLength: 900 },
+      },
+    },
+    required: ['fields'],
+  }
 
 const promptFor = (payload: DraftPayload) => {
   const labels = payload.kind === 'pei'
@@ -198,12 +210,14 @@ Deno.serve(async (request) => {
     method: 'POST',
     headers: { Authorization: `Bearer ${openAiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: Deno.env.get('OPENAI_MODEL') || 'gpt-5.6-terra',
+      model: Deno.env.get('OPENAI_MODEL') || 'gpt-5.6-luna',
       reasoning: { effort: 'low' },
       store: false,
-      instructions: 'Você redige textos pedagógicos em português brasileiro. Não diagnostique, não invente fatos, não inclua nome, matrícula ou identificadores. Respeite exatamente a finalidade de cada campo. Entregue textos específicos, claros, inclusivos e revisáveis pelo professor.',
+      instructions: payload.kind === 'planning'
+        ? 'Você redige planejamentos pedagógicos diretos em português brasileiro. Use aproximadamente 30 caracteres em description, 300 em methodology e 250 em evaluation, podendo variar o necessário para concluir as frases naturalmente dentro dos limites do formato. A metodologia deve explicar de forma prática como a aula será realizada. Não use títulos dentro dos textos, não repita informações, não diagnostique e não invente fatos. Não inclua nome, matrícula ou identificadores.'
+        : 'Você redige textos pedagógicos individualizados e concisos em português brasileiro. Não use o nome do campo como título dentro do texto. Não diagnostique, não invente fatos, não inclua nome, matrícula ou identificadores. Respeite exatamente a finalidade de cada campo. Entregue textos claros, inclusivos e revisáveis pelo professor.',
       input: promptFor(payload),
-      text: { format: { type: 'json_schema', name: 'siap_pedagogical_draft', strict: true, schema } },
+      text: { format: { type: 'json_schema', name: 'siap_pedagogical_draft', strict: true, schema: schemaFor(payload.kind) } },
     }),
   })
 
@@ -214,9 +228,16 @@ Deno.serve(async (request) => {
 
   const result = await response.json() as Record<string, unknown>
   const outputText = extractOutputText(result)
-  let parsed: { fields?: unknown }
+  let parsed: Record<string, unknown>
   try { parsed = JSON.parse(outputText) } catch { return json(request, { ok: false, code: 'invalid_model_output' }, 502) }
-  const fields = cleanList(parsed.fields, 4, 2600)
+  const fields = payload.kind === 'planning'
+    ? [
+      cleanText(parsed.objectives, 150),
+      cleanText(parsed.description, 60),
+      cleanText(parsed.methodology, 340),
+      cleanText(parsed.evaluation, 280),
+    ].filter(Boolean)
+    : cleanList(parsed.fields, 4, 900)
   if (fields.length !== 4) return json(request, { ok: false, code: 'invalid_model_output' }, 502)
 
   const { data:usage, error:usageError } = await callerClient.rpc('consume_siap_assistant_feature', {

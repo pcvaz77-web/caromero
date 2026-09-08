@@ -15,7 +15,7 @@ Gera quatro campos pedagógicos para planejamento ou PEI usando a OpenAI.
 ## Segredos necessários
 
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL` (opcional; padrão `gpt-5.6-terra`)
+- `OPENAI_MODEL` (opcional; padrão `gpt-5.6-luna`)
 - `ALLOWED_ORIGINS` com o domínio do Carômetro e a origem da extensão aprovada.
 
 O segredo local em `.env.local` serve somente para preparação. A publicação da função e o cadastro do segredo no Supabase são etapas separadas e exigem autorização explícita.

@@ -57,6 +57,35 @@
       : `Extensão conectada${installedVersion ? ` na versão ${installedVersion}` : ''}. Abra o SIAP para continuar.`);
   };
 
+  const connectCurrentSession = async (silent = false) => {
+    if (!currentSession?.access_token || !currentSession?.expires_at) {
+      if (!silent) message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
+      return null;
+    }
+    if (!silent) message('checkoutMessage', 'Validando licença…');
+    const payload = {
+      type:'CAROMETRO_SIAP_CONNECT', accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
+    };
+    if (globalThis.chrome?.runtime?.sendMessage) {
+      for (const extensionId of extensionIds) {
+        const response = await new Promise(resolve => chrome.runtime.sendMessage(extensionId, {
+          ...payload
+        }, result => resolve(chrome.runtime.lastError ? null : result)));
+        if (response?.ok) {
+          if (!silent) showExtensionStatus(response);
+          return response;
+        }
+      }
+    }
+    const bridgedResponse = await connectThroughPageBridge(payload);
+    if (bridgedResponse?.ok) {
+      if (!silent) showExtensionStatus(bridgedResponse);
+      return bridgedResponse;
+    }
+    if (!silent) message('checkoutMessage', 'A extensão não respondeu. Instale ou atualize o Assistente SIAP e tente novamente.', true);
+    return null;
+  };
+
   async function loadPlan() {
     const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
       .eq('plan_key', planKey).eq('active', true).maybeSingle();
@@ -76,6 +105,7 @@
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
       await loadPlan();
+      await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
         message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação da Hotmart.');
       }
@@ -103,33 +133,7 @@
     }
     location.assign(data.checkoutUrl);
   };
-  document.getElementById('connectAssistantAccount').onclick = async () => {
-    if (!currentSession?.access_token) {
-      message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
-      return;
-    }
-    message('checkoutMessage', 'Conectando extensão…');
-    const payload = {
-      type:'CAROMETRO_SIAP_CONNECT', accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
-    };
-    if (globalThis.chrome?.runtime?.sendMessage) {
-      for (const extensionId of extensionIds) {
-        const response = await new Promise(resolve => chrome.runtime.sendMessage(extensionId, {
-          ...payload
-        }, result => resolve(chrome.runtime.lastError ? null : result)));
-        if (response?.ok) {
-          showExtensionStatus(response);
-          return;
-        }
-      }
-    }
-    const bridgedResponse = await connectThroughPageBridge(payload);
-    if (bridgedResponse?.ok) {
-      showExtensionStatus(bridgedResponse);
-      return;
-    }
-    message('checkoutMessage', 'A extensão não respondeu. Instale ou atualize o Assistente SIAP e tente novamente.', true);
-  };
+  document.getElementById('connectAssistantAccount').onclick = () => connectCurrentSession(false);
   document.getElementById('signOutAssistant').onclick = async () => { await db.auth.signOut(); await refresh(); };
   db.auth.onAuthStateChange(() => setTimeout(refresh, 0));
   refresh();
