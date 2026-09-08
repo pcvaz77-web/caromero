@@ -88,8 +88,8 @@ const schemaFor = (kind: DraftKind) => kind === 'planning'
     properties: {
       objectives: { type: 'string', minLength: 10, maxLength: 150 },
       description: { type: 'string', minLength: 15, maxLength: 60 },
-      methodology: { type: 'string', minLength: 200, maxLength: 340 },
-      evaluation: { type: 'string', minLength: 160, maxLength: 280 },
+      methodology: { type: 'string', minLength: 200 },
+      evaluation: { type: 'string', minLength: 160 },
     },
     required: ['objectives', 'description', 'methodology', 'evaluation'],
   }
@@ -234,8 +234,8 @@ Deno.serve(async (request) => {
     ? [
       cleanText(parsed.objectives, 150),
       cleanText(parsed.description, 60),
-      cleanText(parsed.methodology, 340),
-      cleanText(parsed.evaluation, 280),
+      cleanText(parsed.methodology, 1200),
+      cleanText(parsed.evaluation, 800),
     ].filter(Boolean)
     : cleanList(parsed.fields, 4, 900)
   if (fields.length !== 4) return json(request, { ok: false, code: 'invalid_model_output' }, 502)
