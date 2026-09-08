@@ -10,6 +10,7 @@
   const checkoutButton = document.getElementById('startCheckout');
   const connectButton = document.getElementById('connectAssistantAccount');
   const accessSummary = document.getElementById('assistantAccessSummary');
+  const panelTitle = document.getElementById('accountPanelTitle');
   let selectedPlan = null;
   let currentSession = null;
   let accessStatus = null;
@@ -69,11 +70,19 @@
     accessSummary.dataset.mode = status?.mode || '';
     connectButton.disabled = false;
     if (status?.mode === 'subscription' && status.active === true) {
+      panelTitle.textContent = 'Sua assinatura';
+      document.getElementById('selectedPlan').hidden = true;
+      legal.hidden = true;
+      checkoutButton.hidden = true;
       accessSummary.textContent = `Assinatura ativa${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
       connectButton.textContent = 'Conectar extensão a esta conta';
       return;
     }
     if (status?.mode === 'carometro' && status.active === true) {
+      panelTitle.textContent = 'Seu acesso institucional';
+      document.getElementById('selectedPlan').hidden = true;
+      legal.hidden = true;
+      checkoutButton.hidden = true;
       accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
       connectButton.textContent = 'Conectar extensão a esta conta';
       return;
@@ -81,6 +90,10 @@
     const uses = status?.freeUses || {};
     const remaining = ['planning','content','attendance','pei'].map(key => Math.max(0, Number(uses[key] || 0)));
     const available = remaining.some(value => value > 0);
+    panelTitle.textContent = 'Conheça e experimente';
+    document.getElementById('selectedPlan').hidden = false;
+    legal.hidden = false;
+    checkoutButton.hidden = false;
     accessSummary.textContent = available
       ? `Demonstração gratuita — usos restantes: planejamento ${remaining[0]}, conteúdo ${remaining[1]}, frequência ${remaining[2]} e PEI ${remaining[3]}. O limite inicial é de 2 usos por recurso.`
       : 'Demonstração gratuita encerrada. Escolha um plano para continuar usando o Assistente SIAP.';
@@ -92,6 +105,10 @@
     const { data, error } = await db.rpc('get_siap_assistant_access_status');
     if (error || !data) {
       accessStatus = null;
+      panelTitle.textContent = 'Confirme a assinatura';
+      document.getElementById('selectedPlan').hidden = false;
+      legal.hidden = false;
+      checkoutButton.hidden = false;
       accessSummary.hidden = false;
       accessSummary.removeAttribute('data-mode');
       accessSummary.textContent = 'Não foi possível verificar seu acesso agora. Tente novamente.';

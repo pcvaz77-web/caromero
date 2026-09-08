@@ -74,6 +74,7 @@ test('distingue demonstração gratuita de assinatura ou acesso institucional ao
   assert.match(account, /Acesso institucional/);
   assert.match(account, /\['subscription','carometro'\]/);
   assert.match(accountHtml, /assistantAccessSummary/);
+  assert.doesNotMatch(accountHtml, /consumer\.hotmart\.com|Gerenciar ou cancelar assinatura na Hotmart/);
 });
 
 test('migra os dois produtos para Asaas sem misturar seus registros', () => {
