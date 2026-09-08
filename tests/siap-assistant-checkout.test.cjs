@@ -9,6 +9,7 @@ const migration = read('supabase/migrations/084_siap_assistant_checkout.sql');
 const asaasMigration = read('supabase/migrations/085_asaas_payment_provider.sql');
 const landing = read('assistente-siap.html');
 const account = read('assistente-siap-conta.js');
+const accountHtml = read('assistente-siap-conta.html');
 const createCheckout = read('supabase/functions/create-asaas-assistant-checkout/index.ts');
 const schoolCheckout = read('supabase/functions/create-asaas-school-checkout/index.ts');
 const webhook = read('supabase/functions/asaas-payment-webhook/index.ts');
@@ -63,6 +64,16 @@ test('checkout exige login e aceite antes de abrir a Hotmart', () => {
   assert.match(schoolFrontend, /create-hotmart-school-checkout/);
   assert.match(landing, /R\$ 89,90 \/ mês/);
   assert.match(landing, /R\$ 129,90 \/ 6 meses/);
+});
+
+test('distingue demonstração gratuita de assinatura ou acesso institucional ao conectar a extensão', () => {
+  assert.match(account, /get_siap_assistant_access_status/);
+  assert.match(account, /Experimentar gratuitamente na extensão/);
+  assert.match(account, /O limite inicial é de 2 usos por recurso/);
+  assert.match(account, /Assinatura ativa/);
+  assert.match(account, /Acesso institucional/);
+  assert.match(account, /\['subscription','carometro'\]/);
+  assert.match(accountHtml, /assistantAccessSummary/);
 });
 
 test('migra os dois produtos para Asaas sem misturar seus registros', () => {

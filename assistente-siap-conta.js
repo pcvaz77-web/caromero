@@ -8,8 +8,11 @@
   const checkoutPanel = document.getElementById('checkoutPanel');
   const legal = document.getElementById('acceptLegal');
   const checkoutButton = document.getElementById('startCheckout');
+  const connectButton = document.getElementById('connectAssistantAccount');
+  const accessSummary = document.getElementById('assistantAccessSummary');
   let selectedPlan = null;
   let currentSession = null;
+  let accessStatus = null;
   const extensionIds = [
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
     'mohcmojnkjjkphgjaogcbokjmnijmggl',
@@ -52,9 +55,52 @@
       message('checkoutMessage', `Extensão ${installedVersion} conectada, mas precisa ser atualizada antes do uso. Abra a Chrome Web Store.`, true);
       return;
     }
+    const accessLabel = accessStatus?.mode === 'subscription' ? 'Assinatura ativa'
+      : accessStatus?.mode === 'carometro' ? 'Acesso institucional'
+      : 'Demonstração gratuita';
     message('checkoutMessage', installedVersion && recommendedVersion && compareVersions(installedVersion, recommendedVersion) < 0
       ? `Extensão ${installedVersion} conectada. Há uma atualização recomendada na Chrome Web Store.`
-      : `Extensão conectada${installedVersion ? ` na versão ${installedVersion}` : ''}. Abra o SIAP para continuar.`);
+      : `${accessLabel} conectada${installedVersion ? ` à extensão ${installedVersion}` : ' à extensão'}. Abra o SIAP para continuar.`);
+  };
+
+  const renderAccessStatus = status => {
+    accessStatus = status;
+    accessSummary.hidden = false;
+    accessSummary.dataset.mode = status?.mode || '';
+    connectButton.disabled = false;
+    if (status?.mode === 'subscription' && status.active === true) {
+      accessSummary.textContent = `Assinatura ativa${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
+      connectButton.textContent = 'Conectar extensão a esta conta';
+      return;
+    }
+    if (status?.mode === 'carometro' && status.active === true) {
+      accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
+      connectButton.textContent = 'Conectar extensão a esta conta';
+      return;
+    }
+    const uses = status?.freeUses || {};
+    const remaining = ['planning','content','attendance','pei'].map(key => Math.max(0, Number(uses[key] || 0)));
+    const available = remaining.some(value => value > 0);
+    accessSummary.textContent = available
+      ? `Demonstração gratuita — usos restantes: planejamento ${remaining[0]}, conteúdo ${remaining[1]}, frequência ${remaining[2]} e PEI ${remaining[3]}. O limite inicial é de 2 usos por recurso.`
+      : 'Demonstração gratuita encerrada. Escolha um plano para continuar usando o Assistente SIAP.';
+    connectButton.textContent = available ? 'Experimentar gratuitamente na extensão' : 'Demonstração gratuita encerrada';
+    connectButton.disabled = !available;
+  };
+
+  const loadAccessStatus = async () => {
+    const { data, error } = await db.rpc('get_siap_assistant_access_status');
+    if (error || !data) {
+      accessStatus = null;
+      accessSummary.hidden = false;
+      accessSummary.removeAttribute('data-mode');
+      accessSummary.textContent = 'Não foi possível verificar seu acesso agora. Tente novamente.';
+      connectButton.textContent = 'Acesso não verificado';
+      connectButton.disabled = true;
+      return null;
+    }
+    renderAccessStatus(data);
+    return data;
   };
 
   const connectCurrentSession = async (silent = false) => {
@@ -105,7 +151,8 @@
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
       await loadPlan();
-      await connectCurrentSession(true);
+      const status = await loadAccessStatus();
+      if (status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
         message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação da Hotmart.');
       }
@@ -133,7 +180,7 @@
     }
     location.assign(data.checkoutUrl);
   };
-  document.getElementById('connectAssistantAccount').onclick = () => connectCurrentSession(false);
+  connectButton.onclick = () => connectCurrentSession(false);
   document.getElementById('signOutAssistant').onclick = async () => { await db.auth.signOut(); await refresh(); };
   db.auth.onAuthStateChange(() => setTimeout(refresh, 0));
   refresh();

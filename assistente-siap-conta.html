@@ -7,7 +7,7 @@
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assistente-siap.css">
   <link rel="stylesheet" href="assistente-siap-support.css">
-  <link rel="stylesheet" href="assistente-siap-conta.css">
+  <link rel="stylesheet" href="assistente-siap-conta.css?v=2">
 </head>
 <body class="account-page">
   <header class="site-header">
@@ -39,7 +39,8 @@
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
-        <button id="connectAssistantAccount" class="button button-outline" type="button">Conectar extensão a esta conta</button>
+        <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
+        <button id="connectAssistantAccount" class="button button-outline" type="button" disabled>Verificando acesso…</button>
         <a class="account-link" href="https://consumer.hotmart.com" target="_blank" rel="noopener">Gerenciar ou cancelar assinatura na Hotmart</a>
         <button id="signOutAssistant" class="account-link" type="button">Entrar com outro e-mail</button>
         <p id="checkoutMessage" class="account-message" aria-live="polite"></p>
@@ -48,6 +49,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=7"></script>
+  <script src="assistente-siap-conta.js?v=8"></script>
 </body>
 </html>
