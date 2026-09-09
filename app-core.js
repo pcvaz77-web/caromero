@@ -83,7 +83,13 @@ window.resetCarometroSchoolState = () => {
   selectedClassId = null;
   selectedShift = null;
   detailStudentId = null;
-  $('permissionsNav')?.classList.add('hidden');
+  const permissionsNav = $('permissionsNav');
+  permissionsNav?.classList.add('hidden');
+  if (permissionsNav) {
+    permissionsNav.hidden = true;
+    permissionsNav.style.setProperty('display', 'none', 'important');
+    permissionsNav.setAttribute('aria-hidden', 'true');
+  }
   $('newStudent')?.classList.add('hidden');
   $('newBulk')?.classList.add('hidden');
   $('newClass')?.classList.add('hidden');
@@ -133,12 +139,15 @@ $('recoveryForm').onsubmit = async event => {
 };
 $('signOut').onclick = async () => {
   window.prepareCarometroSignOut?.();
+  // Invalida a identidade e a interface antes do primeiro await. Assim uma
+  // resolução de permissão iniciada pela conta anterior não pode reaparecer
+  // durante a saída nem contaminar o próximo login nesta mesma página.
+  user = null;
+  window.resetCarometroSchoolState?.();
   await window.disableCarometroPush?.();
   await window.clearCarometroNotificationChannel?.();
   window.clearActiveSchoolContext?.();
   await db.auth.signOut();
-  window.resetCarometroSchoolState?.();
-  user = null;
   $('login').classList.remove('hidden');
 };
 $('newBulk').onclick = () => {

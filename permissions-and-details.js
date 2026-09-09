@@ -292,7 +292,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
     const canManageTeachers = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
-    document.getElementById('permissionsNav').classList.toggle('hidden', !(admin || canManageTeachers || window.counselorCanManage?.()));
+    const canManageCounselors = !!permission.is_coordinator && !!window.counselorCanManage?.();
+    const permissionsNav = document.getElementById('permissionsNav');
+    const showPermissions = admin || canManageTeachers || canManageCounselors;
+    permissionsNav.classList.toggle('hidden', !showPermissions);
+    permissionsNav.hidden = !showPermissions;
+    if (showPermissions) permissionsNav.style.removeProperty('display');
+    else permissionsNav.style.setProperty('display', 'none', 'important');
+    permissionsNav.setAttribute('aria-hidden', String(!showPermissions));
     // counselorNav não é mais controlado aqui: class-counselors.js é o dono
     // exclusivo dessa visibilidade, com a fonte comercial real
     // (can_manage_class_counselors(target_school_id), role='coordinator' —
@@ -307,6 +314,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function refreshCurrentPermission() {
     const membership = await currentSchoolMembership();
+    // Uma consulta iniciada pela conta anterior pode terminar depois de uma
+    // troca rápida de login. Nunca aplique esse vínculo à sessão atual.
+    if (membership && (!user || membership.user_id !== user.id)) return;
     const data = permissionFromMembership(membership);
     if (!data) { window.resetCarometroSchoolState?.(); return; }
     const counselorShouldBeVisible = !!data.is_coordinator && !!(data.can_edit_all || data.can_manage_counselors);
