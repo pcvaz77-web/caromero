@@ -26,6 +26,7 @@ const dashboard = read('platform-owner-dashboard.js');
 const purchaseConfirmed = read('compra-confirmada.html');
 const carometroPurchaseInvitation = read('supabase/migrations/101_carometro_purchase_requires_invitation.sql');
 const separatedProductAccounts = read('supabase/migrations/102_separate_carometro_accounts_from_siap.sql');
+const correctedCustomerStatus = read('supabase/migrations/103_fix_siap_customer_status_display.sql');
 
 test('mantem checkout do Assistente separado das assinaturas das escolas', () => {
   assert.match(migration, /create table if not exists public\.siap_assistant_payment_subscriptions/);
@@ -196,4 +197,13 @@ test('separa contas do Carometro das identidades exclusivas do Assistente SIAP',
   assert.doesNotMatch(dashboard, /platform-account-siap-access|platformSiapAccess/);
   assert.match(dashboard, /platform_list_siap_assistant_customers/);
   assert.match(dashboard, /platform_list_siap_school_users/);
+});
+
+test('mostra o estado efetivo dos clientes do Assistente SIAP', () => {
+  assert.match(correctedCustomerStatus, /when c\.active_subscription then c\.latest_payment_created_at/);
+  assert.match(correctedCustomerStatus, /when c\.active_trial then c\.trial_started_at/);
+  assert.match(correctedCustomerStatus, /case when e\.active_subscription then e\.latest_plan_key else null end/);
+  assert.match(correctedCustomerStatus, /e\.grant_expires_at <= now\(\)\+interval '3 days'/);
+  assert.match(correctedCustomerStatus, /e\.paid_until <= now\(\)\+interval '5 days'/);
+  assert.match(correctedCustomerStatus, /e\.trial_ends_at <= now\(\)\+interval '3 days'/);
 });
