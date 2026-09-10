@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
-    const { data, error } = await db.rpc('admin_list_accounts_v3');
+    const { data, error } = await db.rpc('admin_list_carometro_accounts');
     if (error) {
       target.innerHTML = '<div class="error">Execute primeiro o arquivo de configuração de acesso no Supabase.</div>';
       return;
@@ -368,14 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (!item.email_confirmed) return { cls:'access-pending', label:'Aguardando confirmação de e-mail', toggle:null };
       if (Number(item.active_memberships || 0) > 0) return { cls:'access-active', label:'Vínculo escolar ativo', toggle:'suspended' };
-      if (item.assistant_paid_active) return { cls:'access-active', label:'Licença paga ativa', toggle:'suspended' };
-      if (['creating','pending'].includes(item.assistant_payment_status)) {
-        return { cls:'access-pending', label:'Pagamento pendente — acesso não comprado', toggle:'suspended' };
-      }
-      if (['expired','cancelled','failed'].includes(item.assistant_payment_status)) {
-        return { cls:'access-unknown', label:'Checkout abandonado — acesso gratuito', toggle:'suspended' };
-      }
-      if (item.access_status === 'active') return { cls:'access-unknown', label:'Cadastro confirmado — acesso gratuito', toggle:'suspended' };
+      if (item.access_status === 'active') return { cls:'access-active', label:'Conta do Carômetro ativa', toggle:'suspended' };
       // E-mail confirmado mas sem access_status definido (sem linha em user_permissions,
       // ou valor inesperado): não deve ser classificado como ativo nem como suspenso.
       return { cls:'access-unknown', label:'Acesso sem permissão configurada', toggle:null };

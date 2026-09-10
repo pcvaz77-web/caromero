@@ -1068,10 +1068,6 @@
     const pendingInvitationsLine = pendingInvitations.length
       ? `<p class="meta">Convites pendentes: ${pendingInvitations.map(i => `${esc(i.school_name || i.school_id)} (${esc(i.role)})`).join(', ')}</p>`
       : '';
-    const siap = user.siap_assistant || {};
-    const siapLicenseLabel = siap.owner_granted
-      ? (siap.grant_permanent ? 'Concessão permanente' : `Concessão válida até ${formatDateTime(siap.grant_expires_at)}`)
-      : (siap.paid_until ? `Assinatura válida até ${formatDateTime(siap.paid_until)}` : 'Sem concessão ativa');
     target.innerHTML = `
       <strong>${esc(user.full_name || 'Conta sem nome cadastrado')}</strong>
       <p class="meta">${esc(user.email)}</p>
@@ -1085,10 +1081,6 @@
       <div class="platform-account-memberships"><b>Escolas e funções (${esc(user.memberships)})</b>${membershipCards}</div>
       ${adminSchoolsLine}
       ${pendingInvitationsLine}
-      <div class="platform-account-siap-access">
-        <div><b>Assistente SIAP</b><p class="meta">Permissão individual concedida somente pelo proprietário da plataforma. ${esc(siapLicenseLabel)}</p></div>
-        <label class="platform-switch" title="Permitir acesso ao Assistente SIAP"><input id="platformSiapAccess" type="checkbox" ${siap.owner_granted ? 'checked' : ''}><span></span></label>
-      </div>
       ${warnings}
       <div class="actions">
         <button class="btn secondary" type="button" data-account-action="cancel_login" ${blocked ? 'disabled' : ''}>Cancelar login</button>
@@ -1097,8 +1089,6 @@
     target.querySelectorAll('[data-account-action]').forEach(button => {
       button.onclick = () => manageAccount(button);
     });
-    const siapToggle = document.getElementById('platformSiapAccess');
-    if (siapToggle) siapToggle.onchange = () => setSiapAssistantAccess(siapToggle);
   }
 
   async function setSiapAssistantAccess(input) {

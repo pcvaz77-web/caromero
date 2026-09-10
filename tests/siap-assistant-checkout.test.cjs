@@ -25,6 +25,7 @@ const schoolFrontend = read('subscription-settings.js');
 const dashboard = read('platform-owner-dashboard.js');
 const purchaseConfirmed = read('compra-confirmada.html');
 const carometroPurchaseInvitation = read('supabase/migrations/101_carometro_purchase_requires_invitation.sql');
+const separatedProductAccounts = read('supabase/migrations/102_separate_carometro_accounts_from_siap.sql');
 
 test('mantem checkout do Assistente separado das assinaturas das escolas', () => {
   assert.match(migration, /create table if not exists public\.siap_assistant_payment_subscriptions/);
@@ -180,13 +181,19 @@ test('sincroniza os quatro precos do Carometro de forma atomica e confirmada', (
 
 test('distingue login confirmado de compra e aceita pagamento Hotmart tardio', () => {
   assert.match(accountCommercialStatus, /admin_list_accounts_v3/);
-  assert.match(accountCommercialStatus, /assistant_payment_status text/);
-  assert.match(accountCommercialStatus, /assistant_paid_active boolean/);
   assert.match(accountCommercialStatus, /CHECKOUT_ABANDONED/);
   assert.match(accountCommercialStatus, /created_at < now\(\) - interval '24 hours'/);
-  assert.match(schoolFrontend, /admin_list_accounts_v3/);
-  assert.match(schoolFrontend, /Pagamento pendente — acesso não comprado/);
-  assert.match(schoolFrontend, /Cadastro confirmado — acesso gratuito/);
-  assert.match(schoolFrontend, /Licença paga ativa/);
   assert.match(hotmartWebhook, /'pending','authorized','paused','expired'/);
+});
+
+test('separa contas do Carometro das identidades exclusivas do Assistente SIAP', () => {
+  assert.match(separatedProductAccounts, /admin_list_carometro_accounts/);
+  assert.match(separatedProductAccounts, /from public\.school_members/);
+  assert.match(separatedProductAccounts, /from public\.school_invitations/);
+  assert.doesNotMatch(separatedProductAccounts, /siap_assistant_/);
+  assert.match(schoolFrontend, /admin_list_carometro_accounts/);
+  assert.doesNotMatch(schoolFrontend, /assistant_paid_active|assistant_payment_status/);
+  assert.doesNotMatch(dashboard, /platform-account-siap-access|platformSiapAccess/);
+  assert.match(dashboard, /platform_list_siap_assistant_customers/);
+  assert.match(dashboard, /platform_list_siap_school_users/);
 });
