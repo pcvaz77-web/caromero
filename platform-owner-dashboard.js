@@ -142,6 +142,7 @@
                 <article><span>3</span><div><h4>Licenças individuais</h4><p>Fonte de dados própria, sem reutilizar assinaturas ou permissões escolares.</p></div><b class="platform-badge active">Backend conectado</b></article>
                 <article><span>4</span><div><h4>Pagamentos</h4><p>Planos mensal e semestral integrados à confirmação de compra da Hotmart.</p></div><b class="platform-badge active">Hotmart integrada</b></article>
               </div>
+              <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
             </section>
@@ -267,6 +268,8 @@
     return Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   }
 
+  const shortDate = value => new Intl.DateTimeFormat('pt-BR').format(new Date(value));
+
   function renderSiapPlans(plans, error) {
     const target = document.getElementById('platformSiapPlans');
     if (!target) return;
@@ -306,6 +309,47 @@
         } finally { button.disabled = false; }
       };
     });
+  }
+
+  function renderSiapCustomers(customers, error) {
+    const stats = document.getElementById('platformSiapCustomerStats');
+    const body = document.getElementById('platformSiapCustomersBody');
+    if (!stats || !body) return;
+    if (error) {
+      stats.innerHTML = '<div class="empty">O acompanhamento ficará disponível após a aplicação da nova etapa do Assistente SIAP.</div>';
+      body.innerHTML = '';
+      return;
+    }
+    const rows = customers || [];
+    const active = rows.filter(item => ['active','trial','expiring','authorized'].includes(item.access_status)).length;
+    const expiring = rows.filter(item => item.access_status === 'expiring').length;
+    const newest = rows.filter(item => item.is_new_customer).length;
+    const paid = rows.filter(item => item.entitlement_type === 'subscription' && Number(item.days_remaining) > 0).length;
+    stats.innerHTML = [
+      ['Clientes acompanhados', rows.length],
+      ['Ativos', active],
+      ['Vencendo em breve', expiring],
+      ['Novos em 30 dias', newest],
+      ['Assinaturas pagas', paid]
+    ].map(([label,value]) => `<article><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`).join('');
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7"><div class="empty">Nenhum cliente do Assistente SIAP encontrado.</div></td></tr>';
+      return;
+    }
+    const statusLabels = {
+      active:'Ativo', trial:'Teste gratuito', expiring:'Vencendo em breve', authorized:'Autorizado — teste não iniciado',
+      pending_payment:'Pagamento pendente', suspended:'Suspenso', expired:'Vencido'
+    };
+    const planLabel = item => item.plan_name || (item.owner_granted ? 'Concessão do proprietário' : (item.entitlement_type === 'trial' ? 'Teste gratuito' : 'Sem plano'));
+    body.innerHTML = rows.map(item => `<tr>
+      <td><strong>${esc(item.full_name || 'Nome não informado')}</strong><span>${esc(item.email || '')}</span>${item.is_new_customer ? '<b class="platform-badge active">Novo</b>' : ''}</td>
+      <td>${item.owner_granted ? 'Autorização manual' : (item.entitlement_type === 'subscription' ? 'Assinatura' : 'Teste')}</td>
+      <td>${esc(planLabel(item))}</td>
+      <td>${item.customer_since ? esc(shortDate(item.customer_since)) : '—'}</td>
+      <td>${item.access_ends_at ? esc(shortDate(item.access_ends_at)) : 'Ainda não iniciado'}</td>
+      <td><strong>${item.days_remaining === null ? '—' : esc(item.days_remaining)}</strong></td>
+      <td><span class="platform-siap-customer-status ${esc(item.access_status)}">${esc(statusLabels[item.access_status] || item.access_status)}</span></td>
+    </tr>`).join('');
   }
 
   function limitLabel(value, singular, plural) {
@@ -973,6 +1017,10 @@
     const pendingInvitationsLine = pendingInvitations.length
       ? `<p class="meta">Convites pendentes: ${pendingInvitations.map(i => `${esc(i.school_name || i.school_id)} (${esc(i.role)})`).join(', ')}</p>`
       : '';
+    const siap = user.siap_assistant || {};
+    const siapLicenseLabel = siap.paid_until
+      ? `Assinatura válida até ${formatDateTime(siap.paid_until)}`
+      : (siap.trial_started_at ? `Teste iniciado; término em ${formatDateTime(siap.trial_ends_at)}` : 'O teste gratuito de 30 dias começa no primeiro acesso');
     target.innerHTML = `
       <strong>${esc(user.full_name || 'Conta sem nome cadastrado')}</strong>
       <p class="meta">${esc(user.email)}</p>
@@ -986,6 +1034,10 @@
       <div class="platform-account-memberships"><b>Escolas e funções (${esc(user.memberships)})</b>${membershipCards}</div>
       ${adminSchoolsLine}
       ${pendingInvitationsLine}
+      <div class="platform-account-siap-access">
+        <div><b>Assistente SIAP</b><p class="meta">Permissão individual concedida somente pelo proprietário da plataforma. ${esc(siapLicenseLabel)}</p></div>
+        <label class="platform-switch" title="Permitir acesso ao Assistente SIAP"><input id="platformSiapAccess" type="checkbox" ${siap.owner_granted ? 'checked' : ''}><span></span></label>
+      </div>
       ${warnings}
       <div class="actions">
         <button class="btn secondary" type="button" data-account-action="cancel_login" ${blocked ? 'disabled' : ''}>Cancelar login</button>
@@ -994,6 +1046,33 @@
     target.querySelectorAll('[data-account-action]').forEach(button => {
       button.onclick = () => manageAccount(button);
     });
+    const siapToggle = document.getElementById('platformSiapAccess');
+    if (siapToggle) siapToggle.onchange = () => setSiapAssistantAccess(siapToggle);
+  }
+
+  async function setSiapAssistantAccess(input) {
+    const target = document.getElementById('platformAccountResult');
+    if (!target?.dataset.userId) return;
+    const enabled = input.checked;
+    input.disabled = true;
+    try {
+      const { data, error } = await db.rpc('platform_set_siap_assistant_access', {
+        p_user_id:target.dataset.userId,
+        p_enabled:enabled
+      });
+      if (error) throw error;
+      const paidPreserved = !enabled && data?.paidAccessPreserved;
+      toast(paidPreserved
+        ? 'Concessão manual removida. A assinatura paga continua válida.'
+        : (enabled ? 'Acesso ao Assistente SIAP autorizado.' : 'Acesso ao Assistente SIAP revogado.'));
+      const email = target.dataset.email;
+      const refreshed = await invokeManageUser({ action:'lookup_user', email });
+      renderAccount(refreshed.user);
+    } catch (error) {
+      input.checked = !enabled;
+      input.disabled = false;
+      toast(error.message || 'Não foi possível atualizar o acesso ao Assistente SIAP.');
+    }
   }
 
   async function lookupAccount(event) {
@@ -1588,7 +1667,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1600,7 +1679,8 @@
       db.rpc('platform_list_school_applications'),
       db.rpc('platform_list_payment_subscriptions'),
       db.rpc('platform_list_siap_assistant_commercial_plans'),
-      db.rpc('platform_list_school_commercial_mappings')
+      db.rpc('platform_list_school_commercial_mappings'),
+      db.rpc('platform_list_siap_assistant_customers')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1649,6 +1729,7 @@
     renderPaymentSubscriptions(paymentSubscriptionsResult.data || [], applicationsResult.data || [], paymentSubscriptionsResult.error);
     renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
     renderSiapPlans(siapPlansResult.data || [], siapPlansResult.error);
+    renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }

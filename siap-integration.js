@@ -127,22 +127,21 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('siapIntegrationMeta').textContent = className || 'Turma selecionada';
     const installUrl = assistantInstallUrl();
     const presentationUrl = assistantPresentationUrl();
-    document.getElementById('siapIntegrationContent').innerHTML = `<section class="siap-brand-card"><div class="siap-brand-mark">✦</div><div><h4>Assistente SIAP do Professor</h4><p>Planejamento, conteúdo, frequência e PEI com revisão do professor e sem captura de credenciais.</p></div></section><div class="siap-feature-grid"><div class="siap-feature"><strong>Instalação controlada</strong><span>O acesso aparece somente para usuários autorizados nesta escola.</span></div><div class="siap-feature"><strong>Privacidade</strong><span>Login e senha do SIAP nunca passam pelo Carômetro.</span></div></div><div class="siap-integration-actions"><a class="btn primary" href="${safe(presentationUrl)}" target="_blank" rel="noopener noreferrer">Conhecer e instalar</a><button id="connectSiapAi" class="btn primary" type="button">Validar novamente</button><button id="closeSiapAssistant" class="btn secondary" type="button">Voltar</button></div><div id="siapAiConnectionStatus" class="siap-integration-note">A licença será validada automaticamente pelo Carômetro. Nome, matrícula e senha do SIAP não são enviados.</div>${installUrl ? '' : '<div class="siap-integration-note">A instalação será concluída pela Chrome Web Store depois da publicação oficial.</div>'}`;
+    document.getElementById('siapIntegrationContent').innerHTML = `<section class="siap-brand-card"><div class="siap-brand-mark">✦</div><div><h4>Assistente SIAP do Professor</h4><p>Planejamento, conteúdo, frequência e PEI com revisão do professor e sem captura de credenciais.</p></div></section><div class="siap-feature-grid"><div class="siap-feature"><strong>Instalação controlada</strong><span>O acesso aparece somente para usuários autorizados pelo proprietário da plataforma ou com assinatura válida.</span></div><div class="siap-feature"><strong>Privacidade</strong><span>Login e senha do SIAP nunca passam pelo Carômetro.</span></div></div><div class="siap-integration-actions"><a class="btn primary" href="${safe(presentationUrl)}" target="_blank" rel="noopener noreferrer">Conhecer e instalar</a><button id="connectSiapAi" class="btn primary" type="button">Validar novamente</button><button id="closeSiapAssistant" class="btn secondary" type="button">Voltar</button></div><div id="siapAiConnectionStatus" class="siap-integration-note">A licença será validada automaticamente pelo Carômetro. Nome, matrícula e senha do SIAP não são enviados.</div>${installUrl ? '' : '<div class="siap-integration-note">A instalação será concluída pela Chrome Web Store depois da publicação oficial.</div>'}`;
     modal.classList.remove('hidden');
     document.getElementById('connectSiapAi').onclick = () => connectAssistantAi(document.getElementById('siapAiConnectionStatus'));
     document.getElementById('closeSiapAssistant').onclick = closeModal;
     modal.querySelector('[data-siap-close]')?.focus();
     connectAssistantAi(document.getElementById('siapAiConnectionStatus'), true);
   };
+  let assistantAccessVisible = false;
   const syncMainAssistantButton = () => {
     const greetingRow = document.querySelector('.welcome-notification-row');
     const bell = document.getElementById('notificationBell');
     if (!greetingRow || !bell) return;
-    const rights = typeof permission === 'object' && permission ? permission : {};
-    const allowed = rights.role === 'admin' || rights.can_use_siap_assistant;
     const onMainPage = !selectedClassId && document.getElementById('pageTitle')?.textContent.trim() === 'CARÔMETRO';
     let button = document.getElementById('openSiapAssistant');
-    if (!allowed) {
+    if (!assistantAccessVisible) {
       button?.remove();
       return;
     }
@@ -159,9 +158,14 @@ document.addEventListener('DOMContentLoaded', () => {
       openAssistantModal('Página principal');
     };
   };
+  const refreshAssistantButtonAccess = async () => {
+    const { data, error } = await db.rpc('get_siap_assistant_button_visibility');
+    assistantAccessVisible = !error && data?.visible === true;
+    syncMainAssistantButton();
+  };
   const app = document.getElementById('app');
   if (app) new MutationObserver(syncMainAssistantButton).observe(app, { subtree:true, childList:true, attributes:true, attributeFilter:['class'] });
-  syncMainAssistantButton();
+  refreshAssistantButtonAccess();
   let lastAutomaticValidation = 0;
   const renewAssistantAuthorization = async force => {
     if (!force && Date.now() - lastAutomaticValidation < 10 * 60 * 1000) return;
@@ -172,9 +176,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) renewAssistantAuthorization(false); });
   setInterval(() => renewAssistantAuthorization(false), 10 * 60 * 1000);
   db.auth.onAuthStateChange((event, session) => {
-    if (session?.access_token && ['INITIAL_SESSION', 'SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) setTimeout(() => renewAssistantAuthorization(true), 0);
+    if (session?.access_token && ['INITIAL_SESSION', 'SIGNED_IN', 'TOKEN_REFRESHED'].includes(event)) {
+      setTimeout(() => renewAssistantAuthorization(true), 0);
+      setTimeout(refreshAssistantButtonAccess, 0);
+    }
   });
   window.syncMainSiapAssistantButton = syncMainAssistantButton;
+  window.refreshSiapAssistantButtonAccess = refreshAssistantButtonAccess;
   window.getSiapAttendanceBadge = () => '';
   window.getSiapPanelActions = () => '';
   window.bindSiapPanelActions = () => {};

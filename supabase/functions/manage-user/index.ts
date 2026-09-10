@@ -147,6 +147,8 @@ Deno.serve(async (request) => {
       { data: owner, error: ownerError },
       { data: adminSchools, error: adminSchoolsError },
       { data: pendingInvitations, error: pendingInvitationsError },
+      { data: siapGrant, error: siapGrantError },
+      { data: siapLicense, error: siapLicenseError },
     ] = await Promise.all([
       admin.from('profiles').select('email,full_name').eq('id', targetAuth.id).maybeSingle(),
       admin.from('school_members').select('school_id, role, status, created_at, schools(name)').eq('user_id', targetAuth.id).order('created_at'),
@@ -155,8 +157,10 @@ Deno.serve(async (request) => {
       admin.from('school_members').select('school_id, schools(name)').eq('user_id', targetAuth.id).eq('role', 'school_admin'),
       admin.from('school_invitations').select('id, role, school_id, schools(name), expires_at')
         .eq('email', normalizedEmail).eq('status', 'pending').gt('expires_at', new Date().toISOString()),
+      admin.from('siap_assistant_access_grants').select('revoked_at').eq('user_id', targetAuth.id).maybeSingle(),
+      admin.from('siap_assistant_licenses').select('entitlement_type,trial_started_at,trial_ends_at,paid_until,suspended_at').eq('user_id', targetAuth.id).maybeSingle(),
     ])
-    if (profileError || membershipError || accessError || ownerError || adminSchoolsError || pendingInvitationsError) {
+    if (profileError || membershipError || accessError || ownerError || adminSchoolsError || pendingInvitationsError || siapGrantError || siapLicenseError) {
       return json(request, { error: 'Não foi possível consultar os dados da conta.' }, 500)
     }
 
@@ -202,6 +206,14 @@ Deno.serve(async (request) => {
           school_name: (row.schools as { name?: string } | null)?.name ?? null,
           expires_at: row.expires_at,
         })),
+        siap_assistant: {
+          owner_granted: Boolean(siapGrant && !siapGrant.revoked_at),
+          entitlement_type: siapLicense?.entitlement_type ?? null,
+          trial_started_at: siapLicense?.trial_started_at ?? null,
+          trial_ends_at: siapLicense?.trial_ends_at ?? null,
+          paid_until: siapLicense?.paid_until ?? null,
+          suspended: Boolean(siapLicense?.suspended_at),
+        },
         blocked: blockedReasons.length > 0,
         blocked_reasons: blockedReasons,
       }
