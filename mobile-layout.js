@@ -418,6 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
     if (!document.getElementById('reportsModal')?.classList.contains('hidden')) return 'reportsNav';
+    if (!document.getElementById('schoolYearModal')?.classList.contains('hidden')) return 'schoolYearNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
     if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
     if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';
@@ -589,6 +590,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('uniformModal')?.classList.contains('hidden')) return 'uniformNav';
     if (!document.getElementById('occurrenceModal')?.classList.contains('hidden')) return 'occurrenceNav';
     if (!document.getElementById('reportsModal')?.classList.contains('hidden')) return 'reportsNav';
+    if (!document.getElementById('schoolYearModal')?.classList.contains('hidden')) return 'schoolYearNav';
     if (!document.getElementById('permissionsModal')?.classList.contains('hidden')) return 'permissionsNav';
     if (!document.getElementById('settingsModal')?.classList.contains('hidden')) return 'settingsNav';
     if (document.getElementById('profileDrawer')?.classList.contains('open')) return 'profileNav';

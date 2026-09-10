@@ -108,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // filtrado/autorizado (datasetStudents). uniformItemsByStudent:
   // student_id -> linha real de report_uniform_status.
   let uniformItemsByStudent = new Map();
+  let transferredStudents = [];
   let uniformItemsSignature = '';
   let uniformItemsError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
@@ -160,10 +161,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const classIds = classValue
       ? [classValue]
       : classes.filter(item => !shiftValue || (item.shift || 'Matutino') === shiftValue).map(item => item.id);
-    const pool = students.filter(item => classIds.includes(item.classId)).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
-    select.innerHTML = '<option value="">Todos</option>' + pool.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
+    const activePool = students.filter(item => classIds.includes(item.classId));
+    const pool = [...activePool, ...(!classValue && !shiftValue ? transferredStudents : [])].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
+    select.innerHTML = '<option value="">Todos</option>' + pool.map(item => `<option value="${item.id}">${escape(item.name)}${item.transferred ? ` — ${escape(item.className)} (transferido)` : ''}</option>`).join('');
     if (pool.some(item => item.id === current)) select.value = current;
     else select.value = '';
+  }
+
+  async function loadTransferredStudents() {
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId) { transferredStudents = []; return; }
+    const { data, error } = await db.from('students')
+      .select('id,full_name,class_id,class_name')
+      .eq('school_id', schoolId)
+      .eq('enrollment_status', 'transferred')
+      .order('full_name');
+    transferredStudents = error ? [] : (data || []).map(item => ({ id:item.id, name:item.full_name, classId:item.class_id, className:item.class_name || 'Turma anterior', transferred:true }));
   }
 
   function currentFilters() {
@@ -841,6 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // desatualizado se o calendário foi configurado/corrigido nesse meio-tempo.
     livroRevisaTerms = null;
     await load();
+    await loadTransferredStudents();
     fillShiftClasses();
     fillClassStudents();
     await refreshPreview();

@@ -10,7 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
     occurrenceNav: ['warning', 'Ocorrência'],
     observationsNav: ['tag', 'Gerenciar observações'],
     profileNav: ['user', 'Meu Perfil'],
-    settingsNav: ['settings', 'Configurações']
+    settingsNav: ['settings', 'Configurações'],
+    schoolYearNav: ['calendar', 'Preparar novo ano letivo']
   };
 
   Object.entries(items).forEach(([id, [icon, label]]) => {
