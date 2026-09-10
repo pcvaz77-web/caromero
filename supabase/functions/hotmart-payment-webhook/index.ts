@@ -4,6 +4,7 @@ import type { User } from 'https://esm.sh/@supabase/supabase-js@2'
 type Json = Record<string, any>
 const response=(body:Json,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}})
 const cleanEmail=(value:unknown)=>String(value??'').trim().toLowerCase()
+const errorMessage=(error:unknown)=>error instanceof Error?error.message:typeof error==='string'?error:JSON.stringify(error)
 const millisDate=(value:unknown)=>Number.isFinite(Number(value))?new Date(Number(value)).toISOString():null
 const addUtcMonths=(value:Date,months:number)=>{const result=new Date(value);const day=result.getUTCDate();result.setUTCDate(1);result.setUTCMonth(result.getUTCMonth()+months);const lastDay=new Date(Date.UTC(result.getUTCFullYear(),result.getUTCMonth()+1,0)).getUTCDate();result.setUTCDate(Math.min(day,lastDay));return result}
 
@@ -52,7 +53,7 @@ Deno.serve(async request=>{
   if(inboxError?.code==='23505') return response({ok:true,duplicate:true})
   if(inboxError) return response({ok:false},500)
   let mapping:Json|undefined
-  const markInbox=async(status:string,error?:unknown,payment?:Json)=>admin.from('hotmart_webhook_events').update({status,processing_error:error?String(error).slice(0,1000):null,linked_target:payment?mapping?.target:null,linked_payment_id:payment?.id??null,processed_at:new Date().toISOString()}).eq('event_id',eventId)
+  const markInbox=async(status:string,error?:unknown,payment?:Json)=>admin.from('hotmart_webhook_events').update({status,processing_error:error?errorMessage(error).slice(0,1000):null,linked_target:payment?mapping?.target:null,linked_payment_id:payment?.id??null,processed_at:new Date().toISOString()}).eq('event_id',eventId)
   const {data:mappings}=await admin.from('hotmart_product_mappings').select('*').eq('product_id',productId).eq('active',true)
   const offerCode=String(purchase.offer?.code??data.subscription?.plan?.offer?.code??data.plan?.offer?.code??'')
   const amount=Number(purchase.price?.value??purchase.full_price?.value)
@@ -84,7 +85,7 @@ Deno.serve(async request=>{
   if(eventError?.code==='23505') return response({ok:true,duplicate:true})
   if(eventError) return response({ok:false},500)
 
-  const markEvent=async(processed:boolean,error?:unknown)=>admin.from(eventsTable).update({processed,processing_error:error?String(error).slice(0,1000):null,processed_at:new Date().toISOString()}).eq('provider','hotmart').eq('provider_event_id',eventId).eq('event_type',event).eq('resource_id',resourceId)
+  const markEvent=async(processed:boolean,error?:unknown)=>admin.from(eventsTable).update({processed,processing_error:error?errorMessage(error).slice(0,1000):null,processed_at:new Date().toISOString()}).eq('provider','hotmart').eq('provider_event_id',eventId).eq('event_type',event).eq('resource_id',resourceId)
   try{
     const approved=['PURCHASE_APPROVED','PURCHASE_COMPLETE'].includes(event)
     const revoked=['PURCHASE_REFUNDED','PURCHASE_CHARGEBACK','PURCHASE_CANCELED'].includes(event)
@@ -106,7 +107,6 @@ Deno.serve(async request=>{
             const paidAt=Number.isFinite(paidAtValue)?new Date(paidAtValue):new Date()
             const periodEnd=activeMapping.billing_cycle==='semiannual'?addUtcMonths(paidAt,6).toISOString():null
             const {error:accessError}=await admin.from('school_subscriptions').update({status:'active',grant_expires_at:periodEnd,updated_at:new Date().toISOString()}).eq('school_id',schoolId);if(accessError) throw accessError
-            const {error:periodError}=await admin.from(table).update({current_period_end:periodEnd,updated_at:new Date().toISOString()}).eq('id',payment.id);if(periodError) throw periodError
           }
         }
       }else if(activeMapping.target==='school'&&payment.school_id){

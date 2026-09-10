@@ -23,6 +23,8 @@ const accountCommercialStatus = read('supabase/migrations/092_account_commercial
 const hotmartWebhook = read('supabase/functions/hotmart-payment-webhook/index.ts');
 const schoolFrontend = read('subscription-settings.js');
 const dashboard = read('platform-owner-dashboard.js');
+const purchaseConfirmed = read('compra-confirmada.html');
+const carometroPurchaseInvitation = read('supabase/migrations/101_carometro_purchase_requires_invitation.sql');
 
 test('mantem checkout do Assistente separado das assinaturas das escolas', () => {
   assert.match(migration, /create table if not exists public\.siap_assistant_payment_subscriptions/);
@@ -147,6 +149,19 @@ test('Carometro oferece mensal e semestral com links Hotmart distintos', () => {
   assert.match(hotmartSchoolCheckout, /eq\('billing_cycle',billingCycle\)/);
   assert.match(hotmartWebhook, /purchase\.offer\?\.code/);
   assert.match(hotmartWebhook, /addUtcMonths\(paidAt,6\)/);
+});
+
+test('compra do Carometro sempre exige convite proprio, mesmo com Auth existente', () => {
+  assert.match(carometroPurchaseInvitation, /insert into public\.school_invitations/);
+  assert.match(carometroPurchaseInvitation, /'school_admin'/);
+  assert.doesNotMatch(carometroPurchaseInvitation, /insert into public\.school_members/);
+  assert.doesNotMatch(carometroPurchaseInvitation, /from auth\.users/);
+  assert.match(purchaseConfirmed, /Assistente SIAP e Carômetro são produtos independentes/);
+});
+
+test('webhook escolar não grava período em coluna exclusiva do Assistente SIAP', () => {
+  assert.doesNotMatch(hotmartWebhook, /from\(table\)\.update\(\{current_period_end/);
+  assert.match(hotmartWebhook, /school_subscriptions'\)\.update\(\{status:'active',grant_expires_at:periodEnd/);
 });
 
 test('sincroniza os quatro precos do Carometro de forma atomica e confirmada', () => {
