@@ -39,10 +39,23 @@ test('exibe o botao somente com concessao do proprietario ou assinatura paga', (
   assert.match(dashboard, /Clientes e vencimentos/);
   assert.match(dashboard, /Novos em 30 dias/);
   assert.match(dashboard, /days_remaining/);
+  assert.match(dashboard, /Permitir acesso por escola/);
+  assert.match(dashboard, /platform_list_siap_school_users/);
+  assert.match(dashboard, /data-siap-user-id/);
   assert.match(migration, /not public\.is_platform_owner\(\)/);
   assert.match(migration, /siap_assistant_access_grants/);
   assert.match(migration, /platform_list_siap_assistant_customers/);
   assert.match(migration, /set_school_member_siap_permission[\s\S]*Somente o proprietário da plataforma/);
+});
+
+test('lista usuarios por escola e mantem rolagem ate o final do painel', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../platform-owner-dashboard.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../platform-owner-dashboard.css'), 'utf8');
+  const migration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/099_platform_owner_siap_school_users.sql'), 'utf8');
+  assert.match(migration, /platform_list_siap_school_users/);
+  assert.match(migration, /not public\.is_platform_owner\(\)/);
+  assert.match(dashboard, /renderSiapSchoolAccess/);
+  assert.match(css, /\.platform-content\s*\{[^}]*flex:1;[^}]*min-height:0;[^}]*overflow:auto/);
 });
 
 test('orienta atualizacao da extensao sem bloquear versao ainda compativel', () => {

@@ -142,6 +142,7 @@
                 <article><span>3</span><div><h4>Licenças individuais</h4><p>Fonte de dados própria, sem reutilizar assinaturas ou permissões escolares.</p></div><b class="platform-badge active">Backend conectado</b></article>
                 <article><span>4</span><div><h4>Pagamentos</h4><p>Planos mensal e semestral integrados à confirmação de compra da Hotmart.</p></div><b class="platform-badge active">Hotmart integrada</b></article>
               </div>
+              <section class="platform-panel platform-siap-school-access"><div class="platform-panel-head"><div><h4>Permitir acesso por escola</h4><p>Abra uma escola e escolha individualmente quais usuários verão o botão Assistente SIAP.</p></div></div><div id="platformSiapSchoolAccess" class="platform-siap-school-list"><div class="meta">Carregando escolas e usuários…</div></div></section>
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
@@ -350,6 +351,35 @@
       <td><strong>${item.days_remaining === null ? '—' : esc(item.days_remaining)}</strong></td>
       <td><span class="platform-siap-customer-status ${esc(item.access_status)}">${esc(statusLabels[item.access_status] || item.access_status)}</span></td>
     </tr>`).join('');
+  }
+
+  function renderSiapSchoolAccess(members, error) {
+    const target = document.getElementById('platformSiapSchoolAccess');
+    if (!target) return;
+    if (error) {
+      target.innerHTML = '<div class="empty">A lista por escola ficará disponível após a aplicação da nova permissão.</div>';
+      return;
+    }
+    const grouped = new Map();
+    (members || []).forEach(member => {
+      if (!grouped.has(member.school_id)) grouped.set(member.school_id, { name:member.school_name, members:[] });
+      grouped.get(member.school_id).members.push(member);
+    });
+    if (!grouped.size) {
+      target.innerHTML = '<div class="empty">Nenhuma escola com usuários cadastrados.</div>';
+      return;
+    }
+    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
+    target.innerHTML = [...grouped.entries()].map(([schoolId, school]) => `<details class="platform-siap-school" data-school-id="${esc(schoolId)}">
+      <summary><span><strong>${esc(school.name || 'Escola sem nome')}</strong><small>${esc(school.members.length)} usuário(s)</small></span><b>Ver usuários</b></summary>
+      <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user">
+        <div><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')} · ${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small>Assinatura paga ativa</small>' : (member.days_remaining !== null ? `<small>${esc(member.days_remaining)} dia(s) restante(s)</small>` : '<small>Teste de 30 dias ainda não iniciado</small>')}</div>
+        <label class="platform-siap-access-choice"><input type="checkbox" data-siap-user-id="${esc(member.user_id)}" ${member.owner_granted ? 'checked' : ''}><span>${member.owner_granted ? 'Permitido' : 'Permitir acesso'}</span></label>
+      </div>`).join('')}</div>
+    </details>`).join('');
+    target.querySelectorAll('[data-siap-user-id]').forEach(input => {
+      input.onchange = () => updateSiapAssistantAccess(input.dataset.siapUserId, input.checked, input);
+    });
   }
 
   function limitLabel(value, singular, plural) {
@@ -1056,11 +1086,8 @@
     const enabled = input.checked;
     input.disabled = true;
     try {
-      const { data, error } = await db.rpc('platform_set_siap_assistant_access', {
-        p_user_id:target.dataset.userId,
-        p_enabled:enabled
-      });
-      if (error) throw error;
+      const data = await updateSiapAssistantAccess(target.dataset.userId, enabled, input, false);
+      if (!data) return;
       const paidPreserved = !enabled && data?.paidAccessPreserved;
       toast(paidPreserved
         ? 'Concessão manual removida. A assinatura paga continua válida.'
@@ -1072,6 +1099,24 @@
       input.checked = !enabled;
       input.disabled = false;
       toast(error.message || 'Não foi possível atualizar o acesso ao Assistente SIAP.');
+    }
+  }
+
+  async function updateSiapAssistantAccess(userId, enabled, input, refresh = true) {
+    if (input) input.disabled = true;
+    try {
+      const { data, error } = await db.rpc('platform_set_siap_assistant_access', { p_user_id:userId, p_enabled:enabled });
+      if (error) throw error;
+      if (refresh) {
+        toast(enabled ? 'Acesso ao Assistente SIAP autorizado.' : 'Acesso ao Assistente SIAP revogado.');
+        await openDashboard();
+        showPlatformPage('siap');
+      }
+      return data;
+    } catch (error) {
+      if (input) { input.checked = !enabled; input.disabled = false; }
+      toast(error.message || 'Não foi possível atualizar o acesso ao Assistente SIAP.');
+      return null;
     }
   }
 
@@ -1667,7 +1712,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1680,7 +1725,8 @@
       db.rpc('platform_list_payment_subscriptions'),
       db.rpc('platform_list_siap_assistant_commercial_plans'),
       db.rpc('platform_list_school_commercial_mappings'),
-      db.rpc('platform_list_siap_assistant_customers')
+      db.rpc('platform_list_siap_assistant_customers'),
+      db.rpc('platform_list_siap_school_users')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1730,6 +1776,7 @@
     renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
     renderSiapPlans(siapPlansResult.data || [], siapPlansResult.error);
     renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
+    renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }
