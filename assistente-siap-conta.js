@@ -10,6 +10,8 @@
   const checkoutButton = document.getElementById('startCheckout');
   const connectButton = document.getElementById('connectAssistantAccount');
   const accessSummary = document.getElementById('assistantAccessSummary');
+  const installSteps = document.getElementById('assistantInstallSteps');
+  const installLink = document.getElementById('installAssistantExtension');
   const panelTitle = document.getElementById('accountPanelTitle');
   let selectedPlan = null;
   let currentSession = null;
@@ -19,6 +21,7 @@
     'mohcmojnkjjkphgjaogcbokjmnijmggl',
     'iobkgohpoeoimlhlgdeiojlghbhcijli'
   ];
+  installLink.href = config.siapAssistantStoreUrl;
 
   const money = value => Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   const compareVersions = (left, right) => {
@@ -69,13 +72,14 @@
     accessSummary.hidden = false;
     accessSummary.dataset.mode = status?.mode || '';
     connectButton.disabled = false;
+    installSteps.hidden = false;
     if (status?.mode === 'subscription' && status.active === true) {
       panelTitle.textContent = 'Sua assinatura';
       document.getElementById('selectedPlan').hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
       accessSummary.textContent = `Assinatura ativa${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
-      connectButton.textContent = 'Conectar extensão a esta conta';
+      connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
     if (status?.mode === 'carometro' && status.active === true) {
@@ -84,7 +88,7 @@
       legal.hidden = true;
       checkoutButton.hidden = true;
       accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
-      connectButton.textContent = 'Conectar extensão a esta conta';
+      connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
     const uses = status?.freeUses || {};
@@ -97,7 +101,7 @@
     accessSummary.textContent = available
       ? `Demonstração gratuita — usos restantes: planejamento ${remaining[0]}, conteúdo ${remaining[1]}, frequência ${remaining[2]} e PEI ${remaining[3]}. O limite inicial é de 2 usos por recurso.`
       : 'Demonstração gratuita encerrada. Escolha um plano para continuar usando o Assistente SIAP.';
-    connectButton.textContent = available ? 'Experimentar gratuitamente na extensão' : 'Demonstração gratuita encerrada';
+    connectButton.textContent = available ? '2. Conectar e experimentar' : 'Demonstração gratuita encerrada';
     connectButton.disabled = !available;
   };
 
@@ -110,6 +114,7 @@
       legal.hidden = false;
       checkoutButton.hidden = false;
       accessSummary.hidden = false;
+      installSteps.hidden = false;
       accessSummary.removeAttribute('data-mode');
       accessSummary.textContent = 'Não foi possível verificar seu acesso agora. Tente novamente.';
       connectButton.textContent = 'Acesso não verificado';
@@ -145,7 +150,7 @@
       if (!silent) showExtensionStatus(bridgedResponse);
       return bridgedResponse;
     }
-    if (!silent) message('checkoutMessage', 'A extensão não respondeu. Instale ou atualize o Assistente SIAP e tente novamente.', true);
+    if (!silent) message('checkoutMessage', 'A extensão ainda não respondeu. Use o botão “1. Instalar o Assistente SIAP”, conclua a instalação e depois clique novamente em “2. Conectar”.', true);
     return null;
   };
 

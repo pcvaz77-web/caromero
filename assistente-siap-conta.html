@@ -7,7 +7,7 @@
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assistente-siap.css">
   <link rel="stylesheet" href="assistente-siap-support.css">
-  <link rel="stylesheet" href="assistente-siap-conta.css?v=2">
+  <link rel="stylesheet" href="assistente-siap-conta.css?v=3">
 </head>
 <body class="account-page">
   <header class="site-header">
@@ -40,6 +40,11 @@
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
         <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
+        <div id="assistantInstallSteps" class="assistant-install-steps" hidden>
+          <strong>Conclua a instalação em duas etapas:</strong>
+          <a id="installAssistantExtension" class="button" href="#" target="_blank" rel="noopener noreferrer">1. Instalar o Assistente SIAP</a>
+          <small>Depois de instalar, volte a esta página e use o botão abaixo.</small>
+        </div>
         <button id="connectAssistantAccount" class="button button-outline" type="button" disabled>Verificando acesso…</button>
         <button id="signOutAssistant" class="account-link" type="button">Entrar com outro e-mail</button>
         <p id="checkoutMessage" class="account-message" aria-live="polite"></p>
@@ -48,6 +53,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=9"></script>
+  <script src="assistente-siap-conta.js?v=10"></script>
 </body>
 </html>
