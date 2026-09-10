@@ -41,7 +41,7 @@ test('exibe o botao somente com concessao do proprietario ou assinatura paga', (
   assert.match(dashboard, /days_remaining/);
   assert.match(dashboard, /Permitir acesso por escola/);
   assert.match(dashboard, /platform_list_siap_school_users/);
-  assert.match(dashboard, /data-siap-user-id/);
+  assert.match(dashboard, /data-siap-grant/);
   assert.match(migration, /not public\.is_platform_owner\(\)/);
   assert.match(migration, /siap_assistant_access_grants/);
   assert.match(migration, /platform_list_siap_assistant_customers/);
@@ -56,6 +56,18 @@ test('lista usuarios por escola e mantem rolagem ate o final do painel', () => {
   assert.match(migration, /not public\.is_platform_owner\(\)/);
   assert.match(dashboard, /renderSiapSchoolAccess/);
   assert.match(css, /\.platform-content\s*\{[^}]*flex:1;[^}]*min-height:0;[^}]*overflow:auto/);
+});
+
+test('permite concessao do Assistente por prazo ou permanente', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../platform-owner-dashboard.js'), 'utf8');
+  const migration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/100_siap_timed_and_permanent_grants.sql'), 'utf8');
+  assert.match(migration, /add column if not exists expires_at/);
+  assert.match(migration, /p_expires_at timestamptz default null/);
+  assert.match(migration, /'permanent'/);
+  assert.match(dashboard, /30 dias/);
+  assert.match(dashboard, /Data final/);
+  assert.match(dashboard, /Permanente/);
+  assert.match(dashboard, /Cancelar concessão/);
 });
 
 test('orienta atualizacao da extensao sem bloquear versao ainda compativel', () => {

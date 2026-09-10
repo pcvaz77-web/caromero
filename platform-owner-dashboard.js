@@ -372,14 +372,35 @@
     const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
     target.innerHTML = [...grouped.entries()].map(([schoolId, school]) => `<details class="platform-siap-school" data-school-id="${esc(schoolId)}">
       <summary><span><strong>${esc(school.name || 'Escola sem nome')}</strong><small>${esc(school.members.length)} usuário(s)</small></span><b>Ver usuários</b></summary>
-      <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user">
-        <div><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')} · ${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small>Assinatura paga ativa</small>' : (member.days_remaining !== null ? `<small>${esc(member.days_remaining)} dia(s) restante(s)</small>` : '<small>Teste de 30 dias ainda não iniciado</small>')}</div>
-        <label class="platform-siap-access-choice"><input type="checkbox" data-siap-user-id="${esc(member.user_id)}" ${member.owner_granted ? 'checked' : ''}><span>${member.owner_granted ? 'Permitido' : 'Permitir acesso'}</span></label>
+      <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user" data-siap-user-row="${esc(member.user_id)}">
+        <div><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')} · ${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small>Assinatura paga ativa</small>' : (member.owner_granted ? `<small>${member.grant_permanent ? 'Concessão permanente' : `${esc(member.days_remaining)} dia(s) restante(s) · até ${esc(shortDate(member.grant_expires_at))}`}</small>` : '<small>Sem concessão do proprietário</small>')}</div>
+        <div class="platform-siap-grant-controls">${member.owner_granted ? `<button type="button" class="btn danger-outline" data-siap-revoke="${esc(member.user_id)}">Cancelar concessão</button>` : `<select data-siap-grant-period="${esc(member.user_id)}"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" data-siap-grant-date="${esc(member.user_id)}"><button type="button" class="btn primary" data-siap-grant="${esc(member.user_id)}">Conceder</button>`}</div>
       </div>`).join('')}</div>
     </details>`).join('');
-    target.querySelectorAll('[data-siap-user-id]').forEach(input => {
-      input.onchange = () => updateSiapAssistantAccess(input.dataset.siapUserId, input.checked, input);
+    target.querySelectorAll('[data-siap-grant-period]').forEach(select => {
+      select.onchange = () => target.querySelector(`[data-siap-grant-date="${select.dataset.siapGrantPeriod}"]`)?.classList.toggle('hidden', select.value !== 'custom');
     });
+    target.querySelectorAll('[data-siap-grant]').forEach(button => {
+      button.onclick = () => grantSiapAssistantAccess(button.dataset.siapGrant, button);
+    });
+    target.querySelectorAll('[data-siap-revoke]').forEach(button => {
+      button.onclick = () => updateSiapAssistantAccess(button.dataset.siapRevoke, false, button);
+    });
+  }
+
+  async function grantSiapAssistantAccess(userId, button) {
+    const row = button.closest('[data-siap-user-row]');
+    const period = row?.querySelector('[data-siap-grant-period]')?.value || '30';
+    let expiresAt = null;
+    if (period === 'custom') {
+      const date = row?.querySelector('[data-siap-grant-date]')?.value;
+      if (!date) { toast('Escolha a data final da concessão.'); return; }
+      expiresAt = new Date(`${date}T23:59:59-03:00`).toISOString();
+      if (new Date(expiresAt).getTime() <= Date.now()) { toast('A data final deve estar no futuro.'); return; }
+    } else if (period !== 'permanent') {
+      expiresAt = new Date(Date.now() + Number(period) * 86400000).toISOString();
+    }
+    await updateSiapAssistantAccess(userId, true, button, true, expiresAt);
   }
 
   function limitLabel(value, singular, plural) {
@@ -1048,9 +1069,9 @@
       ? `<p class="meta">Convites pendentes: ${pendingInvitations.map(i => `${esc(i.school_name || i.school_id)} (${esc(i.role)})`).join(', ')}</p>`
       : '';
     const siap = user.siap_assistant || {};
-    const siapLicenseLabel = siap.paid_until
-      ? `Assinatura válida até ${formatDateTime(siap.paid_until)}`
-      : (siap.trial_started_at ? `Teste iniciado; término em ${formatDateTime(siap.trial_ends_at)}` : 'O teste gratuito de 30 dias começa no primeiro acesso');
+    const siapLicenseLabel = siap.owner_granted
+      ? (siap.grant_permanent ? 'Concessão permanente' : `Concessão válida até ${formatDateTime(siap.grant_expires_at)}`)
+      : (siap.paid_until ? `Assinatura válida até ${formatDateTime(siap.paid_until)}` : 'Sem concessão ativa');
     target.innerHTML = `
       <strong>${esc(user.full_name || 'Conta sem nome cadastrado')}</strong>
       <p class="meta">${esc(user.email)}</p>
@@ -1102,10 +1123,10 @@
     }
   }
 
-  async function updateSiapAssistantAccess(userId, enabled, input, refresh = true) {
+  async function updateSiapAssistantAccess(userId, enabled, input, refresh = true, expiresAt = null) {
     if (input) input.disabled = true;
     try {
-      const { data, error } = await db.rpc('platform_set_siap_assistant_access', { p_user_id:userId, p_enabled:enabled });
+      const { data, error } = await db.rpc('platform_set_siap_assistant_access', { p_user_id:userId, p_enabled:enabled, p_expires_at:expiresAt });
       if (error) throw error;
       if (refresh) {
         toast(enabled ? 'Acesso ao Assistente SIAP autorizado.' : 'Acesso ao Assistente SIAP revogado.');
@@ -1114,7 +1135,7 @@
       }
       return data;
     } catch (error) {
-      if (input) { input.checked = !enabled; input.disabled = false; }
+      if (input) { if ('checked' in input) input.checked = !enabled; input.disabled = false; }
       toast(error.message || 'Não foi possível atualizar o acesso ao Assistente SIAP.');
       return null;
     }

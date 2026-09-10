@@ -157,7 +157,7 @@ Deno.serve(async (request) => {
       admin.from('school_members').select('school_id, schools(name)').eq('user_id', targetAuth.id).eq('role', 'school_admin'),
       admin.from('school_invitations').select('id, role, school_id, schools(name), expires_at')
         .eq('email', normalizedEmail).eq('status', 'pending').gt('expires_at', new Date().toISOString()),
-      admin.from('siap_assistant_access_grants').select('revoked_at').eq('user_id', targetAuth.id).maybeSingle(),
+      admin.from('siap_assistant_access_grants').select('revoked_at,expires_at').eq('user_id', targetAuth.id).maybeSingle(),
       admin.from('siap_assistant_licenses').select('entitlement_type,trial_started_at,trial_ends_at,paid_until,suspended_at').eq('user_id', targetAuth.id).maybeSingle(),
     ])
     if (profileError || membershipError || accessError || ownerError || adminSchoolsError || pendingInvitationsError || siapGrantError || siapLicenseError) {
@@ -207,7 +207,9 @@ Deno.serve(async (request) => {
           expires_at: row.expires_at,
         })),
         siap_assistant: {
-          owner_granted: Boolean(siapGrant && !siapGrant.revoked_at),
+          owner_granted: Boolean(siapGrant && !siapGrant.revoked_at && (!siapGrant.expires_at || new Date(siapGrant.expires_at).getTime() > Date.now())),
+          grant_expires_at: siapGrant?.expires_at ?? null,
+          grant_permanent: Boolean(siapGrant && !siapGrant.revoked_at && !siapGrant.expires_at),
           entitlement_type: siapLicense?.entitlement_type ?? null,
           trial_started_at: siapLicense?.trial_started_at ?? null,
           trial_ends_at: siapLicense?.trial_ends_at ?? null,
