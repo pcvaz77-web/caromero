@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   cepiNav.id = 'cepiNav';
   cepiNav.type = 'button';
   cepiNav.className = 'hidden';
-  cepiNav.innerHTML = '<span>CEPI</span>';
+  cepiNav.innerHTML = '<span>Meu CEPI</span>';
   navHost.insertBefore(cepiNav, document.getElementById('permissionsNav'));
 
   const modal = document.createElement('div');
