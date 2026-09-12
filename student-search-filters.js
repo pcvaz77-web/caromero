@@ -29,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .quick-filter-more[aria-expanded="true"] { background:var(--blue); border-color:var(--blue); color:#fff; }
     .quick-filter-more .quick-filter-arrow { transition:transform .15s ease; }
     .quick-favorite-filters { display:contents; }
+    body #quickFilters [data-favorite-position="1"] { border-color:#c8e6d6!important; background:#f1faf5!important; color:#286e51!important; }
+    body #quickFilters [data-favorite-position="2"] { border-color:#eadfbd!important; background:#fffaf0!important; color:#80632f!important; }
+    body #quickFilters [data-favorite-position="3"] { border-color:#ecd2d8!important; background:#fff4f6!important; color:#944858!important; }
     .quick-filter-more[aria-expanded="true"] .quick-filter-arrow { transform:rotate(180deg); }
     .more-filters-panel { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8faff; }
     .more-filters-empty { color:var(--muted); font-size:13px; }
@@ -169,8 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderFavoriteFilters(scope) {
     const target=document.getElementById('quickFavoriteFilters');
     if(!target)return;
-    target.innerHTML=favoriteStoredKeys.map(resolvedFilter).filter(visibleFilter).map(option=>
-      `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-quick-filter="${esc(option.key)}">${esc(option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
+    target.innerHTML=favoriteStoredKeys.map((storedKey,index)=>({option:resolvedFilter(storedKey),position:index+1})).filter(item=>visibleFilter(item.option)).map(({option,position})=>
+      `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-favorite-position="${position}" data-quick-filter="${esc(option.key)}">${esc(option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
     ).join('');
   }
 

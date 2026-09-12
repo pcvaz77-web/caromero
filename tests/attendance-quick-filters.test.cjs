@@ -17,7 +17,7 @@ test('filtros rápidos usam a classificação automática atual da frequência',
   assert.match(attendance, /window\.getSiapAttendanceStatus=studentId=>currentBadges\.get\(studentId\)\|\|null/);
   assert.match(attendance, /new CustomEvent\('carometro:attendance-status-changed'\)/);
   assert.match(index, /assisted-attendance\.js\?v=17/);
-  assert.match(index, /student-search-filters\.js\?v=7/);
+  assert.match(index, /student-search-filters\.js\?v=8/);
 });
 
 test('etiqueta automática também aparece no card lateral aberto', () => {
