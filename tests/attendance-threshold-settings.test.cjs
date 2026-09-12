@@ -9,6 +9,7 @@ const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '117
 assert.match(source, /DEFAULT_THRESHOLDS = Object\.freeze\(\{ frequentMinimum:75, absentMinimum:60 \}\)/);
 assert.match(source, /data-aa-frequent-minimum/);
 assert.match(source, /data-aa-absent-minimum/);
+assert.match(source, /aa-percent-field::after\{content:'%'/);
 assert.match(source, /Usar cálculo padrão/);
 assert.match(source, /thresholdExplanation/);
 assert.match(source, /\.delete\(\)\.eq\('school_id',schoolId\)/);
