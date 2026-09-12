@@ -49,7 +49,7 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=5'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=6'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
@@ -100,6 +100,15 @@ test('individual tutoring form follows the official CEPI model', () => {
 test('internal tutor notes are excluded from the PDF schema', () => {
   assert.match(frontend, /id:'internal_notes'.*include_in_report:false/);
   assert.match(frontend, /não aparecem no PDF/i);
+});
+
+test('tutor groups can collapse and student photos are enlarged', () => {
+  assert.match(frontend, /const collapsedTutorIds = new Set\(\)/);
+  assert.match(frontend, /data-toggle-tutor/);
+  assert.match(frontend, /Retrair lista/);
+  assert.match(frontend, /Expandir lista/);
+  assert.match(frontend, /\.cepi-student-photo\{width:84px;height:84px/);
+  assert.match(frontend, /\.cepi-student-photo\{width:68px;height:68px/);
 });
 
 test('CEPI visibility updates without logout or manual reload', () => {
