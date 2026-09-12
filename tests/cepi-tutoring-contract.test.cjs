@@ -8,6 +8,7 @@ const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '112
 const frontend = fs.readFileSync(path.join(root, 'cepi-tutoring.js'), 'utf8');
 const realtime = fs.readFileSync(path.join(root, 'realtime-sync.js'), 'utf8');
 const realtimeMigration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '113_cepi_realtime_visibility.sql'), 'utf8');
+const managementMigration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '114_cepi_tutor_management.sql'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('CEPI is enabled per school by the platform owner', () => {
@@ -47,12 +48,30 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=2'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=4'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
   assert.match(frontend, /Tutor\(a\):/);
   assert.match(frontend, /Conselheiro\(a\):/);
+});
+
+test('CEPI lists and dialogs provide the requested filters', () => {
+  for (const id of ['cepiAssignmentClass', 'cepiAssignmentName', 'cepiTutorFilter', 'cepiStudentFilter', 'cepiClassFilter', 'cepiReportTutor', 'cepiReportName', 'cepiReportClass']) {
+    assert.match(frontend, new RegExp(`id=["']${id}["']`));
+  }
+  assert.match(frontend, /normalizeSearch/);
+  assert.match(frontend, /renderReportStudents/);
+});
+
+test('tutor editing, removal and transfer preserve assignment history', () => {
+  assert.match(frontend, /data-edit-tutor/);
+  assert.match(frontend, /data-remove-tutor/);
+  assert.match(frontend, /data-transfer-assignment/);
+  assert.match(managementMigration, /create or replace function public\.update_cepi_tutor/i);
+  assert.match(managementMigration, /create or replace function public\.deactivate_cepi_tutor/i);
+  assert.match(managementMigration, /create or replace function public\.transfer_cepi_student/i);
+  assert.match(managementMigration, /set active = false, ended_at = now\(\), ended_by = auth\.uid\(\)/i);
 });
 
 test('tutoring PDF contains only the individual form scope', () => {
