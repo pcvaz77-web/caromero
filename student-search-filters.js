@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // apresentação deste painel — observation_options continua sendo a única
   // fonte de verdade, e o armazenamento/badge/contagem no atalho rápido de
   // "Não alfabetizado" não são tocados por esta lista.
-  const MORE_FILTERS_HIDDEN_LABELS = new Set(['Não alfabetizado', 'Representante de turma']);
+  const MORE_FILTERS_HIDDEN_LABELS = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado', 'Ocorrência', 'Representante de turma']);
 
   function renderMoreFiltersPanel() {
     const panel = document.getElementById('moreFiltersPanel');

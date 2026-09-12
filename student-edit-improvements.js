@@ -138,12 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
+  const defaultObservationLabels = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado', 'Ocorrência']);
   const fallbackObservations = [
     { value: '', label: 'Nenhum', standard: true },
-    { value: 'Tem Laudo', label: 'Tem Laudo', standard: true },
-    { value: 'Sem Laudo (Dificuldade Grave)', label: 'Sem Laudo (Dificuldade Grave)', standard: true },
-    { value: 'Sem Laudo (Dificuldade Leve)', label: 'Sem Laudo (Dificuldade Leve)', standard: true },
-    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true }
+    { value: 'Laudo (DI)', label: 'Laudo (DI)', standard: true },
+    { value: 'Laudo (TEA)', label: 'Laudo (TEA)', standard: true },
+    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true },
+    { value: 'Ocorrência', label: 'Ocorrência', standard: true }
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
@@ -282,7 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderCustomObservations = () => {
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
-      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
+      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}${option.standard ? '<small class="default-observation-mark">Padrão</small>' : ''}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label>${option.standard ? '' : `<button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button>`}</div>`).join('')}`
       : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
   async function loadObservationOptions() {
@@ -293,7 +294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     query = query.eq('school_id', schoolId);
     const { data, error } = await query;
     if (error) return;
-    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: false, isPinned: item.is_pinned === true }))];
+    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: defaultObservationLabels.has(item.label), isPinned: item.is_pinned === true }))];
     pinnedObservationLabels = new Set(observations.filter(option => option.isPinned).map(option => option.value));
     observationOptionsLoaded = true;
     const selected = selectedObservationValues();
@@ -684,6 +685,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .representative-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; font-size:12px; font-weight:750; }
     .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .pinned-label,.pill.observation-pinned { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; background:#d1fae5; color:#047857; font-size:12px; font-weight:750; }
+    .default-observation-mark { display:inline-flex; margin-left:7px; padding:2px 6px; border-radius:99px; background:#e8efff; color:#315dbb; font-size:10px; font-weight:850; text-transform:uppercase; }
     .student-observation-labels { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
     @media(max-width:800px) {
       #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
