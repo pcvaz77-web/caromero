@@ -216,6 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     subtitle.classList.toggle('hidden', !pinnedLabels.length);
   };
+  window.studentPinnedLabels = student => decodeObservationValues(student?.report)
+    .filter(value => pinnedObservationLabels.has(value))
+    .map(observationDisplayLabel);
   const syncStudentCardLaudoLabels = () => {
     document.querySelectorAll('#list .student').forEach(card => {
       const studentId = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];

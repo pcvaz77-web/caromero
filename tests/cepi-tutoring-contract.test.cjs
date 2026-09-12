@@ -49,7 +49,7 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=6'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=8'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
@@ -86,7 +86,10 @@ test('tutoring PDF contains only the individual form scope', () => {
 test('individual tutoring form follows the official CEPI model', () => {
   assert.match(frontend, /Iniciação Científica \(EF\)/);
   assert.match(frontend, /Projeto de Vida \(EM\)/);
-  assert.match(frontend, /Projeto de Eletiva — 1º semestre/);
+  assert.match(frontend, /Projeto de Eletiva — 1º bimestre/);
+  assert.match(frontend, /Projeto de Eletiva — 4º bimestre/);
+  assert.match(frontend, /PJ — 1º bimestre/);
+  assert.match(frontend, /PJ — 4º bimestre/);
   assert.match(frontend, /Pessoal — Aprender a ser/);
   assert.match(frontend, /Social-relacional — Aprender a conviver/);
   assert.match(frontend, /Cognitiva — Aprender a conhecer/);
@@ -109,6 +112,13 @@ test('tutor groups can collapse and student photos are enlarged', () => {
   assert.match(frontend, /Expandir lista/);
   assert.match(frontend, /\.cepi-student-photo\{width:84px;height:84px/);
   assert.match(frontend, /\.cepi-student-photo\{width:68px;height:68px/);
+});
+
+test('individual form and student details show contextual labels', () => {
+  assert.match(frontend, /cepiFormStudentName/);
+  assert.match(frontend, /studentPinnedLabels/);
+  assert.match(frontend, /student-tutor-detail-label/);
+  assert.match(frontend, /counselor\.insertAdjacentElement\('afterend', label\)/);
 });
 
 test('CEPI visibility updates without logout or manual reload', () => {
