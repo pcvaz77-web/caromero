@@ -9,9 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bar.innerHTML = `
     <div class="quick-filters-row" id="quickFiltersRow">
       <button type="button" class="quick-filter-chip active" data-quick-filter="all">Todos <span class="quick-filter-count" id="qfCountAll">0</span></button>
-      <button type="button" class="quick-filter-chip" data-quick-filter="laudo">Com laudo <span class="quick-filter-count" id="qfCountLaudo">0</span></button>
-      <button type="button" class="quick-filter-chip" data-quick-filter="nao_alfabetizado">Não alfabetizado <span class="quick-filter-count" id="qfCountIlliterate">0</span></button>
-      <button type="button" class="quick-filter-chip hidden" id="qfOccurrenceChip" data-quick-filter="ocorrencia">Com ocorrência <span class="quick-filter-count" id="qfCountOccurrence">0</span></button>
+      <span class="quick-favorite-filters" id="quickFavoriteFilters"></span>
       <button type="button" class="quick-filter-chip quick-filter-more" id="moreFiltersButton" aria-expanded="false">Mais filtros <span class="quick-filter-arrow">⌄</span></button>
     </div>
     <div id="moreFiltersPanel" class="more-filters-panel hidden"></div>
@@ -30,9 +28,17 @@ document.addEventListener('DOMContentLoaded', () => {
     .quick-filter-more { background:#f4f7ff; border-color:#dbe4f5; color:var(--blue); }
     .quick-filter-more[aria-expanded="true"] { background:var(--blue); border-color:var(--blue); color:#fff; }
     .quick-filter-more .quick-filter-arrow { transition:transform .15s ease; }
+    .quick-favorite-filters { display:contents; }
     .quick-filter-more[aria-expanded="true"] .quick-filter-arrow { transform:rotate(180deg); }
     .more-filters-panel { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8faff; }
     .more-filters-empty { color:var(--muted); font-size:13px; }
+    .quick-filter-settings { flex-basis:100%; display:grid; gap:10px; padding-top:10px; border-top:1px solid var(--line); }
+    .quick-filter-settings summary { cursor:pointer; color:var(--blue); font-weight:800; }
+    .quick-filter-settings-options { display:flex; flex-wrap:wrap; gap:8px 14px; }
+    .quick-filter-settings-options label { display:flex; align-items:center; gap:6px; font-size:13px; }
+    .quick-filter-settings-options input { width:17px; height:17px; }
+    .quick-filter-settings-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .quick-filter-settings-status { color:var(--muted); font-size:12px; }
     .quick-filter-result { margin-top:10px; font-size:13px; font-weight:700; color:var(--muted); }
     .student-load-more { display:flex; justify-content:center; padding:18px 0 12px; }
     .student-load-more .btn { min-width:230px; }
@@ -51,6 +57,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // observações" — nenhuma lista fixa paralela é mantida aqui.
   let observationCatalog = [];
   let observationCatalogLoaded = false;
+  let catalogLoadToken = 0;
+  const DEFAULT_FAVORITE_KEYS = ['laudo','nao_alfabetizado','ocorrencia'];
+  let favoriteStoredKeys = [...DEFAULT_FAVORITE_KEYS];
   // Apenas um filtro rápido (ou uma observação de "Mais filtros") ativo por
   // vez — selecionar um novo sempre substitui o anterior, nunca combina com
   // ele. Continua combinando normalmente com escopo (turma/turno) e busca
@@ -71,7 +80,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const observationValuesOf = student => (typeof window.decodeObservationValues === 'function' ? window.decodeObservationValues(student.report) : []);
-  const ATTENDANCE_FILTERS = [
+  const SYSTEM_FILTERS = [
+    { key:'laudo', label:'Com laudo' },
+    { key:'nao_alfabetizado', label:'Não alfabetizado' },
+    { key:'ocorrencia', label:'Com ocorrência', requiresOccurrences:true },
     { key:'attendance:absent', status:'absent', label:'Faltoso' },
     { key:'attendance:active_search', status:'active_search', label:'Necessita de Busca Ativa' }
   ];
@@ -91,15 +103,22 @@ document.addEventListener('DOMContentLoaded', () => {
   window.matchesQuickFilters = student => !activeQuickFilter || studentMatchesKey(student, activeQuickFilter);
 
   async function loadObservationCatalog() {
+    const loadToken=++catalogLoadToken;
     const schoolId = window.getActiveSchoolId?.();
-    if (!schoolId) { observationCatalog = []; observationCatalogLoaded = true; renderMoreFiltersPanel(); return; }
+    if (!schoolId) { observationCatalog = []; favoriteStoredKeys=[...DEFAULT_FAVORITE_KEYS]; observationCatalogLoaded = true; renderChipCounts(); return; }
     let query = db.from('observation_options').select('id,label').order('display_order').order('created_at');
     query = query.eq('school_id', schoolId);
     const { data, error } = await query;
-    if (error) return;
+    if (error||loadToken!==catalogLoadToken||window.getActiveSchoolId?.()!==schoolId) return;
     observationCatalog = data || [];
+    const { data:settings, error:settingsError } = await db.from('school_quick_filter_favorites')
+      .select('favorite_1,favorite_2,favorite_3').eq('school_id',schoolId).maybeSingle();
+    if(loadToken!==catalogLoadToken||window.getActiveSchoolId?.()!==schoolId)return;
+    favoriteStoredKeys=!settingsError&&settings
+      ? [settings.favorite_1,settings.favorite_2,settings.favorite_3]
+      : [...DEFAULT_FAVORITE_KEYS];
     observationCatalogLoaded = true;
-    renderMoreFiltersPanel();
+    renderChipCounts();
   }
 
   function chipButtons() {
@@ -113,11 +132,12 @@ document.addEventListener('DOMContentLoaded', () => {
       button.classList.toggle('active', isActive);
     });
     bar.querySelectorAll('.more-filter-chip').forEach(button => {
-      button.classList.toggle('active', activeQuickFilter === button.dataset.obsFilter);
+      button.classList.toggle('active', activeQuickFilter === button.dataset.filterKey);
     });
     // Indica no próprio botão "Mais filtros" que a seleção ativa veio de lá,
     // mesmo com o painel fechado.
-    document.getElementById('moreFiltersButton')?.classList.toggle('active', !!activeQuickFilter && (activeQuickFilter.startsWith('obs:') || activeQuickFilter.startsWith('attendance:')));
+    const activeIsFavorite=favoriteStoredKeys.map(resolvedFilter).some(option=>option?.key===activeQuickFilter);
+    document.getElementById('moreFiltersButton')?.classList.toggle('active', !!activeQuickFilter&&!activeIsFavorite);
   }
 
   // Rótulos que nunca aparecem em "Mais filtros": "Não alfabetizado" já tem
@@ -129,22 +149,44 @@ document.addEventListener('DOMContentLoaded', () => {
   // "Não alfabetizado" não são tocados por esta lista.
   const MORE_FILTERS_HIDDEN_LABELS = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado', 'Representante de turma']);
 
+  const resolvedFilter = storedKey => {
+    const system=SYSTEM_FILTERS.find(option=>option.key===storedKey);
+    if(system)return {...system,storedKey};
+    if(!storedKey?.startsWith('obsid:'))return null;
+    const observation=observationCatalog.find(option=>option.id===storedKey.slice(6));
+    return observation?{storedKey,key:`obs:${observation.label}`,label:observation.label}:null;
+  };
+
+  const availableFavoriteFilters = () => [
+    ...SYSTEM_FILTERS,
+    ...observationCatalog.filter(option=>!MORE_FILTERS_HIDDEN_LABELS.has(option.label)).map(option=>({storedKey:`obsid:${option.id}`,key:`obs:${option.label}`,label:option.label}))
+  ].map(option=>({...option,storedKey:option.storedKey||option.key}));
+
+  const visibleFilter = option => !!option && (!option.requiresOccurrences || !!window.canViewOccurrences?.());
+  const filterCount = (option,scope) => scope.filter(student=>studentMatchesKey(student,option.key)).length;
+  const canConfigureFavorites = () => permission?.role==='admin' || !!permission?.is_coordinator;
+
+  function renderFavoriteFilters(scope) {
+    const target=document.getElementById('quickFavoriteFilters');
+    if(!target)return;
+    target.innerHTML=favoriteStoredKeys.map(resolvedFilter).filter(visibleFilter).map(option=>
+      `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-quick-filter="${esc(option.key)}">${esc(option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
+    ).join('');
+  }
+
   function renderMoreFiltersPanel() {
     const panel = document.getElementById('moreFiltersPanel');
     if (!panel) return;
     const scope = scopedStudents();
     if (!observationCatalogLoaded) { panel.innerHTML = '<span class="more-filters-empty">Carregando observações…</span>'; return; }
-    const visibleCatalog = observationCatalog.filter(option => !MORE_FILTERS_HIDDEN_LABELS.has(option.label));
-    const attendanceHtml = ATTENDANCE_FILTERS.map(option => {
-      const count = scope.filter(s => window.getSiapAttendanceStatus?.(s.id) === option.status).length;
-      return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === option.key ? 'active' : ''}" data-attendance-filter="${option.key}">${option.label} <span class="quick-filter-count">${count}</span></button>`;
-    }).join('');
-    const observationsHtml = visibleCatalog.map(option => {
-      const count = scope.filter(s => observationValuesOf(s).includes(option.label)).length;
-      const key = `obs:${option.label}`;
-      return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === key ? 'active' : ''}" data-obs-filter="${esc(key)}">${esc(option.label)} <span class="quick-filter-count">${count}</span></button>`;
-    }).join('');
-    panel.innerHTML = attendanceHtml + observationsHtml;
+    const favoriteSet=new Set(favoriteStoredKeys);
+    const available=availableFavoriteFilters();
+    const remaining=available.filter(option=>visibleFilter(option)&&!favoriteSet.has(option.storedKey));
+    const filtersHtml=remaining.map(option=>
+      `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter===option.key?'active':''}" data-filter-key="${esc(option.key)}">${esc(option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
+    ).join('')||'<span class="more-filters-empty">Todos os filtros disponíveis estão nos favoritos.</span>';
+    const settingsHtml=canConfigureFavorites()?`<details class="quick-filter-settings"><summary>Configurar os 3 favoritos</summary><div class="quick-filter-settings-options">${available.map(option=>`<label><input type="checkbox" data-favorite-choice="${esc(option.storedKey)}" ${favoriteSet.has(option.storedKey)?'checked':favoriteSet.size>=3?'disabled':''}> ${esc(option.label)}</label>`).join('')}</div><div class="quick-filter-settings-actions"><button type="button" class="btn primary" data-save-favorites>Salvar 3 favoritos</button><button type="button" class="btn secondary" data-default-favorites>Usar favoritos padrão</button></div><span class="quick-filter-settings-status" data-favorite-status>Selecione exatamente 3 filtros.</span></details>`:'';
+    panel.innerHTML=filtersHtml+settingsHtml;
   }
 
   // Os números dos botões (Todos/Com laudo/Não alfabetizado/Com ocorrência e
@@ -155,25 +197,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderChipCounts() {
     const scope = scopedStudents();
     document.getElementById('qfCountAll').textContent = scope.length;
-    document.getElementById('qfCountLaudo').textContent = scope.filter(s => typeof window.studentHasPositiveLaudo === 'function' && window.studentHasPositiveLaudo(s.report)).length;
-    document.getElementById('qfCountIlliterate').textContent = scope.filter(s => observationValuesOf(s).includes('Não alfabetizado')).length;
+    if (!window.canViewOccurrences?.()&&activeQuickFilter==='ocorrencia') activeQuickFilter=null;
 
-    const occurrenceChip = document.getElementById('qfOccurrenceChip');
-    const canSeeOccurrences = !!window.canViewOccurrences?.();
-    occurrenceChip.classList.toggle('hidden', !canSeeOccurrences);
-    if (canSeeOccurrences) {
-      document.getElementById('qfCountOccurrence').textContent = scope.filter(s => window.occurrenceStudentIds?.has(s.id)).length;
-    } else {
-      // Não deixe a última contagem calculada sobreviver escondida no DOM
-      // depois que a permissão for revogada — o elemento fica oculto pela
-      // classe acima, mas o valor em si também precisa deixar de existir.
-      document.getElementById('qfCountOccurrence').textContent = '';
-      // A permissão pode ter sido revogada durante a sessão (evento
-      // carometro:permission-refresh). Nunca deixe um filtro que o usuário
-      // não pode mais usar continuar aplicado silenciosamente.
-      if (activeQuickFilter === 'ocorrencia') activeQuickFilter = null;
-    }
-
+    renderFavoriteFilters(scope);
     renderMoreFiltersPanel();
     syncChipActiveStates();
   }
@@ -186,7 +212,7 @@ document.addEventListener('DOMContentLoaded', () => {
     resultEl.textContent = resultCount === 1 ? '1 aluno encontrado' : `${resultCount} alunos encontrados`;
   }
 
-  bar.addEventListener('click', event => {
+  bar.addEventListener('click', async event => {
     const moreButton = event.target.closest('#moreFiltersButton');
     if (moreButton) {
       const panel = document.getElementById('moreFiltersPanel');
@@ -223,9 +249,31 @@ document.addEventListener('DOMContentLoaded', () => {
       window.render();
       return;
     }
+    const saveFavorites = event.target.closest('[data-save-favorites]');
+    if(saveFavorites){
+      const selected=[...bar.querySelectorAll('[data-favorite-choice]:checked')].map(input=>input.dataset.favoriteChoice);
+      const status=bar.querySelector('[data-favorite-status]');
+      if(selected.length!==3){status.textContent='Selecione exatamente 3 filtros.';return;}
+      saveFavorites.disabled=true;
+      const schoolId=window.getActiveSchoolId?.();
+      const {error}=await db.from('school_quick_filter_favorites').upsert({school_id:schoolId,favorite_1:selected[0],favorite_2:selected[1],favorite_3:selected[2]},{onConflict:'school_id'});
+      saveFavorites.disabled=false;
+      if(error){status.textContent=`Não foi possível salvar: ${error.message}`;return;}
+      favoriteStoredKeys=selected;window.render?.();toast('Filtros favoritos atualizados para esta escola.');return;
+    }
+    const defaultFavorites = event.target.closest('[data-default-favorites]');
+    if(defaultFavorites){
+      defaultFavorites.disabled=true;
+      const schoolId=window.getActiveSchoolId?.();
+      const {error}=await db.from('school_quick_filter_favorites').delete().eq('school_id',schoolId);
+      defaultFavorites.disabled=false;
+      const status=bar.querySelector('[data-favorite-status]');
+      if(error){status.textContent=`Não foi possível restaurar: ${error.message}`;return;}
+      favoriteStoredKeys=[...DEFAULT_FAVORITE_KEYS];window.render?.();toast('Filtros favoritos padrão restaurados.');return;
+    }
     const obsButton = event.target.closest('.more-filter-chip');
     if (obsButton) {
-      const key = obsButton.dataset.obsFilter || obsButton.dataset.attendanceFilter;
+      const key = obsButton.dataset.filterKey;
       activeQuickFilter = activeQuickFilter === key ? null : key;
       syncChipActiveStates();
       // Selecionar uma observação aplica o filtro e fecha o painel.
@@ -234,6 +282,15 @@ document.addEventListener('DOMContentLoaded', () => {
       window.resetStudentRenderLimit?.();
       window.render();
     }
+  });
+
+  bar.addEventListener('change',event=>{
+    if(!event.target.matches('[data-favorite-choice]'))return;
+    const choices=[...bar.querySelectorAll('[data-favorite-choice]')];
+    const selected=choices.filter(input=>input.checked);
+    choices.forEach(input=>{input.disabled=selected.length>=3&&!input.checked;});
+    const status=bar.querySelector('[data-favorite-status]');
+    if(status)status.textContent=selected.length===3?'3 filtros selecionados.':`Selecione mais ${3-selected.length}.`;
   });
 
   // Clicar fora do botão/painel de "Mais filtros" fecha o painel — mesmo
@@ -258,6 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('carometro:data-loaded', () => { loadObservationCatalog(); renderChipCounts(); updateResultLine(); });
   document.addEventListener('carometro:observations-changed', loadObservationCatalog);
+  document.addEventListener('carometro:quick-filter-favorites-changed', loadObservationCatalog);
   document.addEventListener('carometro:occurrence-labels-changed', () => { renderChipCounts(); window.render?.(); });
   // A origem do evento já redesenha os cards uma vez. Aqui atualizamos apenas
   // os contadores, evitando reconstruir centenas de alunos pela segunda vez.

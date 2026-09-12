@@ -120,6 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .on('postgres_changes', schoolChange('students'), refreshData)
         .on('postgres_changes', schoolChange('classes'), refreshData)
         .on('postgres_changes', schoolChange('observation_options'), () => { notify('carometro:observations-changed'); refreshData(); })
+        .on('postgres_changes', schoolChange('school_quick_filter_favorites'), () => notify('carometro:quick-filter-favorites-changed'))
         .on('postgres_changes', schoolChange('class_counselors'), () => { window.refreshCounselorAssignments?.(); notify('carometro:permissions-changed'); refreshData(); })
         .on('postgres_changes', schoolChange('student_occurrences'), () => { notify('carometro:occurrences-changed'); refreshData(); })
         .on('postgres_changes', { event:'INSERT', schema:'public', table:'school_realtime_events', filter:`school_id=eq.${schoolId}` }, payload => {
