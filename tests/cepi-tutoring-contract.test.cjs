@@ -35,7 +35,8 @@ test('assignments and forms are school scoped and history preserving', () => {
   assert.match(migration, /form_schema jsonb not null default '\[\]'::jsonb/i);
   assert.match(migration, /answers jsonb not null default '\{\}'::jsonb/i);
   assert.match(frontend, /O histórico será preservado/);
-  assert.match(frontend, /Ficha em preparação/);
+  assert.match(frontend, /Nova ficha/);
+  assert.match(frontend, /Histórico/);
   assert.match(migration, /can_access_cepi_student/i);
   assert.match(migration, /get_cepi_tutored_student_activity/i);
 });
@@ -48,7 +49,7 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=4'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=5'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
@@ -79,6 +80,26 @@ test('tutoring PDF contains only the individual form scope', () => {
   assert.match(frontend, /cepi_tutoring_forms/);
   assert.match(frontend, /reference_date,form_schema,answers,status/);
   assert.match(frontend, /datas dos atendimentos e as perguntas e respostas/i);
+  assert.match(frontend, /include_in_report !== false/);
+});
+
+test('individual tutoring form follows the official CEPI model', () => {
+  assert.match(frontend, /Iniciação Científica \(EF\)/);
+  assert.match(frontend, /Projeto de Vida \(EM\)/);
+  assert.match(frontend, /Projeto de Eletiva — 1º semestre/);
+  assert.match(frontend, /Pessoal — Aprender a ser/);
+  assert.match(frontend, /Social-relacional — Aprender a conviver/);
+  assert.match(frontend, /Cognitiva — Aprender a conhecer/);
+  assert.match(frontend, /Produtiva — Aprender a fazer/);
+  assert.match(frontend, /Dificuldade identificada/);
+  assert.match(frontend, /O registro foi lido e discutido com o tutorando/);
+  assert.match(frontend, /Salvar rascunho/);
+  assert.match(frontend, /status === 'completed'/);
+});
+
+test('internal tutor notes are excluded from the PDF schema', () => {
+  assert.match(frontend, /id:'internal_notes'.*include_in_report:false/);
+  assert.match(frontend, /não aparecem no PDF/i);
 });
 
 test('CEPI visibility updates without logout or manual reload', () => {

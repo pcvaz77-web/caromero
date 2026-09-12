@@ -81,17 +81,34 @@ document.addEventListener('DOMContentLoaded', () => {
   transferModal.innerHTML = `<section class="modal small"><div class="modal-head"><div><h3>Trocar tutor</h3><div class="meta" id="cepiTransferStudentName"></div></div><button class="close" type="button" data-cepi-close="cepiTransferModal">×</button></div><form id="cepiTransferForm" class="form"><input id="cepiTransferAssignment" type="hidden"><div class="field"><label for="cepiTransferTutor">Novo tutor</label><select id="cepiTransferTutor" required></select></div><div class="actions"><button class="btn secondary" type="button" data-cepi-close="cepiTransferModal">Cancelar</button><button class="btn primary" type="submit">Confirmar troca</button></div></form></section>`;
   document.body.appendChild(transferModal);
 
+  const formModal = document.createElement('div');
+  formModal.id = 'cepiFormModal';
+  formModal.className = 'modal-bg cepi-modal hidden';
+  formModal.innerHTML = `<section class="modal cepi-form-dialog"><div class="modal-head"><div><span class="cepi-kicker">FICHA INDIVIDUAL</span><h3 id="cepiFormTitle">Novo atendimento</h3><div class="meta" id="cepiFormStudent"></div></div><button class="close" type="button" data-cepi-close="cepiFormModal">×</button></div><form id="cepiAttendanceForm" class="form"><input id="cepiFormAssignment" type="hidden"><input id="cepiFormId" type="hidden">
+    <div class="cepi-form-section"><h4>Identificação e projetos</h4><div class="cepi-filter-grid"><div class="field"><label for="cepiFormDate">Data do atendimento</label><input id="cepiFormDate" type="date" required></div><div class="field"><label>Turma</label><input id="cepiFormClass" readonly></div></div><div class="cepi-filter-grid"><div class="field"><label for="cepiScientific">Iniciação Científica (EF)</label><input id="cepiScientific"></div><div class="field"><label for="cepiLifeProject">Projeto de Vida (EM)</label><input id="cepiLifeProject"></div><div class="field"><label for="cepiElective1">Projeto de Eletiva — 1º semestre</label><input id="cepiElective1"></div><div class="field"><label for="cepiElective2">Projeto de Eletiva — 2º semestre</label><input id="cepiElective2"></div><div class="field"><label for="cepiPj1">PJ — 1º semestre</label><input id="cepiPj1"></div><div class="field"><label for="cepiPj2">PJ — 2º semestre</label><input id="cepiPj2"></div></div></div>
+    <div class="cepi-form-section"><h4>Desenvolvimento do estudante</h4><div class="field"><label>Competências trabalhadas</label><div class="cepi-competencies"><label><input type="checkbox" name="cepiCompetency" value="Pessoal — Aprender a ser"> Pessoal — Aprender a ser</label><label><input type="checkbox" name="cepiCompetency" value="Social-relacional — Aprender a conviver"> Social-relacional — Aprender a conviver</label><label><input type="checkbox" name="cepiCompetency" value="Cognitiva — Aprender a conhecer"> Cognitiva — Aprender a conhecer</label><label><input type="checkbox" name="cepiCompetency" value="Produtiva — Aprender a fazer"> Produtiva — Aprender a fazer</label></div></div><div class="field"><label for="cepiNarrative">Relato do atendimento</label><textarea id="cepiNarrative" required></textarea></div><div class="field"><label for="cepiAgreements">Orientações e combinados</label><textarea id="cepiAgreements" required></textarea></div></div>
+    <div class="cepi-form-section"><h4>Dificuldades no desenvolvimento acadêmico</h4><div class="cepi-filter-grid"><div class="field"><label for="cepiSubject">Componente curricular</label><input id="cepiSubject"></div><div class="field"><label for="cepiTerm">Bimestre</label><select id="cepiTerm"><option value="">Selecione</option><option>1º bimestre</option><option>2º bimestre</option><option>3º bimestre</option><option>4º bimestre</option></select></div></div><div class="field"><label for="cepiDifficulty">Dificuldade identificada</label><textarea id="cepiDifficulty"></textarea></div><div class="field"><label for="cepiDirections">Direcionamentos</label><textarea id="cepiDirections"></textarea></div></div>
+    <div class="cepi-form-section"><h4>Ciência do tutorando</h4><label class="cepi-ack"><input id="cepiAcknowledged" type="checkbox"> O registro foi lido e discutido com o tutorando</label><div class="field"><label for="cepiAcknowledgedName">Nome do estudante</label><input id="cepiAcknowledgedName" readonly></div><div class="field"><label for="cepiInternalNotes">Observações internas do tutor <span class="meta">(não aparecem no PDF)</span></label><textarea id="cepiInternalNotes"></textarea></div></div>
+    <div class="actions"><button id="saveCepiDraft" class="btn secondary" type="button">Salvar rascunho</button><button class="btn primary" type="submit">Concluir ficha</button></div></form></section>`;
+  document.body.appendChild(formModal);
+
+  const historyModal = document.createElement('div');
+  historyModal.id = 'cepiHistoryModal';
+  historyModal.className = 'modal-bg cepi-modal hidden';
+  historyModal.innerHTML = `<section class="modal cepi-form-dialog"><div class="modal-head"><div><h3>Histórico de atendimentos</h3><div id="cepiHistoryStudent" class="meta"></div></div><button class="close" type="button" data-cepi-close="cepiHistoryModal">×</button></div><div id="cepiHistoryList" class="form"></div></section>`;
+  document.body.appendChild(historyModal);
+
   const style = document.createElement('style');
   style.textContent = `
     #cepiNav{border:1px solid #7187b1;background:#243654;color:#fff;letter-spacing:.08em}#cepiNav:hover,#cepiNav:focus{background:#38527e}
-    .cepi-modal{z-index:220}.cepi-dialog{width:min(1040px,100%)}.cepi-kicker{display:block;color:var(--blue);font-size:11px;font-weight:850;letter-spacing:.12em;margin-bottom:4px}.cepi-home{min-height:280px;display:grid;grid-template-columns:repeat(2,minmax(0,430px));align-content:start;gap:14px}.cepi-feature-card{width:100%;display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:16px;text-align:left;padding:22px;border:1px solid #d8e1f1;border-radius:16px;background:linear-gradient(145deg,#fff,#f4f7ff);color:var(--navy);box-shadow:0 10px 28px #173b8f12}.cepi-feature-card:hover{border-color:#8ca9ed;transform:translateY(-1px)}.cepi-feature-card b,.cepi-feature-card small{display:block}.cepi-feature-card b{font-size:18px}.cepi-feature-card small{color:var(--muted);margin-top:5px}.cepi-feature-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:#e8efff;color:#315dbb;font-size:27px}.cepi-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.cepi-actions,.cepi-tutor-actions{display:flex;gap:8px}.cepi-filters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.cepi-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cepi-filters .field{margin-bottom:10px}.cepi-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.cepi-summary article{padding:14px;border:1px solid var(--line);border-radius:10px;background:#f8faff}.cepi-summary b{display:block;font-size:23px;margin-top:5px}.cepi-assignment-list{display:grid;gap:14px}.cepi-tutor-group{border:1px solid var(--line);border-radius:12px;overflow:hidden}.cepi-tutor-head{padding:15px 17px;background:#f7f9fc;display:flex;align-items:center;justify-content:space-between;gap:12px}.cepi-tutor-head b,.cepi-tutor-head small{display:block}.cepi-tutor-head small{color:var(--muted);margin-top:3px}.cepi-students{padding:5px 17px}.cepi-student-row{display:grid;grid-template-columns:56px minmax(170px,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-bottom:1px solid #edf0f4}.cepi-student-row:last-child{border:0}.cepi-student-photo{width:52px;height:52px;border-radius:50%;background:#e8efff;display:grid;place-items:center;overflow:hidden;font-weight:850;color:#315dbb}.cepi-student-photo img{width:100%;height:100%;object-fit:cover}.cepi-student-info b,.cepi-student-info small{display:block}.cepi-student-info small{color:var(--muted);margin-top:3px}.cepi-student-labels,.cepi-student-status{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.cepi-student-labels span,.cepi-student-status span{padding:5px 8px;border-radius:8px;background:#f4f6fa;font-size:12px}.cepi-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.cepi-student-expanded{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;border-radius:10px;background:#f8faff}.cepi-student-expanded section{padding:12px;background:#fff;border:1px solid var(--line);border-radius:9px}.cepi-student-expanded ul{margin:8px 0 0;padding-left:18px;color:#536178;font-size:12px;line-height:1.5}.cepi-form-pending{font-size:12px;padding:6px 9px;border-radius:99px;background:#fff4d6;color:#805b00;font-weight:750}.cepi-student-select{min-height:230px;padding:8px}.cepi-empty{padding:34px;text-align:center;color:var(--muted)}.student-tutor-label{display:inline-flex;margin-top:5px;padding:4px 8px;border-radius:99px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:750}
-    @media(max-width:800px){.cepi-modal{padding:8px;align-items:start;overflow:auto}.cepi-dialog{max-height:calc(100dvh - 16px)}.cepi-home,.cepi-filters,.cepi-filter-grid{grid-template-columns:1fr}.cepi-toolbar{align-items:stretch;flex-direction:column}.cepi-actions{display:grid;grid-template-columns:1fr 1fr}.cepi-summary{grid-template-columns:1fr}.cepi-student-row{grid-template-columns:48px 1fr}.cepi-student-photo{width:44px;height:44px}.cepi-row-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.cepi-row-actions .btn{width:100%}.cepi-tutor-head{align-items:flex-start;flex-direction:column}.cepi-tutor-actions{width:100%;flex-wrap:wrap}.cepi-student-expanded{grid-template-columns:1fr}}
+    .cepi-modal{z-index:220}.cepi-dialog{width:min(1040px,100%)}.cepi-form-dialog{width:min(880px,100%)}.cepi-form-section{padding:16px;border:1px solid var(--line);border-radius:12px;background:#fbfcff;margin-bottom:14px}.cepi-form-section h4{margin:0 0 14px}.cepi-competencies{display:grid;grid-template-columns:1fr 1fr;gap:8px}.cepi-competencies label,.cepi-ack{display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #dfe5ef;border-radius:9px;background:#fff;font-weight:650}.cepi-competencies input,.cepi-ack input{width:auto;min-height:0}.cepi-history-item{border:1px solid var(--line);border-radius:11px;padding:14px;margin-bottom:10px}.cepi-history-head{display:flex;justify-content:space-between;gap:10px}.cepi-history-body{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.cepi-history-body dl{display:grid;grid-template-columns:190px 1fr;gap:8px;margin:0}.cepi-history-body dt{font-weight:750}.cepi-history-body dd{margin:0;white-space:pre-wrap}.cepi-kicker{display:block;color:var(--blue);font-size:11px;font-weight:850;letter-spacing:.12em;margin-bottom:4px}.cepi-home{min-height:280px;display:grid;grid-template-columns:repeat(2,minmax(0,430px));align-content:start;gap:14px}.cepi-feature-card{width:100%;display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:16px;text-align:left;padding:22px;border:1px solid #d8e1f1;border-radius:16px;background:linear-gradient(145deg,#fff,#f4f7ff);color:var(--navy);box-shadow:0 10px 28px #173b8f12}.cepi-feature-card:hover{border-color:#8ca9ed;transform:translateY(-1px)}.cepi-feature-card b,.cepi-feature-card small{display:block}.cepi-feature-card b{font-size:18px}.cepi-feature-card small{color:var(--muted);margin-top:5px}.cepi-feature-icon{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;background:#e8efff;color:#315dbb;font-size:27px}.cepi-toolbar{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.cepi-actions,.cepi-tutor-actions{display:flex;gap:8px}.cepi-filters{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.cepi-filter-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cepi-filters .field{margin-bottom:10px}.cepi-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}.cepi-summary article{padding:14px;border:1px solid var(--line);border-radius:10px;background:#f8faff}.cepi-summary b{display:block;font-size:23px;margin-top:5px}.cepi-assignment-list{display:grid;gap:14px}.cepi-tutor-group{border:1px solid var(--line);border-radius:12px;overflow:hidden}.cepi-tutor-head{padding:15px 17px;background:#f7f9fc;display:flex;align-items:center;justify-content:space-between;gap:12px}.cepi-tutor-head b,.cepi-tutor-head small{display:block}.cepi-tutor-head small{color:var(--muted);margin-top:3px}.cepi-students{padding:5px 17px}.cepi-student-row{display:grid;grid-template-columns:56px minmax(170px,1fr) auto;gap:12px;align-items:start;padding:14px 0;border-bottom:1px solid #edf0f4}.cepi-student-row:last-child{border:0}.cepi-student-photo{width:52px;height:52px;border-radius:50%;background:#e8efff;display:grid;place-items:center;overflow:hidden;font-weight:850;color:#315dbb}.cepi-student-photo img{width:100%;height:100%;object-fit:cover}.cepi-student-info b,.cepi-student-info small{display:block}.cepi-student-info small{color:var(--muted);margin-top:3px}.cepi-student-labels,.cepi-student-status{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.cepi-student-labels span,.cepi-student-status span{padding:5px 8px;border-radius:8px;background:#f4f6fa;font-size:12px}.cepi-row-actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end}.cepi-student-expanded{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;border-radius:10px;background:#f8faff}.cepi-student-expanded section{padding:12px;background:#fff;border:1px solid var(--line);border-radius:9px}.cepi-student-expanded ul{margin:8px 0 0;padding-left:18px;color:#536178;font-size:12px;line-height:1.5}.cepi-student-select{min-height:230px;padding:8px}.cepi-empty{padding:34px;text-align:center;color:var(--muted)}.student-tutor-label{display:inline-flex;margin-top:5px;padding:4px 8px;border-radius:99px;background:#ede9fe;color:#5b21b6;font-size:11px;font-weight:750}
+    @media(max-width:800px){.cepi-modal{padding:8px;align-items:start;overflow:auto}.cepi-dialog{max-height:calc(100dvh - 16px)}.cepi-home,.cepi-filters,.cepi-filter-grid,.cepi-competencies{grid-template-columns:1fr}.cepi-toolbar{align-items:stretch;flex-direction:column}.cepi-actions{display:grid;grid-template-columns:1fr 1fr}.cepi-summary{grid-template-columns:1fr}.cepi-student-row{grid-template-columns:48px 1fr}.cepi-student-photo{width:44px;height:44px}.cepi-row-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.cepi-row-actions .btn{width:100%}.cepi-tutor-head{align-items:flex-start;flex-direction:column}.cepi-tutor-actions{width:100%;flex-wrap:wrap}.cepi-student-expanded{grid-template-columns:1fr}.cepi-history-body dl{grid-template-columns:1fr}.cepi-history-body dd{margin-bottom:8px}}
   `;
   document.head.appendChild(style);
 
   const closeModal = id => document.getElementById(id)?.classList.add('hidden');
   document.querySelectorAll('[data-cepi-close]').forEach(button => button.onclick = () => closeModal(button.dataset.cepiClose));
-  [modal, tutorModal, assignmentModal, reportModal, transferModal].forEach(item => item.onclick = event => { if (event.target === item) closeModal(item.id); });
+  [modal, tutorModal, assignmentModal, reportModal, transferModal, formModal, historyModal].forEach(item => item.onclick = event => { if (event.target === item) closeModal(item.id); });
   document.getElementById('closeCepi').onclick = () => closeModal('cepiModal');
 
   async function refreshAccess() {
@@ -220,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const occurrences = activity.occurrences?.length ? activity.occurrences.map(entry => `<li><b>${escapeHtml(new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${entry.date}T00:00:00Z`)))}</b> — ${escapeHtml(entry.text)}</li>`).join('') : '<li>Nenhuma ocorrência registrada.</li>';
         const attendance = activity.attendance?.length ? activity.attendance.map(entry => `<li>${escapeHtml(entry.subject)} · ${escapeHtml(entry.term)} — ${escapeHtml(attendanceLabel(entry.status))} (${escapeHtml(entry.percentage)}%)</li>`).join('') : '<li>Sem histórico de frequência.</li>';
         const books = activity.livro_revisa?.length ? activity.livro_revisa.map(entry => `<li>${escapeHtml(entry.school_year)} · ${escapeHtml(entry.bimester)}º bimestre — ${escapeHtml(entry.status)}</li>`).join('') : '<li>Sem registros de Livro/Revisa.</li>';
-        return `<div class="cepi-student-row"><div class="cepi-student-photo">${photo}</div><div class="cepi-student-info"><b>${escapeHtml(student.name || 'Aluno')}</b><small>${escapeHtml(student.className || 'Turma não informada')}</small><div class="cepi-student-labels"><span>Tutor(a): ${escapeHtml(tutor.display_name)}</span><span>Conselheiro(a): ${escapeHtml(counselorNames.join(' · ') || 'não definido')}</span>${student.report ? `<span>Observações: ${escapeHtml(student.report)}</span>` : ''}</div><div class="cepi-student-status">${tutorStatusHtml(student, activity)}</div></div><div class="cepi-row-actions"><button class="btn secondary" type="button" data-tutoring-details="${escapeHtml(item.student_id)}">Ver detalhes</button><span class="cepi-form-pending">Ficha em preparação</span>${access.can_manage ? `<button class="btn secondary" type="button" data-transfer-assignment="${escapeHtml(item.id)}">Trocar tutor</button><button class="btn secondary" type="button" data-end-assignment="${escapeHtml(item.id)}">Encerrar vínculo</button>` : ''}</div><div class="cepi-student-expanded hidden" data-tutoring-panel="${escapeHtml(item.student_id)}"><section><b>Ocorrências</b><ul>${occurrences}</ul></section><section><b>Frequência</b><ul>${attendance}</ul></section><section><b>Livro/Revisa</b><ul>${books}</ul></section></div></div>`;
+        return `<div class="cepi-student-row"><div class="cepi-student-photo">${photo}</div><div class="cepi-student-info"><b>${escapeHtml(student.name || 'Aluno')}</b><small>${escapeHtml(student.className || 'Turma não informada')}</small><div class="cepi-student-labels"><span>Tutor(a): ${escapeHtml(tutor.display_name)}</span><span>Conselheiro(a): ${escapeHtml(counselorNames.join(' · ') || 'não definido')}</span>${student.report ? `<span>Observações: ${escapeHtml(student.report)}</span>` : ''}</div><div class="cepi-student-status">${tutorStatusHtml(student, activity)}</div></div><div class="cepi-row-actions"><button class="btn primary" type="button" data-new-cepi-form="${escapeHtml(item.id)}">Nova ficha</button><button class="btn secondary" type="button" data-cepi-history="${escapeHtml(item.student_id)}">Histórico</button><button class="btn secondary" type="button" data-tutoring-details="${escapeHtml(item.student_id)}">Ver detalhes</button>${access.can_manage ? `<button class="btn secondary" type="button" data-transfer-assignment="${escapeHtml(item.id)}">Trocar tutor</button><button class="btn secondary" type="button" data-end-assignment="${escapeHtml(item.id)}">Encerrar vínculo</button>` : ''}</div><div class="cepi-student-expanded hidden" data-tutoring-panel="${escapeHtml(item.student_id)}"><section><b>Ocorrências</b><ul>${occurrences}</ul></section><section><b>Frequência</b><ul>${attendance}</ul></section><section><b>Livro/Revisa</b><ul>${books}</ul></section></div></div>`;
       }).join('') : '<div class="cepi-empty">Nenhum tutorando atribuído.</div>';
       return `<section class="cepi-tutor-group"><div class="cepi-tutor-head"><div><b>${escapeHtml(tutor.display_name)}</b><small>${escapeHtml(type)}${tutor.email ? ` · ${escapeHtml(tutor.email)}` : ''}</small></div><div class="cepi-tutor-actions"><span class="pill light">${tutorAssignments.length} tutorando(s)</span>${access.can_manage ? `<button class="btn secondary" type="button" data-edit-tutor="${escapeHtml(tutor.id)}">Editar</button><button class="btn secondary" type="button" data-remove-tutor="${escapeHtml(tutor.id)}">Remover</button>` : ''}</div></div><div class="cepi-students">${rows}</div></section>`;
     }).join('') || '<div class="cepi-empty">Nenhum resultado para os filtros informados.</div>';
@@ -228,6 +245,8 @@ document.addEventListener('DOMContentLoaded', () => {
     target.querySelectorAll('[data-transfer-assignment]').forEach(button => button.onclick = () => openTransferForm(button.dataset.transferAssignment));
     target.querySelectorAll('[data-edit-tutor]').forEach(button => button.onclick = () => openTutorForm(button.dataset.editTutor));
     target.querySelectorAll('[data-remove-tutor]').forEach(button => button.onclick = () => removeTutor(button.dataset.removeTutor));
+    target.querySelectorAll('[data-new-cepi-form]').forEach(button => button.onclick = () => openAttendanceForm(button.dataset.newCepiForm));
+    target.querySelectorAll('[data-cepi-history]').forEach(button => button.onclick = () => openAttendanceHistory(button.dataset.cepiHistory));
     target.querySelectorAll('[data-tutoring-details]').forEach(button => button.onclick = () => {
       const panel = target.querySelector(`[data-tutoring-panel="${CSS.escape(button.dataset.tutoringDetails)}"]`);
       panel?.classList.toggle('hidden');
@@ -351,6 +370,104 @@ document.addEventListener('DOMContentLoaded', () => {
     toast('Tutor removido. Histórico preservado.'); await loadTutoring();
   }
 
+  const attendanceSchema = [
+    { id:'scientific_initiation', label:'Iniciação Científica (EF)' },
+    { id:'life_project', label:'Projeto de Vida (EM)' },
+    { id:'elective_1', label:'Projeto de Eletiva — 1º semestre' },
+    { id:'elective_2', label:'Projeto de Eletiva — 2º semestre' },
+    { id:'pj_1', label:'PJ — 1º semestre' },
+    { id:'pj_2', label:'PJ — 2º semestre' },
+    { id:'competencies', label:'Competências trabalhadas' },
+    { id:'narrative', label:'Relato do atendimento' },
+    { id:'agreements', label:'Orientações e combinados' },
+    { id:'subject', label:'Componente curricular' },
+    { id:'term', label:'Bimestre' },
+    { id:'difficulty', label:'Dificuldade identificada' },
+    { id:'directions', label:'Direcionamentos' },
+    { id:'acknowledged', label:'Ciência do tutorando' },
+    { id:'acknowledged_name', label:'Nome do estudante' },
+    { id:'internal_notes', label:'Observações internas do tutor', include_in_report:false }
+  ];
+
+  const formFieldMap = {
+    scientific_initiation:'cepiScientific', life_project:'cepiLifeProject', elective_1:'cepiElective1', elective_2:'cepiElective2',
+    pj_1:'cepiPj1', pj_2:'cepiPj2', narrative:'cepiNarrative', agreements:'cepiAgreements', subject:'cepiSubject',
+    term:'cepiTerm', difficulty:'cepiDifficulty', directions:'cepiDirections', acknowledged_name:'cepiAcknowledgedName', internal_notes:'cepiInternalNotes'
+  };
+
+  function fillAttendanceAnswers(answers={}) {
+    Object.entries(formFieldMap).forEach(([key,id]) => { document.getElementById(id).value = answers[key] || ''; });
+    document.querySelectorAll('[name="cepiCompetency"]').forEach(input => { input.checked = (answers.competencies || []).includes(input.value); });
+    document.getElementById('cepiAcknowledged').checked = answers.acknowledged === true || answers.acknowledged === 'Sim';
+  }
+
+  function collectAttendanceAnswers() {
+    const answers = {};
+    Object.entries(formFieldMap).forEach(([key,id]) => { answers[key] = document.getElementById(id).value.trim(); });
+    answers.competencies = [...document.querySelectorAll('[name="cepiCompetency"]:checked')].map(input => input.value);
+    answers.acknowledged = document.getElementById('cepiAcknowledged').checked ? 'Sim' : 'Não';
+    return answers;
+  }
+
+  async function openAttendanceForm(assignmentId, existingForm=null) {
+    const assignment = assignments.find(item => item.id === assignmentId);
+    const student = students.find(item => item.id === assignment?.student_id);
+    if (!assignment || !student) { toast('Vínculo de tutoria não encontrado.'); return; }
+    document.getElementById('cepiAttendanceForm').reset();
+    document.getElementById('cepiFormAssignment').value = assignment.id;
+    document.getElementById('cepiFormId').value = existingForm?.id || '';
+    document.getElementById('cepiFormTitle').textContent = existingForm ? 'Editar rascunho' : 'Novo atendimento';
+    document.getElementById('cepiFormStudent').textContent = `${student.name} · ${student.className || 'Turma não informada'}`;
+    document.getElementById('cepiFormClass').value = student.className || '';
+    document.getElementById('cepiFormDate').value = existingForm?.reference_date || new Date().toISOString().slice(0,10);
+    document.getElementById('cepiAcknowledgedName').value = student.name;
+    if (existingForm) fillAttendanceAnswers(existingForm.answers || {});
+    else {
+      const { data:lastForms } = await db.from('cepi_tutoring_forms').select('answers').eq('school_id', window.getActiveSchoolId?.()).eq('student_id', student.id).order('reference_date', { ascending:false }).limit(1);
+      const previous = lastForms?.[0]?.answers || {};
+      fillAttendanceAnswers({ scientific_initiation:previous.scientific_initiation, life_project:previous.life_project, elective_1:previous.elective_1, elective_2:previous.elective_2, pj_1:previous.pj_1, pj_2:previous.pj_2, acknowledged_name:student.name });
+    }
+    formModal.classList.remove('hidden');
+  }
+
+  async function saveAttendanceForm(status) {
+    const assignment = assignments.find(item => item.id === document.getElementById('cepiFormAssignment').value);
+    if (!assignment) { toast('Vínculo de tutoria não encontrado.'); return; }
+    const answers = collectAttendanceAnswers();
+    if (status === 'completed' && (!answers.competencies.length || !answers.narrative || !answers.agreements)) { toast('Informe competência, relato e orientações antes de concluir.'); return; }
+    if (status === 'completed' && answers.acknowledged !== 'Sim') { toast('Confirme que a ficha foi lida com o tutorando.'); return; }
+    const { data:{ user:signedInUser } } = await db.auth.getUser();
+    const formId = document.getElementById('cepiFormId').value;
+    const row = { school_id:window.getActiveSchoolId?.(), assignment_id:assignment.id, tutor_id:assignment.tutor_id, student_id:assignment.student_id, reference_date:document.getElementById('cepiFormDate').value, form_schema:attendanceSchema, answers, status, created_by:signedInUser?.id };
+    const result = formId ? await db.from('cepi_tutoring_forms').update(row).eq('id', formId).eq('status', 'draft') : await db.from('cepi_tutoring_forms').insert(row);
+    if (result.error) { toast(result.error.message); return; }
+    closeModal('cepiFormModal'); toast(status === 'completed' ? 'Ficha concluída.' : 'Rascunho salvo.');
+  }
+
+  document.getElementById('saveCepiDraft').onclick = () => saveAttendanceForm('draft');
+  document.getElementById('cepiAttendanceForm').onsubmit = event => { event.preventDefault(); saveAttendanceForm('completed'); };
+
+  async function openAttendanceHistory(studentId) {
+    const student = students.find(item => item.id === studentId);
+    const target = document.getElementById('cepiHistoryList');
+    document.getElementById('cepiHistoryStudent').textContent = student?.name || 'Aluno tutorando';
+    target.innerHTML = '<div class="meta">Carregando atendimentos...</div>';
+    historyModal.classList.remove('hidden');
+    const { data:forms, error } = await db.from('cepi_tutoring_forms').select('id,assignment_id,reference_date,form_schema,answers,status,created_at,completed_at').eq('school_id', window.getActiveSchoolId?.()).eq('student_id', studentId).order('reference_date', { ascending:false });
+    if (error) { target.innerHTML = '<div class="error">Não foi possível carregar o histórico.</div>'; return; }
+    if (!forms?.length) { target.innerHTML = '<div class="cepi-empty">Nenhum atendimento registrado.</div>'; return; }
+    target.innerHTML = forms.map(form => {
+      const date = new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${form.reference_date}T00:00:00Z`));
+      const competencies = Array.isArray(form.answers?.competencies) ? form.answers.competencies.join(' · ') : 'Competência não informada';
+      const details = (form.form_schema || []).filter(question => question.include_in_report !== false && !['scientific_initiation','life_project','elective_1','elective_2','pj_1','pj_2'].includes(question.id)).map(question => `<dt>${escapeHtml(question.label)}</dt><dd>${escapeHtml(Array.isArray(form.answers?.[question.id]) ? form.answers[question.id].join(', ') : (form.answers?.[question.id] || 'Não informado'))}</dd>`).join('');
+      return `<article class="cepi-history-item"><div class="cepi-history-head"><div><b>${escapeHtml(date)}</b><div class="meta">${escapeHtml(competencies)}</div></div><div><span class="pill ${form.status === 'completed' ? 'light' : ''}">${form.status === 'completed' ? 'Concluída' : 'Rascunho'}</span>${form.status === 'draft' ? ` <button class="btn secondary" type="button" data-edit-cepi-form="${escapeHtml(form.id)}">Editar</button>` : ''}</div></div><div class="cepi-history-body"><dl>${details}</dl></div></article>`;
+    }).join('');
+    target.querySelectorAll('[data-edit-cepi-form]').forEach(button => button.onclick = () => {
+      const form = forms.find(item => item.id === button.dataset.editCepiForm);
+      closeModal('cepiHistoryModal'); openAttendanceForm(form.assignment_id, form);
+    });
+  }
+
   async function imageAsDataUrl(url) {
     if (!url) return null;
     try {
@@ -428,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
       write(`Atendimento ${formIndex + 1} — ${date}`, { size:12, bold:true, gap:5.5 });
       const schema = Array.isArray(form.form_schema) ? form.form_schema : [];
       const answers = form.answers && typeof form.answers === 'object' ? form.answers : {};
-      const questions = schema.length ? schema : Object.keys(answers).map(key => ({ id:key, label:key }));
+      const questions = (schema.length ? schema : Object.keys(answers).map(key => ({ id:key, label:key }))).filter(question => question.include_in_report !== false);
       if (!questions.length) write('Ficha sem perguntas registradas.', { size:10 });
       questions.forEach((question, questionIndex) => {
         const key = String(question.id ?? question.key ?? questionIndex);
