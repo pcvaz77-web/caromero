@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let assignments = [];
   let candidates = [];
   let activityByStudent = new Map();
+  let accessRefreshPromise = null;
+  let accessPollTimer = null;
 
   const cepiNav = document.createElement('button');
   cepiNav.id = 'cepiNav';
@@ -83,14 +85,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('closeCepi').onclick = () => closeModal('cepiModal');
 
   async function refreshAccess() {
+    if (accessRefreshPromise) return accessRefreshPromise;
+    accessRefreshPromise = (async () => {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); return; }
     const { data, error } = await db.rpc('get_cepi_access_context', { p_school_id:schoolId });
     if (error) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); return; }
     access = (Array.isArray(data) ? data[0] : data) || { enabled:false, can_manage:false, tutor_id:null };
-    cepiNav.classList.toggle('hidden', access.enabled !== true || (access.can_manage !== true && !access.tutor_id));
+    cepiNav.classList.toggle('hidden', access.enabled !== true);
     document.getElementById('cepiManagementActions').classList.toggle('hidden', access.can_manage !== true);
+    if (!access.enabled) closeModal('cepiModal');
+    })().finally(() => { accessRefreshPromise = null; });
+    return accessRefreshPromise;
   }
+
+  const startAccessPolling = () => {
+    if (accessPollTimer) clearInterval(accessPollTimer);
+    accessPollTimer = setInterval(() => {
+      if (!document.hidden && !document.getElementById('app')?.classList.contains('hidden')) refreshAccess();
+    }, 2500);
+  };
 
   function showCepiHome() {
     document.getElementById('cepiTitle').textContent = 'CEPI';
@@ -341,8 +355,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('newTutor').onclick = openTutorForm;
   document.getElementById('newAssignment').onclick = openAssignmentForm;
   document.addEventListener('carometro:school-context-ready', refreshAccess);
-  new MutationObserver(decorateMainStudentCards).observe(document.getElementById('list'), { childList:true, subtree:true });
-  document.getElementById('signOut')?.addEventListener('click', () => { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); }, { capture:true });
+  document.addEventListener('carometro:cepi-settings-changed', refreshAccess);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshAccess(); });
+  new MutationObserver(() => { decorateMainStudentCards(); refreshAccess(); }).observe(document.getElementById('list'), { childList:true, subtree:true });
+  startAccessPolling();
+  document.getElementById('signOut')?.addEventListener('click', () => {
+    access = { enabled:false, can_manage:false, tutor_id:null };
+    cepiNav.classList.add('hidden');
+    closeModal('cepiModal');
+  }, { capture:true });
 
   // Área CEPI no Painel do Proprietário. Ela é separada dos planos: o dono
   // habilita a função por escola, exatamente como decisão comercial manual.

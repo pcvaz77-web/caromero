@@ -6,6 +6,8 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '112_cepi_tutoring_foundation.sql'), 'utf8');
 const frontend = fs.readFileSync(path.join(root, 'cepi-tutoring.js'), 'utf8');
+const realtime = fs.readFileSync(path.join(root, 'realtime-sync.js'), 'utf8');
+const realtimeMigration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '113_cepi_realtime_visibility.sql'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 test('CEPI is enabled per school by the platform owner', () => {
@@ -58,4 +60,13 @@ test('tutoring PDF contains only the individual form scope', () => {
   assert.match(frontend, /cepi_tutoring_forms/);
   assert.match(frontend, /reference_date,form_schema,answers,status/);
   assert.match(frontend, /datas dos atendimentos e as perguntas e respostas/i);
+});
+
+test('CEPI visibility updates without logout or manual reload', () => {
+  assert.match(realtimeMigration, /emit_cepi_setting_change_realtime_event/i);
+  assert.match(realtimeMigration, /execute function public\.emit_school_realtime_event\(\)/i);
+  assert.match(realtime, /school_cepi_settings.*carometro:cepi-settings-changed/);
+  assert.match(frontend, /carometro:cepi-settings-changed/);
+  assert.match(frontend, /setInterval[\s\S]*2500/);
+  assert.match(frontend, /cepiNav\.classList\.toggle\('hidden', access\.enabled !== true\)/);
 });

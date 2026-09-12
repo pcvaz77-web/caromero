@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const handleSchoolEntityChange = entity => {
     if (entity === 'student_occurrences') notify('carometro:occurrences-changed');
     if (entity === 'observation_options') notify('carometro:observations-changed');
+    if (entity === 'school_cepi_settings') notify('carometro:cepi-settings-changed');
     if (entity === 'class_counselors') {
       window.refreshCounselorAssignments?.();
       notify('carometro:permissions-changed');
