@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const byId = id => document.getElementById(id);
   const roleLabel = role => role === 'coordinator' ? 'Coordenador(a)' : 'Professor(a)';
   const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin' || (window.getActiveSchoolRole?.() === 'coordinator' && !!(permission.can_edit_all || permission.can_invite_teachers));
+  const canInviteCoordinator = () => window.getActiveSchoolRole?.() === 'school_admin' || (window.getActiveSchoolRole?.() === 'coordinator' && !!(permission.can_edit_all || (permission.can_invite_teachers && permission.can_manage_member_permissions)));
   const linkForToken = token => new URL(`accept-invite.html?token=${encodeURIComponent(token)}`, location.href).href;
   const copyText = async text => {
     try { await navigator.clipboard.writeText(text); }
@@ -43,9 +44,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function refreshVisibility() {
     const allowed = canInvite();
     nav.classList.toggle('hidden', !allowed);
-    const coordinator = window.getActiveSchoolRole?.() === 'coordinator';
-    byId('schoolInviteRole').querySelector('option[value="coordinator"]').disabled = coordinator;
-    if (coordinator) byId('schoolInviteRole').value = 'teacher';
+    const coordinatorAllowed = canInviteCoordinator();
+    byId('schoolInviteRole').querySelector('option[value="coordinator"]').disabled = !coordinatorAllowed;
+    if (!coordinatorAllowed && byId('schoolInviteRole').value === 'coordinator') byId('schoolInviteRole').value = 'teacher';
     if (!allowed) modal.classList.add('hidden');
   }
 
@@ -74,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolId = window.getActiveSchoolId?.(), email = byId('schoolInviteEmail').value.trim(), role = byId('schoolInviteRole').value;
     if (!schoolId || !canInvite()) { toast('Você não possui permissão para convidar nesta escola.'); return; }
     if (!byId('schoolInviteEmail').checkValidity()) { byId('schoolInviteEmail').reportValidity(); return; }
-    if (window.getActiveSchoolRole?.() === 'coordinator' && role !== 'teacher') { toast('Coordenadores só podem convidar professores.'); return; }
+    if (role === 'coordinator' && !canInviteCoordinator()) { toast('Você precisa das permissões de convite e gestão de professores para convidar um coordenador.'); return; }
     byId('schoolInviteCreate').disabled = true;
     try {
       const { data:id, error } = await db.rpc('create_school_invitation', { target_school_id:schoolId, target_email:email, target_role:role });
