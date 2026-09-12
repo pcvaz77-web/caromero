@@ -4,3 +4,18 @@
 .wrangler/
 supabase/.temp/
 tmp/
+
+# Artefatos locais de trabalho e validação (nunca publicar no Pages)
+.claude/launch.json
+.codex-finalizer/
+.codex-pptx-work/
+.codex-remote-attachments/
+work/
+output/
+outputs/
+
+# Materiais de loja/divulgação não usados pelo frontend
+assets/assistente-siap/
+
+# Pacote substituído pela versão 0.6.2 versionada
+downloads/carometro-frequencia-leitura-0.6.1.zip
