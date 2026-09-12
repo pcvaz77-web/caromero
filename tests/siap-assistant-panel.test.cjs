@@ -21,9 +21,10 @@ test('nao carrega o modulo de importacao de frequencia', () => {
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const permissions = fs.readFileSync(path.join(__dirname, '../permissions-and-details.js'), 'utf8');
   assert.doesNotMatch(index, /siap-attendance-core\.js/);
-  assert.match(index, /siap-integration\.js\?v=17/);
-  assert.match(index, /permissions-and-details\.js\?v=57/);
-  assert.doesNotMatch(permissions, /siapCheck\(item,'can_import_siap_attendance','Importar frequência do SIAP'/);
+  assert.match(index, /siap-integration\.js\?v=18/);
+  assert.match(index, /permissions-and-details\.js\?v=58/);
+  assert.match(permissions, /Usar Frequência Assistida/);
+  assert.match(permissions, /setAttendancePermission/);
   assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'\s+\? permissionFields\.map/);
   assert.doesNotMatch(permissions, /setSiapPermission|Usar Assistente SIAP/);
 });
@@ -75,7 +76,7 @@ test('orienta atualizacao da extensao sem bloquear versao ainda compativel', () 
   const account = fs.readFileSync(path.join(__dirname, '../assistente-siap-conta.js'), 'utf8');
   const config = fs.readFileSync(path.join(__dirname, '../carometro-config.js'), 'utf8');
   assert.match(config, /siapAssistantMinimumVersion: '0\.20\.0'/);
-  assert.match(config, /siapAssistantRecommendedVersion: '0\.22\.5'/);
+  assert.match(config, /siapAssistantRecommendedVersion: '0\.22\.9'/);
   assert.match(config, /siapAssistantStoreUrl: 'https:\/\/chromewebstore\.google\.com\/detail\/fgpjjlikinpcjpmmjehbgbfonnbfibnc'/);
   assert.match(integration, /result\.extensionVersion/);
   assert.match(integration, /Atualização obrigatória/);
