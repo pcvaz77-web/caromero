@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="reports-checks">
         <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
+        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Histórico de frequência</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
         <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
         <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
@@ -111,6 +112,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let transferredStudents = [];
   let uniformItemsSignature = '';
   let uniformItemsError = false;
+  let attendanceEventsByStudent = new Map();
+  let attendanceEventsSignature = '';
+  let attendanceEventsError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
 
   // Tamanho de LOTE por requisição — não é um teto de alunos/ocorrências. O
@@ -189,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
       end: get('reportEnd').value || null,
       withOccurrences: get('reportContentOccurrences').checked,
       withObservations: get('reportContentObservations').checked,
+      withAttendanceHistory: get('reportContentAttendanceHistory').checked,
       withPhoto: get('reportContentPhoto').checked,
       withLivroRevisa: get('reportContentLivroRevisa').checked,
       // Ano letivo do Livro/Revisa — independente do período de Ocorrências
@@ -342,6 +347,35 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformItemsError = false;
   }
 
+  async function fetchAttendanceEvents(filters) {
+    if (!filters.withAttendanceHistory || !filters.schoolId) {
+      attendanceEventsByStudent = new Map();
+      attendanceEventsError = false;
+      attendanceEventsSignature = '';
+      return;
+    }
+    const signature = filters.schoolId;
+    if (signature === attendanceEventsSignature) return;
+    const token = ++fetchToken;
+    const rows = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await db.from('siap_attendance_status_events')
+        .select('student_id,academic_year,term,subject,months,from_status,to_status,previous_percentage,percentage,changed_at')
+        .eq('school_id', filters.schoolId).order('changed_at', { ascending:true })
+        .range(offset, offset + REPORT_PAGE_SIZE - 1);
+      if (token !== fetchToken) return;
+      if (error) { attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
+      const batch=data||[];rows.push(...batch);
+      if(batch.length<REPORT_PAGE_SIZE)break;
+      offset+=REPORT_PAGE_SIZE;
+    }
+    attendanceEventsByStudent=new Map();
+    rows.forEach(item=>{if(!attendanceEventsByStudent.has(item.student_id))attendanceEventsByStudent.set(item.student_id,[]);attendanceEventsByStudent.get(item.student_id).push(item);});
+    attendanceEventsSignature=signature;
+    attendanceEventsError=false;
+  }
+
   // Escola ativa da sessão (school-context.js) — nunca mais resolvida
   // localmente aqui. Necessário porque report_students()/datasetStudents
   // não trazem school_id por aluno: sem filtrar school_terms pela escola
@@ -374,6 +408,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let matched = false;
     if (filters.withOccurrences) matched = matched || (occurrencesByStudent.get(student.student_id)?.length > 0);
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
+    if (filters.withAttendanceHistory) matched = matched || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
     // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
     // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
     // histórico. livroRevisaByStudent já está em memória (populado sempre
@@ -427,6 +462,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchUniformItemsDataset(filters);
     if (uniformItemsError) {
       previewEl.textContent = 'Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.';
+      return;
+    }
+    await fetchAttendanceEvents(filters);
+    if (attendanceEventsError) {
+      previewEl.textContent = 'Não foi possível carregar o histórico de frequência. Tente novamente.';
       return;
     }
     const total = datasetStudents.length;
@@ -569,6 +609,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       y += 4;
+    }
+
+    if (filters.withAttendanceHistory) {
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
+      doc.text('HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA', MARGIN_X, y);y += 8;
+      const events=attendanceEventsByStudent.get(student.student_id)||[];
+      if(!events.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma mudança de classificação registrada.',MARGIN_X,y);y+=9;}
+      else events.forEach(event=>{
+        const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
+        const from=labels[event.from_status]||null,to=labels[event.to_status]||event.to_status;
+        let description=from?`Mudou de ${from} para ${to}`:`Classificação inicial: ${to}`;
+        if(event.to_status==='frequent'&&event.from_status)description=`Voltou a Frequente; etiqueta removida dos cards`;
+        y=ensureSpace(doc,y,12,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
+        doc.text(`${formatDateTime(event.changed_at)} — ${description} (${event.percentage}%)`,MARGIN_X,y);y+=5;
+        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
+        const detail=`Importação no Carômetro · ${event.subject} · ${event.term} · meses: ${(event.months||[]).join(', ')}`;
+        y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
+      });
+      y+=4;
     }
 
     if (filters.withOccurrences) {
@@ -761,6 +822,9 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformItemsSignature = '';
     await fetchUniformItemsDataset(filters);
     if (uniformItemsError) { toast('Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.'); return; }
+    attendanceEventsSignature = '';
+    await fetchAttendanceEvents(filters);
+    if (attendanceEventsError) { toast('Não foi possível carregar o histórico de frequência. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
@@ -815,7 +879,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_history: filters.withAttendanceHistory, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,

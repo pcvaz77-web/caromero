@@ -279,7 +279,7 @@
       return;
     }
     target.innerHTML = (plans || []).map(plan => `<form class="platform-siap-plan-card" data-siap-plan="${esc(plan.plan_key)}">
-      <div class="platform-siap-plan-summary"><b>${esc(plan.display_name)}</b><span>${esc(plan.billing_months === 6 ? 'Pagamento único por 6 meses' : 'Cobrança mensal')}</span><small>Valor registrado para validação: <b>${esc(currency(plan.hotmart_expected_amount))}</b></small></div>
+      <div class="platform-siap-plan-summary"><b>${esc(plan.display_name)}</b><span>${esc(Number(plan.billing_months) === 1 ? 'Cobrança mensal' : `Pagamento único por ${Number(plan.billing_months)} meses`)}</span><small>Valor registrado para validação: <b>${esc(currency(plan.hotmart_expected_amount))}</b></small></div>
       <label>Novo valor (R$)<input name="amount" type="number" min="0.01" max="999999.99" step="0.01" value="${esc(plan.amount)}" required></label>
       <div class="platform-siap-hotmart-step"><a class="btn secondary" href="https://app.hotmart.com/products/manage/${esc(plan.hotmart_product_id)}" target="_blank" rel="noopener">1. Alterar na Hotmart</a><span>Salve este mesmo valor na oferta antes de continuar.</span></div>
       <label class="check platform-siap-confirm"><input name="hotmart_confirmed" type="checkbox"> Confirmo que salvei o mesmo valor na Hotmart</label>
@@ -662,6 +662,7 @@
 
   function planCardHtml(plan, features) {
     const priceValue = plan.price === null || plan.price === undefined ? '' : plan.price;
+    const compareAtPriceValue = plan.compare_at_price === null || plan.compare_at_price === undefined ? '' : plan.compare_at_price;
     const semiannualPriceValue = plan.semiannual_price === null || plan.semiannual_price === undefined ? '' : plan.semiannual_price;
     const hotmartPlan = ['basic','professional'].includes(plan.plan_key);
     const monthlyMapping = plan.hotmart_mappings?.monthly;
@@ -679,6 +680,7 @@
       <div class="platform-plan-limits"><span>✓ ${esc(limitLabel(plan.max_students, 'aluno', 'alunos'))}</span><span>✓ ${esc(limitLabel(plan.max_staff, 'profissional', 'profissionais'))}</span><span>✓ ${esc(limitLabel(plan.max_classes, 'turma', 'turmas'))}</span>${enabledFeatures.map(item => `<span>✓ ${esc(item.platform_features?.label || item.feature_key)}</span>`).join('')}</div>
       <div class="field"><label>Nome</label><input data-field="display_name" value="${esc(plan.display_name)}" required></div>
       ${hotmartPlan ? hotmartPriceField('monthly', 'Preço mensal', priceValue, monthlyMapping) : `<div class="field"><label>Preço mensal</label><input data-field="price" type="number" min="0" step="0.01" value="${esc(priceValue)}" placeholder="Sob consulta"></div>`}
+      <div class="field"><label>Preço anterior (riscado na oferta)</label><input data-field="compare_at_price" type="number" min="0" step="0.01" value="${esc(compareAtPriceValue)}" placeholder="Ex.: 1100,00"><small>Opcional e apenas visual. Não altera o valor cobrado na Hotmart.</small></div>
       ${hotmartPlan ? hotmartPriceField('semiannual', 'Preço por 6 meses', semiannualPriceValue, semiannualMapping) : `<div class="field"><label>Preço por 6 meses</label><input data-field="semiannual_price" type="number" min="0" step="0.01" value="${esc(semiannualPriceValue)}" placeholder="Pagamento único"></div>`}
       <label class="check"><input data-field="semiannual_active" type="checkbox" ${plan.semiannual_active ? 'checked' : ''}> Oferecer pagamento único por 6 meses</label>
       <div class="field"><label>Descrição</label><input data-field="description" value="${esc(plan.description || '')}"></div>
@@ -743,6 +745,8 @@
     const displayName = field('display_name').value.trim();
     const priceRaw = field('price').value.trim();
     const price = priceRaw === '' ? null : Number(priceRaw);
+    const compareAtPriceRaw = field('compare_at_price').value.trim();
+    const compareAtPrice = compareAtPriceRaw === '' ? null : Number(compareAtPriceRaw);
     const semiannualPriceRaw = field('semiannual_price').value.trim();
     const semiannualPrice = semiannualPriceRaw === '' ? null : Number(semiannualPriceRaw);
     const semiannualActive = field('semiannual_active').checked;
@@ -758,6 +762,7 @@
     const semiannualConfirmed = field('semiannual_hotmart_confirmed')?.checked === true;
     if (!displayName || !ctaLabel) { toast('Preencha o nome e o texto do botão.'); return; }
     if (price !== null && (!Number.isFinite(price) || price < 0)) { toast('Informe um preço válido, ou deixe em branco para "sob consulta".'); return; }
+    if (compareAtPrice !== null && (!Number.isFinite(compareAtPrice) || compareAtPrice <= (price ?? 0))) { toast('O preço anterior deve ser maior que o preço mensal, ou ficar em branco.'); return; }
     if (semiannualActive && (semiannualPrice === null || !Number.isFinite(semiannualPrice) || semiannualPrice <= 0)) { toast('Informe um preço semestral válido.'); return; }
     if (!Number.isInteger(displayOrder) || displayOrder < 1) { toast('Informe uma ordem de apresentação válida.'); return; }
     if (hotmartPlan && monthlyChanged && !monthlyConfirmed) { toast('Altere o valor mensal na Hotmart e marque a confirmação.'); return; }
@@ -770,6 +775,7 @@
         p_plan_key: planKey,
         p_display_name: displayName,
         p_price: price,
+        p_compare_at_price: compareAtPrice,
         p_semiannual_price: semiannualPrice,
         p_semiannual_active: semiannualActive,
         p_description: description || null,

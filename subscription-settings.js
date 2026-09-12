@@ -17,12 +17,17 @@ document.addEventListener('DOMContentLoaded', () => {
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
     .subscription-visibility { padding:12px; border:1px solid #dbe5ff; border-radius:9px; background:#f8faff; }
-    .billing-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-    .billing-option { display:flex; gap:10px; align-items:flex-start; padding:13px; border:1px solid #cbd7ef; border-radius:10px; cursor:pointer; }
-    .billing-option:has(input:checked) { border-color:#3157d5; background:#f2f5ff; box-shadow:0 0 0 1px #3157d5; }
-    .billing-option input { margin-top:3px; }
+    .billing-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .billing-option { position:relative; display:flex; gap:13px; align-items:center; min-height:112px; padding:18px; border:1.5px solid #d7dfed; border-radius:17px; background:linear-gradient(145deg,#fff,#f8faff); box-shadow:0 7px 22px #10204a0a; cursor:pointer; transition:border-color .2s,box-shadow .2s,transform .2s,background .2s; }
+    .billing-option:hover { border-color:#9fb1df; transform:translateY(-1px); box-shadow:0 12px 28px #173b8f16; }
+    .billing-option:has(input:checked) { border-color:#315fea; background:linear-gradient(145deg,#f8faff,#edf2ff); box-shadow:0 12px 30px #315fea24,0 0 0 1px #315fea inset; }
+    .billing-option input { appearance:none; width:24px; height:24px; min-height:24px; flex:0 0 24px; margin:0; padding:0; border:2px solid #acb8cc; border-radius:50%; background:#fff; box-shadow:none; }
+    .billing-option input:checked { border:7px solid #315fea; }
+    .billing-option input:focus-visible { outline:3px solid #9db6ff; outline-offset:3px; }
+    .billing-option span { min-width:0; }
     .billing-option strong,.billing-option small { display:block; }
-    .billing-option small { color:#60708e; margin-top:3px; }
+    .billing-option strong { color:#132040; font-size:15px; line-height:1.3; }
+    .billing-option small { color:#60708e; margin-top:6px; line-height:1.4; }
     .access-users { display:grid; gap:10px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
     .access-user .access-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
@@ -46,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const plansButton = document.createElement('button');
   plansButton.id = 'openPublicPlans';
   plansButton.type = 'button';
-  plansButton.className = 'btn secondary full public-plans-login-button hidden';
-  plansButton.textContent = 'Conheça os planos do CARÔMETRO';
+  plansButton.className = 'btn full public-plans-login-button hidden';
+  plansButton.innerHTML = '<span>Conheça os planos do CARÔMETRO</span><b aria-hidden="true">→</b>';
   loginCard.querySelector('.hint').insertAdjacentElement('afterend', plansButton);
 
   const publicPlansModal = document.createElement('div');
@@ -76,12 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
   applicationModal.id = 'schoolApplicationModal';
   applicationModal.className = 'modal-bg school-application-bg hidden';
   applicationModal.innerHTML = `<div class="modal school-application-modal">
-    <div class="modal-head"><div><h3>Comece com o CARÔMETRO</h3><p id="schoolApplicationPlanLabel" class="meta"></p></div><button class="close" type="button" aria-label="Fechar">×</button></div>
+    <div class="modal-head school-application-head"><div><span class="school-application-kicker">SOLICITAÇÃO DE ACESSO</span><h3>Comece com o CARÔMETRO</h3><p id="schoolApplicationPlanLabel" class="school-application-plan"></p></div><button class="close" type="button" aria-label="Fechar">×</button></div>
     <form id="schoolApplicationForm" class="form">
       <input id="schoolApplicationPlan" type="hidden">
       <div class="application-honeypot" aria-hidden="true"><label>Website<input id="schoolApplicationWebsite" tabindex="-1" autocomplete="off"></label></div>
-      <p class="sub">Preencha os dados para solicitar a entrada da sua escola. Após a aprovação, o responsável receberá por e-mail o convite seguro para criar o acesso.</p>
-      <fieldset id="schoolBillingOptions" class="field span"><legend>Forma de contratação</legend><div class="billing-options"></div></fieldset>
+      <div class="school-application-intro"><span aria-hidden="true">✓</span><p>Preencha os dados para solicitar a entrada da sua escola. Após a aprovação, o responsável receberá por e-mail o convite seguro para criar o acesso.</p></div>
+      <fieldset id="schoolBillingOptions" class="field span school-application-section"><legend><span>1</span> Forma de contratação</legend><div class="billing-options"></div></fieldset>
+      <div class="school-application-section-title"><span>2</span><div><strong>Dados da escola</strong><small>Conte-nos quem será o responsável pelo acesso.</small></div></div>
       <div class="grid">
         <div class="field span"><label for="schoolApplicationName">Nome da escola</label><input id="schoolApplicationName" maxlength="160" required></div>
         <div class="field span"><label for="schoolApplicationResponsible">Nome do responsável</label><input id="schoolApplicationResponsible" maxlength="160" autocomplete="name" required></div>
@@ -93,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <label class="check school-application-legal"><input id="schoolApplicationLegal" type="checkbox" required> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
       <p id="schoolApplicationError" class="error hidden"></p>
-      <div class="actions"><button class="btn secondary" type="button" data-cancel-application>Voltar</button><button class="btn primary" type="submit">Enviar solicitação</button></div>
+      <div class="actions"><button class="btn secondary" type="button" data-cancel-application>Voltar</button><button class="btn primary" type="submit">Enviar solicitação <span aria-hidden="true">→</span></button></div>
     </form>
   </div>`;
   document.body.appendChild(applicationModal);
@@ -109,7 +115,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('schoolApplicationForm');
     form.reset();
     document.getElementById('schoolApplicationPlan').value = plan.plan_key;
-    document.getElementById('schoolApplicationPlanLabel').textContent = `Plano escolhido: ${plan.display_name}`;
+    applicationModal.dataset.planKey = plan.plan_key;
+    document.getElementById('schoolApplicationPlanLabel').innerHTML = `<span>Plano escolhido</span><strong>${esc(plan.display_name)}</strong>`;
     const billingField=document.getElementById('schoolBillingOptions');
     const billingOptions=billingField.querySelector('.billing-options');
     const monthly=`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="monthly" checked><span><strong>Mensal · ${esc(formatPlanPrice(plan))}/mês</strong><small>Renovação mensal; cancele quando quiser.</small></span></label>`;
@@ -174,9 +181,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return Number(plan.price).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   }
 
+  function formatComparePrice(plan) {
+    const value = Number(plan.compare_at_price);
+    return Number.isFinite(value) && value > Number(plan.price)
+      ? value.toLocaleString('pt-BR', { style:'currency', currency:'BRL' })
+      : '';
+  }
+
   function formatLimit(value, label) {
     return value === null || value === undefined
-      ? `${label} ilimitados`
+      ? `${label} ${label === 'turmas' ? 'ilimitadas' : 'ilimitados'}`
       : `Até ${Number(value).toLocaleString('pt-BR')} ${label}`;
   }
 
@@ -188,17 +202,23 @@ document.addEventListener('DOMContentLoaded', () => {
         .filter(item => item.plan_key === plan.plan_key && item.enabled)
         .map(item => item.platform_features?.label || item.feature_key);
       const benefits = [
+        ...(plan.plan_key === 'professional' ? ['Todas as funcionalidades do Básico'] : []),
         formatLimit(plan.max_students, 'alunos'),
-        formatLimit(plan.max_staff, 'profissionais'),
+        formatLimit(plan.max_staff, 'funcionários'),
         formatLimit(plan.max_classes, 'turmas'),
         ...features
       ];
-      return `<article class="public-plan-card ${plan.highlighted ? 'highlighted' : ''}">
+      const comparePrice = formatComparePrice(plan);
+      return `<article class="public-plan-card public-plan-${esc(plan.plan_key)} ${plan.highlighted ? 'highlighted' : ''}">
         ${plan.highlighted ? '<span class="public-plan-highlight">MAIS ESCOLHIDO</span>' : ''}
+        ${['basic','professional'].includes(plan.plan_key) ? '<span class="public-plan-launch-stamp">PREÇO DE LANÇAMENTO</span>' : ''}
         <div class="public-plan-icon">${plan.plan_key === 'free' ? '◇' : plan.plan_key === 'basic' ? '♢' : plan.plan_key === 'professional' ? '★' : '▦'}</div>
         <h2>${esc(plan.display_name)}</h2>
         <p class="public-plan-description">${esc(plan.description || 'Uma opção flexível para sua escola.')}</p>
-        <strong class="public-plan-price">${esc(formatPlanPrice(plan))}${plan.price !== null && !plan.contact_only ? '<small>/mês</small>' : ''}</strong>
+        <div class="public-plan-price-wrap">
+          ${comparePrice ? `<span class="public-plan-compare-price"><span class="public-plan-old-price">de ${esc(comparePrice)}</span><span class="public-plan-price-connector">por</span></span>` : ''}
+          <strong class="public-plan-price">${esc(formatPlanPrice(plan))}${plan.price !== null && !plan.contact_only ? '<small>/mês</small>' : ''}</strong>
+        </div>
         <button class="btn ${plan.highlighted ? 'primary' : 'secondary'} full" type="button" data-public-plan-cta="${esc(plan.plan_key)}">${esc(plan.cta_label || (plan.contact_only ? 'Fale conosco' : 'Começar'))}</button>
         <ul>${benefits.map(item => `<li>✓ ${esc(item)}</li>`).join('')}</ul>
       </article>`;

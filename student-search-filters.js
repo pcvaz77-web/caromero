@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .more-filters-panel { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8faff; }
     .more-filters-empty { color:var(--muted); font-size:13px; }
     .quick-filter-result { margin-top:10px; font-size:13px; font-weight:700; color:var(--muted); }
+    .student-load-more { display:flex; justify-content:center; padding:18px 0 12px; }
+    .student-load-more .btn { min-width:230px; }
+    .student-load-more span { color:var(--muted); font-size:11px; }
     @media(max-width:800px) {
       .quick-filters { padding:0 17px 12px; }
       .quick-filters-row { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
@@ -68,11 +71,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const observationValuesOf = student => (typeof window.decodeObservationValues === 'function' ? window.decodeObservationValues(student.report) : []);
+  const ATTENDANCE_FILTERS = [
+    { key:'attendance:absent', status:'absent', label:'Faltoso' },
+    { key:'attendance:active_search', status:'active_search', label:'Necessita de Busca Ativa' }
+  ];
 
   const studentMatchesKey = (student, key) => {
     if (key === 'laudo') return typeof window.studentHasPositiveLaudo === 'function' && window.studentHasPositiveLaudo(student.report);
     if (key === 'nao_alfabetizado') return observationValuesOf(student).includes('Não alfabetizado');
     if (key === 'ocorrencia') return !!window.occurrenceStudentIds?.has(student.id);
+    if (key.startsWith('attendance:')) return window.getSiapAttendanceStatus?.(student.id) === key.slice(11);
     if (key.startsWith('obs:')) return observationValuesOf(student).includes(key.slice(4));
     return true;
   };
@@ -109,7 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // Indica no próprio botão "Mais filtros" que a seleção ativa veio de lá,
     // mesmo com o painel fechado.
-    document.getElementById('moreFiltersButton')?.classList.toggle('active', !!activeQuickFilter && activeQuickFilter.startsWith('obs:'));
+    document.getElementById('moreFiltersButton')?.classList.toggle('active', !!activeQuickFilter && (activeQuickFilter.startsWith('obs:') || activeQuickFilter.startsWith('attendance:')));
   }
 
   // Rótulos que nunca aparecem em "Mais filtros": "Não alfabetizado" já tem
@@ -127,12 +135,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const scope = scopedStudents();
     if (!observationCatalogLoaded) { panel.innerHTML = '<span class="more-filters-empty">Carregando observações…</span>'; return; }
     const visibleCatalog = observationCatalog.filter(option => !MORE_FILTERS_HIDDEN_LABELS.has(option.label));
-    if (!visibleCatalog.length) { panel.innerHTML = '<span class="more-filters-empty">Nenhuma observação cadastrada.</span>'; return; }
-    panel.innerHTML = visibleCatalog.map(option => {
+    const attendanceHtml = ATTENDANCE_FILTERS.map(option => {
+      const count = scope.filter(s => window.getSiapAttendanceStatus?.(s.id) === option.status).length;
+      return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === option.key ? 'active' : ''}" data-attendance-filter="${option.key}">${option.label} <span class="quick-filter-count">${count}</span></button>`;
+    }).join('');
+    const observationsHtml = visibleCatalog.map(option => {
       const count = scope.filter(s => observationValuesOf(s).includes(option.label)).length;
       const key = `obs:${option.label}`;
       return `<button type="button" class="quick-filter-chip more-filter-chip ${activeQuickFilter === key ? 'active' : ''}" data-obs-filter="${esc(key)}">${esc(option.label)} <span class="quick-filter-count">${count}</span></button>`;
     }).join('');
+    panel.innerHTML = attendanceHtml + observationsHtml;
   }
 
   // Os números dos botões (Todos/Com laudo/Não alfabetizado/Com ocorrência e
@@ -169,8 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function updateResultLine() {
     const resultEl = document.getElementById('quickFilterResult');
     if (!resultEl) return;
-    const count = list.querySelectorAll('.student').length;
-    resultEl.textContent = count === 1 ? '1 aluno encontrado' : `${count} alunos encontrados`;
+    const count = Number.parseInt(list.dataset.resultCount || '', 10);
+    const resultCount = Number.isFinite(count) ? count : list.querySelectorAll('.student').length;
+    resultEl.textContent = resultCount === 1 ? '1 aluno encontrado' : `${resultCount} alunos encontrados`;
   }
 
   bar.addEventListener('click', event => {
@@ -193,6 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // nome continuam exatamente como estavam.
       activeQuickFilter = null;
       syncChipActiveStates();
+      window.resetStudentRenderLimit?.();
       window.render();
       return;
     }
@@ -205,17 +219,19 @@ document.addEventListener('DOMContentLoaded', () => {
       // desativa, voltando a "Todos".
       activeQuickFilter = activeQuickFilter === key ? null : key;
       syncChipActiveStates();
+      window.resetStudentRenderLimit?.();
       window.render();
       return;
     }
     const obsButton = event.target.closest('.more-filter-chip');
     if (obsButton) {
-      const key = obsButton.dataset.obsFilter;
+      const key = obsButton.dataset.obsFilter || obsButton.dataset.attendanceFilter;
       activeQuickFilter = activeQuickFilter === key ? null : key;
       syncChipActiveStates();
       // Selecionar uma observação aplica o filtro e fecha o painel.
       document.getElementById('moreFiltersPanel').classList.add('hidden');
       document.getElementById('moreFiltersButton').setAttribute('aria-expanded', 'false');
+      window.resetStudentRenderLimit?.();
       window.render();
     }
   });
@@ -243,6 +259,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('carometro:data-loaded', () => { loadObservationCatalog(); renderChipCounts(); updateResultLine(); });
   document.addEventListener('carometro:observations-changed', loadObservationCatalog);
   document.addEventListener('carometro:occurrence-labels-changed', () => { renderChipCounts(); window.render?.(); });
+  // A origem do evento já redesenha os cards uma vez. Aqui atualizamos apenas
+  // os contadores, evitando reconstruir centenas de alunos pela segunda vez.
+  document.addEventListener('carometro:attendance-status-changed', renderChipCounts);
   document.addEventListener('carometro:permission-refresh', () => { renderChipCounts(); window.render?.(); });
   document.addEventListener('carometro:class-selected', () => renderChipCounts());
 

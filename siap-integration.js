@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.syncMainSiapAssistantButton = syncMainAssistantButton;
   window.refreshSiapAssistantButtonAccess = refreshAssistantButtonAccess;
-  window.getSiapAttendanceBadge = () => '';
+  window.getSiapAttendanceBadge ||= () => '';
   window.getSiapPanelActions = () => '';
   window.bindSiapPanelActions = () => {};
 });

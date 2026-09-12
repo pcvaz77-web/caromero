@@ -11,6 +11,10 @@ let selectedClassId = null;
 let selectedShift = null;
 let detailStudentId = null;
 let file = null;
+const STUDENT_RENDER_BATCH = 120;
+let visibleStudentLimit = STUDENT_RENDER_BATCH;
+window.resetStudentRenderLimit = () => { visibleStudentLimit = STUDENT_RENDER_BATCH; };
+window.loadMoreStudents = () => { visibleStudentLimit += STUDENT_RENDER_BATCH; render(); };
 
 const esc = value => {
   const element = document.createElement('div');
@@ -43,6 +47,15 @@ function classOptions(value = '') {
     + classes.map(item => `<option value="${item.id}" ${item.id === value ? 'selected' : ''}>${esc(item.name)}</option>`).join('');
 }
 
+function renderStudentDetails() {
+  const detail = students.find(student => student.id === detailStudentId);
+  const detailAttendance = detail ? window.getSiapAttendanceBadge?.(detail.id) || '' : '';
+  $('studentDetails').classList.toggle('hidden', !detail);
+  $('studentDetails').innerHTML = detail
+    ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}${detailAttendance ? `<div class="detail-row detail-attendance-row"><b>Frequência</b><div class="detail-observation-tags">${detailAttendance}</div></div>` : ''}`
+    : '<div class="empty">👈<br><br>Selecione um aluno para ver os detalhes.</div>';
+}
+
 function render() {
   const query = $('search').value.toLowerCase();
   const shiftByClass = new Map(classes.map(item => [item.id, item.shift || 'Matutino']));
@@ -52,6 +65,7 @@ function render() {
       && student.name.toLowerCase().includes(query)
       && (typeof window.matchesQuickFilters !== 'function' || window.matchesQuickFilters(student)))
     .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
+  const visibleItems = items.slice(0, visibleStudentLimit);
   const selected = classes.find(item => item.id === selectedClassId);
   $('total').textContent = students.length;
   $('classesCount').textContent = classes.length;
@@ -64,18 +78,15 @@ function render() {
     : '<div class="meta" style="padding:0 10px">Nenhuma turma.</div>';
   $('classId').innerHTML = classOptions();
   const canEdit = permission.can_edit_students;
-  const detail = students.find(student => student.id === detailStudentId);
-  $('studentDetails').classList.toggle('hidden', !detail);
-  $('studentDetails').innerHTML = detail
-    ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}`
-    : '<div class="empty">👈<br><br>Selecione um aluno para ver os detalhes.</div>';
+  renderStudentDetails();
+  $('list').dataset.resultCount = String(items.length);
   $('list').innerHTML = items.length
-    ? items.map(student => `<article class="student clickable" onclick="showStudentDetails('${student.id}')"><div class="avatar">${student.photoUrl ? `<img src="${student.photoUrl}" alt="">` : ini(student.name)}</div><div><div class="name">${esc(student.name)}</div><div class="meta hidden"></div></div><div><div class="meta">Turma</div><div>${esc(student.className)}</div></div><div>${studentBadges(student)}</div>${canEdit ? `<div class="actions-small"><button class="edit" onclick="editStudent('${student.id}')">Editar</button><button class="delete" onclick="deleteStudent('${student.id}')">Excluir</button></div>` : '<div></div>'}</article>`).join('')
+    ? visibleItems.map(student => `<article class="student clickable" onclick="showStudentDetails('${student.id}')"><div class="avatar">${student.photoUrl ? `<img src="${student.photoUrl}" alt="">` : ini(student.name)}</div><div><div class="name">${esc(student.name)}</div><div class="meta hidden"></div></div><div><div class="meta">Turma</div><div>${esc(student.className)}</div></div><div>${studentBadges(student)}</div>${canEdit ? `<div class="actions-small"><button class="edit" onclick="editStudent('${student.id}')">Editar</button><button class="delete" onclick="deleteStudent('${student.id}')">Excluir</button></div>` : '<div></div>'}</article>`).join('') + (visibleItems.length < items.length ? `<div class="student-load-more"><button type="button" class="btn secondary" onclick="loadMoreStudents()">Mostrar mais ${Math.min(STUDENT_RENDER_BATCH, items.length - visibleItems.length)} <span>${items.length - visibleItems.length} restantes</span></button></div>` : '')
     : `<div class="empty">👩‍🎓<br><br>${selected ? 'Nenhum aluno nesta turma.' : 'Nenhum aluno encontrado.'}</div>`;
 }
 
-window.selectClass = id => { selectedClassId = id; selectedShift = null; detailStudentId = null; render(); };
-window.showStudentDetails = id => { detailStudentId = id; render(); };
+window.selectClass = id => { selectedClassId = id; selectedShift = null; detailStudentId = null; window.resetStudentRenderLimit(); render(); };
+window.showStudentDetails = id => { detailStudentId = id; renderStudentDetails(); };
 window.resetCarometroSchoolState = () => {
   permission = emptySchoolPermission();
   students = [];
@@ -156,11 +167,11 @@ $('newBulk').onclick = () => {
   $('bulkClassId').innerHTML = classOptions(selectedClassId || '');
   $('bulkModal').classList.remove('hidden');
 };
-$('search').oninput = render;
+$('search').oninput = () => { window.resetStudentRenderLimit(); render(); };
 document.querySelectorAll('[data-close]').forEach(element => { element.onclick = () => close(element.dataset.close); });
 document.querySelectorAll('.modal-bg').forEach(modal => { modal.onclick = event => { if (event.target === modal) close(modal.id); }; });
 document.addEventListener('click', event => {
-  if (detailStudentId && !event.target.closest('#studentDetails,.student')) { detailStudentId = null; render(); }
+  if (detailStudentId && !event.target.closest('#studentDetails,.student')) { detailStudentId = null; renderStudentDetails(); }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
