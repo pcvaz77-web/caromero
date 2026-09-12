@@ -101,6 +101,9 @@ document.addEventListener('DOMContentLoaded', () => {
   window.counselorCanManage = canManageCounselors;
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
   const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => counselorDisplayName(item.counselor_user_id)).filter(Boolean);
+  // Fonte compartilhada para módulos que exibem o mesmo perfil do aluno,
+  // como CEPI/Tutoria. Evita copiar ou inferir o nome do conselheiro.
+  window.counselorNamesForClass = counselorNamesForClass;
   const drawCounselorLabels = () => {
     document.querySelectorAll('#classList button').forEach(button => {
       const classId = button.getAttribute('onclick')?.match(/selectClass\('([^']+)'\)/)?.[1];
