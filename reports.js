@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="reports-checks">
         <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
-        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Histórico de frequência</label>
+        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Frequência por disciplina e histórico</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
         <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
         <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
@@ -113,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let uniformItemsSignature = '';
   let uniformItemsError = false;
   let attendanceEventsByStudent = new Map();
+  let attendanceCurrentByStudent = new Map();
   let attendanceEventsSignature = '';
   let attendanceEventsError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
@@ -350,6 +351,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function fetchAttendanceEvents(filters) {
     if (!filters.withAttendanceHistory || !filters.schoolId) {
       attendanceEventsByStudent = new Map();
+      attendanceCurrentByStudent = new Map();
       attendanceEventsError = false;
       attendanceEventsSignature = '';
       return;
@@ -357,20 +359,31 @@ document.addEventListener('DOMContentLoaded', () => {
     const signature = filters.schoolId;
     if (signature === attendanceEventsSignature) return;
     const token = ++fetchToken;
+    const currentRows = [];
+    let currentOffset = 0;
+    while (true) {
+      const { data, error } = await db.rpc('report_siap_attendance_current', { p_school_id:filters.schoolId })
+        .range(currentOffset, currentOffset + REPORT_PAGE_SIZE - 1);
+      if (token !== fetchToken) return;
+      if (error) { attendanceCurrentByStudent=new Map();attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
+      const batch=data||[];currentRows.push(...batch);
+      if(batch.length<REPORT_PAGE_SIZE)break;
+      currentOffset+=REPORT_PAGE_SIZE;
+    }
     const rows = [];
     let offset = 0;
     while (true) {
-      const { data, error } = await db.from('siap_attendance_status_events')
-        .select('student_id,academic_year,term,subject,months,from_status,to_status,previous_percentage,percentage,changed_at')
-        .eq('school_id', filters.schoolId).order('changed_at', { ascending:true })
+      const { data, error } = await db.rpc('report_siap_attendance_events', { p_school_id:filters.schoolId })
         .range(offset, offset + REPORT_PAGE_SIZE - 1);
       if (token !== fetchToken) return;
-      if (error) { attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
+      if (error) { attendanceCurrentByStudent=new Map();attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
       const batch=data||[];rows.push(...batch);
       if(batch.length<REPORT_PAGE_SIZE)break;
       offset+=REPORT_PAGE_SIZE;
     }
     attendanceEventsByStudent=new Map();
+    attendanceCurrentByStudent=new Map();
+    currentRows.forEach(item=>{if(!attendanceCurrentByStudent.has(item.student_id))attendanceCurrentByStudent.set(item.student_id,[]);attendanceCurrentByStudent.get(item.student_id).push(item);});
     rows.forEach(item=>{if(!attendanceEventsByStudent.has(item.student_id))attendanceEventsByStudent.set(item.student_id,[]);attendanceEventsByStudent.get(item.student_id).push(item);});
     attendanceEventsSignature=signature;
     attendanceEventsError=false;
@@ -408,7 +421,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let matched = false;
     if (filters.withOccurrences) matched = matched || (occurrencesByStudent.get(student.student_id)?.length > 0);
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
-    if (filters.withAttendanceHistory) matched = matched || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
+    if (filters.withAttendanceHistory) matched = matched || (attendanceCurrentByStudent.get(student.student_id)?.length > 0) || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
     // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
     // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
     // histórico. livroRevisaByStudent já está em memória (populado sempre
@@ -612,13 +625,31 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (filters.withAttendanceHistory) {
+      const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
+      doc.text('SITUAÇÃO ATUAL POR DISCIPLINA E PROFESSOR', MARGIN_X, y);y += 8;
+      const currentAttendance=attendanceCurrentByStudent.get(student.student_id)||[];
+      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma frequência atual importada.',MARGIN_X,y);y+=9;}
+      else currentAttendance.forEach(item=>{
+        y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
+        const heading=`${item.subject} · ${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
+        const teacher=`Professor: ${item.teacher_name} · Aulas: ${item.lesson_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
+        y=printLines(doc,doc.splitTextToSize(teacher,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.8,`Continuação — ${student.full_name}`);
+        doc.setFontSize(8.5);doc.setTextColor(102,112,133);
+        const months=`Meses analisados: ${(item.months||[]).join(', ')}`;
+        y=printLines(doc,doc.splitTextToSize(months,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
+      });
+      y+=4;
       y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
       doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
       doc.text('HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA', MARGIN_X, y);y += 8;
       const events=attendanceEventsByStudent.get(student.student_id)||[];
       if(!events.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma mudança de classificação registrada.',MARGIN_X,y);y+=9;}
       else events.forEach(event=>{
-        const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
         const from=labels[event.from_status]||null,to=labels[event.to_status]||event.to_status;
         let description=from?`Mudou de ${from} para ${to}`:`Classificação inicial: ${to}`;
         if(event.to_status==='frequent'&&event.from_status)description=`Voltou a Frequente; etiqueta removida dos cards`;
@@ -626,7 +657,7 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
         doc.text(`${formatDateTime(event.changed_at)} — ${description} (${event.percentage}%)`,MARGIN_X,y);y+=5;
         doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        const detail=`Importação no Carômetro · ${event.subject} · ${event.term} · meses: ${(event.months||[]).join(', ')}`;
+        const detail=`Importação por ${event.teacher_name} · ${event.subject} · ${event.term} · meses: ${(event.months||[]).join(', ')}`;
         y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
       });
       y+=4;
