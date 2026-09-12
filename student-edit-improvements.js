@@ -138,13 +138,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
-  const defaultObservationLabels = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado', 'Ocorrência']);
+  const defaultObservationLabels = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado']);
   const fallbackObservations = [
     { value: '', label: 'Nenhum', standard: true },
     { value: 'Laudo (DI)', label: 'Laudo (DI)', standard: true },
     { value: 'Laudo (TEA)', label: 'Laudo (TEA)', standard: true },
-    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true },
-    { value: 'Ocorrência', label: 'Ocorrência', standard: true }
+    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true }
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
