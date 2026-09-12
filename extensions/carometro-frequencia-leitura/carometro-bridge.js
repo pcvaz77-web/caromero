@@ -12,15 +12,23 @@
       message?.type !== 'CAROMETRO_ASSISTED_CAPTURE_REQUEST'
     ) return;
 
-    chrome.runtime.sendMessage({ type:'CM_ASSISTED_CAPTURE' }, response => {
+    const sendResult = response => {
       window.postMessage({
         source:'CAROMETRO_FREQUENCY_EXTENSION',
         type:'CAROMETRO_ASSISTED_CAPTURE_RESULT',
         requestId:message.requestId,
-        response:chrome.runtime.lastError
-          ? { ok:false, message:'A extensão não respondeu. Recarregue-a e tente novamente.' }
-          : response
+        response
       }, location.origin);
-    });
+    };
+    try {
+      if (!chrome.runtime?.id) throw new Error('Extension context invalidated');
+      chrome.runtime.sendMessage({ type:'CM_ASSISTED_CAPTURE' }, response => {
+        sendResult(chrome.runtime.lastError
+          ? { ok:false, message:'A extensão não respondeu. Recarregue-a e atualize esta página.' }
+          : response);
+      });
+    } catch (_) {
+      sendResult({ ok:false, message:'A extensão foi recarregada. Atualize a página do Carômetro e tente novamente.' });
+    }
   });
 })();

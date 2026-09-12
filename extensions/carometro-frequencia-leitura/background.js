@@ -231,6 +231,15 @@ function finishResult(context, months, entries) {
   return { context, months, lessons:lessonKeys.size, average:Math.round((totalPresences / Math.max(1, totalMarks)) * 100), students:rows };
 }
 
+function chooseSiapTab(tabs) {
+  const supported = tabs.filter(tab => /(?:FrequenciaAlunoEdicao|DiarioEscolarListagem)\.aspx/i.test(tab.url || ''));
+  const candidates = supported.length ? supported : tabs;
+  return [...candidates].sort((left, right) =>
+    Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
+    Number(right.lastAccessed || 0) - Number(left.lastAccessed || 0)
+  )[0];
+}
+
 async function collectAttendance(tabId, request) {
   const months = (request.months || []).filter(Boolean);
   if (!months.length) throw new Error('Selecione pelo menos um mês no Carômetro.');
@@ -284,7 +293,7 @@ async function collectAttendance(tabId, request) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
   chrome.tabs.query({ url:'https://siap.educacao.go.gov.br/*' }, tabs => {
-    const siapTab = tabs.find(tab => /(?:FrequenciaAlunoEdicao|DiarioEscolarListagem)\.aspx/i.test(tab.url || '')) || tabs[0];
+    const siapTab = chooseSiapTab(tabs);
     if (!siapTab?.id) {
       sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:'Abra o SIAP, entre no Diário do Professor e tente novamente.' });
       return;

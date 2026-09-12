@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Carômetro Frequência — Leitura",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Consulta frequências já salvas no SIAP e gera uma prévia temporária no Carômetro.",
   "background": { "service_worker": "background.js" },
   "permissions": ["tabs", "scripting"],
