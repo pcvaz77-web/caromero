@@ -16,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const collapsedTutorIds = new Set();
   let accessRefreshPromise = null;
   let accessPollTimer = null;
+  let tutorLabelsSchoolId = null;
+  let tutorLabelsLoadRequest = null;
 
   const cepiNav = document.createElement('button');
   cepiNav.id = 'cepiNav';
@@ -123,7 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
     access = (Array.isArray(data) ? data[0] : data) || { enabled:false, can_manage:false, tutor_id:null };
     cepiNav.classList.toggle('hidden', access.enabled !== true);
     document.getElementById('cepiManagementActions').classList.toggle('hidden', access.can_manage !== true);
-    if (!access.enabled) closeModal('cepiModal');
+    if (access.enabled) await loadTutorLabels();
+    else {
+      tutorLabelsSchoolId = null;
+      tutors = [];
+      assignments = [];
+      decorateMainStudentCards();
+      closeModal('cepiModal');
+    }
     })().finally(() => { accessRefreshPromise = null; });
     return accessRefreshPromise;
   }
@@ -142,6 +151,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('cepiTutoring').classList.add('hidden');
   }
 
+  async function loadTutorLabels() {
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId || !access.enabled) return;
+    if (tutorLabelsSchoolId === schoolId) { decorateMainStudentCards(); return; }
+    if (tutorLabelsLoadRequest?.schoolId === schoolId) return tutorLabelsLoadRequest.promise;
+    const promise = (async () => {
+      const [tutorResult, assignmentResult] = await Promise.all([
+        db.from('cepi_tutors').select('id,display_name').eq('school_id', schoolId).eq('active', true).order('display_name'),
+        db.from('cepi_tutor_students').select('id,tutor_id,student_id').eq('school_id', schoolId).eq('active', true).order('assigned_at')
+      ]);
+      if (tutorResult.error || assignmentResult.error || window.getActiveSchoolId?.() !== schoolId) return;
+      tutors = tutorResult.data || [];
+      assignments = assignmentResult.data || [];
+      tutorLabelsSchoolId = schoolId;
+      decorateMainStudentCards();
+    })();
+    tutorLabelsLoadRequest = { schoolId, promise };
+    try { return await promise; }
+    finally { if (tutorLabelsLoadRequest?.promise === promise) tutorLabelsLoadRequest = null; }
+  }
+
   async function loadTutoring() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId || !access.enabled) return;
@@ -157,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     tutors = tutorResult.data || [];
     assignments = assignmentResult.data || [];
+    tutorLabelsSchoolId = schoolId;
     candidates = candidateResult?.data || [];
     const studentIds = assignments.map(item => item.student_id);
     if (studentIds.length) {
@@ -620,6 +651,9 @@ document.addEventListener('DOMContentLoaded', () => {
   startAccessPolling();
   document.getElementById('signOut')?.addEventListener('click', () => {
     access = { enabled:false, can_manage:false, tutor_id:null };
+    tutorLabelsSchoolId = null;
+    tutors = [];
+    assignments = [];
     cepiNav.classList.add('hidden');
     closeModal('cepiModal');
   }, { capture:true });

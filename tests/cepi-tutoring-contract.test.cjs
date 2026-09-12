@@ -49,7 +49,7 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=9'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=10'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
@@ -129,4 +129,11 @@ test('CEPI visibility updates without logout or manual reload', () => {
   assert.match(frontend, /carometro:cepi-settings-changed/);
   assert.match(frontend, /setInterval[\s\S]*2500/);
   assert.match(frontend, /cepiNav\.classList\.toggle\('hidden', access\.enabled !== true\)/);
+});
+
+test('tutor labels load with the school context without opening Tutoria', () => {
+  assert.match(frontend, /if \(access\.enabled\) await loadTutorLabels\(\)/);
+  assert.match(frontend, /async function loadTutorLabels\(\)/);
+  assert.match(frontend, /cepi_tutors'\)\.select\('id,display_name'\)/);
+  assert.match(frontend, /cepi_tutor_students'\)\.select\('id,tutor_id,student_id'\)/);
 });
