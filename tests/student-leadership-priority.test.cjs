@@ -19,6 +19,9 @@ test('leadership students are also first inside each tutor group', () => {
   assert.match(tutoring, /window\.studentHasLeadershipObservation\?\.\(studentA\?\.report \?\? a\.students\?\.has_report\)/);
   assert.match(tutoring, /if \(leadershipA !== leadershipB\) return leadershipA \? -1 : 1/);
   assert.match(tutoring, /students\(full_name,class_name,class_id,has_report\)/);
+  assert.match(source, /window\.studentLeadershipObservations = value/);
+  assert.match(tutoring, /class="cepi-leadership-label"/);
+  assert.match(tutoring, /const observationBadges = leadershipLabels\.map/);
 });
 
 test('CEPI student selectors sort alphabetically while ignoring list numbers', () => {

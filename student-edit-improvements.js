@@ -176,7 +176,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
     return [normalizeObservation(value)].filter(Boolean);
   };
-  window.studentHasLeadershipObservation = value => decodeObservationValues(value).some(isLeadershipObservation);
+  window.studentLeadershipObservations = value => decodeObservationValues(value).filter(isLeadershipObservation);
+  window.studentHasLeadershipObservation = value => window.studentLeadershipObservations(value).length > 0;
   const encodeObservationValues = values => values.length ? JSON.stringify(values) : '';
   const decodeObservations = value => {
     if (!value) return [];

@@ -30,7 +30,7 @@ test('occurrence stays outside observation management and keeps its automatic fi
   assert.match(correctionMigration, /não pode ser cadastrada como observação/i);
   assert.doesNotMatch(editor.match(/const fallbackObservations = \[[\s\S]*?\];/)?.[0] || '', /Ocorrência/);
   assert.match(filters, /if \(key === 'ocorrencia'\) return !!window\.occurrenceStudentIds/);
-  assert.match(index, /student-edit-improvements\.js\?v=102/);
+  assert.match(index, /student-edit-improvements\.js\?v=103/);
   assert.match(index, /student-search-filters\.js\?v=\d+/);
   assert.match(editor, /@media\(max-width:800px\)/);
 });
