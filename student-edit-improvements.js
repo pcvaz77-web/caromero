@@ -164,9 +164,9 @@ document.addEventListener('DOMContentLoaded', () => {
       'Não': ''
     }[value] || value || '');
   };
-  const hasRepresentativeObservation = value => {
-    try { return Array.isArray(JSON.parse(value)) && JSON.parse(value).includes('Representante de turma'); }
-    catch { return value === 'Representante de turma'; }
+  const isLeadershipObservation = value => {
+    const normalized = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return value === 'Representante de turma' || /\blider\b/.test(normalized);
   };
   const decodeObservationValues = value => {
     if (!value) return [];
@@ -176,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
     return [normalizeObservation(value)].filter(Boolean);
   };
+  window.studentHasLeadershipObservation = value => decodeObservationValues(value).some(isLeadershipObservation);
   const encodeObservationValues = values => values.length ? JSON.stringify(values) : '';
   const decodeObservations = value => {
     if (!value) return [];
@@ -350,14 +351,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   const applyObservationColors = () => {
-    const representatives = [];
+    const leadershipStudents = [];
     document.querySelectorAll('#list .pill').forEach(pill => {
       if (pill.dataset.observationLabel === 'true') return;
       const studentCard = pill.closest('.student');
       const values = decodeObservations(pill.textContent.trim());
-      const isRepresentative = values.includes('Representante de turma');
+      const hasLeadershipRole = values.some(isLeadershipObservation);
       if (studentCard) {
-        if (isRepresentative) representatives.push(studentCard);
+        if (hasLeadershipRole) leadershipStudents.push(studentCard);
         const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
         const student = students.find(item => item.id === studentId);
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
@@ -373,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         labelArea.classList.remove('student-observation-labels', 'hidden');
       }
     });
-    if (representatives.length) document.getElementById('list').prepend(...representatives);
+    if (leadershipStudents.length) document.getElementById('list').prepend(...leadershipStudents);
     ensureStudentEditActions();
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };

@@ -177,7 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!schoolId || !access.enabled) return;
     const jobs = [
       db.from('cepi_tutors').select('*').eq('school_id', schoolId).eq('active', true).order('display_name'),
-      db.from('cepi_tutor_students').select('*,students(full_name,class_name,class_id)').eq('school_id', schoolId).eq('active', true).order('assigned_at')
+      db.from('cepi_tutor_students').select('*,students(full_name,class_name,class_id,has_report)').eq('school_id', schoolId).eq('active', true).order('assigned_at')
     ];
     if (access.can_manage) jobs.push(db.rpc('list_cepi_tutor_candidates', { p_school_id:schoolId }));
     const [tutorResult, assignmentResult, candidateResult] = await Promise.all(jobs);
@@ -201,6 +201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const initials = name => String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
   const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  const studentSortName = value => normalizeSearch(value).replace(/^\d+\s*[.)ºª-]?\s*/, '');
+  const compareStudentNames = (a,b) => studentSortName(a).localeCompare(studentSortName(b), 'pt-BR', { sensitivity:'base' });
   const distinctClasses = items => [...new Map(items.map(item => {
     const student = students.find(entry => entry.id === item.student_id);
     return [student?.classId || item.students?.class_id, student?.className || item.students?.class_name];
@@ -284,7 +286,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     target.innerHTML = visibleTutors.map(tutor => {
-      const tutorAssignments = filteredAssignments.filter(item => item.tutor_id === tutor.id);
+      const tutorAssignments = filteredAssignments.filter(item => item.tutor_id === tutor.id).sort((a,b) => {
+        const studentA = students.find(entry => entry.id === a.student_id);
+        const studentB = students.find(entry => entry.id === b.student_id);
+        const leadershipA = window.studentHasLeadershipObservation?.(studentA?.report ?? a.students?.has_report) === true;
+        const leadershipB = window.studentHasLeadershipObservation?.(studentB?.report ?? b.students?.has_report) === true;
+        if (leadershipA !== leadershipB) return leadershipA ? -1 : 1;
+        return compareStudentNames(studentA?.name || a.students?.full_name, studentB?.name || b.students?.full_name);
+      });
       if (!access.can_manage && !activeTutorIds.has(tutor.id)) return '';
       const type = tutor.tutor_type === 'external' ? 'Sem acesso ao CARÔMETRO' : 'Usuário do CARÔMETRO';
       const rows = tutorAssignments.length ? tutorAssignments.map(item => {
@@ -377,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderAvailableStudents = () => {
       const classId = document.getElementById('cepiAssignmentClass').value;
       const name = normalizeSearch(document.getElementById('cepiAssignmentName').value);
-      document.getElementById('cepiAssignmentStudents').innerHTML = students.filter(item => !alreadyAssigned.has(item.id) && (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name))).sort((a,b) => a.name.localeCompare(b.name, 'pt-BR')).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.className || 'Sem turma')}</option>`).join('');
+      document.getElementById('cepiAssignmentStudents').innerHTML = students.filter(item => !alreadyAssigned.has(item.id) && (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name))).sort((a,b) => compareStudentNames(a.name, b.name)).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.className || 'Sem turma')}</option>`).join('');
     };
     document.getElementById('cepiAssignmentClass').onchange = renderAvailableStudents;
     document.getElementById('cepiAssignmentName').oninput = renderAvailableStudents;
@@ -565,6 +574,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const filtered = assignments.filter(item => {
       const student = students.find(entry => entry.id === item.student_id);
       return (!tutorId || item.tutor_id === tutorId) && (!classId || (student?.classId || item.students?.class_id) === classId) && (!name || normalizeSearch(student?.name || item.students?.full_name).includes(name));
+    }).sort((a,b) => {
+      const studentA = students.find(entry => entry.id === a.student_id);
+      const studentB = students.find(entry => entry.id === b.student_id);
+      return compareStudentNames(studentA?.name || a.students?.full_name, studentB?.name || b.students?.full_name);
     });
     document.getElementById('cepiReportStudent').innerHTML = '<option value="">Selecione</option>' + filtered.map(item => {
       const student = students.find(entry => entry.id === item.student_id);
