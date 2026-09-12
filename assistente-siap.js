@@ -40,7 +40,8 @@
         const button = document.querySelector(`[data-assistant-plan="${plan.plan_key}"]`);
         const card = button?.closest('.price-card');
         if (!button || !card || !plan.amount) return;
-        card.querySelector('.price').textContent = `${money(plan.amount)} / ${plan.billing_months === 6 ? '6 meses' : 'mês'}`;
+        const period = Number(plan.billing_months) === 1 ? 'mês' : `${Number(plan.billing_months)} meses`;
+        card.querySelector('.price').textContent = `${money(plan.amount)} / ${period}`;
         button.disabled = false;
         button.textContent = 'Assinar agora';
         button.onclick = () => location.assign(`assistente-siap-conta.html?plano=${encodeURIComponent(plan.plan_key)}`);

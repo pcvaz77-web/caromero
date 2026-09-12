@@ -27,6 +27,8 @@ const purchaseConfirmed = read('compra-confirmada.html');
 const carometroPurchaseInvitation = read('supabase/migrations/101_carometro_purchase_requires_invitation.sql');
 const separatedProductAccounts = read('supabase/migrations/102_separate_carometro_accounts_from_siap.sql');
 const correctedCustomerStatus = read('supabase/migrations/103_fix_siap_customer_status_display.sql');
+const endedGrantAccess = read('supabase/migrations/110_siap_grant_end_blocks_free_demo.sql');
+const quarterlyOffer = read('supabase/migrations/111_siap_assistant_quarterly_offer.sql');
 
 test('mantem checkout do Assistente separado das assinaturas das escolas', () => {
   assert.match(migration, /create table if not exists public\.siap_assistant_payment_subscriptions/);
@@ -59,6 +61,14 @@ test('oferece duas utilizações externas por função e persiste a contagem no 
   assert.match(migration, /used_count < 2/);
 });
 
+test('não reabre demonstração após concessão encerrada e aceita nova concessão', () => {
+  assert.match(endedGrantAccess, /v_had_grant := found/);
+  assert.match(endedGrantAccess, /v_grant\.revoked_at is null and \(v_grant\.expires_at is null or v_grant\.expires_at > v_now\)/);
+  assert.match(endedGrantAccess, /'status','grant_ended'/);
+  assert.match(endedGrantAccess, /'planning',0,'content',0,'attendance',0,'pei',0/);
+  assert.match(endedGrantAccess, /if v_had_grant and v_grant\.revoked_at is null/);
+});
+
 test('checkout exige login e aceite antes de abrir a Hotmart', () => {
   assert.match(account, /signInWithOtp/);
   assert.match(account, /legalAccepted:true/);
@@ -67,7 +77,21 @@ test('checkout exige login e aceite antes de abrir a Hotmart', () => {
   assert.match(hotmartAssistantCheckout, /hotmart_product_mappings/);
   assert.match(schoolFrontend, /create-hotmart-school-checkout/);
   assert.match(landing, /R\$ 89,90 \/ mês/);
-  assert.match(landing, /R\$ 129,90 \/ 6 meses/);
+  assert.match(landing, /R\$ 129,90 \/ 3 meses/);
+  assert.match(landing, /data-assistant-plan="quarterly"/);
+});
+
+test('oferta trimestral concede exatamente tres meses e preserva o plano semestral', () => {
+  assert.match(quarterlyOffer, /'quarterly', 'Trimestral'/);
+  assert.match(quarterlyOffer, /129\.90, 3, true/);
+  assert.match(quarterlyOffer, /plan_key = 'semiannual'/);
+  assert.match(quarterlyOffer, /active = false/);
+  assert.match(quarterlyOffer, /S107499429I\?off=2xaozivg&checkoutMode=6/);
+  assert.match(quarterlyOffer, /billing_cycle = 'semiannual'/);
+  assert.match(quarterlyOffer, /billing_cycle = 'quarterly'/);
+  assert.match(quarterlyOffer, /set plan_key = 'quarterly'/);
+  assert.match(quarterlyOffer, /status in \('creating', 'pending', 'expired'\)/);
+  assert.doesNotMatch(quarterlyOffer, /status in \([^)]*'authorized'/);
 });
 
 test('orienta a instalar a extensao antes de tentar conectar a conta', () => {
