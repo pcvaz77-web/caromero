@@ -169,6 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let lastAutomaticValidation = 0;
   const renewAssistantAuthorization = async force => {
     if (!force && Date.now() - lastAutomaticValidation < 10 * 60 * 1000) return;
+    // Uma conta do Carômetro sem licença do Assistente não deve substituir
+    // a licença de outra conta já ativa na extensão.
+    const { data:access, error } = await db.rpc('get_siap_assistant_access_status');
+    if (error || access?.active !== true || !['carometro', 'subscription'].includes(access.mode)) return;
     const result = await connectAssistantAi(null, true);
     if (result) lastAutomaticValidation = Date.now();
   };

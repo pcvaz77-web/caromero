@@ -21,8 +21,8 @@ test('nao carrega o modulo de importacao de frequencia', () => {
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const permissions = fs.readFileSync(path.join(__dirname, '../permissions-and-details.js'), 'utf8');
   assert.doesNotMatch(index, /siap-attendance-core\.js/);
-  assert.match(index, /siap-integration\.js\?v=17/);
-  assert.match(index, /permissions-and-details\.js\?v=57/);
+  assert.match(index, /siap-integration\.js\?v=19/);
+  assert.match(index, /permissions-and-details\.js\?v=58/);
   assert.doesNotMatch(permissions, /siapCheck\(item,'can_import_siap_attendance','Importar frequência do SIAP'/);
   assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'\s+\? permissionFields\.map/);
   assert.doesNotMatch(permissions, /setSiapPermission|Usar Assistente SIAP/);
@@ -46,6 +46,14 @@ test('exibe o botao somente com concessao do proprietario ou assinatura paga', (
   assert.match(migration, /siap_assistant_access_grants/);
   assert.match(migration, /platform_list_siap_assistant_customers/);
   assert.match(migration, /set_school_member_siap_permission[\s\S]*Somente o proprietário da plataforma/);
+});
+
+test('nao substitui automaticamente a licenca da extensao por demonstracao de outra conta', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../siap-integration.js'), 'utf8');
+  const renewal = source.slice(source.indexOf('const renewAssistantAuthorization = async force => {'), source.indexOf('setTimeout(() => renewAssistantAuthorization(true), 800)'));
+  assert.match(renewal, /get_siap_assistant_access_status/);
+  assert.match(renewal, /access\?\.active !== true \|\| !\['carometro', 'subscription'\]\.includes\(access\.mode\)/);
+  assert.ok(renewal.indexOf('get_siap_assistant_access_status') < renewal.indexOf('connectAssistantAi(null, true)'));
 });
 
 test('lista usuarios por escola e mantem rolagem ate o final do painel', () => {
