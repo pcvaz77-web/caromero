@@ -7,7 +7,7 @@
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assistente-siap.css">
   <link rel="stylesheet" href="assistente-siap-support.css">
-  <link rel="stylesheet" href="assistente-siap-conta.css?v=3">
+  <link rel="stylesheet" href="assistente-siap-conta.css?v=4">
 </head>
 <body class="account-page">
   <header class="site-header">
@@ -18,11 +18,11 @@
     <section class="account-copy">
       <span class="eyebrow">PAGAMENTO PROTEGIDO</span>
       <h1>Ative seu acesso individual</h1>
-      <p>Entre com seu e-mail, confirme o plano e prossiga para o checkout seguro.</p>
+      <p id="accountPageIntro">Entre com seu e-mail, confirme o plano e prossiga para o checkout seguro.</p>
       <div class="payment-methods" aria-label="Formas de pagamento">
-        <span>◆ Pix no semestral</span><span>▣ Cartão e boleto</span>
+        <span>◆ Pix no trimestral</span><span>▣ Cartão e boleto</span>
       </div>
-      <ul><li>O site não recebe dados do seu cartão.</li><li>A licença é vinculada ao seu e-mail.</li><li>O cancelamento vale para o mensal recorrente; o semestral é pagamento único.</li></ul>
+      <ul><li>O site não recebe dados do seu cartão.</li><li>A licença é vinculada ao seu e-mail.</li><li>O cancelamento vale para o mensal recorrente; o trimestral é pagamento único.</li></ul>
     </section>
     <section class="account-card">
       <div id="accountLoading">Verificando sua conta…</div>
@@ -46,6 +46,7 @@
           <small>Depois de instalar, volte a esta página e use o botão abaixo.</small>
         </div>
         <button id="connectAssistantAccount" class="button button-outline" type="button" disabled>Verificando acesso…</button>
+        <a id="trialEndedLink" class="button button-outline" href="assistente-siap.html#planos" hidden>Ver planos disponíveis</a>
         <button id="signOutAssistant" class="account-link" type="button">Entrar com outro e-mail</button>
         <p id="checkoutMessage" class="account-message" aria-live="polite"></p>
       </div>
@@ -53,6 +54,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=10"></script>
+  <script src="assistente-siap-conta.js?v=12"></script>
 </body>
 </html>

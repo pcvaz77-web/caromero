@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#071a39">
   <title>Assistente SIAP do Professor</title>
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assistente-siap.css">
+  <link rel="stylesheet" href="assistente-siap.css?v=2">
   <link rel="stylesheet" href="assistente-siap-support.css">
 </head>
 <body>
@@ -21,6 +21,7 @@
       <a href="#recursos">Recursos</a>
       <a href="#como-funciona">Como funciona</a>
       <a href="#planos">Planos</a>
+      <a href="assistente-siap-conta.html">Já comprei · Minha assinatura</a>
       <a href="#duvidas">Dúvidas</a>
       <a href="#suporte">Suporte</a>
     </nav>
@@ -36,6 +37,7 @@
         <div class="hero-actions">
           <a class="button" href="#planos">Quero conhecer</a>
           <a class="button button-ghost" href="#como-funciona">Ver como funciona</a>
+          <a class="button button-ghost" href="assistente-siap-conta.html">Já comprei · Entrar na minha conta</a>
         </div>
         <ul class="trust-list" aria-label="Garantias do produto">
           <li>Não captura a senha do SIAP</li>
@@ -98,30 +100,36 @@
       <div><span class="eyebrow">DUAS FORMAS DE ACESSO</span><h2>Um produto independente, integrado ao ecossistema Carômetro</h2><p>Professores autorizados por uma escola no Carômetro recebem acesso institucional. Quem não utiliza o Carômetro pode contratar uma assinatura individual.</p></div>
       <div class="access-cards">
         <article><b>Acesso pelo Carômetro</b><p>Liberado pelo administrador da escola, conforme as permissões do professor.</p><span>Licença institucional</span></article>
-        <article><b>Assinatura individual</b><p>Contratação direta, com mensal recorrente ou pagamento único semestral, independente de uma escola.</p><span>Licença pessoal</span></article>
+        <article><b>Assinatura individual</b><p>Contratação direta, com mensal recorrente ou pagamento único trimestral, independente de uma escola.</p><span>Licença pessoal</span></article>
       </div>
     </section>
 
     <section id="planos" class="section pricing-section" data-public-checkout>
-      <div class="section-heading"><span class="eyebrow">PLANOS</span><h2>Escolha a forma de acesso</h2><p>Escolha o período. A confirmação e o pagamento serão realizados em um ambiente seguro.</p></div>
+      <div class="section-heading"><span class="eyebrow">PLANOS E DEMONSTRAÇÃO</span><h2>Escolha como começar</h2><p>Assine para usar sem limite de demonstração ou experimente gratuitamente antes de decidir.</p></div>
       <div class="pricing-grid">
-        <article class="price-card">
+        <article class="price-card monthly-card">
           <span class="plan-label">INDIVIDUAL</span><h3>Mensal</h3><p class="price">R$ 89,90 / mês</p><p>Flexibilidade para contratar e cancelar.</p>
           <ul><li>Planejamento, conteúdo, frequência e PEI</li><li>Atualizações da extensão</li><li>Suporte ao usuário</li></ul>
           <button class="checkout-button" type="button" data-assistant-plan="monthly" disabled>Assinatura em preparação</button>
         </article>
-        <article class="price-card featured">
+        <article class="price-card featured quarterly-card">
           <span class="popular">CONDIÇÃO TEMPORÁRIA</span><span class="plan-label">INDIVIDUAL</span><h3>Trimestral</h3><p class="price">R$ 129,90 / 3 meses</p><p>Pagamento único para usar durante três meses.</p>
           <ul><li>Todos os recursos do plano mensal</li><li>Valor trimestral promocional</li><li>Três meses de acesso</li></ul>
           <button class="checkout-button" type="button" data-assistant-plan="quarterly" disabled>Assinatura em preparação</button>
         </article>
-        <article class="price-card">
+        <article class="price-card trial-card">
+          <span class="plan-label">DEMONSTRAÇÃO</span><h3>Experimentar grátis</h3><p class="price">R$ 0,00</p><p>Conheça o Assistente SIAP antes de contratar.</p>
+          <ul><li>2 usos de planejamento</li><li>2 usos de conteúdo</li><li>2 usos de frequência</li><li>2 usos de PEI</li></ul>
+          <a class="price-link trial-link" href="assistente-siap-conta.html?plano=trial">Experimentar grátis</a>
+        </article>
+        <article class="price-card institutional-card">
           <span class="plan-label">INSTITUCIONAL</span><h3>Via Carômetro</h3><p class="price">Conforme a escola</p><p>Acesso concedido pelo administrador.</p>
           <ul><li>Permissão individual por professor</li><li>Gestão no painel do proprietário</li><li>Sem misturar dados escolares e cobrança</li></ul>
           <a class="price-link" href="index.html">Acessar o Carômetro</a>
         </article>
       </div>
       <p class="pricing-note">O mensal tem renovação recorrente. O trimestral é pago uma vez e libera três meses de acesso, sem renovação automática.</p>
+      <p class="pricing-note">Já comprou pelo celular? No computador com a extensão, <a href="assistente-siap-conta.html">entre na sua conta do Assistente SIAP</a> usando o mesmo e-mail da compra.</p>
     </section>
 
     <section id="duvidas" class="section faq-section">
@@ -130,7 +138,7 @@
         <details><summary>A extensão faz login no SIAP?</summary><p>Não. O professor entra normalmente no SIAP e a extensão funciona somente depois da autenticação feita no sistema oficial.</p></details>
         <details><summary>O professor pode revisar antes de salvar?</summary><p>Sim. A revisão permanece disponível. No planejamento, o professor também pode optar pelo fluxo automático e pausá-lo quando desejar.</p></details>
         <details><summary>Preciso utilizar o Carômetro?</summary><p>Não. A escola pode conceder o acesso institucional pelo Carômetro, mas a assinatura individual funciona de forma independente.</p></details>
-        <details><summary>Como funciona a assinatura?</summary><p>Escolha o plano mensal ou semestral e conclua o pagamento no checkout seguro. Depois da confirmação, a licença é vinculada automaticamente ao e-mail usado na compra. A extensão está disponível na Chrome Web Store.</p></details>
+        <details><summary>Como funciona a assinatura?</summary><p>Escolha o plano mensal ou trimestral e conclua o pagamento no checkout seguro. Depois da confirmação, a licença é vinculada automaticamente ao e-mail usado na compra. A extensão está disponível na Chrome Web Store.</p></details>
       </div>
     </section>
 

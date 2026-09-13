@@ -3,6 +3,7 @@
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   const db = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
   const planKey = new URLSearchParams(location.search).get('plano') || 'monthly';
+  const trialFlow = planKey === 'trial';
   const loading = document.getElementById('accountLoading');
   const loginForm = document.getElementById('loginForm');
   const checkoutPanel = document.getElementById('checkoutPanel');
@@ -13,6 +14,8 @@
   const installSteps = document.getElementById('assistantInstallSteps');
   const installLink = document.getElementById('installAssistantExtension');
   const panelTitle = document.getElementById('accountPanelTitle');
+  const selectedPlanTarget = document.getElementById('selectedPlan');
+  const trialEndedLink = document.getElementById('trialEndedLink');
   let selectedPlan = null;
   let currentSession = null;
   let accessStatus = null;
@@ -22,6 +25,13 @@
     'iobkgohpoeoimlhlgdeiojlghbhcijli'
   ];
   installLink.href = config.siapAssistantStoreUrl;
+  if (trialFlow) {
+    document.body.classList.add('trial-flow');
+    document.querySelector('.site-header .brand small').textContent = 'DEMONSTRAÇÃO GRATUITA';
+    document.querySelector('.account-copy .eyebrow').textContent = 'DEMONSTRAÇÃO GRATUITA';
+    document.querySelector('.account-copy h1').textContent = 'Experimente antes de contratar';
+    document.getElementById('accountPageIntro').textContent = 'Entre com seu e-mail, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
+  }
 
   const money = value => Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   const compareVersions = (left, right) => {
@@ -78,6 +88,8 @@
       document.getElementById('selectedPlan').hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
+      trialEndedLink.hidden = true;
+      connectButton.hidden = false;
       accessSummary.textContent = `Assinatura ativa${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
@@ -87,6 +99,8 @@
       document.getElementById('selectedPlan').hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
+      trialEndedLink.hidden = true;
+      connectButton.hidden = false;
       accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
@@ -94,10 +108,14 @@
     const uses = status?.freeUses || {};
     const remaining = ['planning','content','attendance','pei'].map(key => Math.max(0, Number(uses[key] || 0)));
     const available = remaining.some(value => value > 0);
-    panelTitle.textContent = 'Conheça e experimente';
-    document.getElementById('selectedPlan').hidden = false;
-    legal.hidden = false;
-    checkoutButton.hidden = false;
+    panelTitle.textContent = trialFlow ? 'Sua demonstração gratuita' : 'Confirme a assinatura';
+    selectedPlanTarget.hidden = trialFlow;
+    legal.hidden = trialFlow;
+    checkoutButton.hidden = trialFlow;
+    accessSummary.hidden = !trialFlow;
+    installSteps.hidden = !trialFlow || !available;
+    connectButton.hidden = !trialFlow || !available;
+    trialEndedLink.hidden = !trialFlow || available;
     accessSummary.textContent = available
       ? `Demonstração gratuita — usos restantes: planejamento ${remaining[0]}, conteúdo ${remaining[1]}, frequência ${remaining[2]} e PEI ${remaining[3]}. O limite inicial é de 2 usos por recurso.`
       : 'Demonstração gratuita encerrada. Escolha um plano para continuar usando o Assistente SIAP.';
@@ -109,12 +127,14 @@
     const { data, error } = await db.rpc('get_siap_assistant_access_status');
     if (error || !data) {
       accessStatus = null;
-      panelTitle.textContent = 'Confirme a assinatura';
-      document.getElementById('selectedPlan').hidden = false;
-      legal.hidden = false;
-      checkoutButton.hidden = false;
+      panelTitle.textContent = trialFlow ? 'Sua demonstração gratuita' : 'Confirme a assinatura';
+      selectedPlanTarget.hidden = trialFlow;
+      legal.hidden = trialFlow;
+      checkoutButton.hidden = trialFlow;
       accessSummary.hidden = false;
-      installSteps.hidden = false;
+      installSteps.hidden = true;
+      connectButton.hidden = true;
+      trialEndedLink.hidden = true;
       accessSummary.removeAttribute('data-mode');
       accessSummary.textContent = 'Não foi possível verificar seu acesso agora. Tente novamente.';
       connectButton.textContent = 'Acesso não verificado';
@@ -155,10 +175,16 @@
   };
 
   async function loadPlan() {
+    if (trialFlow) {
+      selectedPlan = null;
+      selectedPlanTarget.hidden = true;
+      checkoutButton.disabled = true;
+      return;
+    }
     const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
       .eq('plan_key', planKey).eq('active', true).maybeSingle();
     selectedPlan = error ? null : data;
-    document.getElementById('selectedPlan').innerHTML = selectedPlan
+    selectedPlanTarget.innerHTML = selectedPlan
       ? `<strong>${selectedPlan.display_name} · ${money(selectedPlan.amount)}</strong><span>${selectedPlan.description}</span>`
       : '<strong>Plano ainda indisponível</strong><span>Os valores ainda precisam ser definidos antes da abertura das vendas.</span>';
     checkoutButton.disabled = !selectedPlan || !legal.checked;

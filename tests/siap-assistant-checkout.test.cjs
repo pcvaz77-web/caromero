@@ -120,6 +120,16 @@ test('distingue demonstração gratuita de assinatura ou acesso institucional ao
   assert.doesNotMatch(accountHtml, /consumer\.hotmart\.com|Gerenciar ou cancelar assinatura na Hotmart/);
 });
 
+test('oferece a demonstração na vitrine e separa o fluxo gratuito do checkout', () => {
+  assert.match(landing, /class="price-card trial-card"/);
+  assert.match(landing, /href="assistente-siap-conta\.html\?plano=trial"/);
+  assert.match(landing, /2 usos de planejamento/);
+  assert.match(account, /const trialFlow = planKey === 'trial'/);
+  assert.match(account, /checkoutButton\.hidden = trialFlow/);
+  assert.match(account, /connectButton\.hidden = !trialFlow \|\| !available/);
+  assert.match(accountHtml, /id="trialEndedLink"/);
+});
+
 test('migra os dois produtos para Asaas sem misturar seus registros', () => {
   assert.match(asaasMigration, /provider in \('mercado_pago',\s*'asaas'\)/);
   assert.match(asaasMigration, /siap_assistant_payment_subscriptions/);
