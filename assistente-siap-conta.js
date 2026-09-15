@@ -2,7 +2,10 @@
   'use strict';
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   const db = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
-  const planKey = new URLSearchParams(location.search).get('plano') || 'monthly';
+  // O retorno do link de autenticação pode chegar sem a query string.
+  // Nessa situação, nunca presumimos uma compra: o backend decide se a
+  // conta ainda pode experimentar, já possui assinatura ou tem concessão.
+  const planKey = new URLSearchParams(location.search).get('plano') || 'trial';
   const trialFlow = planKey === 'trial';
   const loading = document.getElementById('accountLoading');
   const loginForm = document.getElementById('loginForm');
