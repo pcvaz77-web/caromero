@@ -17,6 +17,23 @@
 
   document.getElementById('currentYear').textContent = String(new Date().getFullYear());
 
+  document.querySelectorAll('.youtube-embed').forEach(container => {
+    const id = (container.dataset.youtubeId || '').trim();
+    const button = container.querySelector('.youtube-play');
+    if (!button || !/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+    button.disabled = false;
+    button.removeAttribute('aria-disabled');
+    button.querySelector('strong').textContent = 'Assistir agora';
+    button.addEventListener('click', () => {
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0`;
+      iframe.title = container.dataset.videoTitle || 'Vídeo do Assistente SIAP';
+      iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      iframe.allowFullscreen = true;
+      container.replaceChildren(iframe);
+    }, { once:true });
+  });
+
   if (institutionalAccess) {
     document.body.classList.add('institutional-access');
     document.querySelector('[data-public-checkout]')?.setAttribute('hidden', '');
