@@ -34,6 +34,13 @@
     }, { once:true });
   });
 
+  // A extensão abre diretamente #planos ao oferecer renovação.
+  // Uma visita inicial à página pública continua mostrando a demonstração.
+  if (window.location.hash === '#planos') {
+    const trialCard = document.querySelector('.trial-card');
+    if (trialCard) trialCard.style.display = 'none';
+  }
+
   if (institutionalAccess) {
     document.body.classList.add('institutional-access');
     document.querySelector('[data-public-checkout]')?.setAttribute('hidden', '');
@@ -50,6 +57,19 @@
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   if (!config?.backendConfigured || !window.supabase?.createClient) return;
   const client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  client.auth.getSession().then(async ({ data: { session } }) => {
+    if (!session) return;
+    const { data: access, error } = await client.rpc('get_siap_assistant_access_status');
+    if (error || !access) return;
+    const remainingUses = Object.values(access.freeUses || {}).map(remaining => Number(remaining));
+    const neverUsedTrial = access.status === 'free'
+      && remainingUses.length === 4
+      && remainingUses.every(remaining => remaining === 2);
+    if (!neverUsedTrial) {
+      const trialCard = document.querySelector('.trial-card');
+      if (trialCard) trialCard.style.display = 'none';
+    }
+  }).catch(() => {});
   client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order')
     .then(({ data, error }) => {
       if (error) return;

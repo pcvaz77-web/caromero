@@ -8,6 +8,7 @@ const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const migration = read('supabase/migrations/084_siap_assistant_checkout.sql');
 const asaasMigration = read('supabase/migrations/085_asaas_payment_provider.sql');
 const landing = read('assistente-siap.html');
+const landingJs = read('assistente-siap.js');
 const account = read('assistente-siap-conta.js');
 const accountHtml = read('assistente-siap-conta.html');
 const createCheckout = read('supabase/functions/create-asaas-assistant-checkout/index.ts');
@@ -128,6 +129,17 @@ test('oferece a demonstração na vitrine e separa o fluxo gratuito do checkout'
   assert.match(account, /checkoutButton\.hidden = trialFlow/);
   assert.match(account, /connectButton\.hidden = !trialFlow \|\| !available/);
   assert.match(accountHtml, /id="trialEndedLink"/);
+});
+
+test('não oferece novamente o teste a quem veio do Carômetro ou já utilizou a demonstração', () => {
+  assert.match(landing, /Disponível uma única vez por e-mail/);
+  assert.match(landing, /Verificar teste grátis/);
+  assert.match(landing, /assistente-siap\.js\?v=6/);
+  assert.match(landingJs, /window\.location\.hash === '#planos'/);
+  assert.match(landingJs, /get_siap_assistant_access_status/);
+  assert.match(landingJs, /access\.status === 'free'/);
+  assert.match(landingJs, /remainingUses\.every\(remaining => remaining === 2\)/);
+  assert.match(landingJs, /if \(!neverUsedTrial\)/);
 });
 
 test('migra os dois produtos para Asaas sem misturar seus registros', () => {
