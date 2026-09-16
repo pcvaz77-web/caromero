@@ -17,6 +17,20 @@
 
   document.getElementById('currentYear').textContent = String(new Date().getFullYear());
 
+  const testimonialsCarousel = document.querySelector('[data-testimonials-carousel]');
+  if (testimonialsCarousel) {
+    let carouselVisible = false;
+    const updateCarouselMotion = () => {
+      testimonialsCarousel.classList.toggle('is-running', carouselVisible && !document.hidden);
+    };
+    const observer = new IntersectionObserver(entries => {
+      carouselVisible = entries.some(entry => entry.isIntersecting);
+      updateCarouselMotion();
+    }, { threshold:0.08 });
+    observer.observe(testimonialsCarousel);
+    document.addEventListener('visibilitychange', updateCarouselMotion);
+  }
+
   document.querySelectorAll('.youtube-embed').forEach(container => {
     const id = (container.dataset.youtubeId || '').trim();
     const button = container.querySelector('.youtube-play');
