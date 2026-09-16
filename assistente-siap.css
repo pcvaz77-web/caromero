@@ -71,3 +71,12 @@
 @keyframes testimonials-scroll{to{transform:translateX(-50%)}}
 @media(prefers-reduced-motion:reduce){.testimonials-track{animation:none}.testimonials-carousel{overflow-x:auto;mask-image:none;-webkit-mask-image:none}.testimonials-group[aria-hidden="true"]{display:none}}
 @media(max-width:680px){.testimonials-section{padding-top:68px;padding-bottom:62px}.testimonials-carousel{width:calc(100% - 24px);mask-image:linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12%,#000 88%,transparent 100%)}.testimonials-group{gap:14px;padding-right:14px}.testimonials-group figure{width:280px;height:410px;border-radius:17px}.testimonials-hint{display:none}}
+
+/* Chamadas de conversão distribuídas pela página. */
+.contextual-cta{margin-top:24px;margin-bottom:64px}
+.contextual-cta-wide{max-width:1220px}
+.contextual-cta-compact{max-width:980px;padding:27px 31px;border-radius:18px}
+.contextual-cta-compact img{width:50px}.contextual-cta-compact h2{font-size:22px}
+.contextual-cta-narrow{max-width:860px;margin-top:18px;padding:25px 28px;border-radius:18px}
+.contextual-cta-narrow img{width:48px}.contextual-cta-narrow h2{font-size:20px}.contextual-cta-narrow p{font-size:13px}
+@media(max-width:680px){.contextual-cta{margin:18px 13px 50px;padding:24px 21px}.contextual-cta h2{font-size:21px}.contextual-cta p{font-size:13px}}
