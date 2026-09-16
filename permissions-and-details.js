@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .coordinator-right-group { grid-column:1 / -1; border:1px solid #d9e2f4; border-radius:10px; overflow:hidden; }
     .coordinator-right-group summary { cursor:pointer; padding:11px 13px; background:#f7f9fc; font-size:13px; font-weight:800; }
     .coordinator-right-group .edit-rights { border-top:1px solid #d9e2f4; padding:12px; }
-    #studentDetails { width:460px; padding:28px; }
+    #studentDetails { width:460px; max-height:calc(100dvh - 188px); padding:28px; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#c8d3e7 transparent; }
+    #studentDetails .student-detail-close { position:sticky; z-index:1; top:0; float:right; margin:-12px -12px 0 10px; }
     #studentDetails .detail-head { gap:20px; }
     #studentDetails .detail-head .avatar { width:180px; height:180px; font-size:38px; }
     #studentDetails .detail-head h3 { font-size:24px; }
