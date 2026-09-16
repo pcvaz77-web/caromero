@@ -32,7 +32,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const byId = id => document.getElementById(id);
   const roleLabel = role => role === 'coordinator' ? 'Coordenador(a)' : 'Professor(a)';
-  const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin' || (window.getActiveSchoolRole?.() === 'coordinator' && !!(permission.can_edit_all || permission.can_invite_teachers));
+  // Convites possuem uma permissão própria. `can_edit_all` controla dados da
+  // escola, mas não deve ampliar implicitamente a capacidade de criar contas.
+  // Esta regra precisa permanecer idêntica às RPCs e à Edge Function.
+  const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin'
+    || (window.getActiveSchoolRole?.() === 'coordinator' && permission.can_invite_teachers === true);
   const linkForToken = token => new URL(`accept-invite.html?token=${encodeURIComponent(token)}`, location.href).href;
   const copyText = async text => {
     try { await navigator.clipboard.writeText(text); }
