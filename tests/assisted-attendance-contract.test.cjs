@@ -20,7 +20,7 @@ assert.match(source,/selectedMonths/);
 assert.match(source,/Aguardando as datas indicadas abaixo/);
 assert.match(source,/localeCompare\(b\.name,'pt-BR'/);
 assert.match(source,/if\(!state\.ready\)throw new Error/);
-assert.match(source,/carometro-frequencia-leitura-0\.6\.3\.zip/);
+assert.match(source,/carometro-frequencia-leitura-0\.7\.0\.zip/);
 assert.match(source,/Carregar sem compactação/);
 assert.match(source,/key==='frequent'\)return ''/);
 assert.match(source,/monthProgress/);

@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     node.textContent = value ?? '';
     return node.innerHTML;
   };
-  const roleLabel = role => ({ school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' }[role] || role || 'Usuário');
+  const roleLabel = role => ({ school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)', secretary:'Secretário(a)' }[role] || role || 'Usuário');
   let access = { enabled:false, can_manage:false, tutor_id:null };
   let tutors = [];
   let assignments = [];

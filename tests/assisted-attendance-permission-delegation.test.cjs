@@ -12,7 +12,7 @@ test('professor autorizado recebe o botão de Frequência Assistida', () => {
   assert.match(permissions, /Usar Frequência Assistida/);
   assert.match(permissions, /setAttendancePermission/);
   assert.match(permissions, /permission_name:'can_import_siap_attendance'/);
-  assert.match(permissions, /sessionPermissionFields = \[\.\.\.permissionFields, 'can_import_siap_attendance'\]/);
+  assert.match(permissions, /sessionPermissionFields = \[\.\.\.permissionFields, 'can_import_siap_attendance', 'can_import_school_daily_attendance'\]/);
   assert.match(attendance, /permission\?\.can_import_siap_attendance/);
 });
 

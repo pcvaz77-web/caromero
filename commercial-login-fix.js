@@ -183,7 +183,7 @@ function initializeCommercialLoginFix() {
       if (!modal || !list) return;
       const roleLabel = role => role === 'school_admin'
         ? 'Administrador'
-        : role === 'coordinator' ? 'Coordenador' : 'Professor(a)';
+        : role === 'coordinator' ? 'Coordenador' : role === 'secretary' ? 'Secretário(a)' : 'Professor(a)';
       list.innerHTML = commercialMemberships.map((item, index) => `
         <button type="button" class="school-context-option" data-school-index="${index}">
           <b>${esc(item.schools?.name || 'Escola')}</b>

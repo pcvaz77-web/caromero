@@ -27,11 +27,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const modal = document.createElement('div');
   modal.id = 'schoolInvitationsModal'; modal.className = 'modal-bg hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Convites da escola</h3><div class="meta">Cada link é individual, expira e só pode ser aceito pelo e-mail convidado.</div></div><button class="close" type="button" data-school-invite-close>×</button></div><div class="form"><div class="school-invite-grid"><div class="field"><label>E-mail</label><input id="schoolInviteEmail" type="email" placeholder="professor@escola.edu.br"></div><div class="field"><label>Papel</label><select id="schoolInviteRole"><option value="teacher">Professor(a)</option><option value="coordinator">Coordenador(a)</option></select></div></div><button id="schoolInviteCreate" class="btn primary" type="button">Gerar convite</button><div id="schoolInviteResult" class="school-invite-result hidden"><input id="schoolInviteLink" readonly><button id="schoolInviteCopy" class="btn secondary" type="button">Copiar link</button></div><hr style="margin:24px 0;border:0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><b>Convites pendentes</b><div class="meta">Somente convites da escola ativa.</div></div><button id="schoolInviteRefresh" class="btn secondary" type="button">Atualizar</button></div><div id="schoolInviteList" class="school-invite-list"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3>Convites da escola</h3><div class="meta">Cada link é individual, expira e só pode ser aceito pelo e-mail convidado.</div></div><button class="close" type="button" data-school-invite-close>×</button></div><div class="form"><div class="school-invite-grid"><div class="field"><label>E-mail</label><input id="schoolInviteEmail" type="email" placeholder="usuario@escola.edu.br"></div><div class="field"><label>Papel</label><select id="schoolInviteRole"><option value="teacher">Professor(a)</option><option value="coordinator">Coordenador(a)</option><option value="secretary">Secretário(a)</option></select></div></div><button id="schoolInviteCreate" class="btn primary" type="button">Gerar convite</button><div id="schoolInviteResult" class="school-invite-result hidden"><input id="schoolInviteLink" readonly><button id="schoolInviteCopy" class="btn secondary" type="button">Copiar link</button></div><hr style="margin:24px 0;border:0;border-top:1px solid var(--line)"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><div><b>Convites pendentes</b><div class="meta">Somente convites da escola ativa.</div></div><button id="schoolInviteRefresh" class="btn secondary" type="button">Atualizar</button></div><div id="schoolInviteList" class="school-invite-list"></div></div></div>`;
   document.body.appendChild(modal);
 
   const byId = id => document.getElementById(id);
-  const roleLabel = role => role === 'coordinator' ? 'Coordenador(a)' : 'Professor(a)';
+  const roleLabel = role => role === 'coordinator' ? 'Coordenador(a)' : role === 'secretary' ? 'Secretário(a)' : 'Professor(a)';
   // Convites possuem uma permissão própria. `can_edit_all` controla dados da
   // escola, mas não deve ampliar implicitamente a capacidade de criar contas.
   // Esta regra precisa permanecer idêntica às RPCs e à Edge Function.
@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     nav.classList.toggle('hidden', !allowed);
     const coordinator = window.getActiveSchoolRole?.() === 'coordinator';
     byId('schoolInviteRole').querySelector('option[value="coordinator"]').disabled = coordinator;
+    byId('schoolInviteRole').querySelector('option[value="secretary"]').disabled = coordinator;
     if (coordinator) byId('schoolInviteRole').value = 'teacher';
     if (!allowed) modal.classList.add('hidden');
   }

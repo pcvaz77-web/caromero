@@ -33,6 +33,7 @@ function busy(value) {
 function roleLabel(role) {
   if (role === 'coordinator') return 'Coordenador(a)';
   if (role === 'school_admin') return 'Administrador(a)';
+  if (role === 'secretary') return 'Secretário(a)';
   return 'Professor(a)';
 }
 

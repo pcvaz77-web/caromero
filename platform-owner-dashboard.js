@@ -369,7 +369,7 @@
       target.innerHTML = '<div class="empty">Nenhuma escola com usuários cadastrados.</div>';
       return;
     }
-    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
+    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)', secretary:'Secretário(a)' };
     target.innerHTML = [...grouped.entries()].map(([schoolId, school]) => `<details class="platform-siap-school" data-school-id="${esc(schoolId)}">
       <summary><span><strong>${esc(school.name || 'Escola sem nome')}</strong><small>${esc(school.members.length)} usuário(s)</small></span><b>Ver usuários</b></summary>
       <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user" data-siap-user-row="${esc(member.user_id)}">
@@ -1062,7 +1062,7 @@
     const memberships = user.school_memberships || [];
     const hasActiveMembership = memberships.some(item => item.status === 'active');
     const awaitingInvitationAcceptance = pendingInvitations.length > 0 && !hasActiveMembership;
-    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)' };
+    const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)', secretary:'Secretário(a)' };
     const membershipStatusLabels = { active:'Ativo', suspended:'Suspenso', pending:'Pendente' };
     const formatDateTime = value => value ? new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(new Date(value)) : 'Não informado';
     const membershipCards = memberships.length

@@ -133,7 +133,7 @@ async function handleAdminMode(
   // Esta função nunca envia convite de school_admin, mesmo que a tabela
   // aceite esse valor (o onboarding do administrador principal usa um
   // caminho próprio, com autorização de proprietário).
-  if (invitation.role !== 'coordinator' && invitation.role !== 'teacher') {
+  if (!['coordinator', 'teacher', 'secretary'].includes(invitation.role)) {
     return json(request, { ok: false, code: 'forbidden', error: 'Esta função não envia este tipo de convite.' }, 403)
   }
   if (invitation.status !== 'pending') {
@@ -155,7 +155,7 @@ async function handleAdminMode(
   if (!callerMember) return json(request, { ok: false, code: 'forbidden', error: 'Você não possui acesso ativo a esta escola.' }, 403)
 
   if (callerMember.role === 'school_admin') {
-    // autorizado para coordinator ou teacher, já garantido acima.
+    // autorizado para coordinator, teacher ou secretary, já garantido acima.
   } else if (callerMember.role === 'coordinator') {
     if (invitation.role !== 'teacher') {
       return json(request, { ok: false, code: 'forbidden', error: 'Coordenadores só podem convidar professores.' }, 403)

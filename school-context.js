@@ -23,7 +23,7 @@ function initializeSchoolContext() {
   modal.onclick = event => {
     if (event.target === modal && activeSchoolId) modal.classList.add('hidden');
   };
-  const roleLabel = role => role === 'school_admin' ? 'Administrador' : role === 'coordinator' ? 'Coordenador' : 'Professor(a)';
+  const roleLabel = role => role === 'school_admin' ? 'Administrador' : role === 'coordinator' ? 'Coordenador' : role === 'secretary' ? 'Secretário(a)' : 'Professor(a)';
   const persist = id => { try { sessionStorage.setItem(STORAGE_KEY, id); } catch {} };
   function setActive(item) {
     activeSchoolId = item.school_id; activeSchoolRole = item.role; persist(item.school_id);

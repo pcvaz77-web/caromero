@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const isAdvancedUser = () => permission.role === 'admin' || !!permission.is_coordinator;
-  const isGeneralTeacher = () => permission.role !== 'admin' && !permission.is_coordinator;
+  const isGeneralTeacher = () => permission.role !== 'admin' && !permission.is_coordinator && !permission.is_secretary;
   const canDelete = student => {
     return permission.role === 'admin' || (isGeneralTeacher() && !!permission.can_edit_students) || (isAdvancedUser() && (!!permission.can_delete_students || !!permission.can_edit_all));
   };
@@ -86,20 +86,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const canEditStudent = student => {
     return canEdit();
   };
-  const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
+  const canAdd = () => !permission.is_secretary && (permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all));
   const permissionFields = ['can_add_students', 'can_edit_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_manage_observation_options', 'can_invite_teachers', 'can_manage_member_permissions', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors', 'can_view_class_summary'];
-  const sessionPermissionFields = [...permissionFields, 'can_import_siap_attendance'];
+  const sessionPermissionFields = [...permissionFields, 'can_import_siap_attendance', 'can_import_school_daily_attendance'];
   const dormantPermissionFields = ['can_view_dashboard', 'can_view_history', 'can_manage_alerts', 'can_record_followups', 'can_export_reports', 'can_use_bulk_actions', 'can_view_audit'];
   const rolePermissionFields = [...permissionFields, ...dormantPermissionFields];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
   const permissionLabel = item => {
     if (item.role === 'admin') return 'Administrador(a)';
     if (item.is_coordinator) return 'Coordenador(a)';
+    if (item.is_secretary) return 'Secretário(a)';
     return 'Professor(a)';
   };
   const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 
-  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_prepare_school_year';
+  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_prepare_school_year';
   const permissionFromMembership = membership => {
     if (!membership) return null;
     const rights = Array.isArray(membership.school_member_permissions)
@@ -112,6 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       user_id:membership.user_id,
       role:membership.role === 'school_admin' ? 'admin' : 'viewer',
       is_coordinator:membership.role === 'coordinator',
+      is_secretary:membership.role === 'secretary',
       profiles:membership.profiles
     };
   };
@@ -163,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await db.rpc('list_school_member_directory_v2', { target_school_id:schoolId });
     if (error) { toast(error.message); return new Map(); }
     const { data:panelRows, error:panelError } = await db.from('school_members')
-      .select('id,school_member_permissions(can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_prepare_school_year)')
+      .select('id,school_member_permissions(can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_prepare_school_year)')
       .eq('school_id', schoolId);
     if (panelError) { toast(panelError.message); return new Map(); }
     const panelPermissionByMember = new Map((panelRows || []).map(item => {
@@ -172,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         can_view_class_summary:!!rights?.can_view_class_summary,
         can_use_siap_assistant:!!rights?.can_use_siap_assistant,
         can_import_siap_attendance:!!rights?.can_import_siap_attendance,
+        can_import_school_daily_attendance:!!rights?.can_import_school_daily_attendance,
         can_prepare_school_year:!!rights?.can_prepare_school_year
       }];
     }));
@@ -185,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         member_status:item.member_status || 'active',
         role:item.member_role === 'school_admin' ? 'admin' : 'viewer',
         is_coordinator:item.member_role === 'coordinator',
+        is_secretary:item.member_role === 'secretary',
         profiles:{ email:item.email, full_name:item.full_name }
       };
       map.set(item.user_id, { ...normalized, memberId:item.member_id });
@@ -320,7 +324,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!data) { window.resetCarometroSchoolState?.(); return; }
     const counselorShouldBeVisible = !!data.is_coordinator && !!(data.can_edit_all || data.can_manage_counselors);
     const counselorNavigationOutOfSync = document.getElementById('counselorNav')?.classList.contains('hidden') === counselorShouldBeVisible;
-    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || sessionPermissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data) || counselorNavigationOutOfSync) applyCurrentPermission(data);
+    if (permission.role !== data.role || !!permission.is_coordinator !== !!data.is_coordinator || !!permission.is_secretary !== !!data.is_secretary || sessionPermissionFields.some(key => !!permission[key] !== !!data[key]) || document.getElementById('roleLabel').textContent !== permissionLabel(data) || counselorNavigationOutOfSync) applyCurrentPermission(data);
   }
 
   function syncAddActions() {
@@ -410,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return firstName.localeCompare(secondName, 'pt-BR', { sensitivity:'base' });
     });
     const nameFor = item => item.profiles?.full_name?.trim() || item.profiles?.email || 'Usuário';
-    const available = users.filter(item => item.member_status === 'active' && item.role !== 'admin' && !item.is_coordinator);
+    const available = users.filter(item => item.member_status === 'active' && item.role !== 'admin' && !item.is_coordinator && !item.is_secretary);
     const coordinators = users.filter(item => item.member_status === 'active' && item.role !== 'admin' && item.is_coordinator);
     document.getElementById('coordinatorUser').innerHTML = '<option value="">Selecione um usuário</option>' + available.map(item => `<option value="${item.user_id}">${esc(nameFor(item))}</option>`).join('');
     document.getElementById('coordinatorPermissions').classList.add('hidden');
@@ -490,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Filtro só de UX — quem protege de verdade é a revalidação completa
     // dentro de transfer_school_admin() no banco.
     transferAdminCandidates = [...schoolPermissionMap.values()]
-      .filter(item => item.member_status === 'active' && item.role !== 'admin' && item.user_id !== membership.user_id)
+      .filter(item => item.member_status === 'active' && item.role !== 'admin' && !item.is_secretary && item.user_id !== membership.user_id)
       .map(item => ({
         user_id: item.user_id,
         member_id: item.memberId,
@@ -579,7 +583,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!canManageTeachers && !canManageCounselors) return;
       const schoolPermissionMap = canManageTeachers ? await loadSchoolPermissions(membership.school_id) : new Map();
       const schoolScopedData = [...schoolPermissionMap.values()];
-      const teachers = schoolScopedData.filter(item => !item.is_coordinator && item.role !== 'admin');
+      const teachers = schoolScopedData.filter(item => !item.is_coordinator && !item.is_secretary && item.role !== 'admin');
       const teacherCards = teachers.map(item => {
         const name = item.profiles?.full_name?.trim() || 'Nome não informado';
         const email = item.profiles?.email || 'Usuário';
@@ -603,6 +607,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const occMap = schoolPermissionMap;
     const check = (item, key, label, admin) => `<label class="check"><input ${admin || item.member_status !== 'active' || (item.can_edit_all && key !== 'can_edit_all') ? 'disabled' : ''} type="checkbox" ${item[key] || (item.can_edit_all && key !== 'can_edit_all') ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
     const attendanceCheck = item => `<label class="check"><input ${item.member_status !== 'active' ? 'disabled' : ''} type="checkbox" ${item.can_import_siap_attendance ? 'checked' : ''} onchange="setAttendancePermission('${item.user_id}',this.checked)"> Usar Frequência Assistida</label>`;
+    const schoolDailyAttendanceCheck = item => `<label class="check"><input ${item.member_status !== 'active' ? 'disabled' : ''} type="checkbox" ${item.can_import_school_daily_attendance ? 'checked' : ''} onchange="setSchoolDailyAttendancePermission('${item.user_id}',this.checked)"> Usar Frequência da Secretaria</label>`;
     const yearCheck = (item, admin) => `<label class="check"><input ${admin || !item.is_coordinator || item.member_status !== 'active' ? 'disabled' : ''} type="checkbox" ${admin || item.can_prepare_school_year ? 'checked' : ''} onchange="setSchoolYearPermission('${item.user_id}',this.checked)"> Preparar novo ano letivo</label>`;
     const sortedUsers = [...schoolScopedData].sort((first, second) => {
       const firstName = first.profiles?.full_name?.trim() || first.profiles?.email || '';
@@ -615,6 +620,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = item.profiles?.email || 'Usuário';
       const active = item.member_status === 'active';
       const access = `<div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span>${admin ? '' : `<button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button>`}</div>`;
+      if (item.is_secretary) return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Secretaria</div></div><div class="permission-basic">${schoolDailyAttendanceCheck(item)}<span class="meta">Acesso somente à consulta de alunos e à frequência diária.</span></div>${access}</article>`;
       if (!isCoordinator(item)) return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="general" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Acesso de professor(a)</div></div><div class="permission-basic">${check(item,'can_add_students','Pode adicionar',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_edit_students','Pode editar e excluir',false).replace('setUserPermission','setGeneralPermission')}${check(item,'can_view_class_summary','Visualizar Painel da Turma',false).replace('setUserPermission','setGeneralPermission')}${attendanceCheck(item)}</div>${access}</article>`;
       return `<article class="perm ${active ? '' : 'member-suspended'}" data-permission-scope="advanced" data-search="${esc(`${name} ${email}`.toLowerCase())}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)}${admin ? ' · Administrador principal' : ' · Coordenador'}</div></div><div class="permission-primary">${check(item,'can_edit_all','Editar tudo',admin)}</div>${access}<div class="permission-basic">${check(item,'can_add_students','Pode adicionar',admin)}${check(item,'can_delete_students','Pode excluir',admin)}${check(item,'can_view_class_summary','Visualizar Painel da Turma',admin)}${yearCheck(item,admin)}</div><details class="coordinator-right-group"><summary>Cadastro, gestão, uniforme e ocorrências</summary><div class="edit-rights">${check(item,'can_edit_photo','Editar somente foto',admin)}${check(item,'can_edit_name','Editar somente nome',admin)}${check(item,'can_edit_class','Editar somente mudança de turma',admin)}${check(item,'can_edit_report','Pode editar observações do aluno',admin)}${check(item,'can_manage_observation_options','Gerenciar opções de observação',admin)}${check(item,'can_invite_teachers','Convidar professores',admin)}${check(item,'can_manage_member_permissions','Gerenciar permissões de professores',admin)}${check(item,'can_view_uniform','Visualizar Uniforme',admin)}${check(item,'can_edit_uniform','Editar Uniforme e material',admin)}${check(item,'can_mark_all_uniform_received','Marcar todos como receberam',admin)}${check(item,'can_manage_counselors','Gerenciar conselheiros de turma',admin)}${occCheck(item,occMap,'can_view_occurrences','Visualizar Ocorrências')}${occCheck(item,occMap,'can_register_occurrences','Registrar Ocorrência')}${occCheck(item,occMap,'can_edit_occurrences','Editar todas as ocorrências')}${occCheck(item,occMap,'can_delete_occurrences','Excluir todas as ocorrências')}</div></details></article>`;
     }).join('');
@@ -694,6 +700,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (error) { toast(error.message); return; }
     toast(value ? 'Frequência Assistida liberada para o professor.' : 'Acesso à Frequência Assistida removido.');
+    openPermissions();
+  };
+  window.setSchoolDailyAttendancePermission = async (id, value) => {
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership) return;
+    const memberId = await findSchoolMemberId(id, membership.school_id);
+    if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
+    const { error } = await db.rpc('set_school_member_siap_permission', {
+      target_member_id:memberId,
+      permission_name:'can_import_school_daily_attendance',
+      permission_value:value
+    });
+    if (error) { toast(error.message); return; }
+    toast(value ? 'Frequência da Secretaria liberada.' : 'Acesso à Frequência da Secretaria removido.');
     openPermissions();
   };
   window.setSchoolYearPermission = async (id, value) => {

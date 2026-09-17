@@ -6,6 +6,10 @@ const ATTEMPT_TIMEOUT_MS = 10000;
 const MAX_NAVIGATION_ATTEMPTS = 4;
 const POLL_INTERVAL_MS = 400;
 const NAVIGATION_ACTION_TIMEOUT_MS = 1200;
+const MONTHS = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+];
 
 class SiapLoginRequiredError extends Error {
   constructor() {
@@ -240,6 +244,164 @@ function chooseSiapTab(tabs) {
   )[0];
 }
 
+function chooseSchoolDailyTab(tabs) {
+  return tabs.filter(tab => /FrequenciaDiaria\.aspx/i.test(tab.url || '')).sort((left, right) =>
+    Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
+    Number(right.lastAccessed || 0) - Number(left.lastAccessed || 0)
+  )[0];
+}
+
+const isSchoolDailySnapshot = state => Boolean(
+  typeof state?.pageToken === 'string' &&
+  typeof state.selectedDate === 'string' &&
+  Array.isArray(state.classes) &&
+  Array.isArray(state.entries)
+);
+
+function readSchoolDailySnapshot(tabId, description = 'a Frequência diária') {
+  return waitForReader(
+    tabId,
+    '__carometroSchoolDailySnapshot',
+    [],
+    isSchoolDailySnapshot,
+    description
+  );
+}
+
+async function navigateSchoolDaily(tabId, actionMethod, args, predicate, description) {
+  return navigateAndConfirm(
+    tabId,
+    actionMethod,
+    args,
+    '__carometroSchoolDailySnapshot',
+    [],
+    state => isSchoolDailySnapshot(state) && predicate(state),
+    description
+  );
+}
+
+const filledSchoolDailyStatus = status => ['filled_on_time', 'filled_late'].includes(status);
+const formatSchoolDailyDate = (year, monthNumber, day) =>
+  `${String(day).padStart(2, '0')}/${String(monthNumber).padStart(2, '0')}/${year}`;
+
+function isFutureSchoolDailyDate(year, monthNumber, day, now = new Date()) {
+  const candidate = new Date(year, monthNumber - 1, day);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return candidate > today;
+}
+
+async function restoreSchoolDailyPosition(tabId, original) {
+  let state = await readSchoolDailySnapshot(tabId, 'a posição atual da Frequência diária');
+  if (original.selectedDate && state.selectedDate !== original.selectedDate) {
+    state = await navigateSchoolDaily(
+      tabId,
+      '__carometroSchoolDailySelectDate',
+      [original.selectedDate],
+      item => item.selectedDate === original.selectedDate && item.classes.length > 0,
+      `a restauração da data ${original.selectedDate}`
+    );
+  }
+  const card = state.classes.find(item => item.code === original.classCode);
+  if (original.classCode && card && filledSchoolDailyStatus(card.status) && state.context?.classCode !== original.classCode) {
+    await navigateSchoolDaily(
+      tabId,
+      '__carometroSchoolDailyOpenClass',
+      [original.classCode],
+      item => item.selectedDate === original.selectedDate && item.context?.classCode === original.classCode && item.entries.length > 0,
+      `a restauração da turma ${original.className}`
+    );
+  }
+}
+
+async function collectSchoolDailyAttendance(tabId, request) {
+  const selectedMonths = [...new Set((request.months || []).map(month => MONTHS.indexOf(month) + 1).filter(month => month > 0))]
+    .sort((left, right) => left - right);
+  if (!selectedMonths.length) throw new Error('Selecione pelo menos um mês no Carômetro.');
+
+  const initial = await readSchoolDailySnapshot(tabId, 'a turma aberta na Frequência diária');
+  const context = initial.context;
+  if (!context?.classCode || !context.className || !initial.entries.length) {
+    throw new Error('Abra no SIAP uma turma verde ou vermelha antes de iniciar a leitura.');
+  }
+  if (!filledSchoolDailyStatus(context.classStatus)) {
+    throw new Error('A turma aberta não possui frequência preenchida nesta data.');
+  }
+  const year = Number(context.year);
+  if (!Number.isInteger(year)) throw new Error('Não foi possível identificar o ano letivo no SIAP.');
+
+  const original = {
+    selectedDate:initial.selectedDate,
+    classCode:context.classCode,
+    className:context.className
+  };
+  const entries = [];
+  const datesRead = [];
+  const skipped = { notFilled:0, nonSchoolDay:0, exception:0, future:0 };
+  let failure;
+
+  try {
+    let state = initial;
+    for (const monthNumber of selectedMonths) {
+      const daysInMonth = new Date(year, monthNumber, 0).getDate();
+      for (let day = 1; day <= daysInMonth; day += 1) {
+        if (isFutureSchoolDailyDate(year, monthNumber, day)) {
+          skipped.future += 1;
+          continue;
+        }
+        const date = formatSchoolDailyDate(year, monthNumber, day);
+        if (state.selectedDate !== date) {
+          state = await navigateSchoolDaily(
+            tabId,
+            '__carometroSchoolDailySelectDate',
+            [date],
+            item => item.selectedDate === date && item.classes.length > 0,
+            `a data ${date}`
+          );
+        }
+        const card = state.classes.find(item => item.code === context.classCode);
+        if (!card) throw new Error(`A turma ${context.className} não apareceu em ${date}.`);
+        if (!filledSchoolDailyStatus(card.status)) {
+          if (card.status === 'non_school_day') skipped.nonSchoolDay += 1;
+          else if (card.status === 'exception') skipped.exception += 1;
+          else skipped.notFilled += 1;
+          continue;
+        }
+        if (state.context?.classCode !== context.classCode || !state.entries.length) {
+          state = await navigateSchoolDaily(
+            tabId,
+            '__carometroSchoolDailyOpenClass',
+            [context.classCode],
+            item => item.selectedDate === date && item.context?.classCode === context.classCode && item.entries.length > 0,
+            `a turma ${context.className} em ${date}`
+          );
+        }
+        entries.push(...state.entries);
+        datesRead.push(date);
+      }
+    }
+    if (!datesRead.length) throw new Error('Nenhuma frequência preenchida foi encontrada nos meses escolhidos para esta turma.');
+  } catch (error) {
+    failure = error;
+  }
+
+  let restoreWarning = '';
+  try {
+    await restoreSchoolDailyPosition(tabId, original);
+  } catch (error) {
+    restoreWarning = ` A leitura terminou, mas o SIAP não conseguiu restaurar a tela original: ${error.message}`;
+  }
+  if (failure) throw failure;
+
+  return {
+    context,
+    months:selectedMonths.map(number => MONTHS[number - 1]),
+    datesRead,
+    skipped,
+    entries,
+    restoreWarning
+  };
+}
+
 async function collectAttendance(tabId, request) {
   const months = (request.months || []).filter(Boolean);
   if (!months.length) throw new Error('Selecione pelo menos um mês no Carômetro.');
@@ -291,11 +453,23 @@ async function collectAttendance(tabId, request) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
+  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
   chrome.tabs.query({ url:'https://siap.educacao.go.gov.br/*' }, tabs => {
-    const siapTab = chooseSiapTab(tabs);
+    const siapTab = message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : chooseSiapTab(tabs);
     if (!siapTab?.id) {
-      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:'Abra o SIAP, entre no Diário do Professor e tente novamente.' });
+      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:message.type === 'CM_SCHOOL_DAILY_COLLECT'
+        ? 'Abra no SIAP a página Frequência diária, escolha uma turma verde ou vermelha e tente novamente.'
+        : 'Abra o SIAP, entre no Diário do Professor e tente novamente.' });
+      return;
+    }
+    if (message.type === 'CM_SCHOOL_DAILY_COLLECT') {
+      assertSiapSession(siapTab.id)
+        .then(() => collectSchoolDailyAttendance(siapTab.id, message.request || {}))
+        .then(result => sendResponse({ ok:true, result }))
+        .catch(error => {
+          if (error?.code === 'SIAP_LOGIN_REQUIRED') sendResponse({ ok:false, code:error.code, message:error.message });
+          else sendResponse({ ok:false, code:'SIAP_SCHOOL_DAILY_FAILED', message:`Não foi possível ler a Frequência diária: ${error?.message || 'erro desconhecido'}` });
+        });
       return;
     }
     if (message.type === 'CM_ASSISTED_CAPTURE') {

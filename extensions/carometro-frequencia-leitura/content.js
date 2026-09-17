@@ -9,6 +9,7 @@
 
   const FREQUENCY_PATH = '/FrequenciaAlunoEdicao.aspx';
   const DIARY_PATH = '/DiarioEscolarListagem.aspx';
+  const SCHOOL_DAILY_PATH = '/FrequenciaDiaria.aspx';
   const MONTHS = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -19,6 +20,7 @@
   const fieldValue = id => normalize(byId(id)?.value);
   const isFrequencyPage = () => location.pathname.toLowerCase() === FREQUENCY_PATH.toLowerCase();
   const isDiaryPage = () => location.pathname.toLowerCase() === DIARY_PATH.toLowerCase();
+  const isSchoolDailyPage = () => location.pathname.toLowerCase() === SCHOOL_DAILY_PATH.toLowerCase();
 
   function readContext() {
     return {
@@ -219,6 +221,151 @@
     );
     if (!cell) throw new Error(`A chamada verde do dia ${day} não foi encontrada.`);
     cell.click();
+    return true;
+  };
+
+  // Leitor isolado da Frequência Diária usada pela Secretaria. Ele compartilha
+  // apenas a ponte da extensão; os seletores e a navegação do Diário do
+  // Professor acima permanecem independentes.
+  const cleanStudentName = value => normalize(value)
+    .replace(/^\d+\s*(?:[.\-)–—:]\s*)?/, '')
+    .replace(/\s*(?:[.\-(–—:]\s*)?\d+\s*\)?$/, '')
+    .trim();
+
+  const normalizedStudentName = value => cleanStudentName(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z ]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase();
+
+  const detailValue = label => {
+    const title = [...document.querySelectorAll('.tituloDetalhes')]
+      .find(item => normalizedComparable(item.textContent) === normalizedComparable(label));
+    return normalize(title?.parentElement?.querySelector('.conteudoDetalhes')?.textContent);
+  };
+
+  const selectedSchoolDailyDate = () => normalize(byId('h3TituloFuncionalidade')?.textContent).match(/\b\d{2}\/\d{2}\/\d{4}\b/)?.[0] || '';
+
+  function schoolDailyClassStatus(card) {
+    if (card.classList.contains('dentroPrazo')) return 'filled_on_time';
+    if (card.classList.contains('foraPrazo')) return 'filled_late';
+    if (card.classList.contains('diaNaoLetivo')) return 'non_school_day';
+    if (card.classList.contains('existeExcecao')) return 'exception';
+    return 'not_filled';
+  }
+
+  function schoolDailyClasses() {
+    return [...document.querySelectorAll('.containerTurmaTurno')].flatMap(container => {
+      const shift = normalize(container.querySelector('.tituloTurno')?.textContent);
+      return [...container.querySelectorAll('.listaTurmas[data-codigoturma]')].map(card => {
+        const text = normalize(card.textContent);
+        const match = text.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+        return {
+          code:normalize(card.dataset.codigoturma),
+          className:normalize(match?.[1] || text),
+          compositionCode:normalize(match?.[2]),
+          shift,
+          status:schoolDailyClassStatus(card)
+        };
+      });
+    });
+  }
+
+  function schoolDailyContext() {
+    if (!document.querySelector('.listaDeAlunos .item[data-matricula]')) return null;
+    const composition = detailValue('Composição');
+    const grade = detailValue('Série');
+    const className = detailValue('Turma');
+    const compositionCode = composition.match(/^\s*(\d+)/)?.[1] || '';
+    const cards = schoolDailyClasses();
+    const card = cards.find(item =>
+      normalizedComparable(item.className) === normalizedComparable(className) &&
+      (!compositionCode || item.compositionCode === compositionCode)
+    );
+    const periodText = normalize(document.querySelector('#FormularioPrincipal')?.textContent);
+    const period = periodText.match(/Ano base\/Semestre:\s*(\d{4})\s*\/\s*([12])/i);
+    const selectedDate = selectedSchoolDailyDate();
+    return {
+      year:period?.[1] || selectedDate.slice(-4),
+      term:period?.[2] ? `${period[2]}º semestre` : '',
+      composition,
+      compositionCode,
+      grade,
+      className,
+      shift:card?.shift || '',
+      classCode:card?.code || '',
+      classStatus:card?.status || '',
+      subject:'Frequência diária da escola'
+    };
+  }
+
+  function schoolDailyEntries() {
+    const namesByRegistration = new Map(
+      [...document.querySelectorAll('.listaDeAlunos .item[data-matricula]')]
+        .map(item => {
+          const registration = normalize(item.dataset.matricula);
+          const name = cleanStudentName(item.dataset.nome || item.querySelector('.aluno')?.textContent || item.textContent);
+          return [registration, name];
+        })
+        .filter(([registration, name]) => registration && normalizedStudentName(name))
+    );
+    const normalizedNameCounts = new Map();
+    namesByRegistration.forEach(name => {
+      const key = normalizedStudentName(name);
+      normalizedNameCounts.set(key, (normalizedNameCounts.get(key) || 0) + 1);
+    });
+    const date = selectedSchoolDailyDate();
+    const entries = [];
+    document.querySelectorAll('.listaDeFrequencias .item[data-matricula]').forEach(item => {
+      const name = namesByRegistration.get(normalize(item.dataset.matricula));
+      if (!name) return;
+      entries.push({
+        date,
+        name,
+        absent:String(item.dataset.ausente).toLowerCase() === 'true',
+        blocked:String(item.dataset.bloqueado).toLowerCase() === 'true',
+        situation:normalize(item.dataset.situacao),
+        duplicateName:normalizedNameCounts.get(normalizedStudentName(name)) > 1
+      });
+    });
+    return entries;
+  }
+
+  globalThis.__carometroSchoolDailyNormalizeName = normalizedStudentName;
+
+  globalThis.__carometroSchoolDailySnapshot = () => {
+    if (!isSchoolDailyPage()) throw new Error('Abra no SIAP a página Frequência diária.');
+    return {
+      pageToken:PAGE_TOKEN,
+      selectedDate:selectedSchoolDailyDate(),
+      classes:schoolDailyClasses(),
+      context:schoolDailyContext(),
+      entries:schoolDailyEntries()
+    };
+  };
+
+  globalThis.__carometroSchoolDailySelectDate = date => {
+    if (!isSchoolDailyPage()) throw new Error('Abra no SIAP a página Frequência diária.');
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(String(date || ''))) throw new Error('Data inválida para leitura.');
+    const control = byId('controleData') || byId('controleDataPreSelecao');
+    if (!control) throw new Error('O controle de data do SIAP não foi encontrado.');
+    control.setAttribute('onclick', `__doPostBack('ctl00$cphFuncionalidade$ControleFrequencia','${date}')`);
+    control.click();
+    return true;
+  };
+
+  globalThis.__carometroSchoolDailyOpenClass = classCode => {
+    if (!isSchoolDailyPage()) throw new Error('Abra no SIAP a página Frequência diária.');
+    const code = normalize(classCode);
+    if (!/^\d+$/.test(code)) throw new Error('Código de turma inválido.');
+    const card = [...document.querySelectorAll('.listaTurmas[data-codigoturma]')]
+      .find(item => normalize(item.dataset.codigoturma) === code);
+    if (!card) throw new Error('A turma escolhida não apareceu nesta data.');
+    const status = schoolDailyClassStatus(card);
+    if (!['filled_on_time', 'filled_late'].includes(status)) throw new Error('A frequência desta turma não está preenchida nesta data.');
+    card.click();
     return true;
   };
 })();

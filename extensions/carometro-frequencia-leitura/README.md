@@ -13,6 +13,7 @@ Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporári
 ## Funções
 
 - Oferece o modo **Frequência Assistida**: o professor abre uma chamada verde e a extensão captura somente a data visível.
+- Oferece o modo **Frequência Diária da Escola**: a Secretaria abre uma turma verde ou vermelha e a extensão percorre os meses escolhidos.
 - Identifica estudantes pelo nome completo; número de chamada e ordem das listas não são usados pelo Carômetro.
 - Não injeta mais o painel antigo no Carômetro e não exibe controles dentro do SIAP.
 - Funciona silenciosamente como ponte do botão nativo **Frequência Assistida**.
@@ -24,6 +25,8 @@ Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporári
 - Interrompe a consulta com uma orientação específica quando a sessão do SIAP expira.
 - Calcula presença, faltas e percentual por estudante.
 - Exibe gráficos temporários no próprio Carômetro, sem gravar no banco.
+- Na Frequência Diária, conta somente turmas preenchidas no prazo ou fora do prazo; dias brancos, não letivos e exceções são ignorados.
+- Identifica alunos pelo nome completo normalizado, sem considerar numeração antes/depois do nome, caixa ou acentuação.
 
 ## Instalação local para teste
 
