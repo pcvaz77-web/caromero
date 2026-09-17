@@ -20,10 +20,14 @@ assert.match(source, /school_day_count:row\.days/);
 assert.match(source, /presences:row\.presences/);
 assert.match(source, /absences:row\.absences/);
 assert.match(source, /30 \* 60 \* 1000/);
+assert.match(source, /Capturando frequência do SIAP/);
+assert.match(source, /data-sda-capture/);
+assert.match(source, /setCaptureActive\(true\)/);
+assert.match(source, /setCaptureActive\(false\)/);
 assert.match(source, /carometro-frequencia-leitura-0\.7\.0\.zip/);
 assert.match(source, /getSchoolDailyAttendanceStatus/);
 assert.match(source, /teacherStatus\?\.\(studentId\)/);
-assert.match(index, /school-daily-attendance\.js\?v=2/);
+assert.match(index, /school-daily-attendance\.js\?v=3/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
