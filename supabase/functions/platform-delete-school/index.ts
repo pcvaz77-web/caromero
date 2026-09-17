@@ -43,7 +43,7 @@ const corsHeadersFor = (request: Request) => {
 const json = (request: Request, body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeadersFor(request), 'Content-Type': 'application/json' } })
 
-const BUCKET = 'student-photos'
+const BUCKETS = ['student-photos', 'occurrence-attachments'] as const
 const LIST_PAGE_SIZE = 1000
 const REMOVE_BATCH_SIZE = 500
 
@@ -61,12 +61,13 @@ type DeletionJob = {
 // chamada) para suportar milhares de objetos com segurança.
 async function listAllFiles(
   admin: ReturnType<typeof createClient>,
+  bucket: string,
   folder: string,
 ): Promise<string[]> {
   const files: string[] = []
   let offset = 0
   for (;;) {
-    const { data, error } = await admin.storage.from(BUCKET).list(folder, {
+    const { data, error } = await admin.storage.from(bucket).list(folder, {
       limit: LIST_PAGE_SIZE,
       offset,
       sortBy: { column: 'name', order: 'asc' },
@@ -78,7 +79,7 @@ async function listAllFiles(
       // Supabase Storage devolve id=null para "pastas" virtuais (nenhum
       // objeto real com esse nome, só prefixo) e um id real para arquivos.
       if (entry.id === null) {
-        const nested = await listAllFiles(admin, fullPath)
+        const nested = await listAllFiles(admin, bucket, fullPath)
         files.push(...nested)
       } else {
         files.push(fullPath)
@@ -90,11 +91,11 @@ async function listAllFiles(
   return files
 }
 
-async function removeAllFiles(admin: ReturnType<typeof createClient>, paths: string[]): Promise<number> {
+async function removeAllFiles(admin: ReturnType<typeof createClient>, bucket: string, paths: string[]): Promise<number> {
   let removed = 0
   for (let index = 0; index < paths.length; index += REMOVE_BATCH_SIZE) {
     const batch = paths.slice(index, index + REMOVE_BATCH_SIZE)
-    const { error } = await admin.storage.from(BUCKET).remove(batch)
+    const { error } = await admin.storage.from(bucket).remove(batch)
     if (error) throw new Error(`Falha ao remover objetos do Storage: ${error.message}`)
     removed += batch.length
   }
@@ -104,10 +105,10 @@ async function removeAllFiles(admin: ReturnType<typeof createClient>, paths: str
 // Idempotente: relista o prefixo inteiro e remove o que ainda existir.
 // Numa retomada, se já estiver vazio, a listagem volta vazia e a função
 // retorna imediatamente sem tentar remover nada.
-async function cleanupSchoolStorage(admin: ReturnType<typeof createClient>, schoolId: string): Promise<number> {
-  const paths = await listAllFiles(admin, schoolId)
+async function cleanupSchoolStorage(admin: ReturnType<typeof createClient>, bucket: string, schoolId: string): Promise<number> {
+  const paths = await listAllFiles(admin, bucket, schoolId)
   if (paths.length === 0) return 0
-  return await removeAllFiles(admin, paths)
+  return await removeAllFiles(admin, bucket, paths)
 }
 
 Deno.serve(async (request) => {
@@ -180,7 +181,10 @@ Deno.serve(async (request) => {
 
   let storageObjectsRemoved: number
   try {
-    storageObjectsRemoved = await cleanupSchoolStorage(admin, validatedSchoolId)
+    storageObjectsRemoved = 0
+    for (const bucket of BUCKETS) {
+      storageObjectsRemoved += await cleanupSchoolStorage(admin, bucket, validatedSchoolId)
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Falha desconhecida ao limpar o Storage.'
     await callerClient.rpc('platform_update_school_deletion_job', {
@@ -199,7 +203,8 @@ Deno.serve(async (request) => {
 
   // Confirma o prefixo realmente vazio antes de seguir para a etapa
   // irreversível — não confia só no retorno de removeAllFiles.
-  const remaining = await listAllFiles(admin, validatedSchoolId)
+  const remainingByBucket = await Promise.all(BUCKETS.map(async bucket => ({ bucket, paths:await listAllFiles(admin, bucket, validatedSchoolId) })))
+  const remaining = remainingByBucket.flatMap(item => item.paths.map(path => `${item.bucket}/${path}`))
   if (remaining.length > 0) {
     const message = `Storage não confirmado vazio após a remoção (${remaining.length} objeto(s) restante(s)).`
     await callerClient.rpc('platform_update_school_deletion_job', {

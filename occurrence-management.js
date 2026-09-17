@@ -12,8 +12,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'occurrenceModal';
   modal.className = 'modal-bg occurrence-modal hidden';
-  modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar Ocorrência</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="occurrence-grid occurrence-search-fields"><div class="field"><label for="occurrenceSearchClass">Buscar por turma</label><select id="occurrenceSearchClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="occurrenceSearchName">Buscar por nome</label><input id="occurrenceSearchName" placeholder="Digite o nome do aluno"></div></div><div class="meta">Os resultados são atualizados assim que você escolher os filtros.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
+  modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="occurrence-attachment-field"><button class="btn secondary occurrence-attachment-picker" id="occurrenceAttachmentPicker" type="button">📎 Anexar documento</button><div id="occurrenceAttachmentState" class="occurrence-attachment-state"><span>Foto ou PDF, até 10 MB.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar Ocorrência</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="occurrence-grid occurrence-search-fields"><div class="field"><label for="occurrenceSearchClass">Buscar por turma</label><select id="occurrenceSearchClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="occurrenceSearchName">Buscar por nome</label><input id="occurrenceSearchName" placeholder="Digite o nome do aluno"></div></div><div class="meta">Os resultados são atualizados assim que você escolher os filtros.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
   document.body.appendChild(modal);
+
+  const attachmentModal = document.createElement('div');
+  attachmentModal.id = 'occurrenceAttachmentModal';
+  attachmentModal.className = 'modal-bg occurrence-attachment-modal hidden';
+  attachmentModal.innerHTML = `<section class="modal occurrence-attachment-dialog"><div class="modal-head"><div><h3>Incluir documento</h3><div class="meta">Anexe uma foto da ata ou um arquivo PDF.</div></div><button class="close" id="closeOccurrenceAttachment" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-attachment-body"><div class="field"><label>Arquivo</label><input id="occurrenceAttachmentInput" class="hidden" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"><button class="btn secondary occurrence-file-select" id="occurrenceFileSelect" type="button">Selecionar arquivo</button><div id="occurrenceAttachmentDraft" class="occurrence-attachment-draft">Nenhum arquivo selecionado.</div></div><div class="actions occurrence-attachment-dialog-actions"><button class="btn secondary" id="cancelOccurrenceAttachment" type="button">Sair</button><button class="btn primary" id="confirmOccurrenceAttachment" type="button" disabled>Incluir documento</button></div></div></section>`;
+  document.body.appendChild(attachmentModal);
 
   // Confirmação de exclusão dedicada: substitui o confirm() nativo, que só
   // mostrava a data, por um resumo que identifica inequivocamente o registro
@@ -31,9 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     #occurrenceNav { border:0; background:#2b3c5d; color:#fff; } #occurrenceNav:hover { background:#38527e; }
     .occurrence-item-focused { outline:2px solid #2b3c5d; box-shadow:0 0 0 3px rgba(43,60,93,.18); }
-    #occurrenceDeleteConfirmModal.occurrence-delete-confirm-modal { z-index:240!important; }.occurrence-delete-confirm-dialog { width:min(460px,100%); }.occurrence-delete-confirm-body { padding:20px 24px 24px; }.occurrence-delete-confirm-details { display:grid; gap:7px; margin:0 0 14px; }.occurrence-delete-confirm-details > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:13px; }.occurrence-delete-confirm-details dt { margin:0; color:var(--muted); font-weight:650; flex:0 0 auto; }.occurrence-delete-confirm-details dd { margin:0; font-weight:750; text-align:right; }.occurrence-delete-confirm-text { margin:0 0 16px; padding:10px 12px; border-left:3px solid #dbe4f5; border-radius:4px; background:#f8faff; font-size:13px; line-height:1.45; white-space:pre-wrap; color:#344054; }.occurrence-delete-confirm-warning { margin:0 0 16px; font-size:13px; font-weight:750; color:#b42318; }.occurrence-delete-confirm-actions { justify-content:flex-end; gap:10px; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit { background:#b42318; color:#fff; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit:hover { background:#932016; }
-    @media(max-width:800px) { .occurrence-delete-confirm-dialog { width:100%; } .occurrence-delete-confirm-actions { display:grid; grid-template-columns:1fr; gap:8px; } .occurrence-delete-confirm-actions .btn { width:100%; } }
-    #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { align-items:center; justify-content:center; gap:10px; min-height:44px; margin-top:11px; padding:11px 16px; border:1px solid #294985; border-radius:10px; background:#172b4d; font-family:inherit; font-size:14px; font-weight:850; letter-spacing:.01em; cursor:pointer; box-shadow:0 3px 8px rgba(16,24,40,.22); transition:background-color .16s ease, transform .16s ease, box-shadow .16s ease; }.occurrence-detail-label::after { content:'→'; display:grid; place-items:center; width:23px; height:23px; border-radius:6px; background:rgba(255,255,255,.14); font-size:16px; line-height:1; }.occurrence-detail-label:hover { background:#294985; transform:translateY(-1px); box-shadow:0 5px 12px rgba(16,24,40,.28); }.occurrence-detail-label:active { transform:translateY(0); box-shadow:0 1px 3px rgba(16,24,40,.22); }.occurrence-detail-label:focus-visible { outline:3px solid #82aeff; outline-offset:3px; box-shadow:0 0 0 1px #fff; }
+    #occurrenceDeleteConfirmModal.occurrence-delete-confirm-modal,#occurrenceAttachmentModal.occurrence-attachment-modal { z-index:240!important; }.occurrence-delete-confirm-dialog { width:min(460px,100%); }.occurrence-delete-confirm-body { padding:20px 24px 24px; }.occurrence-delete-confirm-details { display:grid; gap:7px; margin:0 0 14px; }.occurrence-delete-confirm-details > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:13px; }.occurrence-delete-confirm-details dt { margin:0; color:var(--muted); font-weight:650; flex:0 0 auto; }.occurrence-delete-confirm-details dd { margin:0; font-weight:750; text-align:right; }.occurrence-delete-confirm-text { margin:0 0 16px; padding:10px 12px; border-left:3px solid #dbe4f5; border-radius:4px; background:#f8faff; font-size:13px; line-height:1.45; white-space:pre-wrap; color:#344054; }.occurrence-delete-confirm-warning { margin:0 0 16px; font-size:13px; font-weight:750; color:#b42318; }.occurrence-delete-confirm-actions { justify-content:flex-end; gap:10px; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit { background:#b42318; color:#fff; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit:hover { background:#932016; }.occurrence-attachment-dialog { width:min(470px,100%); }.occurrence-attachment-body { padding:20px 24px 24px; }.occurrence-file-select { width:max-content; margin-top:8px; }.occurrence-attachment-draft { min-height:36px; margin-top:12px; padding:9px 11px; border:1px dashed #c9d6ee; border-radius:8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }.occurrence-attachment-dialog-actions { justify-content:flex-end; gap:8px; margin-top:18px; }
+    @media(max-width:800px) { .occurrence-delete-confirm-dialog,.occurrence-attachment-dialog { width:100%; } .occurrence-delete-confirm-actions,.occurrence-attachment-dialog-actions { display:grid; grid-template-columns:1fr; gap:8px; } .occurrence-delete-confirm-actions .btn,.occurrence-attachment-dialog-actions .btn { width:100%; } }
+    #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-attachment-field { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; }.occurrence-attachment-picker { min-height:38px; }.occurrence-attachment-state { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }.occurrence-attachment-state strong { color:#344054; }.occurrence-attachment-remove { border:0; background:#fff0ed; color:#b42318; border-radius:6px; padding:5px 8px; font-weight:750; cursor:pointer; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-item-attachment { display:inline-flex; align-items:center; gap:6px; margin-top:10px; border:1px solid #c9d6ee; border-radius:8px; background:#f2f6ff; color:#214dba; padding:7px 10px; font-size:12px; font-weight:800; cursor:pointer; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { align-items:center; justify-content:center; gap:10px; min-height:44px; margin-top:11px; padding:11px 16px; border:1px solid #294985; border-radius:10px; background:#172b4d; font-family:inherit; font-size:14px; font-weight:850; letter-spacing:.01em; cursor:pointer; box-shadow:0 3px 8px rgba(16,24,40,.22); transition:background-color .16s ease, transform .16s ease, box-shadow .16s ease; }.occurrence-detail-label::after { content:'→'; display:grid; place-items:center; width:23px; height:23px; border-radius:6px; background:rgba(255,255,255,.14); font-size:16px; line-height:1; }.occurrence-detail-label:hover { background:#294985; transform:translateY(-1px); box-shadow:0 5px 12px rgba(16,24,40,.28); }.occurrence-detail-label:active { transform:translateY(0); box-shadow:0 1px 3px rgba(16,24,40,.22); }.occurrence-detail-label:focus-visible { outline:3px solid #82aeff; outline-offset:3px; box-shadow:0 0 0 1px #fff; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px!important; align-items:center!important; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; gap:3px; } }
   `;
   document.head.appendChild(style);
@@ -109,12 +115,74 @@ document.addEventListener('DOMContentLoaded', () => {
   // updated_at é timestamptz real (não uma data pura como occurred_on), então
   // aqui usamos o fuso local do navegador em vez de forçar UTC.
   const formatDateTime = value => value ? `${new Intl.DateTimeFormat('pt-BR').format(new Date(value))} ${new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit' }).format(new Date(value))}` : '';
+  const formatFileSize = bytes => bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toFixed(1).replace('.', ',')} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
   let occurrenceStudentIds = new Set();
   let occurrenceCounts = new Map();
   let tableErrorShown = false;
   let historyRecords = new Map();
   let editingOccurrence = null;
+  let pendingAttachment = null;
+  let draftedAttachment = null;
+  let removeAttachment = false;
   let focusedHistoryStudentId = null;
+  const OCCURRENCE_ATTACHMENT_BUCKET = 'occurrence-attachments';
+  const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+  const ALLOWED_ATTACHMENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+
+  function renderAttachmentState() {
+    const state = get('occurrenceAttachmentState');
+    const existing = editingOccurrence?.attachment_path && !removeAttachment ? editingOccurrence : null;
+    const attachment = pendingAttachment || existing;
+    if (!attachment) {
+      state.innerHTML = '<span>Foto ou PDF, até 10 MB.</span>';
+      get('occurrenceAttachmentPicker').textContent = '📎 Anexar documento';
+      return;
+    }
+    const name = pendingAttachment?.name || existing.attachment_name || 'Documento anexado';
+    const size = pendingAttachment?.size || existing.attachment_size;
+    state.innerHTML = `<strong>${escape(name)}</strong>${size ? `<span>${formatFileSize(size)}</span>` : ''}<button class="occurrence-attachment-remove" type="button" data-remove-occurrence-attachment>Remover</button>`;
+    get('occurrenceAttachmentPicker').textContent = '📎 Trocar documento';
+  }
+
+  function closeAttachmentDialog() {
+    attachmentModal.classList.add('hidden');
+    draftedAttachment = null;
+    get('occurrenceAttachmentInput').value = '';
+    get('occurrenceAttachmentDraft').textContent = 'Nenhum arquivo selecionado.';
+    get('confirmOccurrenceAttachment').disabled = true;
+  }
+
+  function openAttachmentDialog() {
+    draftedAttachment = null;
+    get('occurrenceAttachmentInput').value = '';
+    get('occurrenceAttachmentDraft').textContent = 'Nenhum arquivo selecionado.';
+    get('confirmOccurrenceAttachment').disabled = true;
+    attachmentModal.classList.remove('hidden');
+  }
+
+  async function validateAttachment(file) {
+    if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) return 'Escolha uma imagem JPG, PNG ou WEBP, ou um arquivo PDF.';
+    if (file.size > MAX_ATTACHMENT_BYTES) return 'O documento deve ter no máximo 10 MB.';
+    if (!file.size) return 'O arquivo selecionado está vazio.';
+    const bytes = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const isWebp = String.fromCharCode(...bytes.slice(0, 4)) === 'RIFF' && String.fromCharCode(...bytes.slice(8, 12)) === 'WEBP';
+    const isPdf = String.fromCharCode(...bytes.slice(0, 5)) === '%PDF-';
+    const signatureMatches = (file.type === 'image/jpeg' && isJpeg) || (file.type === 'image/png' && isPng) || (file.type === 'image/webp' && isWebp) || (file.type === 'application/pdf' && isPdf);
+    return signatureMatches ? '' : 'O conteúdo do arquivo não corresponde a uma foto ou PDF válido.';
+  }
+
+  async function openAttachment(item) {
+    if (!item?.attachment_path || !canViewOccurrences()) return;
+    const { data, error } = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).createSignedUrl(item.attachment_path, 60);
+    if (error || !data?.signedUrl) { toast('Não foi possível abrir o documento anexado.'); return; }
+    const link = document.createElement('a');
+    link.href = data.signedUrl;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    link.click();
+  }
 
   function selectedClass() { return get('occurrenceClass').value; }
   function selectedStudent() { return get('occurrenceStudent').value; }
@@ -251,7 +319,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     let query = db.from('student_occurrences')
-      .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name)')
+      .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,attachment_path,attachment_name,attachment_type,attachment_size,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name)')
       .eq('school_id', occurrenceMembership.school_id)
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false });
@@ -279,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const records = data || [];
     historyRecords = new Map(records.map(item => [item.id, item]));
     get('occurrenceHistoryMeta').textContent = records.length ? `${records.length} ocorrência${records.length === 1 ? '' : 's'} encontrada${records.length === 1 ? '' : 's'}.` : 'Nenhuma ocorrência no filtro selecionado.';
-    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item" data-occurrence-id="${item.id}"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span>${item.updated_at ? `<span class="occurrence-updated">Última edição: ${escape(item.updated_by_name || 'Não informado')} — ${formatDateTime(item.updated_at)}</span>` : ''}</article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
+    list.innerHTML = records.length ? records.map(item => `<article class="occurrence-item" data-occurrence-id="${item.id}"><div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)}</span><div class="occurrence-item-actions">${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}</div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span></div><div class="occurrence-item-text">${escape(item.occurrence_text)}</div>${item.attachment_path ? `<button class="occurrence-item-attachment" type="button" data-occurrence-attachment="${item.id}">📎 Abrir ${escape(item.attachment_name || 'documento anexado')}</button>` : ''}<div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span>${item.updated_at ? `<span class="occurrence-updated">Última edição: ${escape(item.updated_by_name || 'Não informado')} — ${formatDateTime(item.updated_at)}</span>` : ''}</div></article>`).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
@@ -339,6 +407,10 @@ document.addEventListener('DOMContentLoaded', () => {
     get('occurrenceDate').value = '';
     get('occurrenceText').value = '';
     get('occurrenceTextCount').textContent = '0/500';
+    pendingAttachment = null;
+    removeAttachment = false;
+    get('occurrenceAttachmentInput').value = '';
+    renderAttachmentState();
     get('occurrenceStart').value = '';
     get('occurrenceEnd').value = '';
     get('occurrenceSearchClass').value = '';
@@ -362,11 +434,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!text) { toast('Digite a descrição da ocorrência.'); return; }
     const button = get('saveOccurrence');
     button.disabled = true;
-    const { error } = editingOccurrence
-      ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text }).eq('id', editingOccurrence.id).eq('school_id', occurrenceMembership.school_id)
-      : await db.from('student_occurrences').insert({ school_id:occurrenceMembership.school_id, student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text });
+    button.textContent = pendingAttachment ? 'Enviando documento…' : 'Salvando…';
+    const occurrenceId = editingOccurrence?.id || crypto.randomUUID();
+    const oldAttachmentPath = editingOccurrence?.attachment_path || null;
+    let uploadedAttachmentPath = null;
+    let attachmentFields = {};
+    if (pendingAttachment) {
+      const extensionByType = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'application/pdf':'pdf' };
+      const authorId = editingOccurrence?.created_by || user?.id;
+      uploadedAttachmentPath = `${occurrenceMembership.school_id}/${authorId}/${occurrenceId}/${crypto.randomUUID()}.${extensionByType[pendingAttachment.type]}`;
+      const upload = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).upload(uploadedAttachmentPath, pendingAttachment, { contentType:pendingAttachment.type, upsert:false });
+      if (upload.error) {
+        button.disabled = false;
+        button.textContent = editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
+        toast('Não foi possível enviar o documento. A ocorrência não foi alterada.');
+        return;
+      }
+      attachmentFields = { attachment_path:uploadedAttachmentPath, attachment_name:pendingAttachment.name, attachment_type:pendingAttachment.type, attachment_size:pendingAttachment.size };
+    } else if (removeAttachment) {
+      attachmentFields = { attachment_path:null, attachment_name:null, attachment_type:null, attachment_size:null };
+    }
+    const write = editingOccurrence
+      ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields }).eq('id', occurrenceId).eq('school_id', occurrenceMembership.school_id)
+      : await db.from('student_occurrences').insert({ id:occurrenceId, school_id:occurrenceMembership.school_id, student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields });
+    if (write.error) {
+      if (uploadedAttachmentPath) await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([uploadedAttachmentPath]);
+      button.disabled = false;
+      button.textContent = editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
+      toast(write.error.message);
+      return;
+    }
+    let attachmentCleanupFailed = false;
+    if (oldAttachmentPath && (uploadedAttachmentPath || removeAttachment)) {
+      const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([oldAttachmentPath]);
+      attachmentCleanupFailed = !!cleanup.error;
+    }
     button.disabled = false;
-    if (error) { toast(error.message); return; }
     const wasEditing = !!editingOccurrence;
     if (!wasEditing) {
       occurrenceStudentIds.add(studentId);
@@ -379,8 +482,12 @@ document.addEventListener('DOMContentLoaded', () => {
       get('occurrenceTextCount').textContent = '0/500';
       editingOccurrence = null;
       get('saveOccurrence').textContent = 'Salvar ocorrência';
+      pendingAttachment = null;
+      removeAttachment = false;
+      get('occurrenceAttachmentInput').value = '';
+      renderAttachmentState();
     }
-    toast(wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.');
+    toast(attachmentCleanupFailed ? 'Ocorrência salva. O documento anterior ficou preservado no armazenamento.' : (wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.'));
     await refreshHistory();
   }
 
@@ -393,6 +500,10 @@ document.addEventListener('DOMContentLoaded', () => {
     get('occurrenceDate').value = item.occurred_on;
     get('occurrenceText').value = item.occurrence_text;
     get('occurrenceTextCount').textContent = `${item.occurrence_text.length}/500`;
+    pendingAttachment = null;
+    removeAttachment = false;
+    get('occurrenceAttachmentInput').value = '';
+    renderAttachmentState();
     get('saveOccurrence').textContent = 'Salvar alterações';
     syncSaveAction();
     get('occurrenceText').focus();
@@ -428,6 +539,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!(await confirmOccurrenceDeletion(item))) return;
       const { error } = await db.from('student_occurrences').delete().eq('id', item.id).eq('school_id', occurrenceMembership.school_id);
     if (error) { toast(error.message); return; }
+    let attachmentCleanupFailed = false;
+    if (item.attachment_path) {
+      const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([item.attachment_path]);
+      attachmentCleanupFailed = !!cleanup.error;
+    }
     const nextCount = Math.max(0, (occurrenceCounts.get(item.student_id) || 1) - 1);
     if (nextCount) occurrenceCounts.set(item.student_id, nextCount);
     else { occurrenceCounts.delete(item.student_id); occurrenceStudentIds.delete(item.student_id); }
@@ -439,7 +555,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     paintStudentCards();
     resetOccurrenceScreen();
-    toast('Ocorrência excluída.');
+    toast(attachmentCleanupFailed ? 'Ocorrência excluída. O documento anexado não pôde ser removido do armazenamento.' : 'Ocorrência excluída.');
   }
 
   const syncOccurrenceNavigation = () => {
@@ -452,6 +568,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeOccurrence = () => { resetOccurrenceScreen(); modal.classList.add('hidden'); };
   get('closeOccurrence').onclick = closeOccurrence;
   modal.onclick = event => { if (event.target === modal) closeOccurrence(); };
+  get('occurrenceAttachmentPicker').onclick = openAttachmentDialog;
+  get('occurrenceFileSelect').onclick = () => get('occurrenceAttachmentInput').click();
+  get('closeOccurrenceAttachment').onclick = closeAttachmentDialog;
+  get('cancelOccurrenceAttachment').onclick = closeAttachmentDialog;
+  attachmentModal.onclick = event => { if (event.target === attachmentModal) closeAttachmentDialog(); };
+  get('occurrenceAttachmentInput').onchange = async event => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    let validationError = '';
+    try { validationError = await validateAttachment(file); }
+    catch { validationError = 'Não foi possível ler o arquivo selecionado.'; }
+    if (validationError) {
+      draftedAttachment = null;
+      event.target.value = '';
+      get('occurrenceAttachmentDraft').textContent = validationError;
+      get('confirmOccurrenceAttachment').disabled = true;
+      return;
+    }
+    draftedAttachment = file;
+    get('occurrenceAttachmentDraft').innerHTML = `<strong>${escape(file.name)}</strong><br>${formatFileSize(file.size)}`;
+    get('confirmOccurrenceAttachment').disabled = false;
+  };
+  get('confirmOccurrenceAttachment').onclick = () => {
+    if (!draftedAttachment) return;
+    pendingAttachment = draftedAttachment;
+    removeAttachment = false;
+    closeAttachmentDialog();
+    renderAttachmentState();
+  };
+  get('occurrenceAttachmentState').onclick = event => {
+    if (!event.target.closest('[data-remove-occurrence-attachment]')) return;
+    pendingAttachment = null;
+    removeAttachment = !!editingOccurrence?.attachment_path;
+    get('occurrenceAttachmentInput').value = '';
+    renderAttachmentState();
+  };
   get('occurrenceDeleteConfirmCancel').onclick = () => closeDeleteConfirm(false);
   get('occurrenceDeleteConfirmSubmit').onclick = () => closeDeleteConfirm(true);
   deleteConfirmModal.onclick = event => { if (event.target === deleteConfirmModal) closeDeleteConfirm(false); };
@@ -481,8 +633,10 @@ document.addEventListener('DOMContentLoaded', () => {
   get('occurrenceHistoryList').onclick = event => {
     const editId = event.target.closest('[data-occurrence-edit]')?.dataset.occurrenceEdit;
     const deleteId = event.target.closest('[data-occurrence-delete]')?.dataset.occurrenceDelete;
+    const attachmentId = event.target.closest('[data-occurrence-attachment]')?.dataset.occurrenceAttachment;
     if (editId && historyRecords.has(editId)) editOccurrence(historyRecords.get(editId));
     if (deleteId && historyRecords.has(deleteId)) deleteOccurrence(historyRecords.get(deleteId));
+    if (attachmentId && historyRecords.has(attachmentId)) openAttachment(historyRecords.get(attachmentId));
   };
   new MutationObserver(paintStudentCards).observe(get('list'), { childList:true });
   new MutationObserver(paintStudentCards).observe(get('studentDetails'), { childList:true, subtree:true });
