@@ -1,0 +1,22 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = path.join(__dirname, '..');
+const reports = fs.readFileSync(path.join(root, 'reports.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+
+assert.match(reports, /id="reportContentAttendanceHistory" checked> Frequência do professor/);
+assert.match(reports, /id="reportContentSchoolDailyAttendance"> Frequência da Secretaria/);
+assert.match(reports, /withSchoolDailyAttendance/);
+assert.match(reports, /siap_school_daily_attendance_current/);
+assert.match(reports, /siap_school_daily_attendance_history/);
+assert.match(reports, /\.eq\('school_id', filters\.schoolId\)/);
+assert.match(reports, /FREQUÊNCIA DIÁRIA GERAL — SECRETARIA/);
+assert.match(reports, /HISTÓRICO DA FREQUÊNCIA DA SECRETARIA/);
+assert.match(reports, /Dias letivos: \$\{item\.school_day_count\}/);
+assert.match(reports, /school_daily_attendance: filters\.withSchoolDailyAttendance/);
+assert.match(index, /reports\.js\?v=13/);
+assert.ok(reports.indexOf('FREQUÊNCIA DIÁRIA GERAL — SECRETARIA') < reports.indexOf('SITUAÇÃO ATUAL POR DISCIPLINA E PROFESSOR'));
+
+console.log('Relatório oferece frequências do professor e da Secretaria em blocos independentes.');

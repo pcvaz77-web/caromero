@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="reports-checks">
         <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
-        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Frequência por disciplina e histórico</label>
+        <label class="check"><input type="checkbox" id="reportContentSchoolDailyAttendance"> Frequência da Secretaria</label>
+        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Frequência do professor</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
         <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
         <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
@@ -116,6 +117,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let attendanceCurrentByStudent = new Map();
   let attendanceEventsSignature = '';
   let attendanceEventsError = false;
+  let schoolDailyCurrentByStudent = new Map();
+  let schoolDailyHistoryByStudent = new Map();
+  let schoolDailyAttendanceSignature = '';
+  let schoolDailyAttendanceError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
 
   // Tamanho de LOTE por requisição — não é um teto de alunos/ocorrências. O
@@ -195,6 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
       withOccurrences: get('reportContentOccurrences').checked,
       withObservations: get('reportContentObservations').checked,
       withAttendanceHistory: get('reportContentAttendanceHistory').checked,
+      withSchoolDailyAttendance: get('reportContentSchoolDailyAttendance').checked,
       withPhoto: get('reportContentPhoto').checked,
       withLivroRevisa: get('reportContentLivroRevisa').checked,
       // Ano letivo do Livro/Revisa — independente do período de Ocorrências
@@ -389,6 +395,71 @@ document.addEventListener('DOMContentLoaded', () => {
     attendanceEventsError=false;
   }
 
+  async function fetchSchoolDailyAttendance(filters) {
+    if (!filters.withSchoolDailyAttendance || !filters.schoolId) {
+      schoolDailyCurrentByStudent = new Map();
+      schoolDailyHistoryByStudent = new Map();
+      schoolDailyAttendanceError = false;
+      schoolDailyAttendanceSignature = '';
+      return;
+    }
+    const signature = filters.schoolId;
+    if (signature === schoolDailyAttendanceSignature) return;
+    const token = ++fetchToken;
+    const fetchTable = async (table, columns) => {
+      const rows = [];
+      let offset = 0;
+      while (true) {
+        const { data, error } = await db.from(table)
+          .select(columns)
+          .eq('school_id', filters.schoolId)
+          .range(offset, offset + REPORT_PAGE_SIZE - 1);
+        if (token !== fetchToken) return { stale:true, data:[], error:null };
+        if (error) return { stale:false, data:[], error };
+        const batch = data || [];
+        rows.push(...batch);
+        if (batch.length < REPORT_PAGE_SIZE) return { stale:false, data:rows, error:null };
+        offset += REPORT_PAGE_SIZE;
+      }
+    };
+    const currentResult = await fetchTable(
+      'siap_school_daily_attendance_current',
+      'student_id,academic_year,term,months,school_day_count,presences,absences,percentage,status,source_dates,updated_at'
+    );
+    if (currentResult.stale || token !== fetchToken) return;
+    if (currentResult.error) {
+      schoolDailyCurrentByStudent = new Map();
+      schoolDailyHistoryByStudent = new Map();
+      schoolDailyAttendanceSignature = '';
+      schoolDailyAttendanceError = true;
+      return;
+    }
+    const historyResult = await fetchTable(
+      'siap_school_daily_attendance_history',
+      'student_id,academic_year,term,months,school_day_count,presences,absences,percentage,status,period_key,source_dates,imported_at'
+    );
+    if (historyResult.stale || token !== fetchToken) return;
+    if (historyResult.error) {
+      schoolDailyCurrentByStudent = new Map();
+      schoolDailyHistoryByStudent = new Map();
+      schoolDailyAttendanceSignature = '';
+      schoolDailyAttendanceError = true;
+      return;
+    }
+    schoolDailyCurrentByStudent = new Map();
+    schoolDailyHistoryByStudent = new Map();
+    currentResult.data.forEach(item => {
+      if (!schoolDailyCurrentByStudent.has(item.student_id)) schoolDailyCurrentByStudent.set(item.student_id, []);
+      schoolDailyCurrentByStudent.get(item.student_id).push(item);
+    });
+    historyResult.data.forEach(item => {
+      if (!schoolDailyHistoryByStudent.has(item.student_id)) schoolDailyHistoryByStudent.set(item.student_id, []);
+      schoolDailyHistoryByStudent.get(item.student_id).push(item);
+    });
+    schoolDailyAttendanceSignature = signature;
+    schoolDailyAttendanceError = false;
+  }
+
   // Escola ativa da sessão (school-context.js) — nunca mais resolvida
   // localmente aqui. Necessário porque report_students()/datasetStudents
   // não trazem school_id por aluno: sem filtrar school_terms pela escola
@@ -422,6 +493,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filters.withOccurrences) matched = matched || (occurrencesByStudent.get(student.student_id)?.length > 0);
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
     if (filters.withAttendanceHistory) matched = matched || (attendanceCurrentByStudent.get(student.student_id)?.length > 0) || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
+    if (filters.withSchoolDailyAttendance) matched = matched || (schoolDailyCurrentByStudent.get(student.student_id)?.length > 0) || (schoolDailyHistoryByStudent.get(student.student_id)?.length > 0);
     // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
     // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
     // histórico. livroRevisaByStudent já está em memória (populado sempre
@@ -480,6 +552,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchAttendanceEvents(filters);
     if (attendanceEventsError) {
       previewEl.textContent = 'Não foi possível carregar o histórico de frequência. Tente novamente.';
+      return;
+    }
+    await fetchSchoolDailyAttendance(filters);
+    if (schoolDailyAttendanceError) {
+      previewEl.textContent = 'Não foi possível carregar a Frequência da Secretaria. Tente novamente.';
       return;
     }
     const total = datasetStudents.length;
@@ -622,6 +699,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
       y += 4;
+    }
+
+    if (filters.withSchoolDailyAttendance) {
+      const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
+      doc.text('FREQUÊNCIA DIÁRIA GERAL — SECRETARIA', MARGIN_X, y);y += 8;
+      const currentAttendance=schoolDailyCurrentByStudent.get(student.student_id)||[];
+      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma frequência da Secretaria importada.',MARGIN_X,y);y+=9;}
+      else currentAttendance.forEach(item=>{
+        y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
+        const heading=`${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
+        const totals=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
+        y=printLines(doc,doc.splitTextToSize(totals,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.8,`Continuação — ${student.full_name}`);
+        doc.setFontSize(8.5);doc.setTextColor(102,112,133);
+        const months=`Meses analisados: ${(item.months||[]).join(', ')}`;
+        y=printLines(doc,doc.splitTextToSize(months,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
+      });
+      y+=4;
+      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
+      doc.text('HISTÓRICO DA FREQUÊNCIA DA SECRETARIA', MARGIN_X, y);y += 8;
+      const history=schoolDailyHistoryByStudent.get(student.student_id)||[];
+      if(!history.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma importação anterior registrada.',MARGIN_X,y);y+=9;}
+      else history.forEach(item=>{
+        y=ensureSpace(doc,y,14,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
+        const heading=`${formatDateTime(item.imported_at)} — ${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
+        const detail=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences} · Meses: ${(item.months||[]).join(', ')}`;
+        y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
+      });
+      y+=4;
     }
 
     if (filters.withAttendanceHistory) {
@@ -856,6 +970,9 @@ document.addEventListener('DOMContentLoaded', () => {
     attendanceEventsSignature = '';
     await fetchAttendanceEvents(filters);
     if (attendanceEventsError) { toast('Não foi possível carregar o histórico de frequência. Tente novamente.'); return; }
+    schoolDailyAttendanceSignature = '';
+    await fetchSchoolDailyAttendance(filters);
+    if (schoolDailyAttendanceError) { toast('Não foi possível carregar a Frequência da Secretaria. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
@@ -910,7 +1027,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_history: filters.withAttendanceHistory, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,
@@ -963,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentAttendanceHistory', 'reportContentSchoolDailyAttendance', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
   get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);

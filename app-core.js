@@ -23,6 +23,11 @@ const esc = value => {
 };
 const ini = value => (value || '').split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const badge = value => value ? `<span class="pill ${value === 'Laudo' ? 'report' : value === 'Dificuldade leve' ? 'light' : 'severe'}">${esc(value)}</span>` : '';
+const attendanceDetails = studentId => {
+  const items = window.getStudentAttendanceDetails?.(studentId) || [];
+  if (!items.length) return window.getSiapAttendanceBadge?.(studentId) || '';
+  return items.map(item => `<div class="attendance-source-detail"><small>${esc(item.source)}</small><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span></div>`).join('');
+};
 const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;
 const toast = message => {
   $('toast').textContent = message;
@@ -49,7 +54,7 @@ function classOptions(value = '') {
 
 function renderStudentDetails() {
   const detail = students.find(student => student.id === detailStudentId);
-  const detailAttendance = detail ? window.getSiapAttendanceBadge?.(detail.id) || '' : '';
+  const detailAttendance = detail ? attendanceDetails(detail.id) : '';
   $('studentDetails').classList.toggle('hidden', !detail);
   $('studentDetails').innerHTML = detail
     ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}${detailAttendance ? `<div class="detail-row detail-attendance-row"><b>Frequência</b><div class="detail-observation-tags">${detailAttendance}</div></div>` : ''}`
