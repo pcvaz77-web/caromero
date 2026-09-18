@@ -20,7 +20,12 @@ test('formulario traz os dois campos lado a lado e a marcacao do card', () => {
 test('etiqueta cinza so aparece quando o aluno estiver marcado', () => {
   assert.match(index, /if\(!s\?\.showGuardianOnCard\)return''/);
   assert.match(index, /class="guardian-contact-pill"/);
+  assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
+  assert.match(index, /<b>Informação<\/b>\$\{detailGuardian\}\$\{detail\.report\?/);
+  assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div><div class="meta hidden">/);
+  assert.doesNotMatch(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
   assert.match(editor, /\.guardian-contact-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
+  assert.match(editor, /const source = row\.querySelector\('\.detail-observation-source'\)/);
   assert.match(editor, /row\.show_guardian_on_card = showGuardianOnCard\.checked/);
   assert.match(editor, /guardianName:\s*item\.guardian_name\s*\|\|\s*''/);
   assert.match(editor, /guardianPhone:\s*item\.guardian_phone\s*\|\|\s*''/);
@@ -50,5 +55,5 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
   assert.match(index, /permissions-and-details\.js\?v=63/);
-  assert.match(index, /student-edit-improvements\.js\?v=107/);
+  assert.match(index, /student-edit-improvements\.js\?v=108/);
 });

@@ -385,9 +385,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#studentDetails .detail-row').forEach(row => {
       const heading = row.querySelector('b');
       if (!heading || heading.textContent.trim() !== 'Informação' || row.dataset.formatted) return;
-      const raw = [...row.childNodes].filter(node => node !== heading).map(node => node.textContent).join('').trim();
+      const source = row.querySelector('.detail-observation-source');
+      const raw = source?.textContent.trim() || '';
       const values = decodeObservations(raw);
-      [...row.childNodes].filter(node => node !== heading).forEach(node => node.remove());
+      source?.remove();
       if (values.length) {
         const tags = document.createElement('div');
         tags.className = 'detail-observation-tags';
@@ -739,6 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0; padding:5px 8px; border-radius:7px; background:#eaecf0; color:#475467; }
     .guardian-contact-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:5px; padding:4px 8px; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
     .guardian-contact-pill span { margin-right:4px; color:#344054; font-weight:800; }
+    #studentDetails .guardian-contact-pill { display:flex; margin:3px 0 9px; }
     /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
     .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:calc(100dvh - 40px); overflow:hidden; margin:0; }
