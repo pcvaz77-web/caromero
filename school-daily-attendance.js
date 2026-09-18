@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const dailyBadges = new Map();
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
   let collection = null;
+  let schoolTerms = [];
   let reading = false;
   let saving = false;
 
@@ -22,6 +23,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const initials = value => cleanName(value).split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
   const classify = percentage => percentage >= thresholds.frequentMinimum ? 'frequent' : percentage >= thresholds.absentMinimum ? 'absent' : 'active_search';
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
+  const formatMonthList = months => new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(months);
+
+  function parseReadDate(value) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/^(?:(\d{4})-(\d{2})-(\d{2})|(\d{2})\/(\d{2})\/(\d{4}))$/);
+    if (!match) return null;
+    const year = Number(match[1] || match[6]);
+    const month = Number(match[2] || match[5]);
+    const day = Number(match[3] || match[4]);
+    const date = new Date(Date.UTC(year,month - 1,day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+    return { iso:`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, monthIndex:month - 1 };
+  }
+
+  function collectionPeriodLabel() {
+    if (!collection) return '';
+    const readDates = (collection.datesRead || []).map(parseReadDate).filter(Boolean);
+    const readMonthIndexes = [...new Set(readDates.map(item => item.monthIndex))].sort((left,right)=>left-right);
+    const fallbackMonthIndexes = [...new Set((collection.months || []).map(month => MONTHS.indexOf(month)).filter(index => index >= 0))].sort((left,right)=>left-right);
+    const monthIndexes = readMonthIndexes.length ? readMonthIndexes : fallbackMonthIndexes;
+    const monthNames = monthIndexes.map(index => MONTHS[index]);
+    if (monthNames.length === 1) return monthNames[0];
+    if (readDates.length && monthNames.length > 1) {
+      const matchingTerms = schoolTerms.filter(term => term.starts_on && term.ends_on && readDates.every(item => item.iso >= term.starts_on && item.iso <= term.ends_on));
+      if (matchingTerms.length === 1) return `${matchingTerms[0].bimester}º bimestre`;
+    }
+    return monthNames.length ? formatMonthList(monthNames) : 'Período lido';
+  }
+
+  async function loadSchoolTerms(year) {
+    schoolTerms = [];
+    const schoolId = window.getActiveSchoolId?.();
+    if (!schoolId || !Number.isInteger(Number(year))) return;
+    try {
+      const { data, error } = await db.from('school_terms').select('bimester,starts_on,ends_on').eq('school_id',schoolId).eq('school_year',Number(year));
+      if (!error) schoolTerms = data || [];
+    } catch (_) {
+      schoolTerms = [];
+    }
+  }
 
   const nav = document.querySelector('.nav');
   const anchor = document.getElementById('reportsNav') || document.getElementById('permissionsNav');
@@ -37,11 +78,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'schoolDailyAttendanceModal';
   modal.className = 'modal-bg school-daily-attendance-modal hidden';
-  modal.innerHTML = `<section class="modal school-daily-attendance-dialog"><div class="modal-head"><div><h3>Frequência Diária da Escola</h3><div class="meta" data-sda-context>Abra no SIAP uma turma verde ou vermelha.</div></div><button class="close" type="button" data-sda-close>×</button></div><div class="school-daily-attendance-body"><div class="sda-guide"><b>Leitura automática e somente leitura</b><span>No SIAP, abra Frequência diária e clique uma vez na turma desejada. Aqui, escolha os meses e inicie a leitura. Dias brancos, não letivos e exceções serão ignorados.</span></div><div class="sda-capture hidden" data-sda-capture role="status" aria-live="polite" aria-hidden="true"><span class="sda-capture-spinner" aria-hidden="true"></span><div><strong>Capturando frequência do SIAP…</strong><small>A extensão está percorrendo as datas. Aguarde a conclusão da leitura.</small></div></div><div class="sda-threshold" data-sda-threshold></div><fieldset class="sda-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-sda-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="sda-actions"><button class="btn primary" type="button" data-sda-read>Ler turma aberta</button><button class="btn secondary hidden" type="button" data-sda-import>Importar para os cards</button><button class="btn secondary" type="button" data-sda-clear>Limpar leitura</button><a class="btn secondary" href="downloads/carometro-frequencia-leitura-0.7.0.zip" download>Baixar extensão</a></div><div class="sda-install-help">Depois de baixar, descompacte o arquivo e use <b>Carregar sem compactação</b> em <b>chrome://extensions</b>. Esta é a mesma extensão da Frequência Assistida, agora com os dois leitores isolados.</div><div class="meta" data-sda-status>Escolha pelo menos um mês para iniciar.</div><div data-sda-summary></div><div data-sda-students></div></div></section>`;
+  modal.innerHTML = `<section class="modal school-daily-attendance-dialog"><div class="modal-head"><div><h3>Frequência Diária da Escola</h3><div class="meta sda-context" data-sda-context>Abra no SIAP uma turma verde ou vermelha.</div></div><button class="close" type="button" data-sda-close>×</button></div><div class="school-daily-attendance-body"><div class="sda-guide"><b>Leitura automática e somente leitura</b><span>No SIAP, abra Frequência diária e clique uma vez na turma desejada. Aqui, escolha os meses e inicie a leitura. Dias brancos, não letivos e exceções serão ignorados.</span></div><div class="sda-capture hidden" data-sda-capture role="status" aria-live="polite" aria-hidden="true"><span class="sda-capture-spinner" aria-hidden="true"></span><div><strong>Capturando frequência do SIAP…</strong><small>A extensão está percorrendo as datas. Aguarde a conclusão da leitura.</small></div></div><div class="sda-threshold" data-sda-threshold></div><fieldset class="sda-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-sda-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="sda-actions"><button class="btn primary" type="button" data-sda-read>Ler turma aberta</button><button class="btn secondary hidden" type="button" data-sda-import>Importar para os cards</button><button class="btn secondary" type="button" data-sda-clear>Limpar leitura</button><a class="btn secondary" href="downloads/carometro-frequencia-leitura-0.7.0.zip" download>Baixar extensão</a></div><div class="sda-install-help">Depois de baixar, descompacte o arquivo e use <b>Carregar sem compactação</b> em <b>chrome://extensions</b>. Esta é a mesma extensão da Frequência Assistida, agora com os dois leitores isolados.</div><div class="meta" data-sda-status>Escolha pelo menos um mês para iniciar.</div><div data-sda-summary></div><div data-sda-students></div></div></section>`;
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
-  style.textContent = `.school-daily-attendance-modal{z-index:365!important}.school-daily-attendance-dialog{width:min(980px,100%);max-height:94vh}.school-daily-attendance-body{padding:22px}.sda-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #b9ddcc;border-radius:12px;background:#f1fbf6}.sda-guide span,.sda-install-help{font-size:12px;color:var(--muted)}.sda-capture{display:flex;align-items:center;gap:14px;margin:14px 0 0;padding:16px 18px;border:2px solid #635bff;border-radius:12px;background:#f2f0ff;color:#28205f}.sda-capture.hidden{display:none}.sda-capture strong{display:block;font-size:20px;font-weight:900;line-height:1.2}.sda-capture small{display:block;margin-top:4px;font-size:13px;font-weight:650}.sda-capture-spinner{width:24px;height:24px;flex:0 0 24px;border:3px solid #c9c5ff;border-top-color:#5b50e6;border-radius:50%;animation:sda-spin .8s linear infinite}@keyframes sda-spin{to{transform:rotate(360deg)}}.sda-threshold{margin:14px 0 0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.sda-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.sda-months legend{padding:0 6px;font-weight:800}.sda-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.sda-months input{width:18px;height:18px}.sda-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.sda-actions a{text-decoration:none}.sda-install-help{margin:0 0 16px}.sda-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.sda-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.sda-summary b{display:block;font-size:22px}.sda-table{display:grid;gap:7px;margin-top:16px}.sda-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.sda-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.sda-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.sda-photo img{width:100%;height:100%;object-fit:cover}.sda-name{min-width:0}.sda-name b{overflow-wrap:anywhere}.sda-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.sda-bar i{display:block;height:100%;border-radius:inherit}.sda-bar-frequent{background:#16a36a}.sda-bar-absent{background:#e5a000}.sda-bar-active_search{background:#dc3545}.sda-unmatched{color:#b42318;font-size:12px}.sda-warning{margin-top:12px;padding:10px 12px;border-radius:9px;background:#fff7e8;color:#805200;font-size:12px}.attendance-source-detail{display:grid;gap:4px}.attendance-source-detail small{font-size:11px;font-weight:800;color:var(--muted)}@media(prefers-reduced-motion:reduce){.sda-capture-spinner{animation:none}}@media(max-width:700px){.sda-months{grid-template-columns:1fr 1fr}.sda-summary{grid-template-columns:1fr 1fr}.sda-row{grid-template-columns:1fr 70px}.sda-row .sda-bar,.sda-row .attendance-badge{grid-column:1/-1}.sda-student{grid-template-columns:48px minmax(0,1fr)}.sda-photo{width:48px;height:48px}}`;
+  style.textContent = `.school-daily-attendance-modal{z-index:365!important}.school-daily-attendance-dialog{width:min(980px,100%);max-height:94vh}.sda-context{margin-top:4px;font-size:15px!important;font-weight:850!important;color:var(--text)!important}.school-daily-attendance-body{padding:22px}.sda-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #b9ddcc;border-radius:12px;background:#f1fbf6}.sda-guide span,.sda-install-help{font-size:12px;color:var(--muted)}.sda-capture{display:flex;align-items:center;gap:14px;margin:14px 0 0;padding:16px 18px;border:2px solid #635bff;border-radius:12px;background:#f2f0ff;color:#28205f}.sda-capture.hidden{display:none}.sda-capture strong{display:block;font-size:20px;font-weight:900;line-height:1.2}.sda-capture small{display:block;margin-top:4px;font-size:13px;font-weight:650}.sda-capture-spinner{width:24px;height:24px;flex:0 0 24px;border:3px solid #c9c5ff;border-top-color:#5b50e6;border-radius:50%;animation:sda-spin .8s linear infinite}@keyframes sda-spin{to{transform:rotate(360deg)}}.sda-threshold{margin:14px 0 0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.sda-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.sda-months legend{padding:0 6px;font-weight:800}.sda-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.sda-months input{width:18px;height:18px}.sda-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.sda-actions a{text-decoration:none}.sda-install-help{margin:0 0 16px}.sda-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.sda-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.sda-summary b{display:block;font-size:22px}.sda-table{display:grid;gap:7px;margin-top:16px}.sda-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.sda-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.sda-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.sda-photo img{width:100%;height:100%;object-fit:cover}.sda-name{min-width:0}.sda-name b{overflow-wrap:anywhere}.sda-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.sda-bar i{display:block;height:100%;border-radius:inherit}.sda-bar-frequent{background:#16a36a}.sda-bar-absent{background:#e5a000}.sda-bar-active_search{background:#dc3545}.sda-unmatched{color:#b42318;font-size:12px}.sda-warning{margin-top:12px;padding:10px 12px;border-radius:9px;background:#fff7e8;color:#805200;font-size:12px}.attendance-source-detail{display:grid;gap:4px}.attendance-source-detail small{font-size:11px;font-weight:800;color:var(--muted)}@media(prefers-reduced-motion:reduce){.sda-capture-spinner{animation:none}}@media(max-width:700px){.sda-months{grid-template-columns:1fr 1fr}.sda-summary{grid-template-columns:1fr 1fr}.sda-row{grid-template-columns:1fr 70px}.sda-row .sda-bar,.sda-row .attendance-badge{grid-column:1/-1}.sda-student{grid-template-columns:48px minmax(0,1fr)}.sda-photo{width:48px;height:48px}}`;
   document.head.appendChild(style);
 
   const by = selector => modal.querySelector(selector);
@@ -105,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const importedControl = by('[data-sda-import]');
     importedControl.classList.toggle('hidden', !collection);
     importedControl.disabled = !collection || saving || !matched.length;
-    by('[data-sda-context]').textContent = collection ? `${collection.context.shift} · ${collection.context.className} · ${collection.context.term}` : 'Abra no SIAP uma turma verde ou vermelha.';
+    by('[data-sda-context]').textContent = collection ? `${collection.context.shift} · ${collection.context.className} · ${collectionPeriodLabel()}` : 'Abra no SIAP uma turma verde ou vermelha.';
     by('[data-sda-summary]').innerHTML = collection ? `<div class="sda-summary"><div><b>${collection.datesRead.length}</b><span>dias preenchidos</span></div><div><b>${rows.length}</b><span>alunos lidos</span></div><div><b>${rows.filter(row=>row.status==='absent').length}</b><span>faltosos</span></div><div><b>${rows.filter(row=>row.status==='active_search').length}</b><span>busca ativa</span></div></div>` : '';
     const skipped = collection ? collection.skipped : null;
     const warning = skipped ? `<div class="sda-warning">Ignorados com segurança: ${skipped.notFilled} dia(s) sem preenchimento, ${skipped.nonSchoolDay} não letivo(s), ${skipped.exception} exceção(ões) e ${skipped.future} data(s) futura(s).</div>` : '';
@@ -212,6 +253,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await requestCollection();
       if (!response?.ok) { render(response?.message || 'Não foi possível concluir a leitura.');return; }
       collection = response.result;
+      await loadSchoolTerms(collection.context.year);
       render(`Leitura concluída: ${collection.datesRead.length} dia(s) preenchido(s).${collection.restoreWarning || ''}`);
     } catch (error) {
       render(`A leitura foi interrompida com segurança: ${error.message}`);
@@ -222,6 +264,6 @@ document.addEventListener('DOMContentLoaded', () => {
   by('[data-sda-import]').onclick = importCollection;
   by('[data-sda-clear]').onclick = () => { collection=null;selectedMonths.clear();modal.querySelectorAll('[data-sda-month]').forEach(input=>{input.checked=false;});render(); };
 
-  document.addEventListener('carometro:school-context-changed', async () => { dailyBadges.clear();collection=null;await loadThresholds();await loadDailyBadges();render(); });
+  document.addEventListener('carometro:school-context-changed', async () => { dailyBadges.clear();collection=null;schoolTerms=[];await loadThresholds();await loadDailyBadges();render(); });
   setTimeout(loadDailyBadges, 1700);
 });

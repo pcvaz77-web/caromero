@@ -26,13 +26,22 @@ assert.match(source, /Capturando frequência do SIAP/);
 assert.match(source, /data-sda-capture/);
 assert.match(source, /setCaptureActive\(true\)/);
 assert.match(source, /setCaptureActive\(false\)/);
+assert.match(source, /class="meta sda-context"/);
+assert.match(source, /\.sda-context\{[^}]*font-size:15px!important;[^}]*font-weight:850!important/);
+assert.match(source, /collectionPeriodLabel/);
+assert.match(source, /collection\.datesRead/);
+assert.match(source, /monthNames\.length === 1/);
+assert.match(source, /matchingTerms\.length === 1/);
+assert.match(source, /from\('school_terms'\)\.select\('bimester,starts_on,ends_on'\)/);
+assert.match(source, /Intl\.ListFormat\('pt-BR'/);
+assert.doesNotMatch(source, /\$\{collection\.context\.term\}.*data-sda-context/);
 assert.match(source, /carometro-frequencia-leitura-0\.7\.0\.zip/);
 assert.match(source, /getSchoolDailyAttendanceStatus/);
 assert.match(source, /teacherStatus\?\.\(studentId\)/);
 assert.match(source, /getStudentAttendanceDetails/);
 assert.match(source, /dailyBadges\.get\(studentId\) \|\| teacherStatus\?\.\(studentId\)/);
 assert.doesNotMatch(source, /statuses\.sort/);
-assert.match(index, /school-daily-attendance\.js\?v=4/);
+assert.match(index, /school-daily-attendance\.js\?v=5/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
@@ -42,5 +51,31 @@ vm.runInNewContext(`const cleanName = ${cleanNameExpression}; const normalizeNam
 assert.equal(sandbox.normalizeNameForTest('12. João da Silva'), 'joao da silva');
 assert.equal(sandbox.normalizeNameForTest('JOÃO DA SILVA - 12'), 'joao da silva');
 assert.equal(sandbox.normalizeNameForTest('João 2 Santos'), 'joao santos');
+
+const periodUtilitiesStart = source.indexOf('const formatMonthList');
+const periodUtilitiesEnd = source.indexOf('\n\n  async function loadSchoolTerms');
+assert.ok(periodUtilitiesStart >= 0 && periodUtilitiesEnd > periodUtilitiesStart);
+const periodUtilities = source.slice(periodUtilitiesStart, periodUtilitiesEnd);
+const periodSandbox = {};
+vm.runInNewContext(`
+  const MONTHS = ${JSON.stringify(['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'])};
+  let collection = null;
+  let schoolTerms = [];
+  ${periodUtilities}
+  globalThis.describePeriod = (nextCollection,nextTerms=[]) => {
+    collection = nextCollection;
+    schoolTerms = nextTerms;
+    return collectionPeriodLabel();
+  };
+`, periodSandbox);
+assert.equal(periodSandbox.describePeriod({ datesRead:['02/09/2026','18/09/2026'], months:['Setembro'] }), 'Setembro');
+assert.equal(periodSandbox.describePeriod(
+  { datesRead:['10/08/2026','15/09/2026'], months:['Agosto','Setembro'] },
+  [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }]
+), '3º bimestre');
+assert.equal(periodSandbox.describePeriod(
+  { datesRead:['10/08/2026','15/10/2026'], months:['Agosto','Outubro'] },
+  [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }, { bimester:4, starts_on:'2026-10-01', ends_on:'2026-12-20' }]
+), 'Agosto e Outubro');
 
 console.log('Carômetro: fluxo da Frequência da Secretaria e vínculo nominal aprovados.');
