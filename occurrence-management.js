@@ -6,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const occurrenceButton = document.createElement('button');
   occurrenceButton.id = 'occurrenceNav';
   occurrenceButton.type = 'button';
+  occurrenceButton.className = 'hidden';
+  occurrenceButton.hidden = true;
+  occurrenceButton.setAttribute('aria-hidden', 'true');
+  occurrenceButton.style.setProperty('display', 'none', 'important');
   occurrenceButton.innerHTML = '<span>● &nbsp; Ocorrência</span>';
   uniformNav.insertAdjacentElement('afterend', occurrenceButton);
 
@@ -562,6 +566,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const allowed = canViewOccurrences();
     occurrenceButton.classList.toggle('hidden', !allowed);
     occurrenceButton.hidden = !allowed;
+    occurrenceButton.setAttribute('aria-hidden', String(!allowed));
+    if (allowed) occurrenceButton.style.removeProperty('display');
+    else occurrenceButton.style.setProperty('display', 'none', 'important');
     if (!allowed) modal.classList.add('hidden');
   };
   occurrenceButton.onclick = open;

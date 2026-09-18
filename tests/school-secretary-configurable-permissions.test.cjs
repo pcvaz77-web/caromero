@@ -6,14 +6,15 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('secretaria inicia sem permissoes e nunca pode ser conselheiro', () => {
-  const sql = read('supabase/migrations/127_secretary_configurable_permissions.sql');
-  assert.match(sql, /reset_secretary_permissions/);
-  assert.match(sql, /can_import_school_daily_attendance=false/);
-  assert.match(sql, /can_receive_notifications=false/);
-  assert.match(sql, /new\.can_manage_counselors := false/);
-  assert.match(sql, /sm\.role<>'secretary'/);
-  assert.match(sql, /delete from public\.class_counselors/);
+test('secretaria inicia apenas com a frequencia e nunca pode ser conselheiro', () => {
+  const base = read('supabase/migrations/127_secretary_configurable_permissions.sql');
+  const defaultAttendance = read('supabase/migrations/128_secretary_default_daily_attendance.sql');
+  assert.match(base, /reset_secretary_permissions/);
+  assert.match(defaultAttendance, /can_import_school_daily_attendance=true/);
+  assert.match(defaultAttendance, /can_receive_notifications=false/);
+  assert.match(base, /new\.can_manage_counselors := false/);
+  assert.match(base, /sm\.role<>'secretary'/);
+  assert.match(base, /delete from public\.class_counselors/);
 });
 
 test('administrador pode liberar opcoes individualmente ou em lote', () => {

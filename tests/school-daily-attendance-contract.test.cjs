@@ -41,7 +41,7 @@ assert.match(source, /teacherStatus\?\.\(studentId\)/);
 assert.match(source, /getStudentAttendanceDetails/);
 assert.match(source, /dailyBadges\.get\(studentId\) \|\| teacherStatus\?\.\(studentId\)/);
 assert.doesNotMatch(source, /statuses\.sort/);
-assert.match(index, /school-daily-attendance\.js\?v=5/);
+assert.match(index, /school-daily-attendance\.js\?v=6/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];

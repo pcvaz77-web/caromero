@@ -5,6 +5,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '126_school_secretary_daily_attendance.sql'), 'utf8');
 const configurable = fs.readFileSync(path.join(root, 'supabase', 'migrations', '127_secretary_configurable_permissions.sql'), 'utf8');
+const defaultAttendance = fs.readFileSync(path.join(root, 'supabase', 'migrations', '128_secretary_default_daily_attendance.sql'), 'utf8');
 const invitations = fs.readFileSync(path.join(root, 'school-invitations.js'), 'utf8');
 const permissions = fs.readFileSync(path.join(root, 'permissions-and-details.js'), 'utf8');
 const sender = fs.readFileSync(path.join(root, 'supabase', 'functions', 'send-school-invitation', 'index.ts'), 'utf8');
@@ -41,5 +42,7 @@ assert.match(configurable, /Secretaria nao pode ser conselheiro de turma/);
 assert.match(configurable, /delete from public\.class_counselors/);
 assert.match(configurable, /actor\.role<>'secretary' or coalesce\(ap\.can_view_occurrences,false\)/);
 assert.match(configurable, /sm\.role<>'secretary' or coalesce\(p\.can_receive_notifications,false\)/);
+assert.match(defaultAttendance, /can_import_school_daily_attendance=true/);
+assert.match(defaultAttendance, /can_view_occurrences=false/);
 
-console.log('Papel Secretaria: padrão vazio, permissões configuráveis e proibição de conselheiro aprovados.');
+console.log('Papel Secretaria: frequência inicial, permissões adicionais configuráveis e proibição de conselheiro aprovados.');

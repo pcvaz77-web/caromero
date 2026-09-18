@@ -99,6 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
   syncAccess();
   setInterval(syncAccess, 1000);
   addEventListener('resize', syncAccess);
+  document.addEventListener('carometro:permission-refresh', syncAccess);
+  document.addEventListener('carometro:data-loaded', syncAccess);
 
   async function loadThresholds() {
     const schoolId = window.getActiveSchoolId?.();
