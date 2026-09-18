@@ -334,7 +334,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!match) return;
       const student = students.find(item => item.id === match[1]);
       const advancedStaff = !!permission.is_coordinator || !!permission.is_secretary;
-      const canEditStudent = permission.role === 'admin' || (!advancedStaff && !!permission.can_edit_students) || (advancedStaff && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report));
+      const canEditStudent = permission.role === 'admin' || (!advancedStaff && (!!permission.can_edit_students || !!permission.can_edit_guardian_contact)) || (advancedStaff && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report || permission.can_edit_guardian_contact));
       if (!canEditStudent) return;
       let actions = card.querySelector('.actions-small');
       if (!actions) {
@@ -412,6 +412,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const preview = document.getElementById('preview');
   const classSelect = document.getElementById('classId');
   const classField = classSelect.closest('.field');
+  const guardianContactFields = document.getElementById('guardianContactFields');
+  const guardianName = document.getElementById('guardianName');
+  const guardianPhone = document.getElementById('guardianPhone');
+  const showGuardianOnCard = document.getElementById('showGuardianOnCard');
   classField.classList.add('move-target-class');
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
@@ -419,7 +423,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let activeCounselorRights = null;
   const can = key => {
     const advancedStaff = !!permission.is_coordinator || !!permission.is_secretary;
-    return permission.role === 'admin' || (!advancedStaff && !!permission.can_edit_students) || (advancedStaff && (permission.can_edit_all || permission[key]));
+    if (permission.role === 'admin') return true;
+    if (advancedStaff) return !!(permission.can_edit_all || permission[key]);
+    if (key === 'can_edit_guardian_contact') return !!permission.can_edit_guardian_contact;
+    return !!permission.can_edit_students;
   };
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
@@ -724,6 +731,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
     .move-class .check { font-size:14px; }
+    .guardian-contact-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; margin-bottom:8px; padding:10px 11px 8px; border:1px solid #d0d5dd; border-radius:9px; background:#f8f9fb; }
+    .guardian-contact-fields .field { min-width:0; margin-bottom:8px; }
+    .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0; padding:5px 8px; border-radius:7px; background:#eaecf0; color:#475467; }
+    .guardian-contact-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:5px; padding:4px 8px; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
+    .guardian-contact-pill span { margin-right:4px; color:#344054; font-weight:800; }
     /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
     .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:calc(100dvh - 40px); overflow:hidden; margin:0; }
@@ -857,6 +869,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('modalTitle').textContent = student ? 'Editar aluno' : 'Adicionar aluno';
     classSelect.innerHTML = classOptions(student?.classId || selectedClassId || '');
     document.getElementById('fullName').value = student?.name || '';
+    guardianName.value = student?.guardianName || '';
+    guardianPhone.value = student?.guardianPhone || '';
+    showGuardianOnCard.checked = !!student?.showGuardianOnCard;
     const currentObservations = decodeObservationValues(student?.report);
     currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({
       value,
@@ -869,6 +884,11 @@ document.addEventListener('DOMContentLoaded', () => {
     renderObservationChoices(currentObservations);
     refreshPhotoPreview(student);
     document.getElementById('fullName').disabled = !!student && !can('can_edit_name');
+    const canEditGuardianContact = can('can_edit_guardian_contact');
+    guardianContactFields.classList.toggle('hidden', !canEditGuardianContact);
+    guardianName.disabled = !canEditGuardianContact;
+    guardianPhone.disabled = !canEditGuardianContact;
+    showGuardianOnCard.disabled = !canEditGuardianContact;
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
     observationChoices.querySelectorAll('input').forEach(input => { input.disabled = !canEditObservations; });
@@ -1088,6 +1108,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const observationValues = can('can_edit_report') ? selectedObservationValues() : decodeObservationValues(old?.report);
     const row = { school_id:schoolId, full_name: document.getElementById('fullName').value.trim(), class_id: classId, class_name: cls.name, has_report: encodeObservationValues(observationValues), photo_path: photoPath };
+    if (can('can_edit_guardian_contact')) {
+      const normalizedGuardianName = guardianName.value.trim();
+      const normalizedGuardianPhone = guardianPhone.value.trim();
+      row.guardian_name = normalizedGuardianName || null;
+      row.guardian_phone = normalizedGuardianPhone || null;
+      row.show_guardian_on_card = showGuardianOnCard.checked && !!(normalizedGuardianName || normalizedGuardianPhone);
+    }
     let studentWrite = id ? db.from('students').update(row).eq('id', id) : db.from('students').insert(row);
     if (id) studentWrite = studentWrite.eq('school_id', schoolId);
     const result = await studentWrite;
