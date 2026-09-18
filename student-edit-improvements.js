@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('#list .student').forEach(card => {
       const studentId = card.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
       const student = students.find(item => item.id === studentId);
-      const subtitle = card.querySelector('.name')?.nextElementSibling;
+      const subtitle = card.querySelector(':scope > div:nth-child(2) > .meta');
       if (!student || !subtitle) return;
       renderSpecialStudentLabels(subtitle, student);
     });
