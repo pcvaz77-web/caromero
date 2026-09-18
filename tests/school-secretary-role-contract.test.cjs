@@ -4,6 +4,7 @@ const path = require('node:path');
 
 const root = path.join(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase', 'migrations', '126_school_secretary_daily_attendance.sql'), 'utf8');
+const configurable = fs.readFileSync(path.join(root, 'supabase', 'migrations', '127_secretary_configurable_permissions.sql'), 'utf8');
 const invitations = fs.readFileSync(path.join(root, 'school-invitations.js'), 'utf8');
 const permissions = fs.readFileSync(path.join(root, 'permissions-and-details.js'), 'utf8');
 const sender = fs.readFileSync(path.join(root, 'supabase', 'functions', 'send-school-invitation', 'index.ts'), 'utf8');
@@ -26,10 +27,19 @@ assert.match(migration, /sm\.role='school_admin' or \(sm\.role='secretary' and c
 assert.match(migration, /v_target\.role<>'secretary'/);
 assert.doesNotMatch(migration, /Secretaria ou Coordenação/);
 assert.match(invitations, /option value="secretary">Secretário\(a\)/);
-assert.match(invitations, /Coordenadores só podem convidar professores/);
-assert.match(permissions, /Acesso somente à consulta de alunos e à frequência diária/);
+assert.match(invitations, /\['coordinator', 'secretary'\]\.includes/);
+assert.match(permissions, /Liberar todas as permissões disponíveis/);
+assert.match(permissions, /Secretaria nunca pode ser indicada como conselheiro de turma/);
 assert.doesNotMatch(permissions, /admin\?'':schoolDailyAttendanceCheck/);
 assert.match(sender, /\['coordinator', 'teacher', 'secretary'\]\.includes\(invitation\.role\)/);
-assert.match(sender, /callerMember\.role === 'coordinator'[\s\S]*invitation\.role !== 'teacher'/);
+assert.match(sender, /\['coordinator', 'secretary'\]\.includes\(callerMember\.role\)[\s\S]*invitation\.role !== 'teacher'/);
+assert.match(configurable, /can_receive_notifications boolean not null default false/);
+assert.match(configurable, /perform public\.reset_secretary_permissions\(v_member_id\)/);
+assert.match(configurable, /new\.can_manage_counselors := false/);
+assert.match(configurable, /sm\.role<>'secretary'/);
+assert.match(configurable, /Secretaria nao pode ser conselheiro de turma/);
+assert.match(configurable, /delete from public\.class_counselors/);
+assert.match(configurable, /actor\.role<>'secretary' or coalesce\(ap\.can_view_occurrences,false\)/);
+assert.match(configurable, /sm\.role<>'secretary' or coalesce\(p\.can_receive_notifications,false\)/);
 
-console.log('Papel Secretaria: restrição, convite, vaga e importação isolada aprovados.');
+console.log('Papel Secretaria: padrão vazio, permissões configuráveis e proibição de conselheiro aprovados.');

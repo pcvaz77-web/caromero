@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let myClasses = [];
   let myPreferences = new Set();
+  const canUseNotifications = () => !permission?.is_secretary || !!permission?.can_receive_notifications;
+  const syncPreferenceVisibility = () => section.classList.toggle('hidden', !canUseNotifications());
 
   // Notificações por turma são só um aviso: qualquer usuário autenticado
   // (Professor, Coordenador ou Administrador) pode escolher acompanhar
@@ -74,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadPreferences() {
+    syncPreferenceVisibility();
+    if (!canUseNotifications()) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     myClasses = myAccessibleClasses();
@@ -88,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function setPreference(classId, enabled) {
+    if (!canUseNotifications()) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) return;
     if (enabled) {
@@ -112,6 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('selectAllClassNotifications').onclick = async () => {
+    if (!canUseNotifications()) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || !myClasses.length) return;
     const rows = myClasses.map(cls => ({ user_id: signedInUser.id, class_id: cls.id, notifications_enabled: true }));
@@ -123,6 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('clearAllClassNotifications').onclick = async () => {
+    if (!canUseNotifications()) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || !myClasses.length) return;
     const { error } = await db.from('user_favorite_classes')
@@ -138,4 +145,9 @@ document.addEventListener('DOMContentLoaded', () => {
   new MutationObserver(() => {
     if (drawer.classList.contains('open')) loadPreferences();
   }).observe(drawer, { attributes: true, attributeFilter: ['class'] });
+  document.addEventListener('carometro:permission-refresh', () => {
+    syncPreferenceVisibility();
+    if (drawer.classList.contains('open') && canUseNotifications()) loadPreferences();
+  });
+  syncPreferenceVisibility();
 });

@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const pushButton=document.createElement('button');pushButton.id='enableCarometroPush';pushButton.className='btn secondary hidden';pushButton.textContent='Ativar notificações';document.querySelector('.top-actions')?.prepend(pushButton);
   const base64ToUint8=value=>{const padding='='.repeat((4-value.length%4)%4),base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base64);return Uint8Array.from([...raw].map(char=>char.charCodeAt(0)));};
   const supported=()=>location.protocol==='https:'&&'serviceWorker'in navigator&&'PushManager'in window&&'Notification'in window;
+  const canUseNotifications=()=>!permission?.is_secretary||!!permission?.can_receive_notifications;
   const isIos=()=>/iphone|ipad|ipod/i.test(navigator.userAgent);
   const isStandalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
   async function register(){if(!supported())return null;return navigator.serviceWorker.register('./sw.js',{scope:'./'});}
@@ -73,8 +74,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     pushButton.dataset.active='false';
     toast('Notificações desativadas neste dispositivo.');
   }
-  async function activatePush(){try{if(VAPID_PUBLIC_KEY.startsWith('__')){toast('O envio push ainda aguarda a chave segura do servidor.');return;}const permission=await Notification.requestPermission();if(permission!=='granted'){toast('As notificações não foram autorizadas.');return;}const registration=await register();let subscription=await registration.pushManager.getSubscription();subscription||=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64ToUint8(VAPID_PUBLIC_KEY)});await saveSubscription(subscription);pushButton.textContent='Desativar notificações';pushButton.dataset.active='true';toast('Este dispositivo receberá notificações do CARÔMETRO.');}catch(error){toast(`Não foi possível ativar: ${error.message}`);}}
-  async function syncButtons(){const user=await signedIn(),schoolId=window.getActiveSchoolId?.();if(!user||!schoolId||document.getElementById('app').classList.contains('hidden'))return;const registration=await register();pushButton.classList.toggle('hidden',!registration);if(registration&&Notification.permission==='granted'){let existing=await registration.pushManager.getSubscription();
+  async function activatePush(){try{if(!canUseNotifications())return;if(VAPID_PUBLIC_KEY.startsWith('__')){toast('O envio push ainda aguarda a chave segura do servidor.');return;}const permission=await Notification.requestPermission();if(permission!=='granted'){toast('As notificações não foram autorizadas.');return;}const registration=await register();let subscription=await registration.pushManager.getSubscription();subscription||=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:base64ToUint8(VAPID_PUBLIC_KEY)});await saveSubscription(subscription);pushButton.textContent='Desativar notificações';pushButton.dataset.active='true';toast('Este dispositivo receberá notificações do CARÔMETRO.');}catch(error){toast(`Não foi possível ativar: ${error.message}`);}}
+  async function syncButtons(){const user=await signedIn(),schoolId=window.getActiveSchoolId?.();if(!user||!schoolId||document.getElementById('app').classList.contains('hidden')||!canUseNotifications()){pushButton.classList.add('hidden');if(notificationChannel){await db.removeChannel(notificationChannel);notificationChannel=null;}return;}const registration=await register();pushButton.classList.toggle('hidden',!registration);if(registration&&Notification.permission==='granted'){let existing=await registration.pushManager.getSubscription();
     // Permissão já concedida mas a assinatura sumiu (ex.: Service Worker
     // atualizado, dado do site parcialmente limpo) — repara automaticamente
     // aqui, na abertura autenticada do app, sem nunca pedir permissão de
@@ -104,5 +105,6 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(isIos()&&!isStandalone()){pwaButton.classList.remove('hidden');pwaButton.textContent='Como instalar';}
   pwaButton.onclick=async()=>{if(isIos()&&!installPrompt){alert('No iPhone/iPad: toque em Compartilhar e depois em Adicionar à Tela de Início. Abra o CARÔMETRO instalado para ativar as notificações.');return;}if(!installPrompt)return;await installPrompt.prompt();installPrompt=null;pwaButton.classList.add('hidden');};pushButton.onclick=()=>(pushButton.dataset.active==='true'?deactivatePush:activatePush)();
   new MutationObserver(syncButtons).observe(document.getElementById('app'),{attributes:true,attributeFilter:['class']});
+  document.addEventListener('carometro:permission-refresh',syncButtons);
   db.auth.onAuthStateChange((_event,session)=>{if(!session)void clearNotificationChannel().catch(()=>{});});
 });

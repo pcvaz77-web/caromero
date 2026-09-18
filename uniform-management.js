@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const get = id => document.getElementById(id);
   const isAdmin = () => permission?.role === 'admin';
-  const isCoordinator = () => !!permission?.is_coordinator;
+  const isAdvancedStaff = () => !!permission?.is_coordinator || !!permission?.is_secretary;
   // Fonte de autorização de Uniforme: school_members + school_member_permissions,
   // a mesma fonte usada pela RLS/RPC real — não mais user_permissions (que não
   // tem nenhum efeito sobre essa RLS/RPC). Mantidos atualizados por carga
@@ -217,11 +217,11 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformCommercialPermission = perms || emptyUniformPermission();
     await ensureUniformChannels(membership.id);
   }
-  const canAccessUniform = () => isAdmin() || (isCoordinator() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_view_uniform || uniformCommercialPermission.can_edit_uniform || uniformCommercialPermission.can_mark_all_uniform_received));
+  const canAccessUniform = () => isAdmin() || (isAdvancedStaff() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_view_uniform || uniformCommercialPermission.can_edit_uniform || uniformCommercialPermission.can_mark_all_uniform_received));
   window.canAccessUniformNav = canAccessUniform;
   const canRegisterUniform = student => {
     if (isAdmin()) return true;
-    return isCoordinator() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_edit_uniform);
+    return isAdvancedStaff() && !!(uniformCommercialPermission.can_edit_all || uniformCommercialPermission.can_edit_uniform);
   };
   const bulkUniformAccess = () => {
     const classId = get('uniformClass').value || null;
@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? students.filter(item => item.classId === classId || selectedClassName(item.className) === selectedTargetName).map(item => item.id)
       : null;
     if (isAdmin()) return { allowed:true, classId, ids };
-    return { allowed:isCoordinator() && !!uniformCommercialPermission.can_mark_all_uniform_received, classId, ids };
+    return { allowed:isAdvancedStaff() && !!uniformCommercialPermission.can_mark_all_uniform_received, classId, ids };
   };
   const escape = value => { const el = document.createElement('span'); el.textContent = value || ''; return el.innerHTML; };
   // Avatar da lista — mesmo padrão de carregamento preguiçoso já usado na

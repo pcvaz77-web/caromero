@@ -11,8 +11,8 @@ test('menu de convites usa a mesma permissão específica exigida pelo servidor'
   const frontend = read('school-invitations.js');
   const edge = read('supabase/functions/send-school-invitation/index.ts');
 
-  assert.match(index, /school-invitations\.js\?v=7/);
-  assert.match(frontend, /coordinator[\s\S]{0,180}permission\.can_invite_teachers === true/);
+  assert.match(index, /school-invitations\.js\?v=8/);
+  assert.match(frontend, /\['coordinator', 'secretary'\][\s\S]{0,180}permission\.can_invite_teachers === true/);
   assert.doesNotMatch(frontend, /permission\.can_edit_all\s*\|\|\s*permission\.can_invite_teachers/);
   assert.match(edge, /callerPermissions\?\.can_invite_teachers/);
 });

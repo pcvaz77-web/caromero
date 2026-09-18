@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let notifications = [];
   let channel = null;
+  const canUseNotifications = () => !permission?.is_secretary || !!permission?.can_receive_notifications;
 
   const formatWhen = value => {
     try { return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
@@ -84,6 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function refreshUnreadCount() {
+    if (!canUseNotifications()) { renderCount(0); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
     const schoolId = window.getActiveSchoolId?.();
     if (!signedInUser || !schoolId) { renderCount(0); return; }
@@ -121,6 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadNotifications() {
+    if (!canUseNotifications()) { notifications = []; renderList(); renderCount(0); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
     const schoolId = window.getActiveSchoolId?.();
     if (!signedInUser || !schoolId) { notifications = []; renderList(); renderCount(0); return; }
@@ -227,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // usuário), cai no mesmo "não disponível" que o sino já usa. Reaproveita
   // resolveNotificationTarget() em vez de duplicar a lógica por target_type.
   async function openNotificationById(id) {
+    if (!canUseNotifications()) return;
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) return;
     const schoolId = window.getActiveSchoolId?.();
@@ -370,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function openNotificationChannel(force) {
     if (stopped || document.getElementById('app').classList.contains('hidden')) return;
+    if (!canUseNotifications()) { await stopNotificationCenter(); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
     const schoolId = window.getActiveSchoolId?.();
     if (!signedInUser || !schoolId) { bell.classList.add('hidden'); return; }
@@ -456,6 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function startNotificationCenter() {
+    if (!canUseNotifications()) { await stopNotificationCenter(); return; }
     stopped = false;
     await requestNotificationChannel(false);
     if (!stopped) startNotificationPolling();
@@ -469,6 +475,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.getElementById('app').classList.contains('hidden')) {
       startNotificationCenter();
     }
+  });
+  document.addEventListener('carometro:permission-refresh', () => {
+    if (document.getElementById('app').classList.contains('hidden')) return;
+    if (canUseNotifications()) startNotificationCenter();
+    else stopNotificationCenter();
   });
 
   new MutationObserver(() => {

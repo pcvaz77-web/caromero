@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const sideNav = document.querySelector('.nav');
   sideNav?.insertBefore(manageObservations, document.getElementById('profileNav') || null);
   const syncObservationsNavigation = () => {
-    const canManageObservationOptions = permission.role === 'admin' || (!!permission.is_coordinator && !!permission.can_manage_observation_options);
+    const canManageObservationOptions = permission.role === 'admin' || ((!!permission.is_coordinator || !!permission.is_secretary) && !!permission.can_manage_observation_options);
     manageObservations.classList.toggle('hidden', !canManageObservationOptions);
   };
   document.addEventListener('carometro:permission-refresh', syncObservationsNavigation);
@@ -333,7 +333,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const match = card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/);
       if (!match) return;
       const student = students.find(item => item.id === match[1]);
-      const canEditStudent = permission.role === 'admin' || (!permission.is_coordinator && !!permission.can_edit_students) || (!!permission.is_coordinator && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report));
+      const advancedStaff = !!permission.is_coordinator || !!permission.is_secretary;
+      const canEditStudent = permission.role === 'admin' || (!advancedStaff && !!permission.can_edit_students) || (advancedStaff && (permission.can_edit_all || permission.can_edit_photo || permission.can_edit_name || permission.can_edit_class || permission.can_edit_report));
       if (!canEditStudent) return;
       let actions = card.querySelector('.actions-small');
       if (!actions) {
@@ -416,7 +417,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingPhoto = null;
   let removePhoto = false;
   let activeCounselorRights = null;
-  const can = key => permission.role === 'admin' || (!permission.is_coordinator && !!permission.can_edit_students) || (!!permission.is_coordinator && (permission.can_edit_all || permission[key]));
+  const can = key => {
+    const advancedStaff = !!permission.is_coordinator || !!permission.is_secretary;
+    return permission.role === 'admin' || (!advancedStaff && !!permission.can_edit_students) || (advancedStaff && (permission.can_edit_all || permission[key]));
+  };
   const studentIdFromCard = card => card.getAttribute('onclick')?.match(/showStudentDetails\('([^']+)'\)/)?.[1];
   const setStudentPhoto = (studentId, url) => {
     document.querySelectorAll('#list .student').forEach(card => {
@@ -938,7 +942,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   manageObservations.onclick = async () => {
-    if (!(permission.role === 'admin' || (permission.is_coordinator && permission.can_manage_observation_options))) { toast('Sem permissão para gerenciar opções de observação.'); return; }
+    if (!(permission.role === 'admin' || ((permission.is_coordinator || permission.is_secretary) && permission.can_manage_observation_options))) { toast('Sem permissão para gerenciar opções de observação.'); return; }
     await loadObservationOptions();
     renderCustomObservations();
     document.getElementById('newObservation').value = '';
@@ -1114,8 +1118,8 @@ document.addEventListener('DOMContentLoaded', () => {
   window.deleteStudent = async id => {
     const student = students.find(item => item.id === id);
     const allowed = permission.role === 'admin'
-      || (!permission.is_coordinator && !!permission.can_edit_students)
-      || (!!permission.is_coordinator && !!(permission.can_delete_students || permission.can_edit_all));
+      || (!permission.is_coordinator && !permission.is_secretary && !!permission.can_edit_students)
+      || ((!!permission.is_coordinator || !!permission.is_secretary) && !!(permission.can_delete_students || permission.can_edit_all));
     if (!student || !allowed || deletingStudentId) {
       if (student && !allowed) toast('Sem permissão para excluir alunos.');
       return;

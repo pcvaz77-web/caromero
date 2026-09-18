@@ -22,9 +22,9 @@ test('nao carrega o modulo de importacao de frequencia', () => {
   const permissions = fs.readFileSync(path.join(__dirname, '../permissions-and-details.js'), 'utf8');
   assert.doesNotMatch(index, /siap-attendance-core\.js/);
   assert.match(index, /siap-integration\.js\?v=19/);
-  assert.match(index, /permissions-and-details\.js\?v=61/);
+  assert.match(index, /permissions-and-details\.js\?v=62/);
   assert.doesNotMatch(permissions, /siapCheck\(item,'can_import_siap_attendance','Importar frequência do SIAP'/);
-  assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'\s+\? permissionFields\.map/);
+  assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'[\s\S]{0,180}secretaryPermissionFields : permissionFields/);
   assert.doesNotMatch(permissions, /setSiapPermission|Usar Assistente SIAP/);
 });
 

@@ -156,9 +156,9 @@ async function handleAdminMode(
 
   if (callerMember.role === 'school_admin') {
     // autorizado para coordinator, teacher ou secretary, já garantido acima.
-  } else if (callerMember.role === 'coordinator') {
+  } else if (['coordinator', 'secretary'].includes(callerMember.role)) {
     if (invitation.role !== 'teacher') {
-      return json(request, { ok: false, code: 'forbidden', error: 'Coordenadores só podem convidar professores.' }, 403)
+      return json(request, { ok: false, code: 'forbidden', error: 'Este perfil só pode convidar professores.' }, 403)
     }
     const { data: callerPermissions, error: permissionsError } = await admin
       .from('school_member_permissions')
