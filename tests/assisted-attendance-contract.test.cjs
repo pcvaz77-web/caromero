@@ -42,7 +42,9 @@ assert.doesNotMatch(source,/if\(collectionState\(\)\.ready\) await persistComple
 assert.match(source,/isMobileDevice/);
 assert.match(source,/max-width: 900px/);
 assert.match(source,/Android\|iPhone\|iPod\|Mobile/);
-assert.match(source,/if\(isMobileDevice\(\)\)return/);
+assert.match(source,/!isMobileDevice\(\).*isGeneralTeacher/);
+assert.match(source,/canCaptureClass\(captureClassId\)/);
+assert.match(source,/getAssistedAttendancePanelAction/);
 assert.match(source,/turnos encerrados são considerados/);
 const siapIntegration=fs.readFileSync(path.join(root,'siap-integration.js'),'utf8');
 assert.match(siapIntegration,/getSiapAttendanceBadge \|\|=/);

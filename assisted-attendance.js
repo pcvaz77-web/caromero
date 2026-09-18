@@ -18,35 +18,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const SHIFT_END_HOUR = { matutino:12, vespertino:18, noturno:23, integral:18 };
   const selectedMonths = new Set();
   let activeContext = null;
+  let captureClassId = null;
+  let captureClassName = '';
   let saving = false;
 
-  const nav = document.querySelector('.nav');
-  const anchor = document.getElementById('reportsNav') || document.getElementById('permissionsNav');
-  if (!nav || !anchor) return;
-  const button = document.createElement('button');
-  button.id = 'assistedAttendanceNav';
-  button.type = 'button';
-  button.className = 'hidden';
-  button.innerHTML = '<span>✓ &nbsp; Frequência Assistida</span>';
-  nav.insertBefore(button, anchor);
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
-  let lastAllowed = null;
-  const syncAccess = () => {
-    const allowed=!isMobileDevice()&&(permission?.role==='admin'||permission?.is_coordinator||permission?.can_import_siap_attendance);
-    if(allowed===lastAllowed)return;
-    lastAllowed=allowed;
-    button.classList.toggle('hidden',!allowed);
-    button.hidden=!allowed;
-    if(isMobileDevice())document.getElementById('assistedAttendanceModal')?.classList.add('hidden');
-  };
-  syncAccess();
-  setInterval(syncAccess,1000);
-  addEventListener('resize',syncAccess);
+  const isGeneralTeacher = () => window.getActiveSchoolRole?.() === 'teacher';
+  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && !!classId && !!window.counselorRightsForClass?.(classId);
 
   const modal = document.createElement('div');
   modal.id = 'assistedAttendanceModal';
   modal.className = 'modal-bg assisted-attendance-modal hidden';
-  modal.innerHTML = `<section class="modal assisted-attendance-dialog"><div class="modal-head"><div><h3>Frequência Assistida</h3><div class="meta" data-aa-context>Escolha os meses e abra as chamadas verdes no SIAP.</div></div><button class="close" type="button" data-aa-close>×</button></div><div class="assisted-attendance-body"><div class="assisted-attendance-guide"><b>Coleta segura e assistida</b><span>Escolha os meses abaixo. Depois, abra cada chamada verde desses meses no SIAP e clique em capturar. O relatório somente será concluído quando todas forem capturadas.</span></div><section class="aa-thresholds"><div><b>Classificação por frequência</b><span data-aa-threshold-source></span></div><div class="aa-threshold-fields"><label>Mínimo para Frequente <input type="number" min="2" max="100" step="1" data-aa-frequent-minimum></label><label>Mínimo para Faltoso <input type="number" min="1" max="99" step="1" data-aa-absent-minimum></label><button class="btn primary" type="button" data-aa-save-thresholds>Salvar percentuais</button><button class="btn secondary" type="button" data-aa-default-thresholds>Usar cálculo padrão</button></div><p data-aa-threshold-explanation></p></section><fieldset class="aa-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-aa-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="assisted-attendance-actions"><button class="btn primary" type="button" data-aa-capture>Capturar chamada aberta</button><button class="btn secondary hidden" type="button" data-aa-import>Importar para os cards</button><button class="btn secondary" type="button" data-aa-clear>Limpar coleta</button><a class="btn secondary" href="downloads/carometro-frequencia-leitura-0.7.0.zip" download>Baixar extensão</a></div><div class="aa-install-help">Depois de baixar, descompacte o arquivo e use <b>Carregar sem compactação</b> em <b>chrome://extensions</b>.</div><div class="meta" data-aa-status>Escolha pelo menos um mês para iniciar.</div><div data-aa-summary></div><div data-aa-students></div></div></section>`;
+  modal.innerHTML = `<section class="modal assisted-attendance-dialog"><div class="modal-head"><div><h3>Frequência Assistida</h3><div class="meta" data-aa-context>Escolha os meses e abra as chamadas verdes no SIAP.</div></div><button class="close" type="button" data-aa-close>×</button></div><div class="assisted-attendance-body"><div class="assisted-attendance-guide"><b>Captura do professor conselheiro</b><span>Esta captura fica vinculada à turma em que você é conselheiro. Escolha os meses, abra cada chamada verde no SIAP e clique em capturar.</span></div><section class="aa-thresholds"><div><b>Classificação por frequência</b><span data-aa-threshold-source></span></div><div class="aa-threshold-fields"><label>Mínimo para Frequente <input type="number" min="2" max="100" step="1" data-aa-frequent-minimum></label><label>Mínimo para Faltoso <input type="number" min="1" max="99" step="1" data-aa-absent-minimum></label><button class="btn primary" type="button" data-aa-save-thresholds>Salvar percentuais</button><button class="btn secondary" type="button" data-aa-default-thresholds>Usar cálculo padrão</button></div><p data-aa-threshold-explanation></p></section><fieldset class="aa-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-aa-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="assisted-attendance-actions"><button class="btn primary" type="button" data-aa-capture>Capturar chamada aberta</button><button class="btn secondary hidden" type="button" data-aa-import>Importar para os cards</button><button class="btn secondary" type="button" data-aa-clear>Limpar coleta</button><a class="btn secondary" href="downloads/carometro-frequencia-leitura-0.7.0.zip" download>Baixar extensão</a></div><div class="aa-install-help">Depois de baixar, descompacte o arquivo e use <b>Carregar sem compactação</b> em <b>chrome://extensions</b>.</div><div class="meta" data-aa-status>Escolha pelo menos um mês para iniciar.</div><div data-aa-summary></div><div data-aa-students></div></div></section>`;
   document.body.appendChild(modal);
   modal.querySelectorAll('[data-aa-frequent-minimum],[data-aa-absent-minimum]').forEach(input => {
     const field = document.createElement('span');
@@ -55,12 +38,12 @@ document.addEventListener('DOMContentLoaded', () => {
     field.appendChild(input);
   });
   const style = document.createElement('style');
-  style.textContent = `.assisted-attendance-modal{z-index:360!important}.assisted-attendance-dialog{width:min(980px,100%);max-height:94vh}.assisted-attendance-body{padding:22px}.assisted-attendance-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #bfd2f6;border-radius:12px;background:#f4f7ff}.assisted-attendance-guide span{font-size:13px;color:var(--muted)}.aa-thresholds{display:grid;gap:10px;margin:16px 0;padding:14px;border:1px solid #cad5e8;border-radius:12px;background:#fbfcff}.aa-thresholds>div:first-child{display:flex;justify-content:space-between;gap:12px}.aa-thresholds [data-aa-threshold-source]{color:var(--muted);font-size:12px}.aa-threshold-fields{display:flex;align-items:end;flex-wrap:wrap;gap:9px}.aa-threshold-fields label{display:grid;gap:5px;font-size:12px;font-weight:700}.aa-threshold-fields input{width:105px;padding:8px;border:1px solid var(--line);border-radius:8px}.aa-thresholds p{margin:0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.aa-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.aa-months legend{padding:0 6px;font-weight:800}.aa-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.aa-months input{width:18px;height:18px}.assisted-attendance-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.assisted-attendance-actions a{text-decoration:none}.aa-install-help{margin:0 0 16px;color:var(--muted);font-size:12px}.aa-progress{display:grid;gap:8px;margin:16px 0}.aa-progress>div{display:grid;gap:3px;padding:12px 14px;border:1px solid #f3c27a;border-radius:10px;background:#fff9ed}.aa-progress>div.complete{border-color:#86d7ae;background:#effcf5}.aa-progress span,.aa-progress small{color:var(--muted)}.aa-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.aa-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.aa-summary b{display:block;font-size:22px}.aa-table{display:grid;gap:7px}.aa-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.aa-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.aa-student-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.aa-student-photo img{width:100%;height:100%;object-fit:cover}.aa-student-name{min-width:0}.aa-student-name b{overflow-wrap:anywhere}.aa-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.aa-bar i{display:block;height:100%;border-radius:inherit}.aa-bar-frequent{background:#16a36a}.aa-bar-absent{background:#e5a000}.aa-bar-active_search{background:#dc3545}.attendance-badge{display:inline-flex;width:max-content;padding:5px 9px;border-radius:99px;font-size:12px;font-weight:800}.attendance-frequent{background:#d1fae5;color:#047857}.attendance-absent{background:#fef3c7;color:#92400e}.attendance-active-search{background:#fee2e2;color:#b91c1c}.aa-unmatched{color:#b42318;font-size:12px}@media(max-width:700px){.aa-months{grid-template-columns:1fr 1fr}.aa-summary{grid-template-columns:1fr 1fr}.aa-row{grid-template-columns:1fr 70px}.aa-row .aa-bar,.aa-row .attendance-badge{grid-column:1/-1}.aa-student{grid-template-columns:48px minmax(0,1fr)}.aa-student-photo{width:48px;height:48px}.aa-threshold-fields{align-items:stretch}.aa-threshold-fields label,.aa-threshold-fields input{width:100%}}`;
+  style.textContent = `.assisted-attendance-modal{z-index:360!important}.assisted-attendance-dialog{width:min(980px,100%);max-height:94vh}.assisted-attendance-body{padding:22px}.assisted-attendance-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #bfd2f6;border-radius:12px;background:#f4f7ff}.assisted-attendance-guide span{font-size:13px;color:var(--muted)}.aa-thresholds{display:grid;gap:10px;margin:16px 0;padding:14px;border:1px solid #cad5e8;border-radius:12px;background:#fbfcff}.aa-thresholds>div:first-child{display:flex;justify-content:space-between;gap:12px}.aa-thresholds [data-aa-threshold-source]{color:var(--muted);font-size:12px}.aa-threshold-fields{display:flex;align-items:end;flex-wrap:wrap;gap:9px}.aa-threshold-fields label{display:grid;gap:5px;font-size:12px;font-weight:700}.aa-threshold-fields input{width:105px;padding:8px;border:1px solid var(--line);border-radius:8px}.aa-thresholds p{margin:0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.aa-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.aa-months legend{padding:0 6px;font-weight:800}.aa-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.aa-months input{width:18px;height:18px}.assisted-attendance-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.assisted-attendance-actions a{text-decoration:none}.aa-install-help{margin:0 0 16px;color:var(--muted);font-size:12px}.aa-progress{display:grid;gap:8px;margin:16px 0}.aa-progress>div{display:grid;gap:3px;padding:12px 14px;border:1px solid #f3c27a;border-radius:10px;background:#fff9ed}.aa-progress>div.complete{border-color:#86d7ae;background:#effcf5}.aa-progress span,.aa-progress small{color:var(--muted)}.aa-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.aa-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.aa-summary b{display:block;font-size:22px}.aa-table{display:grid;gap:7px}.aa-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.aa-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.aa-student-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.aa-student-photo img{width:100%;height:100%;object-fit:cover}.aa-student-name{min-width:0}.aa-student-name b{overflow-wrap:anywhere}.aa-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.aa-bar i{display:block;height:100%;border-radius:inherit}.aa-bar-frequent{background:#16a36a}.aa-bar-absent{background:#e5a000}.aa-bar-active_search{background:#dc3545}.attendance-badge{display:inline-flex;width:max-content;padding:5px 9px;border-radius:99px;font-size:12px;font-weight:800}.attendance-frequent{background:#d1fae5;color:#047857}.attendance-absent{background:#fef3c7;color:#92400e}.attendance-active-search{background:#fee2e2;color:#b91c1c}.aa-unmatched{color:#b42318;font-size:12px}.assisted-attendance-modal.settings-only .assisted-attendance-dialog{width:min(650px,100%)}.assisted-attendance-modal.settings-only .assisted-attendance-guide,.assisted-attendance-modal.settings-only .aa-months,.assisted-attendance-modal.settings-only .assisted-attendance-actions,.assisted-attendance-modal.settings-only .aa-install-help,.assisted-attendance-modal.settings-only [data-aa-status],.assisted-attendance-modal.settings-only [data-aa-summary],.assisted-attendance-modal.settings-only [data-aa-students]{display:none}@media(max-width:700px){.aa-months{grid-template-columns:1fr 1fr}.aa-summary{grid-template-columns:1fr 1fr}.aa-row{grid-template-columns:1fr 70px}.aa-row .aa-bar,.aa-row .attendance-badge{grid-column:1/-1}.aa-student{grid-template-columns:48px minmax(0,1fr)}.aa-student-photo{width:48px;height:48px}.aa-threshold-fields{align-items:stretch}.aa-threshold-fields label,.aa-threshold-fields input{width:100%}}`;
   document.head.appendChild(style);
   style.textContent += `.aa-percent-field{position:relative;display:block;width:105px}.aa-percent-field::after{content:'%';position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:800;pointer-events:none}.aa-percent-field input{padding-right:30px}@media(max-width:700px){.aa-percent-field{width:100%}}`;
 
   const by = selector => modal.querySelector(selector);
-  const canConfigureThresholds = () => permission?.role === 'admin' || permission?.is_coordinator;
+  const canConfigureThresholds = () => ['school_admin','coordinator'].includes(window.getActiveSchoolRole?.());
   const thresholdExplanation = () => `Frequente: ${thresholds.frequentMinimum}% a 100%. Faltoso: ${thresholds.absentMinimum}% a ${thresholds.frequentMinimum - 1}%. Necessita de Busca Ativa: abaixo de ${thresholds.absentMinimum}%.`;
   function renderThresholdSettings() {
     by('[data-aa-frequent-minimum]').value=thresholds.frequentMinimum;
@@ -81,7 +64,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const close = () => modal.classList.add('hidden');
   by('[data-aa-close]').onclick = close;
   modal.onclick = event => { if (event.target === modal) close(); };
-  button.onclick = async () => { if(isMobileDevice())return;modal.classList.remove('hidden');await loadThresholds();await loadCurrentBadges();render(); };
+  async function openForCounselorClass({ classId, className }) {
+    if (!canCaptureClass(classId)) {
+      toast('Somente o professor conselheiro desta turma pode capturar a Frequência Assistida.');
+      return;
+    }
+    if (captureClassId && captureClassId !== classId) {
+      captures.clear();activeContext=null;selectedMonths.clear();
+      modal.querySelectorAll('[data-aa-month]').forEach(input=>{input.checked=false;});
+    }
+    captureClassId=classId;
+    captureClassName=String(className || 'Turma');
+    modal.classList.remove('settings-only');
+    modal.querySelector('h3').textContent='Frequência Assistida';
+    modal.classList.remove('hidden');
+    await loadThresholds();await loadCurrentBadges();render();
+  }
+  async function openAttendanceSettings() {
+    if (!canConfigureThresholds()) return;
+    modal.classList.add('settings-only');
+    modal.querySelector('h3').textContent='Configuração da frequência';
+    by('[data-aa-context]').textContent='Defina os percentuais usados nas etiquetas do professor e da Secretaria.';
+    modal.classList.remove('hidden');
+    await loadThresholds();
+  }
+  window.canCaptureCounselorAttendanceForClass = canCaptureClass;
+  window.openCounselorAssistedAttendance = openForCounselorClass;
+  window.getAssistedAttendancePanelAction = ({ classId } = {}) => [
+    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn secondary">Frequência Assistida</button>' : '',
+    canConfigureThresholds() ? '<button id="openAttendanceSettings" type="button" class="btn secondary">Configurar frequência</button>' : ''
+  ].join('');
+  window.bindAssistedAttendancePanelAction = ({ classId, className } = {}) => {
+    const control=document.getElementById('openCounselorAssistedAttendance');
+    if(control)control.onclick=()=>openForCounselorClass({classId,className});
+    const settingsControl=document.getElementById('openAttendanceSettings');
+    if(settingsControl)settingsControl.onclick=openAttendanceSettings;
+  };
   modal.querySelectorAll('[data-aa-month]').forEach(input=>input.addEventListener('change',()=>{input.checked?selectedMonths.add(input.dataset.aaMonth):selectedMonths.delete(input.dataset.aaMonth);render();}));
   by('[data-aa-save-thresholds]').onclick=async()=>{
     if(!canConfigureThresholds())return;
@@ -91,14 +109,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolId=window.getActiveSchoolId?.();
     const {error}=await db.from('school_siap_attendance_settings').upsert({school_id:schoolId,frequent_minimum:frequentMinimum,absent_minimum:absentMinimum},{onConflict:'school_id'});
     if(error){by('[data-aa-status]').textContent=`Não foi possível salvar os percentuais: ${error.message}`;return;}
-    thresholds={frequentMinimum,absentMinimum,customized:true};await loadCurrentBadges();render('Percentuais personalizados salvos para esta escola.');
+    thresholds={frequentMinimum,absentMinimum,customized:true};
+    await loadCurrentBadges();
+    document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
+    renderThresholdSettings();
+    toast('Percentuais personalizados salvos para esta escola.');
   };
   by('[data-aa-default-thresholds]').onclick=async()=>{
     if(!canConfigureThresholds())return;
     const schoolId=window.getActiveSchoolId?.();
     const {error}=await db.from('school_siap_attendance_settings').delete().eq('school_id',schoolId);
     if(error){by('[data-aa-status]').textContent=`Não foi possível restaurar o cálculo padrão: ${error.message}`;return;}
-    thresholds={...DEFAULT_THRESHOLDS,customized:false};await loadCurrentBadges();render('Cálculo padrão restaurado: Frequente a partir de 75% e Faltoso a partir de 60%.');
+    thresholds={...DEFAULT_THRESHOLDS,customized:false};
+    await loadCurrentBadges();
+    document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
+    renderThresholdSettings();
+    toast('Cálculo padrão restaurado: Frequente a partir de 75% e Faltoso a partir de 60%.');
   };
 
   function aggregate() {
@@ -161,8 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function matchStudents(rows) {
-    const classKey=normalizeClass(activeContext?.className);
-    const candidates=students.filter(student=>normalizeClass(student.className)===classKey);
+    const candidates=students.filter(student=>student.classId===captureClassId);
     const index=new Map();
     candidates.forEach(student=>{ const key=normalizeName(student.name); index.set(key,[...(index.get(key)||[]),student]); });
     return rows.map(row=>({ ...row, matches:index.get(normalizeName(row.name))||[] }));
@@ -197,12 +222,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   by('[data-aa-capture]').onclick=async()=>{
+    if(!canCaptureClass(captureClassId)){by('[data-aa-status]').textContent='Somente o professor conselheiro desta turma pode realizar a captura.';return;}
     if(!selectedMonths.size){by('[data-aa-status]').textContent='Escolha pelo menos um mês antes de capturar.';return;}
     const control=by('[data-aa-capture]'); control.disabled=true; by('[data-aa-status]').textContent='Lendo a chamada aberta no SIAP…';
     try{
     const response=await requestCapture();
     if(!response?.ok){by('[data-aa-status]').textContent=response?.message||'Não foi possível capturar.';return;}
     const snapshot=response.result;
+    if(normalizeClass(snapshot.context?.className)!==normalizeClass(captureClassName)){by('[data-aa-status]').textContent=`A chamada aberta no SIAP não pertence à turma ${captureClassName}.`;return;}
     if(!selectedMonths.has(snapshot.month)){by('[data-aa-status]').textContent=`O mês aberto no SIAP é ${snapshot.month}. Ele não foi escolhido no Carômetro.`;return;}
     const openedDay=Number.parseInt(snapshot.selectedDate.slice(0,2),10);
     if(!eligibleRegisteredDays(snapshot).includes(openedDay)){by('[data-aa-status]').textContent=`A chamada de ${snapshot.selectedDate} ainda não pode entrar no relatório. Somente datas verdes já vencidas e, no dia atual, turnos encerrados são considerados.`;return;}
@@ -229,6 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function persistCompleteCollection(){
     if(saving)return; saving=true;
     try{
+      if(!canCaptureClass(captureClassId))throw new Error('Somente o professor conselheiro desta turma pode importar a frequência.');
       const schoolId=window.getActiveSchoolId?.();
       if(!schoolId)throw new Error('Selecione uma escola no Carômetro.');
       const state=collectionState();
@@ -238,14 +266,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const validDates=new Set(validCaptures.map(item=>item.selectedDate));
       const rows=matchStudents(aggregate()).filter(row=>row.matches.length===1);
       if(!rows.length)throw new Error('Nenhum aluno foi identificado com segurança pelo nome completo.');
-      const periodKey=[activeContext.year,activeContext.term,activeContext.subject,[...complete].sort().join(',')].join('|');
-      const payload=rows.map(row=>({school_id:schoolId,student_id:row.matches[0].id,class_id:row.matches[0].classId,academic_year:Number(activeContext.year),term:activeContext.term,subject:activeContext.subject,months:[...complete],lesson_count:row.lessons,presences:row.presences,absences:row.absences,percentage:row.percentage,status:row.status,period_key:periodKey,source_dates:[...validDates]}));
+      const orderedMonths=[...complete].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
+      const periodKey=[activeContext.year,activeContext.term,activeContext.subject,orderedMonths.join(',')].join('|');
+      const payload=rows.map(row=>({school_id:schoolId,student_id:row.matches[0].id,class_id:captureClassId,academic_year:Number(activeContext.year),term:activeContext.term,subject:activeContext.subject,months:orderedMonths,lesson_count:row.lessons,presences:row.presences,absences:row.absences,percentage:row.percentage,status:row.status,period_key:periodKey,source_dates:[...validDates]}));
       const imported=await db.rpc('import_siap_attendance_results',{p_rows:payload});
       if(imported.error)throw imported.error;
       payload.forEach(row=>currentBadges.set(row.student_id,row.status));
       render();
       window.render?.();
       document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
+      document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
       by('[data-aa-status]').textContent=`${payload.length} aluno(s) sincronizados. Nomes não identificados não foram alterados.`;
     }catch(error){by('[data-aa-status]').textContent=`Coleta concluída, mas ainda não foi gravada: ${error.message}`;}finally{saving=false;}
   }

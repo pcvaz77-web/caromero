@@ -18,7 +18,7 @@ assert.match(migration,/where a\.school_id=p_school_id/);
 assert.match(migration,/where e\.school_id=p_school_id/);
 assert.match(migration,/revoke all on function public\.report_siap_attendance_current\(uuid\) from public/);
 assert.match(reports,/attendanceCurrentByStudent/);
-assert.match(reports,/Frequência do professor/);
-assert.match(index,/reports\.js\?v=13/);
+assert.match(reports,/Professor\/disciplina/);
+assert.match(index,/reports\.js\?v=14/);
 
 console.log('Frequência atual e histórico ficam separados por professor, disciplina, escola e período.');

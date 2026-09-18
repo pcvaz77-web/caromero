@@ -4,10 +4,10 @@ const path=require('node:path');
 const root=path.join(__dirname,'..');
 const reports=fs.readFileSync(path.join(root,'reports.js'),'utf8');
 
-assert.match(reports,/reportContentAttendanceHistory/);
+assert.match(reports,/reportAttendanceTeacher/);
 assert.match(reports,/report_siap_attendance_current/);
 assert.match(reports,/report_siap_attendance_events/);
-assert.match(reports,/SITUAÇÃO ATUAL POR DISCIPLINA E PROFESSOR/);
+assert.match(reports,/FREQUÊNCIA POR PROFESSOR E DISCIPLINA/);
 assert.match(reports,/Professor: \$\{item\.teacher_name\}/);
 assert.match(reports,/HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA/);
 assert.match(reports,/formatDateTime\(event\.changed_at\)/);

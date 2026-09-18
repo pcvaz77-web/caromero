@@ -6,6 +6,7 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const filters = fs.readFileSync(path.join(root, 'student-search-filters.js'), 'utf8');
 const attendance = fs.readFileSync(path.join(root, 'assisted-attendance.js'), 'utf8');
+const schoolDaily = fs.readFileSync(path.join(root, 'school-daily-attendance.js'), 'utf8');
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const appCore = fs.readFileSync(path.join(root, 'app-core.js'), 'utf8');
 
@@ -14,9 +15,10 @@ test('filtros rápidos usam a classificação automática atual da frequência',
   assert.match(filters, /key:'attendance:active_search', status:'active_search', label:'Necessita de Busca Ativa'/);
   assert.match(filters, /getSiapAttendanceStatus\?\.\(student\.id\)/);
   assert.match(filters, /carometro:attendance-status-changed/);
-  assert.match(attendance, /window\.getSiapAttendanceStatus=studentId=>currentBadges\.get\(studentId\)\|\|null/);
+  assert.match(schoolDaily, /window\.getSiapAttendanceStatus = studentId => effectiveBadges\.get\(studentId\)\?\.status \|\| null/);
   assert.match(attendance, /new CustomEvent\('carometro:attendance-status-changed'\)/);
-  assert.match(index, /assisted-attendance\.js\?v=19/);
+  assert.match(index, /assisted-attendance\.js\?v=20/);
+  assert.match(index, /school-daily-attendance\.js\?v=7/);
   assert.match(index, /student-search-filters\.js\?v=8/);
 });
 

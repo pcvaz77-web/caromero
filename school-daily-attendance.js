@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const DEFAULT_THRESHOLDS = Object.freeze({ frequentMinimum:75, absentMinimum:60 });
   const selectedMonths = new Set();
-  const dailyBadges = new Map();
+  const effectiveBadges = new Map();
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
   let collection = null;
   let schoolTerms = [];
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(modal);
 
   const style = document.createElement('style');
-  style.textContent = `.school-daily-attendance-modal{z-index:365!important}.school-daily-attendance-dialog{width:min(980px,100%);max-height:94vh}.sda-context{margin-top:4px;font-size:15px!important;font-weight:850!important;color:var(--text)!important}.school-daily-attendance-body{padding:22px}.sda-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #b9ddcc;border-radius:12px;background:#f1fbf6}.sda-guide span,.sda-install-help{font-size:12px;color:var(--muted)}.sda-capture{display:flex;align-items:center;gap:14px;margin:14px 0 0;padding:16px 18px;border:2px solid #635bff;border-radius:12px;background:#f2f0ff;color:#28205f}.sda-capture.hidden{display:none}.sda-capture strong{display:block;font-size:20px;font-weight:900;line-height:1.2}.sda-capture small{display:block;margin-top:4px;font-size:13px;font-weight:650}.sda-capture-spinner{width:24px;height:24px;flex:0 0 24px;border:3px solid #c9c5ff;border-top-color:#5b50e6;border-radius:50%;animation:sda-spin .8s linear infinite}@keyframes sda-spin{to{transform:rotate(360deg)}}.sda-threshold{margin:14px 0 0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.sda-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.sda-months legend{padding:0 6px;font-weight:800}.sda-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.sda-months input{width:18px;height:18px}.sda-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.sda-actions a{text-decoration:none}.sda-install-help{margin:0 0 16px}.sda-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.sda-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.sda-summary b{display:block;font-size:22px}.sda-table{display:grid;gap:7px;margin-top:16px}.sda-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.sda-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.sda-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.sda-photo img{width:100%;height:100%;object-fit:cover}.sda-name{min-width:0}.sda-name b{overflow-wrap:anywhere}.sda-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.sda-bar i{display:block;height:100%;border-radius:inherit}.sda-bar-frequent{background:#16a36a}.sda-bar-absent{background:#e5a000}.sda-bar-active_search{background:#dc3545}.sda-unmatched{color:#b42318;font-size:12px}.sda-warning{margin-top:12px;padding:10px 12px;border-radius:9px;background:#fff7e8;color:#805200;font-size:12px}.attendance-source-detail{display:grid;gap:4px}.attendance-source-detail small{font-size:11px;font-weight:800;color:var(--muted)}@media(prefers-reduced-motion:reduce){.sda-capture-spinner{animation:none}}@media(max-width:700px){.sda-months{grid-template-columns:1fr 1fr}.sda-summary{grid-template-columns:1fr 1fr}.sda-row{grid-template-columns:1fr 70px}.sda-row .sda-bar,.sda-row .attendance-badge{grid-column:1/-1}.sda-student{grid-template-columns:48px minmax(0,1fr)}.sda-photo{width:48px;height:48px}}`;
+  style.textContent = `.school-daily-attendance-modal{z-index:365!important}.school-daily-attendance-dialog{width:min(980px,100%);max-height:94vh}.sda-context{margin-top:4px;font-size:15px!important;font-weight:850!important;color:var(--text)!important}.school-daily-attendance-body{padding:22px}.sda-guide{display:grid;gap:4px;padding:14px 16px;border:1px solid #b9ddcc;border-radius:12px;background:#f1fbf6}.sda-guide span,.sda-install-help{font-size:12px;color:var(--muted)}.sda-capture{display:flex;align-items:center;gap:14px;margin:14px 0 0;padding:16px 18px;border:2px solid #635bff;border-radius:12px;background:#f2f0ff;color:#28205f}.sda-capture.hidden{display:none}.sda-capture strong{display:block;font-size:20px;font-weight:900;line-height:1.2}.sda-capture small{display:block;margin-top:4px;font-size:13px;font-weight:650}.sda-capture-spinner{width:24px;height:24px;flex:0 0 24px;border:3px solid #c9c5ff;border-top-color:#5b50e6;border-radius:50%;animation:sda-spin .8s linear infinite}@keyframes sda-spin{to{transform:rotate(360deg)}}.sda-threshold{margin:14px 0 0;padding:10px 12px;border-radius:9px;background:#eef4ff;color:#23395d;font-size:13px}.sda-months{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:12px}.sda-months legend{padding:0 6px;font-weight:800}.sda-months label{display:flex;align-items:center;gap:7px;padding:8px;border-radius:8px;background:#f7f9fc}.sda-months input{width:18px;height:18px}.sda-actions{display:flex;flex-wrap:wrap;gap:9px;margin:16px 0 7px}.sda-actions a{text-decoration:none}.sda-install-help{margin:0 0 16px}.sda-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:16px 0}.sda-summary div{padding:13px;border:1px solid var(--line);border-radius:11px;background:#fff}.sda-summary b{display:block;font-size:22px}.sda-table{display:grid;gap:7px;margin-top:16px}.sda-row{display:grid;grid-template-columns:minmax(260px,2fr) 90px minmax(120px,1fr) 210px;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:10px}.sda-student{display:grid;grid-template-columns:54px minmax(0,1fr);align-items:center;gap:12px;min-width:0}.sda-photo{width:54px;height:54px;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:#dce6ff;color:#315dbb;font-size:15px;font-weight:850}.sda-photo img{width:100%;height:100%;object-fit:cover}.sda-name{min-width:0}.sda-name b{overflow-wrap:anywhere}.sda-bar{height:9px;border-radius:99px;background:#e9edf5;overflow:hidden}.sda-bar i{display:block;height:100%;border-radius:inherit}.sda-bar-frequent{background:#16a36a}.sda-bar-absent{background:#e5a000}.sda-bar-active_search{background:#dc3545}.sda-unmatched{color:#b42318;font-size:12px}.sda-warning{margin-top:12px;padding:10px 12px;border-radius:9px;background:#fff7e8;color:#805200;font-size:12px}.attendance-source-detail{display:grid;gap:4px}.attendance-source-detail small{font-size:11px;font-weight:700;color:var(--muted)}.attendance-source-detail small strong{color:var(--navy)}@media(prefers-reduced-motion:reduce){.sda-capture-spinner{animation:none}}@media(max-width:700px){.sda-months{grid-template-columns:1fr 1fr}.sda-summary{grid-template-columns:1fr 1fr}.sda-row{grid-template-columns:1fr 70px}.sda-row .sda-bar,.sda-row .attendance-badge{grid-column:1/-1}.sda-student{grid-template-columns:48px minmax(0,1fr)}.sda-photo{width:48px;height:48px}}`;
   document.head.appendChild(style);
 
   const by = selector => modal.querySelector(selector);
@@ -180,32 +180,67 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  async function loadDailyBadges() {
+  const teacherStatus = window.getSiapAttendanceStatus;
+  const orderedMonths = values => [...new Set(values || [])].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
+  const shortPeriod = values => orderedMonths(values).map(month=>month.slice(0,3)).join('–');
+  const longPeriod = values => {
+    const months=orderedMonths(values);
+    return months.length ? formatMonthList(months) : '';
+  };
+
+  async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
-    const { data, error } = await db.from('siap_school_daily_attendance_current').select('student_id,status,percentage,updated_at').eq('school_id',schoolId).order('updated_at',{ascending:false});
-    if (error) return;
-    dailyBadges.clear();
-    (data || []).forEach(item => {
-      if (!dailyBadges.has(item.student_id)) dailyBadges.set(item.student_id, STATUS[item.status] ? item.status : classify(Number(item.percentage)));
-    });
+    const { data, error } = await db.rpc('get_effective_siap_attendance_labels',{p_school_id:schoolId});
+    effectiveBadges.clear();
+    if (!error) {
+      (data || []).forEach(item => {
+        const status=STATUS[item.status] ? item.status : classify(Number(item.percentage));
+        effectiveBadges.set(item.student_id,{...item,status});
+      });
+    } else {
+      // Compatibilidade durante a aplicação coordenada da migration: nunca
+      // mistura duas etiquetas; professor continua prioritário no fallback.
+      const fallback=await db.from('siap_school_daily_attendance_current').select('student_id,status,percentage,academic_year,term,months,updated_at').eq('school_id',schoolId).order('updated_at',{ascending:false});
+      (fallback.data || []).forEach(item=>{
+        if(!effectiveBadges.has(item.student_id))effectiveBadges.set(item.student_id,{...item,source_key:'secretary'});
+      });
+      students.forEach(student=>{
+        const status=teacherStatus?.(student.id);
+        if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:'Professor conselheiro',updated_at:null});
+      });
+    }
     window.render?.();
+    document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
   }
 
-  const teacherStatus = window.getSiapAttendanceStatus;
-  window.getSchoolDailyAttendanceStatus = studentId => dailyBadges.get(studentId) || null;
-  window.getTeacherAttendanceStatus = studentId => teacherStatus?.(studentId) || null;
-  window.getStudentAttendanceDetails = studentId => [
-    { source:'Secretaria', status:dailyBadges.get(studentId) || null },
-    { source:'Professor', status:teacherStatus?.(studentId) || null }
-  ].filter(item => STATUS[item.status]).map(item => ({ ...item, label:STATUS[item.status].label, className:STATUS[item.status].className }));
-  window.getSiapAttendanceStatus = studentId => dailyBadges.get(studentId) || teacherStatus?.(studentId) || null;
+  window.getSchoolDailyAttendanceStatus = studentId => effectiveBadges.get(studentId)?.source_key==='secretary' ? effectiveBadges.get(studentId).status : null;
+  window.getTeacherAttendanceStatus = studentId => effectiveBadges.get(studentId)?.source_key==='teacher' ? effectiveBadges.get(studentId).status : null;
+  window.getStudentAttendanceDetails = studentId => {
+    const item=effectiveBadges.get(studentId);
+    if(!item||!STATUS[item.status])return [];
+    const source=item.source_key==='teacher'
+      ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`
+      : 'Secretaria';
+    return [{
+      source,
+      status:item.status,
+      label:STATUS[item.status].label,
+      className:STATUS[item.status].className,
+      period:longPeriod(item.months) || item.term || 'Período não informado',
+      updatedAt:item.updated_at || null
+    }];
+  };
+  window.getSiapAttendanceStatus = studentId => effectiveBadges.get(studentId)?.status || null;
   window.getSiapAttendanceBadge = studentId => {
-    const key = dailyBadges.get(studentId) || teacherStatus?.(studentId);
+    const item=effectiveBadges.get(studentId);
+    const key=item?.status;
     if (!key || key === 'frequent') return '';
     const status = STATUS[key];
-    return `<span class="attendance-badge ${status.className}">${status.label}</span>`;
+    const period=shortPeriod(item.months);
+    return `<span class="attendance-badge ${status.className}">${status.label}${period ? ` · ${period}` : ''}</span>`;
   };
+  window.refreshEffectiveAttendanceLabels = loadEffectiveBadges;
 
   async function importCollection() {
     if (!collection || saving) return;
@@ -222,7 +257,7 @@ document.addEventListener('DOMContentLoaded', () => {
         class_id:row.matches[0].classId,
         academic_year:Number(collection.context.year),
         term:collection.context.term,
-        months:collection.months,
+        months:orderedMonths(collection.months),
         school_day_count:row.days,
         presences:row.presences,
         absences:row.absences,
@@ -233,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }));
       const { error } = await db.rpc('import_siap_school_daily_attendance',{p_rows:payload});
       if (error) throw error;
-      await loadDailyBadges();
+      document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
       render(`${payload.length} aluno(s) sincronizado(s). Nomes ausentes ou duplicados não foram alterados.`);
     } catch (error) {
       render(`A leitura foi concluída, mas ainda não foi gravada: ${error.message}`);
@@ -245,7 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   by('[data-sda-close]').onclick = () => modal.classList.add('hidden');
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
-  button.onclick = async () => { if (isMobileDevice() || !hasAccess()) return;modal.classList.remove('hidden');await loadThresholds();await loadDailyBadges();render(); };
+  button.onclick = async () => { if (isMobileDevice() || !hasAccess()) return;modal.classList.remove('hidden');await loadThresholds();await loadEffectiveBadges();render(); };
   modal.querySelectorAll('[data-sda-month]').forEach(input => input.addEventListener('change',()=>{input.checked?selectedMonths.add(input.dataset.sdaMonth):selectedMonths.delete(input.dataset.sdaMonth);collection=null;render();}));
   by('[data-sda-read]').onclick = async () => {
     if (reading) return;
@@ -266,6 +301,7 @@ document.addEventListener('DOMContentLoaded', () => {
   by('[data-sda-import]').onclick = importCollection;
   by('[data-sda-clear]').onclick = () => { collection=null;selectedMonths.clear();modal.querySelectorAll('[data-sda-month]').forEach(input=>{input.checked=false;});render(); };
 
-  document.addEventListener('carometro:school-context-changed', async () => { dailyBadges.clear();collection=null;schoolTerms=[];await loadThresholds();await loadDailyBadges();render(); });
-  setTimeout(loadDailyBadges, 1700);
+  document.addEventListener('carometro:school-context-changed', async () => { effectiveBadges.clear();collection=null;schoolTerms=[];await loadThresholds();await loadEffectiveBadges();render(); });
+  document.addEventListener('carometro:attendance-data-changed', loadEffectiveBadges);
+  setTimeout(loadEffectiveBadges, 1700);
 });

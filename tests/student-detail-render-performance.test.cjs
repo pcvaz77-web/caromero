@@ -18,7 +18,8 @@ test('abrir e fechar o detalhe não reconstrói a lista inteira', () => {
 });
 
 test('atualização de frequência não provoca segundo redesenho completo', () => {
-  assert.match(attendance, /if\(allowed===lastAllowed\)return/);
+  assert.match(attendance, /canCaptureClass/);
+  assert.doesNotMatch(attendance, /setInterval\(syncAccess/);
   assert.match(filters, /addEventListener\('carometro:attendance-status-changed', renderChipCounts\)/);
   assert.doesNotMatch(filters, /carometro:attendance-status-changed'[^\n]+window\.render/);
 });

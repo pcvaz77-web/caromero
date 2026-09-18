@@ -29,8 +29,10 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="reports-checks">
         <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
         <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
-        <label class="check"><input type="checkbox" id="reportContentSchoolDailyAttendance"> Frequência da Secretaria</label>
-        <label class="check"><input type="checkbox" id="reportContentAttendanceHistory" checked> Frequência do professor</label>
+        <span class="reports-attendance-label">Frequência:</span>
+        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher" checked> Professor/disciplina</label>
+        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Secretaria</label>
+        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none"> Não incluir</label>
         <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
         <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
         <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
@@ -59,6 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     .reports-section { margin-bottom:16px; }
     .reports-section-title { display:block; margin-bottom:8px; font-size:11px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
     .reports-checks { display:flex; flex-wrap:wrap; gap:14px 20px; }
+    .reports-attendance-label { align-self:center; font-size:13px; font-weight:800; color:var(--navy); }
     .reports-preview { padding:11px 14px; border-radius:9px; background:#f4f7ff; color:#315dbb; font-weight:750; font-size:13.5px; margin-bottom:14px; }
     .reports-progress { margin-bottom:14px; }
     .reports-progress-bar { height:8px; border-radius:99px; background:#edf0f4; overflow:hidden; }
@@ -190,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function currentFilters() {
+    const attendanceSource = document.querySelector('input[name="reportAttendanceSource"]:checked')?.value || 'teacher';
     return {
       schoolId: window.getActiveSchoolId?.() || null,
       shift: get('reportShift').value || null,
@@ -199,8 +203,9 @@ document.addEventListener('DOMContentLoaded', () => {
       end: get('reportEnd').value || null,
       withOccurrences: get('reportContentOccurrences').checked,
       withObservations: get('reportContentObservations').checked,
-      withAttendanceHistory: get('reportContentAttendanceHistory').checked,
-      withSchoolDailyAttendance: get('reportContentSchoolDailyAttendance').checked,
+      attendanceSource,
+      withAttendanceHistory: attendanceSource === 'teacher',
+      withSchoolDailyAttendance: attendanceSource === 'secretary',
       withPhoto: get('reportContentPhoto').checked,
       withLivroRevisa: get('reportContentLivroRevisa').checked,
       // Ano letivo do Livro/Revisa — independente do período de Ocorrências
@@ -707,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
       doc.text('FREQUÊNCIA DIÁRIA GERAL — SECRETARIA', MARGIN_X, y);y += 8;
       const currentAttendance=schoolDailyCurrentByStudent.get(student.student_id)||[];
-      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma frequência da Secretaria importada.',MARGIN_X,y);y+=9;}
+      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Sem captura da Secretaria para o período.',MARGIN_X,y);y+=9;}
       else currentAttendance.forEach(item=>{
         y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
@@ -742,9 +747,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
       y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
       doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
-      doc.text('SITUAÇÃO ATUAL POR DISCIPLINA E PROFESSOR', MARGIN_X, y);y += 8;
+      doc.text('FREQUÊNCIA POR PROFESSOR E DISCIPLINA', MARGIN_X, y);y += 8;
       const currentAttendance=attendanceCurrentByStudent.get(student.student_id)||[];
-      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma frequência atual importada.',MARGIN_X,y);y+=9;}
+      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Sem captura do professor para o período.',MARGIN_X,y);y+=9;}
       else currentAttendance.forEach(item=>{
         y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
@@ -1027,7 +1032,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_source:filters.attendanceSource, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,
@@ -1080,7 +1085,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportContentAttendanceHistory', 'reportContentSchoolDailyAttendance', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportAttendanceTeacher', 'reportAttendanceSecretary', 'reportAttendanceNone', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
   get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);

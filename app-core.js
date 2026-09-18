@@ -23,10 +23,18 @@ const esc = value => {
 };
 const ini = value => (value || '').split(' ').filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
 const badge = value => value ? `<span class="pill ${value === 'Laudo' ? 'report' : value === 'Dificuldade leve' ? 'light' : 'severe'}">${esc(value)}</span>` : '';
+const attendanceUpdatedLabel = value => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(date);
+};
 const attendanceDetails = studentId => {
   const items = window.getStudentAttendanceDetails?.(studentId) || [];
   if (!items.length) return window.getSiapAttendanceBadge?.(studentId) || '';
-  return items.map(item => `<div class="attendance-source-detail"><small>${esc(item.source)}</small><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span></div>`).join('');
+  return items.map(item => {
+    const updated=attendanceUpdatedLabel(item.updatedAt);
+    return `<div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>`;
+  }).join('');
 };
 const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;
 const toast = message => {

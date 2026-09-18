@@ -436,27 +436,35 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
     modal.classList.remove('hidden');
     const content = document.getElementById('classroomMapContent');
+    const actionContext = { classId:activeClassId, className:selected?.name || 'Turma' };
     const siapActions = window.getSiapPanelActions?.({ permission, canManageClass:activeCanEdit }) || '';
+    const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
+    const panelActions = `${siapActions}${attendanceAction}`;
+    const bindPanelActions = () => {
+      window.bindSiapPanelActions?.(actionContext);
+      window.bindAssistedAttendancePanelAction?.(actionContext);
+    };
     if (activeCanEdit) {
-      content.innerHTML = `<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${siapActions}</div>`;
+      content.innerHTML = `<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${panelActions}</div>`;
       document.getElementById('editClassroomMap').onclick = openEditor;
-      window.bindSiapPanelActions?.({ classId:activeClassId, className:selected?.name || 'Turma' });
+      bindPanelActions();
       return;
     }
     content.innerHTML = '<div class="empty">Consultando o mapeamento publicado…</div>';
     try {
       const published = publishedByClass.get(activeClassId) || await fetchMap(activeClassId, false);
       if (!published) {
-        content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>O mapeamento desta turma ainda não foi publicado pelo conselheiro ou pela gestão.</p>${siapActions ? `<div class="classroom-panel-actions">${siapActions}</div>` : ''}</div>`;
-        window.bindSiapPanelActions?.({ classId:activeClassId, className:selected?.name || 'Turma' });
+        content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>O mapeamento desta turma ainda não foi publicado pelo conselheiro ou pela gestão.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+        bindPanelActions();
         return;
       }
       publishedByClass.set(activeClassId, published);
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Consulte onde cada estudante se senta no mapeamento atualmente publicado.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${siapActions}</div></div>`;
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Consulte onde cada estudante se senta no mapeamento atualmente publicado.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${panelActions}</div></div>`;
       document.getElementById('viewPublishedClassroomMap').onclick = () => openViewer(activeClassId);
-      window.bindSiapPanelActions?.({ classId:activeClassId, className:selected?.name || 'Turma' });
+      bindPanelActions();
     } catch {
-      content.innerHTML = '<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Não foi possível consultar o mapeamento agora. Tente novamente.</p></div>';
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Não foi possível consultar o mapeamento agora. Tente novamente.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+      bindPanelActions();
     }
   }
 
