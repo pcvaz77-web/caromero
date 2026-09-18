@@ -22,6 +22,9 @@ test('etiqueta cinza so aparece quando o aluno estiver marcado', () => {
   assert.match(index, /class="guardian-contact-pill"/);
   assert.match(editor, /\.guardian-contact-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
   assert.match(editor, /row\.show_guardian_on_card = showGuardianOnCard\.checked/);
+  assert.match(editor, /guardianName:\s*item\.guardian_name\s*\|\|\s*''/);
+  assert.match(editor, /guardianPhone:\s*item\.guardian_phone\s*\|\|\s*''/);
+  assert.match(editor, /showGuardianOnCard:\s*!!item\.show_guardian_on_card/);
 });
 
 test('permissao especifica aparece para professor coordenacao secretaria e administrador', () => {
@@ -45,5 +48,5 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
   assert.match(index, /permissions-and-details\.js\?v=63/);
-  assert.match(index, /student-edit-improvements\.js\?v=105/);
+  assert.match(index, /student-edit-improvements\.js\?v=106/);
 });
