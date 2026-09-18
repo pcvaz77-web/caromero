@@ -46,11 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const canConfigureThresholds = () => ['school_admin','coordinator'].includes(window.getActiveSchoolRole?.());
   const thresholdExplanation = () => `Frequente: ${thresholds.frequentMinimum}% a 100%. Faltoso: ${thresholds.absentMinimum}% a ${thresholds.frequentMinimum - 1}%. Necessita de Busca Ativa: abaixo de ${thresholds.absentMinimum}%.`;
   function renderThresholdSettings() {
+    const canConfigure=canConfigureThresholds();
     by('[data-aa-frequent-minimum]').value=thresholds.frequentMinimum;
     by('[data-aa-absent-minimum]').value=thresholds.absentMinimum;
     by('[data-aa-threshold-source]').textContent=thresholds.customized?'Percentuais personalizados desta escola':'Cálculo padrão: 75% e 60%';
     by('[data-aa-threshold-explanation]').textContent=thresholdExplanation();
-    modal.querySelectorAll('[data-aa-frequent-minimum],[data-aa-absent-minimum],[data-aa-save-thresholds],[data-aa-default-thresholds]').forEach(control=>{control.disabled=!canConfigureThresholds();});
+    modal.querySelector('.aa-threshold-fields').classList.toggle('hidden',!canConfigure);
+    modal.querySelectorAll('[data-aa-frequent-minimum],[data-aa-absent-minimum],[data-aa-save-thresholds],[data-aa-default-thresholds]').forEach(control=>{control.disabled=!canConfigure;});
   }
   async function loadThresholds() {
     const schoolId=window.getActiveSchoolId?.();
@@ -91,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.canCaptureCounselorAttendanceForClass = canCaptureClass;
   window.openCounselorAssistedAttendance = openForCounselorClass;
   window.getAssistedAttendancePanelAction = ({ classId } = {}) => [
-    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn secondary">Frequência Assistida</button>' : '',
+    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn primary">Frequência Assistida</button>' : '',
     canConfigureThresholds() ? '<button id="openAttendanceSettings" type="button" class="btn secondary">Configurar frequência</button>' : ''
   ].join('');
   window.bindAssistedAttendancePanelAction = ({ classId, className } = {}) => {

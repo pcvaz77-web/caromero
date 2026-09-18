@@ -14,6 +14,7 @@ test('Frequência Assistida sai das permissões gerais e entra no Painel da Turm
   assert.doesNotMatch(permissions, /setAttendancePermission/);
   assert.doesNotMatch(attendance, /assistedAttendanceNav/);
   assert.match(attendance, /getAssistedAttendancePanelAction/);
+  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn primary">Frequência Assistida/);
   assert.match(classroom, /getAssistedAttendancePanelAction/);
   assert.match(classroom, /bindAssistedAttendancePanelAction/);
 });
@@ -40,6 +41,11 @@ test('gestão configura percentuais sem receber acesso à captura', () => {
   assert.match(attendance, /openAttendanceSettings/);
   assert.match(attendance, />Configurar frequência<\/button>/);
   assert.match(attendance, /settings-only/);
+});
+
+test('professor vê os critérios sem controles de configuração', () => {
+  assert.match(attendance, /\.aa-threshold-fields'\)\.classList\.toggle\('hidden',!canConfigure\)/);
+  assert.match(attendance, /control\.disabled=!canConfigure/);
 });
 
 console.log('Frequência Assistida contextual ao professor conselheiro aprovada.');
