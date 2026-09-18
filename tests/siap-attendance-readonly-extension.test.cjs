@@ -8,10 +8,34 @@ const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'u
 const content = fs.readFileSync(path.join(root, 'content.js'), 'utf8');
 const bridge = fs.readFileSync(path.join(root, 'carometro-bridge.js'), 'utf8');
 const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
+const popup = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
+const privacy = fs.readFileSync(path.join(__dirname, '..', 'frequencia-extensao-privacidade.html'), 'utf8');
+
+function pngSize(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  assert.equal(buffer.subarray(1, 4).toString('ascii'), 'PNG', `${filePath} deve ser PNG`);
+  return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+}
 
 assert.equal(manifest.manifest_version, 3);
+assert.equal(manifest.version, '0.7.1');
 assert.deepEqual(manifest.host_permissions, ['https://siap.educacao.go.gov.br/*', 'https://sistemacarometro.com.br/*']);
 assert.deepEqual(manifest.permissions, ['tabs', 'scripting']);
+assert.equal(manifest.action.default_popup, 'popup.html');
+assert.equal(manifest.icons['128'], 'icons/carometro-128.png');
+assert.ok(manifest.description.length <= 132);
+assert.equal(manifest.homepage_url, 'https://sistemacarometro.com.br/');
+assert.ok(fs.existsSync(path.join(root, manifest.action.default_popup)));
+for (const [size, iconPath] of Object.entries(manifest.icons)) {
+  assert.ok(fs.existsSync(path.join(root, iconPath)), `ícone ausente: ${iconPath}`);
+  assert.deepEqual(pngSize(path.join(root, iconPath)), { width: Number(size), height: Number(size) });
+}
+assert.match(popup, /Extensão instalada e pronta/);
+assert.match(popup, /Somente leitura/);
+assert.match(popup, /frequencia-extensao-privacidade\.html/);
+assert.doesNotMatch(popup, /<script/i);
+assert.match(privacy, /não grava nomes ou frequências no armazenamento do navegador/i);
+assert.match(privacy, /não altera dados no SIAP/i);
 assert.doesNotMatch(content, /chrome\.(cookies|history|storage)|fetch\s*\(|XMLHttpRequest|sendBeacon/);
 assert.doesNotMatch(content, /btnAlterar.*click|btnExcluirFrequencia.*click/);
 assert.doesNotMatch(content, /\.ausente\s*=|dataset\.ausente\s*=/);

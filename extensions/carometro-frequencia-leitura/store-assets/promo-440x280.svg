@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="440" height="280" viewBox="0 0 440 280">
+  <defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#17233d"/><stop offset="1" stop-color="#303c74"/></linearGradient><linearGradient id="p" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#7da8f5"/><stop offset="1" stop-color="#8266ef"/></linearGradient></defs>
+  <rect width="440" height="280" rx="20" fill="url(#bg)"/>
+  <circle cx="394" cy="34" r="88" fill="#695ee5" opacity=".25"/><circle cx="24" cy="264" r="88" fill="#5d8fe8" opacity=".18"/>
+  <rect x="34" y="34" width="56" height="56" rx="16" fill="url(#p)"/><path d="M62 47c4 11 10 17 21 21-11 4-17 10-21 21-4-11-10-17-21-21 11-4 17-10 21-21z" fill="#17233d"/>
+  <g font-family="Arial,sans-serif"><text x="34" y="126" fill="#fff" font-size="26" font-weight="700">Carômetro Frequência</text><text x="34" y="157" fill="#ced6ee" font-size="16">Leitura segura das frequências</text><text x="34" y="179" fill="#ced6ee" font-size="16">já registradas no SIAP.</text><rect x="34" y="210" width="175" height="38" rx="19" fill="#daf6e6"/><circle cx="55" cy="229" r="6" fill="#25a466"/><text x="70" y="234" fill="#176b43" font-size="14" font-weight="700">Somente leitura</text></g>
+</svg>

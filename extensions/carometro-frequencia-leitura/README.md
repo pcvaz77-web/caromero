@@ -28,7 +28,13 @@ Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporári
 - Na Frequência Diária, conta somente turmas preenchidas no prazo ou fora do prazo; dias brancos, não letivos e exceções são ignorados.
 - Identifica alunos pelo nome completo normalizado, sem considerar numeração antes/depois do nome, caixa ou acentuação.
 
-## Instalação local para teste
+## Instalação pela Chrome Web Store
+
+A versão de distribuição deve ser instalada pelo link exibido no Carômetro. A Chrome Web Store cuida da instalação e das atualizações automáticas, sem exigir descompactação ou Modo do desenvolvedor.
+
+Enquanto a primeira versão aguarda análise da loja, o pacote local anterior continua disponível para não interromper as escolas.
+
+## Instalação local para desenvolvimento
 
 1. Abra `chrome://extensions`.
 2. Ative **Modo do desenvolvedor**.
@@ -36,4 +42,4 @@ Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporári
 4. Selecione esta pasta.
 5. Entre normalmente no SIAP e abra o Diário do Professor.
 
-Instalar a extensão altera o navegador e deve ser uma decisão consciente do usuário. O pacote ainda não foi publicado na Chrome Web Store.
+Este procedimento é apenas para desenvolvimento e testes. Usuários finais devem usar a Chrome Web Store.

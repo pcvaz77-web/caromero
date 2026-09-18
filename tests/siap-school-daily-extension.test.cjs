@@ -9,7 +9,7 @@ const content = fs.readFileSync(path.join(root, 'content.js'), 'utf8');
 const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
 const bridge = fs.readFileSync(path.join(root, 'carometro-bridge.js'), 'utf8');
 
-assert.equal(manifest.version, '0.7.0');
+assert.equal(manifest.version, '0.7.1');
 assert.match(content, /FrequenciaDiaria\.aspx/);
 assert.match(content, /\.containerTurmaTurno/);
 assert.match(content, /\.listaTurmas\[data-codigoturma\]/);

@@ -1,10 +1,25 @@
 {
   "manifest_version": 3,
   "name": "Carômetro Frequência — Leitura",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Consulta frequências já salvas no Diário do Professor e na Frequência Diária do SIAP.",
+  "homepage_url": "https://sistemacarometro.com.br/",
   "background": { "service_worker": "background.js" },
   "permissions": ["tabs", "scripting"],
+  "action": {
+    "default_title": "Carômetro Frequência — Leitura",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/carometro-16.png",
+      "32": "icons/carometro-32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/carometro-16.png",
+    "32": "icons/carometro-32.png",
+    "48": "icons/carometro-48.png",
+    "128": "icons/carometro-128.png"
+  },
   "content_scripts": [
     {
       "matches": ["https://sistemacarometro.com.br/*"],
