@@ -268,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(syncObservationsNavigation, 0);
   const observationManager = document.createElement('div');
   observationManager.className = 'photo-picker observation-manager-overlay hidden';
-  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><div class="observation-manager-head"><div><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span></div><button type="button" class="close observation-manager-close" id="closeObservationManager" aria-label="Fechar">×</button></div><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><label class="top-observation-toggle"><input id="newObservationTopPriority" type="checkbox"> <span><b>Colocar no topo das listas</b><small>Alunos com esta etiqueta aparecerão primeiro na turma, no turno e na lista geral.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div></form>';
+  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><div class="observation-manager-head"><div><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span></div><button type="button" class="close observation-manager-close" id="closeObservationManager" aria-label="Fechar">×</button></div><div class="observation-name-field"><label for="newObservation">Nome da etiqueta</label><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"></div><div class="observation-behavior"><span class="observation-behavior-title">Comportamento da etiqueta</span><div class="observation-toggle-grid"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar no card</b><small>Mostra a etiqueta abaixo do nome do aluno.</small></span></label><label class="top-observation-toggle"><input id="newObservationTopPriority" type="checkbox"> <span><b>Topo das listas</b><small>Prioriza o aluno na turma, no turno e na lista geral.</small></span></label></div></div><button class="btn primary observation-add-button">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div></form>';
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const observationChoices = document.createElement('div');
@@ -719,21 +719,35 @@ document.addEventListener('DOMContentLoaded', () => {
     .clear-observations { margin-top:9px; color:var(--danger); }
     @media(max-width:800px) { .observation-choices { grid-template-columns:1fr; max-height:35dvh; } }
     .observation-manager input { width:100%; }
+    .observation-name-field { display:grid; gap:7px; }
+    .observation-name-field label,.observation-behavior-title { margin:0; color:#344054; font-size:12px; font-weight:800; letter-spacing:.02em; }
+    .observation-name-field input { min-height:44px; border-color:#d7deea; border-radius:11px; background:#fbfcfe; }
+    .observation-name-field input:focus { background:#fff; }
     .observation-manager-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
     .observation-manager-head > div { display:grid; gap:7px; min-width:0; }
     .observation-manager-head > div > span { margin:0; }
     .observation-manager-close { flex:none; width:36px; height:36px; display:grid; place-items:center; margin:-8px -8px 0 0; padding:0; border-radius:10px; background:#f1f4f9; color:var(--navy); font-size:25px; line-height:1; }
     .observation-manager-close:hover,.observation-manager-close:focus-visible { background:#e5eaf3; color:var(--blue); }
+    .observation-behavior { display:grid; gap:8px; }
+    .observation-toggle-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
     .custom-observation-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
-    .pin-observation-toggle,.top-observation-toggle,.custom-pin-toggle,.custom-top-toggle { display:flex; align-items:center; gap:8px; color:var(--navy); cursor:pointer; }
-    .pin-observation-toggle,.top-observation-toggle { padding:10px; border:1px solid #d9e2f1; border-radius:8px; background:#f8fffb; }
-    .top-observation-toggle { background:#f5f8ff; }
-    .pin-observation-toggle span,.top-observation-toggle span { display:grid; gap:2px; }
-    .pin-observation-toggle small,.top-observation-toggle small { color:var(--muted); font-size:12px; font-weight:500; }
+    .pin-observation-toggle,.top-observation-toggle,.custom-pin-toggle,.custom-top-toggle { display:flex; align-items:flex-start; gap:10px; margin:0; color:var(--navy); cursor:pointer; }
+    .pin-observation-toggle,.top-observation-toggle { min-height:82px; padding:13px; border:1px solid #dfe5ef; border-radius:12px; background:#fbfcfe; box-shadow:0 1px 2px #1018280a; transition:border-color .16s ease,background .16s ease,box-shadow .16s ease,transform .16s ease; }
+    .pin-observation-toggle:hover,.top-observation-toggle:hover { border-color:#bcc9e1; background:#fff; transform:translateY(-1px); }
+    .pin-observation-toggle:has(input:checked),.top-observation-toggle:has(input:checked) { border-color:#a9b9f8; background:#f5f7ff; box-shadow:0 0 0 3px #6377e512; }
+    .pin-observation-toggle span,.top-observation-toggle span { display:grid; gap:3px; min-width:0; }
+    .pin-observation-toggle b,.top-observation-toggle b { color:#27324a; font-size:14px; line-height:1.2; }
+    .pin-observation-toggle small,.top-observation-toggle small { color:#667085; font-size:11.5px; font-weight:500; line-height:1.35; }
+    .observation-manager input[type="checkbox"] { appearance:none; -webkit-appearance:none; display:grid; place-content:center; flex:0 0 18px; width:18px !important; height:18px; min-height:18px; margin:1px 0 0; padding:0; border:1.5px solid #b7c1d4; border-radius:5px; background:#fff; box-shadow:0 1px 2px #1018280d; transition:border-color .14s ease,background .14s ease,box-shadow .14s ease; }
+    .observation-manager input[type="checkbox"]::before { content:""; width:8px; height:4px; border-left:2px solid #fff; border-bottom:2px solid #fff; transform:translateY(-1px) rotate(-45deg) scale(0); transform-origin:center; transition:transform .12s ease; }
+    .observation-manager input[type="checkbox"]:checked { border-color:#5268df; background:linear-gradient(145deg,#5268df,#7047dd); box-shadow:0 0 0 3px #6377e51f; }
+    .observation-manager input[type="checkbox"]:checked::before { transform:translateY(-1px) rotate(-45deg) scale(1); }
+    .observation-manager input[type="checkbox"]:focus-visible { outline:2px solid #8da2fb; outline-offset:2px; }
     .custom-pin-toggle,.custom-top-toggle { white-space:nowrap; font-size:12px; font-weight:700; }
-    @media(max-width:560px) { .custom-observation-item { grid-template-columns:minmax(0,1fr) auto auto; } .custom-observation-item > span { grid-column:1/-1; } }
+    .observation-add-button { width:100%; border-radius:10px; }
+    @media(max-width:560px) { .observation-toggle-grid { grid-template-columns:1fr; } .pin-observation-toggle,.top-observation-toggle { min-height:70px; } .custom-observation-item { grid-template-columns:minmax(0,1fr) auto auto; } .custom-observation-item > span { grid-column:1/-1; } }
     .delete-custom-observation { padding:5px 7px; border-radius:6px; background:#fff; border:1px solid #fecdca; color:var(--danger); font-size:12px; font-weight:700; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }

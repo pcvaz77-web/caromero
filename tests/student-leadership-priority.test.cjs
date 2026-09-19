@@ -39,6 +39,14 @@ test('a mesma prioridade configurada e usada nas listas do Meu CEPI', () => {
 });
 
 test('versoes publicas invalidam o cache da regra de prioridade', () => {
-  assert.match(index, /student-edit-improvements\.js\?v=110/);
+  assert.match(index, /student-edit-improvements\.js\?v=111/);
   assert.match(index, /cepi-tutoring\.js\?v=15/);
+});
+
+test('gerenciador apresenta opcoes compactas e checkboxes modernos', () => {
+  assert.match(source, /class="observation-toggle-grid"/);
+  assert.match(source, /Fixar no card/);
+  assert.match(source, /Topo das listas/);
+  assert.match(source, /input\[type="checkbox"\][\s\S]*?width:18px !important/);
+  assert.match(source, /appearance:none/);
 });
