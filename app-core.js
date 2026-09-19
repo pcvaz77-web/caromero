@@ -84,7 +84,9 @@ function render() {
       && (!selectedShift || shiftByClass.get(student.classId) === selectedShift)
       && student.name.toLowerCase().includes(query)
       && (typeof window.matchesQuickFilters !== 'function' || window.matchesQuickFilters(student)))
-    .sort((left, right) => left.name.localeCompare(right.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
+    .sort((left, right) => typeof window.compareStudentsForList === 'function'
+      ? window.compareStudentsForList(left, right)
+      : left.name.localeCompare(right.name, 'pt-BR', { numeric:true, sensitivity:'base' }));
   const visibleItems = items.slice(0, visibleStudentLimit);
   const selected = classes.find(item => item.id === selectedClassId);
   $('total').textContent = students.length;

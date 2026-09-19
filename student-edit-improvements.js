@@ -138,16 +138,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('studentForm');
   const photoInput = document.getElementById('photoFile');
   photoInput.closest('.photo').querySelector('label').textContent = 'Foto do aluno';
-  const defaultObservationLabels = new Set(['Laudo (DI)', 'Laudo (TEA)', 'Não alfabetizado']);
   const fallbackObservations = [
-    { value: '', label: 'Nenhum', standard: true },
-    { value: 'Laudo (DI)', label: 'Laudo (DI)', standard: true },
-    { value: 'Laudo (TEA)', label: 'Laudo (TEA)', standard: true },
-    { value: 'Não alfabetizado', label: 'Não alfabetizado', standard: true }
+    { value: '', label: 'Nenhum' }
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
   let pinnedObservationLabels = new Set();
+  let topPriorityObservationLabels = new Set();
   const observationDisplayLabel = value => String(value || '')
     .replace(/\s*[⭐🌟]\uFE0F?\s*$/u, '')
     .trim();
@@ -164,10 +161,6 @@ document.addEventListener('DOMContentLoaded', () => {
       'Não': ''
     }[value] || value || '');
   };
-  const isLeadershipObservation = value => {
-    const normalized = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-    return value === 'Representante de turma' || /\blider\b/.test(normalized);
-  };
   const decodeObservationValues = value => {
     if (!value) return [];
     try {
@@ -176,8 +169,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch {}
     return [normalizeObservation(value)].filter(Boolean);
   };
-  window.studentLeadershipObservations = value => decodeObservationValues(value).filter(isLeadershipObservation);
-  window.studentHasLeadershipObservation = value => window.studentLeadershipObservations(value).length > 0;
+  window.studentTopPriorityObservations = value => decodeObservationValues(value).filter(label => topPriorityObservationLabels.has(label));
+  window.studentHasTopPriorityObservation = value => window.studentTopPriorityObservations(value).length > 0;
+  // Mantém compatibilidade com o painel de Tutoria enquanto a regra deixa de
+  // depender dos nomes "Líder" e "Representante" e passa a ser configurável.
+  window.studentLeadershipObservations = window.studentTopPriorityObservations;
+  window.studentHasLeadershipObservation = window.studentHasTopPriorityObservation;
+  const studentSortName = value => String(value || '').replace(/^\s*\d+\s*(?:[.\-)–—:]\s*)?/, '').trim();
+  window.compareStudentsForList = (left,right) => {
+    const topLeft = window.studentHasTopPriorityObservation(left?.report);
+    const topRight = window.studentHasTopPriorityObservation(right?.report);
+    if (topLeft !== topRight) return topLeft ? -1 : 1;
+    return studentSortName(left?.name).localeCompare(studentSortName(right?.name), 'pt-BR', { numeric:true, sensitivity:'base' });
+  };
   const encodeObservationValues = values => values.length ? JSON.stringify(values) : '';
   const decodeObservations = value => {
     if (!value) return [];
@@ -264,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(syncObservationsNavigation, 0);
   const observationManager = document.createElement('div');
   observationManager.className = 'photo-picker observation-manager-overlay hidden';
-  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><div class="observation-manager-head"><div><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span></div><button type="button" class="close observation-manager-close" id="closeObservationManager" aria-label="Fechar">×</button></div><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div></form>';
+  observationManager.innerHTML = '<form class="photo-picker-card observation-manager" id="observationManagerForm"><div class="observation-manager-head"><div><b>Gerenciar observações</b><span>Adicione opções que ficarão disponíveis para usuários autorizados.</span></div><button type="button" class="close observation-manager-close" id="closeObservationManager" aria-label="Fechar">×</button></div><input id="newObservation" maxlength="80" required placeholder="Ex.: Excelente aluno"><label class="pin-observation-toggle"><input id="newObservationPinned" type="checkbox"> <span><b>Fixar</b><small>A etiqueta ficará fixa abaixo do nome do aluno.</small></span></label><label class="top-observation-toggle"><input id="newObservationTopPriority" type="checkbox"> <span><b>Colocar no topo das listas</b><small>Alunos com esta etiqueta aparecerão primeiro na turma, no turno e na lista geral.</small></span></label><button class="btn primary">Adicionar observação</button><div id="customObservationList" class="custom-observation-list"></div></form>';
   document.body.appendChild(observationManager);
   const escapeHtml = value => { const element = document.createElement('div'); element.textContent = value; return element.innerHTML; };
   const observationChoices = document.createElement('div');
@@ -284,19 +288,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const renderCustomObservations = () => {
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
-      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}${option.standard ? '<small class="default-observation-mark">Padrão</small>' : ''}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label>${option.standard ? '' : `<button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button>`}</div>`).join('')}`
+      ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label><label class="custom-top-toggle"><input type="checkbox" data-top-id="${option.id}" ${option.isTopPriority ? 'checked' : ''}> Topo</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
       : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
   async function loadObservationOptions() {
     if (observationOptionsLoaded) return;
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { observations = [fallbackObservations[0]]; observationOptionsLoaded = true; return; }
-    let query = db.from('observation_options').select('id,label,is_pinned').order('display_order').order('created_at');
+    let query = db.from('observation_options').select('id,label,is_pinned,is_top_priority').order('display_order').order('created_at');
     query = query.eq('school_id', schoolId);
     const { data, error } = await query;
     if (error) return;
-    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, standard: defaultObservationLabels.has(item.label), isPinned: item.is_pinned === true }))];
+    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, isPinned: item.is_pinned === true, isTopPriority:item.is_top_priority === true }))];
     pinnedObservationLabels = new Set(observations.filter(option => option.isPinned).map(option => option.value));
+    topPriorityObservationLabels = new Set(observations.filter(option => option.isTopPriority).map(option => option.value));
     observationOptionsLoaded = true;
     const selected = selectedObservationValues();
     configureObservationField('report');
@@ -306,13 +311,15 @@ document.addEventListener('DOMContentLoaded', () => {
     syncStudentCardLaudoLabels();
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   }
-  document.addEventListener('carometro:observations-changed', () => {
+  document.addEventListener('carometro:observations-changed', async () => {
     observationOptionsLoaded = false;
-    loadObservationOptions();
+    await loadObservationOptions();
+    render();
   });
   document.addEventListener('carometro:school-context-ready', () => {
     observationOptionsLoaded = false;
     pinnedObservationLabels = new Set();
+    topPriorityObservationLabels = new Set();
     loadObservationOptions();
   });
   const observationColorClass = text => ({
@@ -353,14 +360,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   };
   const applyObservationColors = () => {
-    const leadershipStudents = [];
     document.querySelectorAll('#list .pill').forEach(pill => {
       if (pill.dataset.observationLabel === 'true') return;
       const studentCard = pill.closest('.student');
-      const values = decodeObservations(pill.textContent.trim());
-      const hasLeadershipRole = values.some(isLeadershipObservation);
       if (studentCard) {
-        if (hasLeadershipRole) leadershipStudents.push(studentCard);
         const studentId = studentCard.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
         const student = students.find(item => item.id === studentId);
         const meta = studentCard.querySelector(':scope > div:nth-child(2) .meta');
@@ -376,7 +379,6 @@ document.addEventListener('DOMContentLoaded', () => {
         labelArea.classList.remove('student-observation-labels', 'hidden');
       }
     });
-    if (leadershipStudents.length) document.getElementById('list').prepend(...leadershipStudents);
     ensureStudentEditActions();
     document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
   };
@@ -701,7 +703,6 @@ document.addEventListener('DOMContentLoaded', () => {
     .representative-label { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; font-size:12px; font-weight:750; }
     .representative-label.observation-custom-4 { background:#e0f2fe; color:#0369a1; }
     .pinned-label,.pill.observation-pinned { display:inline-flex; align-items:center; padding:4px 8px; border-radius:99px; background:#d1fae5; color:#047857; font-size:12px; font-weight:750; }
-    .default-observation-mark { display:inline-flex; margin-left:7px; padding:2px 6px; border-radius:99px; background:#e8efff; color:#315dbb; font-size:10px; font-weight:850; text-transform:uppercase; }
     .student-observation-labels { display:flex; flex-wrap:wrap; gap:5px; align-items:center; margin-top:6px; }
     @media(max-width:800px) {
       #list .student > .student-observation-labels { display:flex !important; grid-column:2 / -1; margin-top:2px; }
@@ -725,12 +726,14 @@ document.addEventListener('DOMContentLoaded', () => {
     .observation-manager-close:hover,.observation-manager-close:focus-visible { background:#e5eaf3; color:var(--blue); }
     .custom-observation-list { display:grid; gap:6px; font-size:13px; color:var(--navy); }
     .custom-observation-list b { font-size:13px; }
-    .custom-observation-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
-    .pin-observation-toggle,.custom-pin-toggle { display:flex; align-items:center; gap:8px; color:var(--navy); cursor:pointer; }
-    .pin-observation-toggle { padding:10px; border:1px solid #d9e2f1; border-radius:8px; background:#f8fffb; }
-    .pin-observation-toggle span { display:grid; gap:2px; }
-    .pin-observation-toggle small { color:var(--muted); font-size:12px; font-weight:500; }
-    .custom-pin-toggle { white-space:nowrap; font-size:12px; font-weight:700; }
+    .custom-observation-item { display:grid; grid-template-columns:minmax(0,1fr) auto auto auto; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; background:#f4f3ff; }
+    .pin-observation-toggle,.top-observation-toggle,.custom-pin-toggle,.custom-top-toggle { display:flex; align-items:center; gap:8px; color:var(--navy); cursor:pointer; }
+    .pin-observation-toggle,.top-observation-toggle { padding:10px; border:1px solid #d9e2f1; border-radius:8px; background:#f8fffb; }
+    .top-observation-toggle { background:#f5f8ff; }
+    .pin-observation-toggle span,.top-observation-toggle span { display:grid; gap:2px; }
+    .pin-observation-toggle small,.top-observation-toggle small { color:var(--muted); font-size:12px; font-weight:500; }
+    .custom-pin-toggle,.custom-top-toggle { white-space:nowrap; font-size:12px; font-weight:700; }
+    @media(max-width:560px) { .custom-observation-item { grid-template-columns:minmax(0,1fr) auto auto; } .custom-observation-item > span { grid-column:1/-1; } }
     .delete-custom-observation { padding:5px 7px; border-radius:6px; background:#fff; border:1px solid #fecdca; color:var(--danger); font-size:12px; font-weight:700; }
     .danger-outline { color:var(--danger); background:#fff; border:1px solid #fecdca; }
     .move-class { padding:12px; border:1px solid var(--line); border-radius:9px; background:#f8faff; }
@@ -883,8 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // "Representante de turma" é uma etiqueta especial histórica do
       // Carômetro. Mesmo que ainda não exista na lista configurável da
       // escola, ela continua válida e não deve parecer um dado excluído.
-      label: value === 'Representante de turma' ? value : `${observationDisplayLabel(value)} (opção removida)`,
-      standard: true
+      label: value === 'Representante de turma' ? value : `${observationDisplayLabel(value)} (opção removida)`
     }));
     renderObservationChoices(currentObservations);
     refreshPhotoPreview(student);
@@ -972,6 +974,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCustomObservations();
     document.getElementById('newObservation').value = '';
     document.getElementById('newObservationPinned').checked = false;
+    document.getElementById('newObservationTopPriority').checked = false;
     observationManager.classList.remove('hidden');
   };
   document.getElementById('closeObservationManager').onclick = () => observationManager.classList.add('hidden');
@@ -981,6 +984,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('newObservation');
     const label = input.value.trim().replace(/\s+/g, ' ');
     const isPinned = document.getElementById('newObservationPinned').checked;
+    const isTopPriority = document.getElementById('newObservationTopPriority').checked;
     if (!label) return;
     if (observations.some(option => option.value.toLocaleLowerCase('pt-BR') === label.toLocaleLowerCase('pt-BR'))) {
       toast('Essa observação já existe.');
@@ -988,10 +992,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { toast('Selecione uma escola antes de gerenciar observações.'); return; }
-    const { data, error } = await db.from('observation_options').insert({ school_id:schoolId, label, display_order: observations.length, is_pinned:isPinned }).select('id,label,is_pinned').single();
+    const { data, error } = await db.from('observation_options').insert({ school_id:schoolId, label, display_order: observations.length, is_pinned:isPinned, is_top_priority:isTopPriority }).select('id,label,is_pinned,is_top_priority').single();
     if (error) { toast(error.code === '23505' ? 'Essa observação já existe.' : error.message); return; }
-    observations.push({ id: data.id, value: data.label, label: data.label, standard: false, isPinned:data.is_pinned === true });
+    observations.push({ id: data.id, value: data.label, label: data.label, isPinned:data.is_pinned === true, isTopPriority:data.is_top_priority === true });
     pinnedObservationLabels = new Set(observations.filter(option => option.isPinned).map(option => option.value));
+    topPriorityObservationLabels = new Set(observations.filter(option => option.isTopPriority).map(option => option.value));
     const selected = selectedObservationValues();
     configureObservationField('report');
     configureObservationField('bulkReport');
@@ -999,10 +1004,27 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCustomObservations();
     input.value = '';
     document.getElementById('newObservationPinned').checked = false;
+    document.getElementById('newObservationTopPriority').checked = false;
     syncStudentCardLaudoLabels();
+    render();
     toast('Observação adicionada.');
   };
   document.getElementById('customObservationList').onclick = async event => {
+    const topToggle = event.target.closest('[data-top-id]');
+    if (topToggle) {
+      const option = observations.find(item => item.id === topToggle.dataset.topId);
+      const schoolId = window.getActiveSchoolId?.();
+      if (!option || !schoolId) return;
+      topToggle.disabled = true;
+      const { error } = await db.from('observation_options').update({ is_top_priority:topToggle.checked }).eq('id', option.id).eq('school_id', schoolId);
+      topToggle.disabled = false;
+      if (error) { topToggle.checked = !topToggle.checked; toast(error.message); return; }
+      option.isTopPriority = topToggle.checked;
+      topPriorityObservationLabels = new Set(observations.filter(item => item.isTopPriority).map(item => item.value));
+      render();
+      toast(topToggle.checked ? 'Alunos com esta etiqueta aparecerão no topo das listas.' : 'Esta etiqueta deixou de alterar a ordem das listas.');
+      return;
+    }
     const pinToggle = event.target.closest('[data-pin-id]');
     if (pinToggle) {
       const option = observations.find(item => item.id === pinToggle.dataset.pinId);
@@ -1029,11 +1051,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { toast(error.message); return; }
     observations = observations.filter(item => item.id !== option.id);
     pinnedObservationLabels = new Set(observations.filter(item => item.isPinned).map(item => item.value));
+    topPriorityObservationLabels = new Set(observations.filter(item => item.isTopPriority).map(item => item.value));
     const selected = selectedObservationValues().filter(value => value !== option.value);
     configureObservationField('report');
     configureObservationField('bulkReport');
     renderObservationChoices(selected);
     renderCustomObservations();
+    render();
     toast('Observação excluída.');
   };
   clearObservations.onclick = () => {

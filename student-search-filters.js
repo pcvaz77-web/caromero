@@ -55,9 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
 
-  // observation_options é a única fonte de rótulos, tanto para os padrão
-  // quanto para os cadastrados pelo administrador em "Gerenciar
-  // observações" — nenhuma lista fixa paralela é mantida aqui.
+  // observation_options é a única fonte dos rótulos cadastrados pela escola
+  // em "Gerenciar observações" — nenhuma lista fixa paralela é mantida aqui.
   let observationCatalog = [];
   let observationCatalogLoaded = false;
   let catalogLoadToken = 0;

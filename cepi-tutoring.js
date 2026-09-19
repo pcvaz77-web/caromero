@@ -289,8 +289,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const tutorAssignments = filteredAssignments.filter(item => item.tutor_id === tutor.id).sort((a,b) => {
         const studentA = students.find(entry => entry.id === a.student_id);
         const studentB = students.find(entry => entry.id === b.student_id);
-        const leadershipA = window.studentHasLeadershipObservation?.(studentA?.report ?? a.students?.has_report) === true;
-        const leadershipB = window.studentHasLeadershipObservation?.(studentB?.report ?? b.students?.has_report) === true;
+        const leadershipA = window.studentHasTopPriorityObservation?.(studentA?.report ?? a.students?.has_report) === true;
+        const leadershipB = window.studentHasTopPriorityObservation?.(studentB?.report ?? b.students?.has_report) === true;
         if (leadershipA !== leadershipB) return leadershipA ? -1 : 1;
         return compareStudentNames(studentA?.name || a.students?.full_name, studentB?.name || b.students?.full_name);
       });
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const attendance = activity.attendance?.length ? activity.attendance.map(entry => `<li>${escapeHtml(entry.subject)} · ${escapeHtml(entry.term)} — ${escapeHtml(attendanceLabel(entry.status))} (${escapeHtml(entry.percentage)}%)</li>`).join('') : '<li>Sem histórico de frequência.</li>';
         const books = activity.livro_revisa?.length ? activity.livro_revisa.map(entry => `<li>${escapeHtml(entry.school_year)} · ${escapeHtml(entry.bimester)}º bimestre — ${escapeHtml(entry.status)}</li>`).join('') : '<li>Sem registros de Livro/Revisa.</li>';
         const observationSource = student.report ?? item.students?.has_report;
-        const leadershipLabels = window.studentLeadershipObservations?.(observationSource) || [];
+        const leadershipLabels = window.studentTopPriorityObservations?.(observationSource) || [];
         const otherLabels = (window.decodeObservationValues?.(observationSource) || []).filter(label => !leadershipLabels.includes(label));
         const observationBadges = leadershipLabels.map(label => `<span class="cepi-leadership-label">${escapeHtml(label)}</span>`).join('') + otherLabels.map(label => `<span>${escapeHtml(label)}</span>`).join('');
         return `<div class="cepi-student-row"><div class="cepi-student-photo">${photo}</div><div class="cepi-student-info"><b>${escapeHtml(student.name || 'Aluno')}</b><small>${escapeHtml(student.className || 'Turma não informada')}</small><div class="cepi-student-labels">${observationBadges}<span>Tutor(a): ${escapeHtml(tutor.display_name)}</span><span>Conselheiro(a): ${escapeHtml(counselorNames.join(' · ') || 'não definido')}</span></div><div class="cepi-student-status">${tutorStatusHtml(student, activity)}</div></div><div class="cepi-row-actions"><button class="btn primary" type="button" data-new-cepi-form="${escapeHtml(item.id)}">Nova ficha</button><button class="btn secondary" type="button" data-cepi-history="${escapeHtml(item.student_id)}">Histórico</button><button class="btn secondary" type="button" data-tutoring-details="${escapeHtml(item.student_id)}">Ver detalhes</button>${access.can_manage ? `<button class="btn secondary" type="button" data-transfer-assignment="${escapeHtml(item.id)}">Trocar tutor</button><button class="btn secondary" type="button" data-end-assignment="${escapeHtml(item.id)}">Encerrar vínculo</button>` : ''}</div><div class="cepi-student-expanded hidden" data-tutoring-panel="${escapeHtml(item.student_id)}"><section><b>Ocorrências</b><ul>${occurrences}</ul></section><section><b>Frequência</b><ul>${attendance}</ul></section><section><b>Livro/Revisa</b><ul>${books}</ul></section></div></div>`;
@@ -390,7 +390,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderAvailableStudents = () => {
       const classId = document.getElementById('cepiAssignmentClass').value;
       const name = normalizeSearch(document.getElementById('cepiAssignmentName').value);
-      document.getElementById('cepiAssignmentStudents').innerHTML = students.filter(item => !alreadyAssigned.has(item.id) && (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name))).sort((a,b) => compareStudentNames(a.name, b.name)).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.className || 'Sem turma')}</option>`).join('');
+      document.getElementById('cepiAssignmentStudents').innerHTML = students.filter(item => !alreadyAssigned.has(item.id) && (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name))).sort((a,b) => window.compareStudentsForList?.(a,b) ?? compareStudentNames(a.name, b.name)).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.className || 'Sem turma')}</option>`).join('');
     };
     document.getElementById('cepiAssignmentClass').onchange = renderAvailableStudents;
     document.getElementById('cepiAssignmentName').oninput = renderAvailableStudents;
@@ -581,6 +581,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }).sort((a,b) => {
       const studentA = students.find(entry => entry.id === a.student_id);
       const studentB = students.find(entry => entry.id === b.student_id);
+      const priorityA = window.studentHasTopPriorityObservation?.(studentA?.report ?? a.students?.has_report) === true;
+      const priorityB = window.studentHasTopPriorityObservation?.(studentB?.report ?? b.students?.has_report) === true;
+      if (priorityA !== priorityB) return priorityA ? -1 : 1;
       return compareStudentNames(studentA?.name || a.students?.full_name, studentB?.name || b.students?.full_name);
     });
     document.getElementById('cepiReportStudent').innerHTML = '<option value="">Selecione</option>' + filtered.map(item => {

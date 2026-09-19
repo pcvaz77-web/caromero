@@ -6,27 +6,39 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'student-edit-improvements.js'), 'utf8');
 const tutoring = fs.readFileSync(path.join(root, 'cepi-tutoring.js'), 'utf8');
+const core = fs.readFileSync(path.join(root, 'app-core.js'), 'utf8');
+const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const migration = fs.readFileSync(path.join(root, 'supabase/migrations/131_observation_top_priority.sql'), 'utf8');
 
-test('representatives and every Lider label are moved to the top', () => {
-  assert.match(source, /value === 'Representante de turma' \|\| \/\\blider\\b\/\.test\(normalized\)/);
-  assert.match(source, /normalize\('NFD'\).*replace\(\/\[\\u0300-\\u036f\]\//);
-  assert.match(source, /const hasLeadershipRole = values\.some\(isLeadershipObservation\)/);
-  assert.match(source, /prepend\(\.\.\.leadershipStudents\)/);
+test('cada escola escolhe quais etiquetas colocam alunos no topo', () => {
+  assert.match(migration, /add column if not exists is_top_priority boolean not null default false/);
+  assert.match(migration, /lower\(btrim\(label\)\) = 'representante de turma'/);
+  assert.match(migration, /lider\( \|\$\)/);
+  assert.match(source, /id="newObservationTopPriority"/);
+  assert.match(source, /data-top-id=/);
+  assert.match(source, /select\('id,label,is_pinned,is_top_priority'\)/);
+  assert.match(source, /is_top_priority:isTopPriority/);
+  assert.match(source, /update\(\{ is_top_priority:topToggle\.checked \}\)/);
 });
 
-test('leadership students are also first inside each tutor group', () => {
-  assert.match(source, /window\.studentHasLeadershipObservation = value/);
-  assert.match(tutoring, /window\.studentHasLeadershipObservation\?\.\(studentA\?\.report \?\? a\.students\?\.has_report\)/);
-  assert.match(tutoring, /if \(leadershipA !== leadershipB\) return leadershipA \? -1 : 1/);
-  assert.match(tutoring, /students\(full_name,class_name,class_id,has_report\)/);
-  assert.match(source, /window\.studentLeadershipObservations = value/);
-  assert.match(tutoring, /class="cepi-leadership-label"/);
-  assert.match(tutoring, /const observationBadges = leadershipLabels\.map/);
+test('a prioridade configurada ordena antes da paginacao visual', () => {
+  assert.match(source, /topPriorityObservationLabels = new Set/);
+  assert.match(source, /window\.studentHasTopPriorityObservation = value/);
+  assert.match(source, /window\.compareStudentsForList = \(left,right\)/);
+  assert.match(source, /if \(topLeft !== topRight\) return topLeft \? -1 : 1/);
+  assert.match(core, /sort\(\(left, right\) => typeof window\.compareStudentsForList === 'function'/);
+  assert.match(index, /sort\(\(a,b\)=>typeof window\.compareStudentsForList==='function'/);
+  assert.doesNotMatch(source, /prepend\(\.\.\.leadershipStudents\)/);
 });
 
-test('CEPI student selectors sort alphabetically while ignoring list numbers', () => {
-  assert.match(tutoring, /const studentSortName = value => normalizeSearch\(value\)\.replace\(\/\^\\d\+/);
-  assert.match(tutoring, /sort\(\(a,b\) => compareStudentNames\(a\.name, b\.name\)\)/);
-  assert.match(tutoring, /const filtered = assignments\.filter[\s\S]*?\.sort\(\(a,b\) =>/);
-  assert.match(tutoring, /return compareStudentNames\(studentA\?\.name \|\| a\.students\?\.full_name, studentB\?\.name \|\| b\.students\?\.full_name\)/);
+test('a mesma prioridade configurada e usada nas listas do Meu CEPI', () => {
+  assert.match(tutoring, /window\.studentHasTopPriorityObservation\?\.\(studentA\?\.report \?\? a\.students\?\.has_report\)/);
+  assert.match(tutoring, /window\.studentTopPriorityObservations\?\.\(observationSource\)/);
+  assert.match(tutoring, /window\.compareStudentsForList\?\.\(a,b\)/);
+  assert.match(tutoring, /if \(priorityA !== priorityB\) return priorityA \? -1 : 1/);
+});
+
+test('versoes publicas invalidam o cache da regra de prioridade', () => {
+  assert.match(index, /student-edit-improvements\.js\?v=110/);
+  assert.match(index, /cepi-tutoring\.js\?v=15/);
 });
