@@ -26,5 +26,5 @@ test('secretaria recebe somente a frequencia como acesso inicial', () => {
 test('versoes publicas invalidam o cache dos dois menus', () => {
   const index = read('index.html');
   assert.match(index, /occurrence-management\.js\?v=33/);
-  assert.match(index, /school-daily-attendance\.js\?v=11/);
+  assert.match(index, /school-daily-attendance\.js\?v=12/);
 });

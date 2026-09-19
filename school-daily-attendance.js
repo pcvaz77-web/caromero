@@ -339,7 +339,22 @@ document.addEventListener('DOMContentLoaded', () => {
   by('[data-sda-import]').onclick = importCollection;
   by('[data-sda-clear]').onclick = () => { collection=null;selectedMonths.clear();modal.querySelectorAll('[data-sda-month]').forEach(input=>{input.checked=false;});render(); };
 
-  document.addEventListener('carometro:school-context-changed', async () => { effectiveBadges.clear();attendanceTermsByYear.clear();collection=null;schoolTerms=[];await loadThresholds();await loadEffectiveBadges();render(); });
+  const reloadActiveSchoolAttendance = async () => {
+    effectiveBadges.clear();
+    attendanceTermsByYear.clear();
+    collection=null;
+    schoolTerms=[];
+    await loadThresholds();
+    await loadEffectiveBadges();
+    render();
+  };
+  document.addEventListener('carometro:school-context-changed', reloadActiveSchoolAttendance);
+  // Na carga inicial, o contexto é anunciado como "ready", não como
+  // "changed". O temporizador abaixo pode terminar antes de o usuário entrar;
+  // por isso a frequência precisa ser recarregada quando a escola e, depois,
+  // os alunos realmente ficarem disponíveis.
+  document.addEventListener('carometro:school-context-ready', reloadActiveSchoolAttendance);
+  document.addEventListener('carometro:data-loaded', loadEffectiveBadges);
   document.addEventListener('carometro:attendance-data-changed', loadEffectiveBadges);
   setTimeout(loadEffectiveBadges, 1700);
 });
