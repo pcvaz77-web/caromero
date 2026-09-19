@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let platformOwner = false;
   let publicPlans = [];
   let publicPlanFeatures = [];
+  let loginIntentDetected = false;
   const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
@@ -37,6 +38,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .access-suspended { color:#b42318; font-weight:700; }
     .access-pending { color:#9a6b00; font-weight:700; }
     .access-unknown { color:#6b5bd6; font-weight:700; }
+    @keyframes carometro-login-autofill-detected { from { opacity:.999; } to { opacity:1; } }
+    #login input:-webkit-autofill { animation-name:carometro-login-autofill-detected; animation-duration:.01s; }
     @media(max-width:800px) { .access-user { align-items:flex-start; flex-direction:column; } .access-user .access-actions { justify-content:flex-start; } .billing-options { grid-template-columns:1fr; } }
   `;
   document.head.appendChild(style);
@@ -49,6 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   const loginCard = document.querySelector('#login .card');
+  const loginEmail = document.getElementById('email');
+  const loginPassword = document.getElementById('password');
   const plansButton = document.createElement('button');
   plansButton.id = 'openPublicPlans';
   plansButton.type = 'button';
@@ -70,8 +75,21 @@ document.addEventListener('DOMContentLoaded', () => {
     publicPlansModal?.classList.add('hidden');
   }
 
+  function loginFormShowsAccountIntent() {
+    return loginIntentDetected || Boolean(loginEmail?.value.trim() || loginPassword?.value);
+  }
+
+  function markLoginAccountIntent() {
+    loginIntentDetected = true;
+    hidePublicPlansEntry();
+  }
+
+  function detectAutofilledLogin() {
+    if (loginEmail?.value.trim() || loginPassword?.value) markLoginAccountIntent();
+  }
+
   async function isExternalPublicPlansVisitor() {
-    if (isKnownCarometroAudience()) return false;
+    if (isKnownCarometroAudience() || loginFormShowsAccountIntent()) return false;
     const { data, error } = await db.auth.getSession();
     // Se o estado de autenticação não puder ser confirmado, a oferta fica
     // oculta. Falhas de rede/Auth nunca devem transformar uma conta conhecida
@@ -81,7 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
       rememberKnownCarometroAudience();
       return false;
     }
-    return true;
+    // O preenchimento automático pode acontecer enquanto a consulta da sessão
+    // está em andamento. Confere novamente antes de revelar a oferta.
+    return !loginFormShowsAccountIntent();
   }
 
   const publicPlansModal = document.createElement('div');
@@ -104,7 +124,22 @@ document.addEventListener('DOMContentLoaded', () => {
       <footer class="public-plans-rights">© 2026 CARÔMETRO® · Todos os direitos reservados · Marca registrada</footer>
     </main>`;
   document.body.appendChild(publicPlansModal);
+  publicPlansModal.querySelector('.public-plans-close').setAttribute('aria-label', 'Fechar página de planos');
   publicPlansModal.querySelector('.public-plans-close').onclick = () => publicPlansModal.classList.add('hidden');
+
+  [loginEmail, loginPassword].filter(Boolean).forEach(field => {
+    field.addEventListener('input', markLoginAccountIntent);
+    field.addEventListener('change', markLoginAccountIntent);
+    field.addEventListener('animationstart', event => {
+      if (event.animationName === 'carometro-login-autofill-detected') markLoginAccountIntent();
+    });
+  });
+  // Navegadores podem restaurar/autopreencher credenciais depois do
+  // DOMContentLoaded sem disparar input/change. As verificações curtas cobrem
+  // esse intervalo sem manter temporizador permanente.
+  [0, 150, 500, 1200].forEach(delay => setTimeout(detectAutofilledLogin, delay));
+  window.addEventListener('pageshow', detectAutofilledLogin);
+  window.addEventListener('focus', detectAutofilledLogin);
 
   const applicationModal = document.createElement('div');
   applicationModal.id = 'schoolApplicationModal';
@@ -277,6 +312,20 @@ document.addEventListener('DOMContentLoaded', () => {
     return publicPlans.length > 0;
   }
 
+  async function openPublicPlansPreview() {
+    if (!publicPlans.length && !await loadPublicPlans()) {
+      toast('Não foi possível carregar os planos agora.');
+      return false;
+    }
+    publicPlansModal.classList.remove('hidden');
+    return true;
+  }
+
+  // A oferta continua oculta para contas existentes no login, mas o dono da
+  // plataforma pode abrir a mesma vitrine pelo painel para conferir o que o
+  // visitante externo verá.
+  window.openCarometroPublicPlansPreview = openPublicPlansPreview;
+
   plansButton.onclick = async () => {
     plansButton.disabled = true;
     try {
@@ -284,11 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
         hidePublicPlansEntry();
         return;
       }
-      if (!publicPlans.length && !await loadPublicPlans()) {
-        toast('Não foi possível carregar os planos agora.');
-        return;
-      }
-      publicPlansModal.classList.remove('hidden');
+      await openPublicPlansPreview();
     } finally {
       plansButton.disabled = false;
     }

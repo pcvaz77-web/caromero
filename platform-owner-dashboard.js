@@ -147,7 +147,7 @@
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
             </section>
-            <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
+            <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button></div><div id="platformPlansList" class="platform-plans-list"></div></section>
             <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
             <section class="platform-page" data-platform-section="audit"><div class="platform-page-heading"><div><h3>Auditoria</h3><p>Operações administrativas registradas pela plataforma.</p></div></div>
           <section class="platform-panel">
@@ -191,6 +191,19 @@
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
+    modal.querySelector('#platformPreviewPublicPlans').onclick = async event => {
+      const button = event.currentTarget;
+      if (typeof window.openCarometroPublicPlansPreview !== 'function') {
+        toast('A página de vendas não está disponível agora.');
+        return;
+      }
+      button.disabled = true;
+      try {
+        await window.openCarometroPublicPlansPreview();
+      } finally {
+        button.disabled = false;
+      }
+    };
     modal.querySelector('#platformToggleApplicationHistory').onclick = async () => {
       showApplicationHistory = !showApplicationHistory;
       await openDashboard();

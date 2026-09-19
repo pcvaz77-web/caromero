@@ -48,8 +48,22 @@ test('oferta publica fica restrita a visitantes externos, fora do fluxo de convi
   assert.match(storefront, /db\.auth\.getSession\(\)/);
   assert.match(storefront, /readSubscriptionVisibilitySetting\(\) && await isExternalPublicPlansVisitor\(\)/);
   assert.match(storefront, /db\.auth\.onAuthStateChange/);
+  assert.match(storefront, /loginFormShowsAccountIntent/);
+  assert.match(storefront, /carometro-login-autofill-detected/);
+  assert.match(storefront, /field\.addEventListener\('input', markLoginAccountIntent\)/);
+  assert.match(storefront, /\[0, 150, 500, 1200\]\.forEach/);
   assert.match(invitation, /carometro:known-account-or-invitation/);
   assert.match(invitation, /rememberInvitedCarometroAudience\(\)/);
+});
+
+test('dono pode visualizar a mesma página pública de vendas pelo painel de planos', () => {
+  assert.match(dashboard, /id="platformPreviewPublicPlans"/);
+  assert.match(dashboard, /Visualizar página de vendas/);
+  assert.match(dashboard, /window\.openCarometroPublicPlansPreview\(\)/);
+  assert.match(storefront, /async function openPublicPlansPreview\(\)/);
+  assert.match(storefront, /window\.openCarometroPublicPlansPreview = openPublicPlansPreview/);
+  assert.match(storefront, /await openPublicPlansPreview\(\)/);
+  assert.match(styles, /\.platform-sales-preview-button/);
 });
 
 test('usa os termos comerciais solicitados com concordância correta', () => {

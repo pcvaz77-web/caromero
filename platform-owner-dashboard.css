@@ -49,6 +49,7 @@ body.platform-workspace-open { overflow:hidden; }
 .platform-page { display:none; max-width:1440px; margin:0 auto; }.platform-page.active { display:block; }
 .platform-page-heading { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-bottom:20px; }
 .platform-page-heading h3 { margin:0; font-size:22px; letter-spacing:-.4px; }.platform-page-heading p { margin:5px 0 0; color:var(--muted); font-size:13px; }
+.platform-sales-preview-button{flex:none;box-shadow:0 9px 22px #356ae62b}.platform-sales-preview-button span{font-size:17px;line-height:1}.platform-sales-preview-button:disabled{cursor:wait;opacity:.68}
 .platform-applications-list{display:grid;gap:12px}.platform-application-card{padding:17px;border:1px solid #e1e6ef;border-radius:12px;background:#fff}.platform-application-card h4{margin:0 0 6px}.platform-application-card p{margin:4px 0;color:#667085;font-size:12px;line-height:1.45}.platform-application-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.platform-badge.pending{background:#fff4dc;color:#8a5a00}.platform-badge.approved{background:#e7f8ef;color:#08784b}.platform-badge.rejected{background:#feeceb;color:#b42318}
 .platform-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:22px; }
 .platform-stat { min-height:132px; padding:19px; border:1px solid #e4e9f2; border-radius:13px; background:#fff; box-shadow:0 5px 18px #14213d08; }
