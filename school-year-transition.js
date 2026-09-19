@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     content.querySelector('#schoolYearAuto').onclick=()=>{classes.forEach(c=>{const d=suggestNextClass(c.name);if(d)applyClass(c.id,d,c.shift||'Matutino')});renderClasses();toast('Sugestões aplicadas. Revise os nomes das turmas antes de continuar.')};
     content.querySelectorAll('[data-class-id]').forEach(card=>{const id=card.dataset.classId;card.querySelector('[data-apply-class]').onclick=()=>{const d=card.querySelector('[data-class-destination]').value.trim();if(!d){toast('Informe a turma de destino.');return}applyClass(id,d,card.querySelector('[data-class-shift]').value);renderClasses();toast(`Destino aplicado a ${classes.find(c=>c.id===id)?.name||'turma'}.`)};card.querySelector('[data-toggle-students]').onclick=()=>{expanded.has(id)?expanded.delete(id):expanded.add(id);renderClasses()}});
     content.querySelectorAll('[data-student-id]').forEach(row=>row.querySelectorAll('[data-field]').forEach(field=>field.onchange=()=>{const status=row.querySelector('[data-field="status"]').value;setAssignment(row.dataset.studentId,{status,class_name:['pending','transferred'].includes(status)?'':row.querySelector('[data-field="class_name"]').value.trim(),shift:row.querySelector('[data-field="shift"]').value});renderClasses()}));
+    updateChrome();
   }
   function renderReview(error='') {
     const s=stats(), destinations=new Map();[...assignments.values()].filter(x=>['active','repeated'].includes(x.status)).forEach(x=>{const k=`${x.class_name}|${x.shift}`;destinations.set(k,(destinations.get(k)||0)+1)});

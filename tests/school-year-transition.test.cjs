@@ -27,6 +27,7 @@ assert.match(ui, /Ajustar alunos/);
 assert.match(ui, /Confirmar e preparar/);
 assert.match(ui, /Preparação concluída/);
 assert.match(ui, /Situação ainda não definida/);
+assert.match(ui, /function renderClasses\(\)[\s\S]*updateChrome\(\);\s*\n\s*}/);
 assert.doesNotMatch(ui, /Deixou a escola/);
 assert.match(permissions, /set_school_year_transition_permission/);
 assert.match(reports, /enrollment_status', 'transferred'/);
