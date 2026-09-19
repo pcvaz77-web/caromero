@@ -1,6 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   const CONTACT_EMAIL = 'contato@sistemacarometro.com.br';
   const CONTACT_WHATSAPP = '5561998971069';
+  let schoolContextReady = false;
+  document.addEventListener('carometro:school-context-ready', () => { schoolContextReady = true; });
 
   const style = document.createElement('style');
   style.textContent = `
@@ -25,9 +27,24 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(modal);
 
   const close = () => modal.classList.add('hidden');
+  const waitForSchoolContext = async () => {
+    if (schoolContextReady || window.getActiveSchoolMembership?.()) return;
+    await new Promise(resolve => {
+      const finish = () => { schoolContextReady = true; resolve(); };
+      document.addEventListener('carometro:school-context-ready', finish, { once:true });
+      setTimeout(resolve, 2500);
+    });
+  };
   const contactContext = async () => {
+    await waitForSchoolContext();
+    const activeSchoolId = window.getActiveSchoolId?.() || null;
     const membership = window.getActiveSchoolMembership?.();
-    const school = membership?.name || 'Não informada';
+    let school = membership?.school_id === activeSchoolId ? membership.name : '';
+    if (!school && activeSchoolId) {
+      const { data:activeSchool } = await db.from('schools').select('name').eq('id', activeSchoolId).maybeSingle();
+      school = activeSchool?.name || '';
+    }
+    if (!school) school = 'Administração da plataforma';
     const role = document.getElementById('roleLabel')?.textContent?.trim() || window.getActiveSchoolRole?.() || 'Não informado';
     const { data:{ user } } = await db.auth.getUser();
     let name = user?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Não informado';
@@ -38,13 +55,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return { school, role, name };
   };
   const open = async () => {
-    modal.classList.remove('hidden');
-    const { school, role, name } = await contactContext();
-    const subject = 'Sugestão para o Carômetro';
-    const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
-    modal.querySelector('#contactSuggestion').href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
-    modal.querySelector('#contactQuestion').href = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
+    button.disabled = true;
+    try {
+      const { school, role, name } = await contactContext();
+      const subject = 'Sugestão para o Carômetro';
+      const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
+      modal.querySelector('#contactSuggestion').href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
+      modal.querySelector('#contactQuestion').href = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
+      modal.classList.remove('hidden');
+    } finally {
+      button.disabled = false;
+    }
   };
 
   button.onclick = open;
