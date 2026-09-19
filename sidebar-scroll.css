@@ -1,0 +1,44 @@
+@media (min-width: 801px) {
+  body .side {
+    height: 100vh;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: #526b9b transparent;
+  }
+
+  body .side::-webkit-scrollbar { width: 9px; }
+  body .side::-webkit-scrollbar-track { background: transparent; }
+  body .side::-webkit-scrollbar-thumb {
+    background: #526b9b;
+    border: 2px solid transparent;
+    border-radius: 99px;
+    background-clip: padding-box;
+  }
+
+  body .side .nav,
+  body .side .logo,
+  body .side .out { flex: none; }
+
+  body .class-sidebar {
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+  }
+
+  body .class-list {
+    display: block;
+    flex: 0 0 auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0;
+  }
+
+  body .side .out {
+    display: block;
+    width: 100%;
+    margin-top: 16px !important;
+    margin-bottom: 4px;
+  }
+}
