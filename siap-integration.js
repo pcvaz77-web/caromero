@@ -1,5 +1,8 @@
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
+  const isMobileDevice = () => navigator.userAgentData?.mobile === true
+    || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
   const modal = document.createElement('div');
   modal.id = 'siapIntegrationModal';
   modal.className = 'modal-bg siap-integration-modal hidden';
@@ -141,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!greetingRow || !bell) return;
     const onMainPage = !selectedClassId && document.getElementById('pageTitle')?.textContent.trim() === 'CARÔMETRO';
     let button = document.getElementById('openSiapAssistant');
-    if (!assistantAccessVisible) {
+    if (!assistantAccessVisible || isMobileDevice()) {
       button?.remove();
       return;
     }
@@ -159,6 +162,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   };
   const refreshAssistantButtonAccess = async () => {
+    if (isMobileDevice()) {
+      assistantAccessVisible = false;
+      syncMainAssistantButton();
+      return;
+    }
     const { data, error } = await db.rpc('get_siap_assistant_button_visibility');
     assistantAccessVisible = !error && data?.visible === true;
     syncMainAssistantButton();
@@ -168,6 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
   refreshAssistantButtonAccess();
   let lastAutomaticValidation = 0;
   const renewAssistantAuthorization = async force => {
+    if (isMobileDevice()) return;
     if (!force && Date.now() - lastAutomaticValidation < 10 * 60 * 1000) return;
     // Uma conta do Carômetro sem licença do Assistente não deve substituir
     // a licença de outra conta já ativa na extensão.

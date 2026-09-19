@@ -3,8 +3,11 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 
-test('mostra o Assistente SIAP ao lado do sino apenas na página principal', () => {
+test('mostra o Assistente SIAP ao lado do sino apenas no computador e na página principal', () => {
   const source = fs.readFileSync(path.join(__dirname, '../siap-integration.js'), 'utf8');
+  assert.match(source, /const isMobileDevice = \(\) => navigator\.userAgentData\?\.mobile === true/);
+  assert.match(source, /if \(!assistantAccessVisible \|\| isMobileDevice\(\)\)/);
+  assert.match(source, /if \(isMobileDevice\(\)\) \{[\s\S]{0,120}assistantAccessVisible = false/);
   assert.match(source, /button\.id = 'openSiapAssistant'/);
   assert.match(source, /greetingRow\.insertBefore\(button, bell\)/);
   assert.match(source, /const onMainPage = !selectedClassId/);
@@ -21,7 +24,7 @@ test('nao carrega o modulo de importacao de frequencia', () => {
   const index = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
   const permissions = fs.readFileSync(path.join(__dirname, '../permissions-and-details.js'), 'utf8');
   assert.doesNotMatch(index, /siap-attendance-core\.js/);
-  assert.match(index, /siap-integration\.js\?v=19/);
+  assert.match(index, /siap-integration\.js\?v=20/);
   assert.match(index, /permissions-and-details\.js\?v=64/);
   assert.doesNotMatch(permissions, /siapCheck\(item,'can_import_siap_attendance','Importar frequência do SIAP'/);
   assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'[\s\S]{0,180}secretaryPermissionFields : permissionFields/);
