@@ -5,6 +5,7 @@ const test = require('node:test');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/130_counselor_attendance_priority.sql'), 'utf8');
+const partialPeriodMigration = fs.readFileSync(path.join(root, 'supabase/migrations/135_attendance_partial_period_labels.sql'), 'utf8');
 const daily = fs.readFileSync(path.join(root, 'school-daily-attendance.js'), 'utf8');
 const core = fs.readFileSync(path.join(root, 'app-core.js'), 'utf8');
 
@@ -16,6 +17,14 @@ test('etiqueta usa o período mais recente e prioriza professor no mesmo períod
   assert.match(migration, /left join secretary_period secretary/);
   assert.match(migration, /a\.percentage >= coalesce\(cfg\.frequent_minimum,75\)/);
   assert.match(migration, /a\.percentage >= coalesce\(cfg\.absent_minimum,60\)/);
+});
+
+test('etiqueta efetiva v2 entrega as datas exatas da origem vencedora', () => {
+  assert.match(partialPeriodMigration, /get_effective_siap_attendance_labels_v2/);
+  assert.match(partialPeriodMigration, /a\.source_dates as row_source_dates/);
+  assert.match(partialPeriodMigration, /coalesce\(teacher\.row_source_dates,secretary\.row_source_dates/);
+  assert.match(daily, /get_effective_siap_attendance_labels_v2/);
+  assert.match(daily, /período parcial/);
 });
 
 test('card fechado mostra somente a etiqueta e perfil aberto informa origem, período e atualização', () => {

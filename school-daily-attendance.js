@@ -8,6 +8,8 @@ document.addEventListener('DOMContentLoaded', () => {
     active_search:{ label:'Necessita de Busca Ativa', className:'attendance-active-search' }
   };
   const DEFAULT_THRESHOLDS = Object.freeze({ frequentMinimum:75, absentMinimum:60 });
+  const TERM_BOUNDARY_TOLERANCE_DAYS = 7;
+  const DAY_IN_MS = 24 * 60 * 60 * 1000;
   const selectedMonths = new Set();
   const effectiveBadges = new Map();
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
@@ -35,22 +37,79 @@ document.addEventListener('DOMContentLoaded', () => {
     const day = Number(match[3] || match[4]);
     const date = new Date(Date.UTC(year,month - 1,day));
     if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
-    return { iso:`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`, monthIndex:month - 1 };
+    return {
+      iso:`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
+      monthKey:`${year}-${String(month).padStart(2,'0')}`,
+      monthIndex:month - 1,
+      time:date.getTime()
+    };
+  }
+
+  const formatBimesterList = values => {
+    const ordered=[...new Set(values)].filter(Number.isInteger).sort((left,right)=>left-right);
+    if(ordered.length===1)return `${ordered[0]}º bimestre`;
+    return `${new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(ordered.map(value=>`${value}º`))} bimestres`;
+  };
+
+  function capturedPeriodLabel({ dateValues=[], monthValues=[], terms=[], fallback='Período lido' }={}) {
+    const readDates=dateValues.map(parseReadDate).filter(Boolean).sort((left,right)=>left.time-right.time);
+    const readMonthIndexes=[...new Set(readDates.map(item=>item.monthIndex))].sort((left,right)=>left-right);
+    const fallbackMonthIndexes=[...new Set(monthValues.map(month=>MONTHS.indexOf(month)).filter(index=>index>=0))].sort((left,right)=>left-right);
+    const monthIndexes=readMonthIndexes.length ? readMonthIndexes : fallbackMonthIndexes;
+    const monthNames=monthIndexes.map(index=>MONTHS[index]);
+    const monthLabel=monthNames.length ? formatMonthList(monthNames) : fallback;
+
+    // Um mês isolado sempre conserva o nome do mês, ainda que pertença a um
+    // bimestre já cadastrado pela escola.
+    if(monthNames.length<=1)return monthLabel;
+    if(!readDates.length||!terms.length)return monthLabel;
+
+    const validTerms=terms.map(term=>{
+      const start=parseReadDate(term.starts_on);
+      const end=parseReadDate(term.ends_on);
+      return start&&end ? {...term,start,end} : null;
+    }).filter(Boolean);
+    const matchingTerms=validTerms.filter(term=>readDates.some(date=>date.time>=term.start.time&&date.time<=term.end.time));
+    const everyDateBelongsToCalendar=readDates.every(date=>matchingTerms.some(term=>date.time>=term.start.time&&date.time<=term.end.time));
+    if(!matchingTerms.length||!everyDateBelongsToCalendar)return `${monthLabel} — período parcial`;
+
+    const complete=matchingTerms.every(term=>{
+      const termDates=readDates.filter(date=>date.time>=term.start.time&&date.time<=term.end.time);
+      if(!termDates.length)return false;
+      const first=termDates[0];
+      const last=termDates[termDates.length-1];
+      const capturedMonthKeys=new Set(termDates.map(date=>date.monthKey));
+      const requiredMonthKeys=[];
+      const cursor=new Date(Date.UTC(
+        Number(term.start.iso.slice(0,4)),
+        Number(term.start.iso.slice(5,7))-1,
+        1
+      ));
+      const finalMonthKey=term.end.monthKey;
+      while(true){
+        const key=`${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth()+1).padStart(2,'0')}`;
+        requiredMonthKeys.push(key);
+        if(key===finalMonthKey)break;
+        cursor.setUTCMonth(cursor.getUTCMonth()+1);
+      }
+      const coversEveryCalendarMonth=requiredMonthKeys.every(key=>capturedMonthKeys.has(key));
+      return coversEveryCalendarMonth
+        && first.time<=term.start.time+(TERM_BOUNDARY_TOLERANCE_DAYS*DAY_IN_MS)
+        && last.time>=term.end.time-(TERM_BOUNDARY_TOLERANCE_DAYS*DAY_IN_MS);
+    });
+    return complete
+      ? formatBimesterList(matchingTerms.map(term=>Number(term.bimester)))
+      : `${monthLabel} — período parcial`;
   }
 
   function collectionPeriodLabel() {
     if (!collection) return '';
-    const readDates = (collection.datesRead || []).map(parseReadDate).filter(Boolean);
-    const readMonthIndexes = [...new Set(readDates.map(item => item.monthIndex))].sort((left,right)=>left-right);
-    const fallbackMonthIndexes = [...new Set((collection.months || []).map(month => MONTHS.indexOf(month)).filter(index => index >= 0))].sort((left,right)=>left-right);
-    const monthIndexes = readMonthIndexes.length ? readMonthIndexes : fallbackMonthIndexes;
-    const monthNames = monthIndexes.map(index => MONTHS[index]);
-    if (monthNames.length === 1) return monthNames[0];
-    if (readDates.length && monthNames.length > 1) {
-      const matchingTerms = schoolTerms.filter(term => term.starts_on && term.ends_on && readDates.every(item => item.iso >= term.starts_on && item.iso <= term.ends_on));
-      if (matchingTerms.length === 1) return `${matchingTerms[0].bimester}º bimestre`;
-    }
-    return monthNames.length ? formatMonthList(monthNames) : 'Período lido';
+    return capturedPeriodLabel({
+      dateValues:collection.datesRead || [],
+      monthValues:collection.months || [],
+      terms:schoolTerms,
+      fallback:'Período lido'
+    });
   }
 
   async function loadSchoolTerms(year) {
@@ -183,31 +242,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const teacherStatus = window.getSiapAttendanceStatus;
   const orderedMonths = values => [...new Set(values || [])].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
-  const longPeriod = values => {
-    const months=orderedMonths(values);
-    return months.length ? formatMonthList(months) : '';
-  };
   const effectivePeriod = item => {
-    const months=orderedMonths(item?.months);
-    const fallback=months.length ? formatMonthList(months) : item?.term || 'Período não informado';
     const year=Number(item?.academic_year);
     const terms=attendanceTermsByYear.get(year) || [];
-    if(!months.length||!Number.isInteger(year)||!terms.length)return fallback;
-    const bimesters=new Set();
-    for(const month of months){
-      const monthIndex=MONTHS.indexOf(month);
-      if(monthIndex<0)return fallback;
-      const startsOn=`${year}-${String(monthIndex+1).padStart(2,'0')}-01`;
-      const lastDay=new Date(Date.UTC(year,monthIndex+1,0)).getUTCDate();
-      const endsOn=`${year}-${String(monthIndex+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
-      const matching=terms.filter(term=>term.starts_on&&term.ends_on&&term.starts_on<=endsOn&&term.ends_on>=startsOn);
-      if(!matching.length)return fallback;
-      matching.forEach(term=>bimesters.add(Number(term.bimester)));
-    }
-    const ordered=[...bimesters].filter(Number.isInteger).sort((left,right)=>left-right);
-    if(!ordered.length)return fallback;
-    if(ordered.length===1)return `${ordered[0]}º bimestre`;
-    return `${new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(ordered.map(value=>`${value}º`))} bimestres`;
+    return capturedPeriodLabel({
+      dateValues:item?.source_dates || [],
+      monthValues:orderedMonths(item?.months),
+      terms:Number.isInteger(year) ? terms : [],
+      fallback:item?.term || 'Período não informado'
+    });
   };
 
   async function loadAttendanceTerms(schoolId) {
@@ -228,7 +271,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
-    const { data, error } = await db.rpc('get_effective_siap_attendance_labels',{p_school_id:schoolId});
+    const { data, error } = await db.rpc('get_effective_siap_attendance_labels_v2',{p_school_id:schoolId});
     effectiveBadges.clear();
     if (!error) {
       (data || []).forEach(item => {
@@ -238,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       // Compatibilidade durante a aplicação coordenada da migration: nunca
       // mistura duas etiquetas; professor continua prioritário no fallback.
-      const fallback=await db.from('siap_school_daily_attendance_current').select('student_id,status,percentage,academic_year,term,months,updated_at').eq('school_id',schoolId).order('updated_at',{ascending:false});
+      const fallback=await db.from('siap_school_daily_attendance_current').select('student_id,status,percentage,academic_year,term,months,source_dates,updated_at').eq('school_id',schoolId).order('updated_at',{ascending:false});
       (fallback.data || []).forEach(item=>{
         if(!effectiveBadges.has(item.student_id))effectiveBadges.set(item.student_id,{...item,source_key:'secretary'});
       });
