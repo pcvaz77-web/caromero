@@ -183,7 +183,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const teacherStatus = window.getSiapAttendanceStatus;
   const orderedMonths = values => [...new Set(values || [])].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
-  const shortPeriod = values => orderedMonths(values).map(month=>month.slice(0,3)).join('–');
   const longPeriod = values => {
     const months=orderedMonths(values);
     return months.length ? formatMonthList(months) : '';
@@ -276,8 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const key=item?.status;
     if (!key || key === 'frequent') return '';
     const status = STATUS[key];
-    const period=shortPeriod(item.months);
-    return `<span class="attendance-badge ${status.className}">${status.label}${period ? ` · ${period}` : ''}</span>`;
+    return `<span class="attendance-badge ${status.className}">${status.label}</span>`;
   };
   window.refreshEffectiveAttendanceLabels = loadEffectiveBadges;
 

@@ -18,9 +18,11 @@ test('etiqueta usa o período mais recente e prioriza professor no mesmo períod
   assert.match(migration, /a\.percentage >= coalesce\(cfg\.absent_minimum,60\)/);
 });
 
-test('card fechado mostra uma etiqueta e perfil aberto informa origem, período e atualização', () => {
+test('card fechado mostra somente a etiqueta e perfil aberto informa origem, período e atualização', () => {
   assert.match(daily, /getSiapAttendanceBadge/);
   assert.match(daily, /effectiveBadges\.get\(studentId\)/);
+  assert.match(daily, /<span class="attendance-badge \$\{status\.className\}">\$\{status\.label\}<\/span>/);
+  assert.doesNotMatch(daily, /shortPeriod/);
   assert.doesNotMatch(daily, /\[\s*\{ source:'Secretaria'[\s\S]*\{ source:'Professor'/);
   assert.match(core, /<strong>Fonte:<\/strong>/);
   assert.match(core, /<strong>Período:<\/strong>/);
