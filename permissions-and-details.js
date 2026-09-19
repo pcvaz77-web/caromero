@@ -582,20 +582,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!membership) return;
     if (permission.role !== 'admin') {
       const canManageTeachers = (!!permission.is_coordinator || !!permission.is_secretary) && !!permission.can_manage_member_permissions;
+      const canManageSecretaryAttendance = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
       const canManageCounselors = !!window.counselorCanManage?.();
       if (!canManageTeachers && !canManageCounselors) return;
       const schoolPermissionMap = canManageTeachers ? await loadSchoolPermissions(membership.school_id) : new Map();
       const schoolScopedData = [...schoolPermissionMap.values()];
       const teachers = schoolScopedData.filter(item => !item.is_coordinator && !item.is_secretary && item.role !== 'admin');
+      const secretaries = schoolScopedData.filter(item => item.is_secretary);
       const teacherCards = teachers.map(item => {
         const name = item.profiles?.full_name?.trim() || 'Nome não informado';
         const email = item.profiles?.email || 'Usuário';
         const active = item.member_status === 'active';
         return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Professor(a)</div></div><div></div><div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span><button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button></div></article>`;
       }).join('');
+      const secretaryCards = secretaries.map(item => {
+        const name = item.profiles?.full_name?.trim() || 'Nome não informado';
+        const email = item.profiles?.email || 'Usuário';
+        const active = item.member_status === 'active';
+        return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Secretaria</div></div><label class="check"><input type="checkbox" ${active ? '' : 'disabled'} ${item.can_import_school_daily_attendance ? 'checked' : ''} onchange="setSchoolDailyAttendancePermission('${item.user_id}',this.checked)"> Usar Frequência da Secretaria</label><div class="meta">O botão aparece somente para este perfil e somente enquanto a permissão estiver ativa.</div></article>`;
+      }).join('');
       const teacherSection = canManageTeachers ? `<section><div class="permissions-heading"><b>Professores</b><div class="meta">Suspenda ou remova somente o vínculo com esta escola. A conta e o histórico serão preservados.</div></div>${teacherCards || '<div class="empty">Nenhum professor cadastrado.</div>'}</section>` : '';
+      const secretaryAttendanceSection = canManageSecretaryAttendance ? `<section><div class="permissions-heading"><b>Frequência da Secretaria</b><div class="meta">Libere ou remova o leitor exclusivo do CIAP da Secretaria.</div></div>${secretaryCards || '<div class="empty">Nenhuma conta de Secretaria cadastrada.</div>'}</section>` : '';
       const counselorSection = canManageCounselors ? `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>` : '';
-      document.getElementById('permissionsList').innerHTML = `${counselorSection}${teacherSection}`;
+      document.getElementById('permissionsList').innerHTML = `${counselorSection}${secretaryAttendanceSection}${teacherSection}`;
       if (canManageCounselors) document.getElementById('openCounselors').onclick = event => {
         event.preventDefault();
         document.getElementById('permissionsModal').classList.add('hidden');
@@ -697,9 +706,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!membership) return;
     const memberId = await findSchoolMemberId(id, membership.school_id);
     if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
-    const { error } = await db.rpc('set_school_member_siap_permission', {
+    const { error } = await db.rpc('set_secretary_daily_attendance_permission', {
       target_member_id:memberId,
-      permission_name:'can_import_school_daily_attendance',
       permission_value:value
     });
     if (error) { toast(error.message); return; }

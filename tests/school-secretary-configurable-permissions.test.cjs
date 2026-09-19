@@ -28,6 +28,15 @@ test('administrador pode liberar opcoes individualmente ou em lote', () => {
   assert.doesNotMatch(ui.match(/if \(item\.is_secretary\)[^;]+;/)?.[0] || '', /can_manage_counselors/);
 });
 
+test('coordenador autorizado controla somente a frequencia da Secretaria', () => {
+  const boundary = read('supabase/migrations/133_secretary_attendance_role_boundary.sql');
+  const ui = read('permissions-and-details.js');
+  assert.match(boundary, /v_target\.role<>'secretary'/);
+  assert.match(boundary, /actor\.role='coordinator'[\s\S]*can_manage_member_permissions/);
+  assert.match(ui, /canManageSecretaryAttendance = !!permission\.is_coordinator && !!permission\.can_manage_member_permissions/);
+  assert.match(ui, /set_secretary_daily_attendance_permission/);
+});
+
 test('notificacoes e ocorrencias do tutor respeitam as permissoes da secretaria', () => {
   const sql = read('supabase/migrations/127_secretary_configurable_permissions.sql');
   const center = read('notification-center.js');

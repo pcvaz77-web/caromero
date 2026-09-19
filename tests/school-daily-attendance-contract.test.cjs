@@ -8,7 +8,8 @@ const source = fs.readFileSync(path.join(root, 'school-daily-attendance.js'), 'u
 const index = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 
 assert.match(source, /Frequência da Secretaria/);
-assert.match(source, /permission\?\.role === 'admin' \|\| \(permission\?\.is_secretary === true && permission\?\.can_import_school_daily_attendance === true\)/);
+assert.match(source, /permission\?\.is_secretary === true && permission\?\.can_import_school_daily_attendance === true/);
+assert.doesNotMatch(source, /permission\?\.role === 'admin' \|\|/);
 assert.match(source, /cleanName/);
 assert.match(source, /normalizeName/);
 assert.match(source, /localMatches\.length === 1/);
@@ -50,7 +51,7 @@ assert.match(source, /<span class="attendance-badge \$\{status\.className\}">\$\
 assert.doesNotMatch(source, /shortPeriod/);
 assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
-assert.match(index, /school-daily-attendance\.js\?v=10/);
+assert.match(index, /school-daily-attendance\.js\?v=11/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];

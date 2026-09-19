@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   const by = selector => modal.querySelector(selector);
-  const hasAccess = () => permission?.role === 'admin' || (permission?.is_secretary === true && permission?.can_import_school_daily_attendance === true);
+  const hasAccess = () => permission?.is_secretary === true && permission?.can_import_school_daily_attendance === true;
   let lastAllowed = null;
   const syncAccess = () => {
     const allowed = !isMobileDevice() && hasAccess();
