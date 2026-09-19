@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const read = file => fs.readFileSync(path.join(root, file), 'utf8');
 const migration = read('supabase/migrations/104_sales_plans_launch_offer.sql');
 const storefront = read('subscription-settings.js');
+const invitation = read('accept-invite.js');
 const dashboard = read('platform-owner-dashboard.js');
 const styles = read('platform-owner-dashboard.css');
 
@@ -39,6 +40,16 @@ test('destaca o acesso aos planos sem desrespeitar movimento reduzido', () => {
   assert.match(styles, /@keyframes public-plans-pulse/);
   assert.match(styles, /@keyframes public-plans-shine/);
   assert.match(styles, /@media\(prefers-reduced-motion:reduce\)/);
+});
+
+test('oferta publica fica restrita a visitantes externos, fora do fluxo de convite', () => {
+  assert.match(storefront, /carometro:known-account-or-invitation/);
+  assert.match(storefront, /isExternalPublicPlansVisitor/);
+  assert.match(storefront, /db\.auth\.getSession\(\)/);
+  assert.match(storefront, /readSubscriptionVisibilitySetting\(\) && await isExternalPublicPlansVisitor\(\)/);
+  assert.match(storefront, /db\.auth\.onAuthStateChange/);
+  assert.match(invitation, /carometro:known-account-or-invitation/);
+  assert.match(invitation, /rememberInvitedCarometroAudience\(\)/);
 });
 
 test('usa os termos comerciais solicitados com concordância correta', () => {

@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let platformOwner = false;
   let publicPlans = [];
   let publicPlanFeatures = [];
+  const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
     setTimeout(() => toast('Pagamento recebido pela Hotmart. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
@@ -54,6 +55,34 @@ document.addEventListener('DOMContentLoaded', () => {
   plansButton.className = 'btn full public-plans-login-button hidden';
   plansButton.innerHTML = '<span>Conheça os planos do CARÔMETRO</span><b aria-hidden="true">→</b>';
   loginCard.querySelector('.hint').insertAdjacentElement('afterend', plansButton);
+
+  function rememberKnownCarometroAudience() {
+    try { localStorage.setItem(knownCarometroAudienceKey, '1'); } catch {}
+  }
+
+  function isKnownCarometroAudience() {
+    try { return localStorage.getItem(knownCarometroAudienceKey) === '1'; }
+    catch { return true; }
+  }
+
+  function hidePublicPlansEntry() {
+    plansButton.classList.add('hidden');
+    publicPlansModal?.classList.add('hidden');
+  }
+
+  async function isExternalPublicPlansVisitor() {
+    if (isKnownCarometroAudience()) return false;
+    const { data, error } = await db.auth.getSession();
+    // Se o estado de autenticação não puder ser confirmado, a oferta fica
+    // oculta. Falhas de rede/Auth nunca devem transformar uma conta conhecida
+    // em visitante externo por engano.
+    if (error) return false;
+    if (data?.session?.user) {
+      rememberKnownCarometroAudience();
+      return false;
+    }
+    return true;
+  }
 
   const publicPlansModal = document.createElement('div');
   publicPlansModal.id = 'publicPlansModal';
@@ -251,6 +280,10 @@ document.addEventListener('DOMContentLoaded', () => {
   plansButton.onclick = async () => {
     plansButton.disabled = true;
     try {
+      if (!await isExternalPublicPlansVisitor()) {
+        hidePublicPlansEntry();
+        return;
+      }
       if (!publicPlans.length && !await loadPublicPlans()) {
         toast('Não foi possível carregar os planos agora.');
         return;
@@ -274,14 +307,24 @@ document.addEventListener('DOMContentLoaded', () => {
   // login falhar, e o fallback então mostrava a oferta mesmo com
   // show_subscription=false. Uma falha de banco/permissão/rede nunca deve
   // fazer uma oferta comercial aparecer indevidamente.
-  async function readSubscriptionVisibility() {
+  async function readSubscriptionVisibilitySetting() {
     const { data, error } = await db.from('platform_settings').select('show_subscription').eq('id', true).maybeSingle();
-    const visible = !error && data?.show_subscription === true;
+    return !error && data?.show_subscription === true;
+  }
+
+  async function refreshPublicPlansVisibility() {
+    const visible = await readSubscriptionVisibilitySetting() && await isExternalPublicPlansVisitor();
     plansButton.classList.toggle('hidden', !visible);
     if (!visible) publicPlansModal.classList.add('hidden');
     return visible;
   }
-  readSubscriptionVisibility();
+  refreshPublicPlansVisibility();
+
+  db.auth.onAuthStateChange((_event, session) => {
+    if (!session?.user) return;
+    rememberKnownCarometroAudience();
+    hidePublicPlansEntry();
+  });
 
   const modal = document.createElement('div');
   modal.id = 'settingsModal';
@@ -371,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const target = document.getElementById('accessUsers');
-    const showSubscription = await readSubscriptionVisibility();
+    const showSubscription = await readSubscriptionVisibilitySetting();
     document.getElementById('showSubscriptionButton').checked = showSubscription;
     target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
@@ -484,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toast(show ? 'Oferta pública de planos habilitada.' : 'Oferta pública de planos desabilitada.');
   };
   document.addEventListener('carometro:platform-settings-changed', () => {
-    readSubscriptionVisibility();
+    refreshPublicPlansVisibility();
   });
   document.addEventListener('carometro:profiles-changed', () => {
     if (!modal.classList.contains('hidden') && isPlatformOwner()) openSettings();

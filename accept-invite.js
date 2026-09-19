@@ -3,6 +3,11 @@ const $ = id => document.getElementById(id);
 const bootData = window.CAROMETRO_INVITE_BOOT || {};
 let authTokenHash = typeof bootData.authTokenHash === 'string' ? bootData.authTokenHash : null;
 const authTokenType = bootData.type === 'email' ? 'email' : null;
+const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
+
+function rememberInvitedCarometroAudience() {
+  try { localStorage.setItem(knownCarometroAudienceKey, '1'); } catch {}
+}
 
 function invitationToken() {
   if (typeof bootData.token === 'string' && bootData.token) return bootData.token;
@@ -180,6 +185,11 @@ async function boot() {
     showError('fatal', 'Este convite é inválido, expirou, foi cancelado ou já foi utilizado.');
     return;
   }
+  // Um convite válido já identifica esta navegação como entrada de uma conta
+  // do Carômetro, ainda que o vínculo escolar só seja criado ao final. O
+  // marcador impede que a oferta pública de planos reapareça no login deste
+  // dispositivo depois que a pessoa sair da conta.
+  rememberInvitedCarometroAudience();
   $('school').textContent = invitation.school_name || '';
   $('role').textContent = `Papel: ${roleLabel(invitation.role)}`;
   $('email').textContent = `E-mail: ${invitation.masked_email || ''}`;
