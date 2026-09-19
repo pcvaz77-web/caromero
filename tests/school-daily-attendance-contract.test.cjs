@@ -41,9 +41,11 @@ assert.match(source, /getSchoolDailyAttendanceStatus/);
 assert.match(source, /getStudentAttendanceDetails/);
 assert.match(source, /source_key==='teacher'/);
 assert.match(source, /Professor conselheiro/);
+assert.match(source, /effectivePeriod\(item\)/);
+assert.match(source, /select\('school_year,bimester,starts_on,ends_on'\)/);
 assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
-assert.match(index, /school-daily-attendance\.js\?v=7/);
+assert.match(index, /school-daily-attendance\.js\?v=8/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
@@ -79,5 +81,27 @@ assert.equal(periodSandbox.describePeriod(
   { datesRead:['10/08/2026','15/10/2026'], months:['Agosto','Outubro'] },
   [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }, { bimester:4, starts_on:'2026-10-01', ends_on:'2026-12-20' }]
 ), 'Agosto e Outubro');
+
+const effectivePeriodStart = source.indexOf('const orderedMonths');
+const effectivePeriodEnd = source.indexOf('\n\n  async function loadAttendanceTerms');
+assert.ok(effectivePeriodStart >= 0 && effectivePeriodEnd > effectivePeriodStart);
+const effectivePeriodUtilities = source.slice(effectivePeriodStart,effectivePeriodEnd);
+const effectivePeriodSandbox = {};
+vm.runInNewContext(`
+  const MONTHS = ${JSON.stringify(['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'])};
+  const formatMonthList = months => new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(months);
+  let attendanceTermsByYear = new Map();
+  ${effectivePeriodUtilities}
+  globalThis.describeEffectivePeriod = (item,terms=[]) => {
+    attendanceTermsByYear = new Map([[Number(item.academic_year),terms]]);
+    return effectivePeriod(item);
+  };
+`, effectivePeriodSandbox);
+const thirdTerm={bimester:3,starts_on:'2026-08-01',ends_on:'2026-09-30'};
+const fourthTerm={bimester:4,starts_on:'2026-10-01',ends_on:'2026-12-20'};
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Setembro']},[thirdTerm]),'3º bimestre');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Outubro']},[thirdTerm,fourthTerm]),'3º e 4º bimestres');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro']}),'Agosto e Setembro');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Setembro','Dezembro']},[thirdTerm]),'Setembro e Dezembro');
 
 console.log('Carômetro: fluxo da Frequência da Secretaria e vínculo nominal aprovados.');

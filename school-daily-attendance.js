@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
   let collection = null;
   let schoolTerms = [];
+  let attendanceTermsByYear = new Map();
   let reading = false;
   let saving = false;
 
@@ -187,6 +188,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const months=orderedMonths(values);
     return months.length ? formatMonthList(months) : '';
   };
+  const effectivePeriod = item => {
+    const months=orderedMonths(item?.months);
+    const fallback=months.length ? formatMonthList(months) : item?.term || 'Período não informado';
+    const year=Number(item?.academic_year);
+    const terms=attendanceTermsByYear.get(year) || [];
+    if(!months.length||!Number.isInteger(year)||!terms.length)return fallback;
+    const bimesters=new Set();
+    for(const month of months){
+      const monthIndex=MONTHS.indexOf(month);
+      if(monthIndex<0)return fallback;
+      const startsOn=`${year}-${String(monthIndex+1).padStart(2,'0')}-01`;
+      const lastDay=new Date(Date.UTC(year,monthIndex+1,0)).getUTCDate();
+      const endsOn=`${year}-${String(monthIndex+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+      const matching=terms.filter(term=>term.starts_on&&term.ends_on&&term.starts_on<=endsOn&&term.ends_on>=startsOn);
+      if(!matching.length)return fallback;
+      matching.forEach(term=>bimesters.add(Number(term.bimester)));
+    }
+    const ordered=[...bimesters].filter(Number.isInteger).sort((left,right)=>left-right);
+    if(!ordered.length)return fallback;
+    if(ordered.length===1)return `${ordered[0]}º bimestre`;
+    return `${new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(ordered.map(value=>`${value}º`))} bimestres`;
+  };
+
+  async function loadAttendanceTerms(schoolId) {
+    attendanceTermsByYear=new Map();
+    if(!schoolId)return;
+    try {
+      const {data,error}=await db.from('school_terms').select('school_year,bimester,starts_on,ends_on').eq('school_id',schoolId);
+      if(error)return;
+      (data||[]).forEach(term=>{
+        const year=Number(term.school_year);
+        attendanceTermsByYear.set(year,[...(attendanceTermsByYear.get(year)||[]),term]);
+      });
+    } catch (_) {
+      attendanceTermsByYear=new Map();
+    }
+  }
 
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
@@ -210,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:'Professor conselheiro',updated_at:null});
       });
     }
+    await loadAttendanceTerms(schoolId);
     window.render?.();
     document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
   }
@@ -227,7 +266,7 @@ document.addEventListener('DOMContentLoaded', () => {
       status:item.status,
       label:STATUS[item.status].label,
       className:STATUS[item.status].className,
-      period:longPeriod(item.months) || item.term || 'Período não informado',
+      period:effectivePeriod(item),
       updatedAt:item.updated_at || null
     }];
   };
@@ -301,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
   by('[data-sda-import]').onclick = importCollection;
   by('[data-sda-clear]').onclick = () => { collection=null;selectedMonths.clear();modal.querySelectorAll('[data-sda-month]').forEach(input=>{input.checked=false;});render(); };
 
-  document.addEventListener('carometro:school-context-changed', async () => { effectiveBadges.clear();collection=null;schoolTerms=[];await loadThresholds();await loadEffectiveBadges();render(); });
+  document.addEventListener('carometro:school-context-changed', async () => { effectiveBadges.clear();attendanceTermsByYear.clear();collection=null;schoolTerms=[];await loadThresholds();await loadEffectiveBadges();render(); });
   document.addEventListener('carometro:attendance-data-changed', loadEffectiveBadges);
   setTimeout(loadEffectiveBadges, 1700);
 });
