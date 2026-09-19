@@ -43,11 +43,14 @@ assert.match(source, /source_key==='teacher'/);
 assert.match(source, /Professor conselheiro/);
 assert.match(source, /effectivePeriod\(item\)/);
 assert.match(source, /select\('school_year,bimester,starts_on,ends_on'\)/);
+assert.match(source, /percentage:item\.percentage/);
+assert.match(source, /\.attendance-percentage-ring\{/);
+assert.match(source, /conic-gradient\(var\(--attendance-color\)/);
 assert.match(source, /<span class="attendance-badge \$\{status\.className\}">\$\{status\.label\}<\/span>/);
 assert.doesNotMatch(source, /shortPeriod/);
 assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
-assert.match(index, /school-daily-attendance\.js\?v=9/);
+assert.match(index, /school-daily-attendance\.js\?v=10/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];

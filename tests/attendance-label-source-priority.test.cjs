@@ -23,6 +23,10 @@ test('card fechado mostra somente a etiqueta e perfil aberto informa origem, per
   assert.match(daily, /effectiveBadges\.get\(studentId\)/);
   assert.match(daily, /<span class="attendance-badge \$\{status\.className\}">\$\{status\.label\}<\/span>/);
   assert.doesNotMatch(daily, /shortPeriod/);
+  assert.match(daily, /percentage:item\.percentage/);
+  assert.match(core, /attendancePercentageChart/);
+  assert.match(core, /attendance-source-layout/);
+  assert.match(core, /aria-label="Frequência de \$\{percentage\}%"/);
   assert.doesNotMatch(daily, /\[\s*\{ source:'Secretaria'[\s\S]*\{ source:'Professor'/);
   assert.match(core, /<strong>Fonte:<\/strong>/);
   assert.match(core, /<strong>Período:<\/strong>/);

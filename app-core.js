@@ -28,12 +28,19 @@ const attendanceUpdatedLabel = value => {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(date);
 };
+const attendancePercentageChart = item => {
+  if (item?.percentage === null || item?.percentage === undefined || item?.percentage === '') return '';
+  const percentage = Math.max(0, Math.min(100, Math.round(Number(item.percentage))));
+  if (!Number.isFinite(percentage)) return '';
+  const tone = item.status === 'frequent' ? 'frequent' : item.status === 'absent' ? 'absent' : 'active-search';
+  return `<span class="attendance-percentage-ring attendance-percentage-${tone}" style="--attendance-value:${percentage}" role="img" aria-label="Frequência de ${percentage}%"><span>${percentage}%</span></span>`;
+};
 const attendanceDetails = studentId => {
   const items = window.getStudentAttendanceDetails?.(studentId) || [];
   if (!items.length) return window.getSiapAttendanceBadge?.(studentId) || '';
   return items.map(item => {
     const updated=attendanceUpdatedLabel(item.updatedAt);
-    return `<div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>`;
+    return `<div class="attendance-source-layout"><div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>${attendancePercentageChart(item)}</div>`;
   }).join('');
 };
 const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;
