@@ -25,20 +25,26 @@ document.addEventListener('DOMContentLoaded', () => {
   document.body.appendChild(modal);
 
   const close = () => modal.classList.add('hidden');
-  const contactContext = () => {
+  const contactContext = async () => {
     const membership = window.getActiveSchoolMembership?.();
     const school = membership?.name || 'Não informada';
     const role = document.getElementById('roleLabel')?.textContent?.trim() || window.getActiveSchoolRole?.() || 'Não informado';
-    return { school, role };
+    const { data:{ user } } = await db.auth.getUser();
+    let name = user?.user_metadata?.full_name?.trim() || user?.email?.split('@')[0] || 'Não informado';
+    if (user?.id) {
+      const { data:profile } = await db.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+      if (profile?.full_name?.trim()) name = profile.full_name.trim();
+    }
+    return { school, role, name };
   };
-  const open = () => {
-    const { school, role } = contactContext();
-    const subject = 'Sugestão para o Carômetro';
-    const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
-    modal.querySelector('#contactSuggestion').href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
-    modal.querySelector('#contactQuestion').href = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
+  const open = async () => {
     modal.classList.remove('hidden');
+    const { school, role, name } = await contactContext();
+    const subject = 'Sugestão para o Carômetro';
+    const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
+    modal.querySelector('#contactSuggestion').href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
+    modal.querySelector('#contactQuestion').href = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
   };
 
   button.onclick = open;
