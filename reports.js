@@ -26,24 +26,38 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="reports-hint">O período selecionado é aplicado às ocorrências. Observações e foto representam o cadastro atual do aluno.</div>
     <div class="reports-section">
       <span class="reports-section-title">Conteúdo do relatório</span>
-      <div class="reports-checks">
-        <label class="check"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
-        <label class="check"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
-        <span class="reports-attendance-label">Frequência:</span>
-        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher" checked> Professor/disciplina</label>
-        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Secretaria</label>
-        <label class="check"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none"> Não incluir</label>
-        <label class="check"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
-        <label class="check"><input type="checkbox" id="reportContentLivroRevisa"> Recebimento de Livro/Revisa</label>
-        <label class="check"><input type="checkbox" id="reportContentUniformItems"> Recebimento de Uniforme/Tênis/Material</label>
+      <div class="reports-options-grid">
+        <fieldset class="reports-option-card">
+          <legend>Informações gerais</legend>
+          <div class="reports-choice-list">
+            <label class="check reports-choice"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
+          </div>
+        </fieldset>
+        <fieldset class="reports-option-card">
+          <legend>Frequência</legend>
+          <div class="reports-choice-list">
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher" checked> Professor/disciplina</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Secretaria</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none"> Não incluir</label>
+          </div>
+        </fieldset>
+        <fieldset class="reports-option-card reports-option-card-wide">
+          <legend>Recebimentos</legend>
+          <div class="reports-choice-list reports-choice-list-receipts">
+            <label class="check reports-choice"><input type="checkbox" id="reportContentLivroRevisa"> Livro/Revisa</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentUniformItems"> Uniforme/Tênis/Material</label>
+          </div>
+          <div class="field reports-livro-revisa-year hidden" id="reportLivroRevisaYearField"><label for="reportLivroRevisaYear">Ano letivo de Livro/Revisa</label><input id="reportLivroRevisaYear" type="number" min="2000" max="2100" step="1"></div>
+        </fieldset>
       </div>
-      <div class="field reports-livro-revisa-year hidden" id="reportLivroRevisaYearField"><label for="reportLivroRevisaYear">Ano letivo (Livro/Revisa)</label><input id="reportLivroRevisaYear" type="number" min="2000" max="2100" step="1"></div>
     </div>
-    <div class="reports-section">
+    <div class="reports-section reports-student-section">
       <span class="reports-section-title">Incluir alunos</span>
-      <div class="reports-checks">
-        <label class="check"><input type="radio" name="reportInclude" id="reportIncludeAll" value="all" checked> Todos os alunos</label>
-        <label class="check"><input type="radio" name="reportInclude" id="reportIncludeWithRecords" value="with_records"> Somente alunos com registros</label>
+      <div class="reports-choice-list reports-choice-list-students">
+        <label class="check reports-choice"><input type="radio" name="reportInclude" id="reportIncludeAll" value="all" checked> Todos os alunos</label>
+        <label class="check reports-choice"><input type="radio" name="reportInclude" id="reportIncludeWithRecords" value="with_records"> Somente alunos com registros</label>
       </div>
     </div>
     <div class="reports-preview" id="reportsPreview">Selecione os filtros para ver a prévia.</div>
@@ -58,10 +72,22 @@ document.addEventListener('DOMContentLoaded', () => {
     .reports-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
     .reports-dates { grid-template-columns:1fr 1fr; max-width:400px; }
     .reports-hint { margin-top:4px; margin-bottom:16px; font-size:12.5px; color:var(--muted); background:#f4f7ff; border-radius:8px; padding:9px 12px; }
-    .reports-section { margin-bottom:16px; }
+    .reports-section { margin-bottom:18px; }
     .reports-section-title { display:block; margin-bottom:8px; font-size:11px; font-weight:850; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); }
-    .reports-checks { display:flex; flex-wrap:wrap; gap:14px 20px; }
-    .reports-attendance-label { align-self:center; font-size:13px; font-weight:800; color:var(--navy); }
+    .reports-options-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; }
+    .reports-option-card { min-width:0; margin:0; padding:12px; border:1px solid #dbe3f1; border-radius:12px; background:#f8faff; }
+    .reports-option-card legend { padding:0 6px; color:var(--navy); font-size:12px; font-weight:850; }
+    .reports-option-card-wide { grid-column:1/-1; }
+    .reports-choice-list { display:grid; gap:8px; }
+    .reports-choice-list-receipts, .reports-choice-list-students { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .reports-choice { display:flex; align-items:center; gap:9px; min-width:0; min-height:42px; margin:0; padding:9px 11px; border:1px solid #e0e6f0; border-radius:9px; background:#fff; color:var(--navy); line-height:1.3; cursor:pointer; }
+    .reports-choice:hover { border-color:#b7c9eb; background:#fbfdff; }
+    .reports-choice:focus-within { outline:2px solid rgba(59,105,219,.2); outline-offset:1px; }
+    .reports-choice:has(input:checked) { border-color:#8eb1f4; background:#edf4ff; box-shadow:0 0 0 1px rgba(59,105,219,.08); }
+    .reports-choice input { flex:0 0 auto; margin:0; }
+    .reports-livro-revisa-year { max-width:280px; margin-top:12px; }
+    .reports-student-section { padding:12px; border:1px solid #dbe3f1; border-radius:12px; background:#f8faff; }
+    .reports-student-section .reports-section-title { margin-bottom:10px; color:var(--navy); }
     .reports-preview { padding:11px 14px; border-radius:9px; background:#f4f7ff; color:#315dbb; font-weight:750; font-size:13.5px; margin-bottom:14px; }
     .reports-progress { margin-bottom:14px; }
     .reports-progress-bar { height:8px; border-radius:99px; background:#edf0f4; overflow:hidden; }
@@ -73,6 +99,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .reports-dialog { width:100%; max-height:calc(100dvh - 20px); }
       .reports-form { padding:16px; }
       .reports-grid, .reports-dates { grid-template-columns:1fr; }
+      .reports-options-grid, .reports-choice-list-receipts, .reports-choice-list-students { grid-template-columns:1fr; }
+      .reports-option-card-wide { grid-column:auto; }
+      .reports-livro-revisa-year { max-width:none; }
       .reports-actions { display:grid; grid-template-columns:1fr; gap:8px; }
       .reports-actions .btn { width:100%; }
     }
