@@ -64,6 +64,8 @@ test('dono pode visualizar a mesma página pública de vendas pelo painel de pla
   assert.match(storefront, /window\.openCarometroPublicPlansPreview = openPublicPlansPreview/);
   assert.match(storefront, /await openPublicPlansPreview\(\)/);
   assert.match(styles, /\.platform-sales-preview-button/);
+  assert.match(styles, /\.public-plans-modal \{[^}]*z-index:420!important/);
+  assert.match(styles, /\.school-application-bg\{z-index:430!important/);
 });
 
 test('usa os termos comerciais solicitados com concordância correta', () => {
