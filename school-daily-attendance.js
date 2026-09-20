@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const normalizeName = value => cleanName(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z ]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   const normalizeClass = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[ºª°]/g, '').replace(/\b(?:turma|serie|ano)\b/gi, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   const escapeHtml = value => { const node=document.createElement('span');node.textContent=String(value || '');return node.innerHTML; };
-  const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl || 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
+  const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/knidplehpfhpgaeeogjpfldhgbfkogbc';
   const initials = value => cleanName(value).split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
   const classify = percentage => percentage >= thresholds.frequentMinimum ? 'frequent' : percentage >= thresholds.absentMinimum ? 'absent' : 'active_search';
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);

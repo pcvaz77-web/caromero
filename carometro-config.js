@@ -9,6 +9,7 @@
     supabaseUrl: 'https://ppkndfwmqdmomkjoemre.supabase.co',
     supabasePublishableKey: 'sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn',
     siapAssistantStoreUrl: 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    attendanceCaptureStoreUrl: 'https://chromewebstore.google.com/detail/knidplehpfhpgaeeogjpfldhgbfkogbc',
     // A loja faz as atualizações comuns automaticamente. Altere o mínimo
     // somente quando uma versão antiga deixar de ser compatível ou segura.
     siapAssistantMinimumVersion: '0.20.0',
