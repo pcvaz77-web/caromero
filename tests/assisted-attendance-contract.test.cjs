@@ -21,7 +21,7 @@ assert.match(source,/Aguardando as datas indicadas abaixo/);
 assert.match(source,/localeCompare\(b\.name,'pt-BR'/);
 assert.match(source,/if\(!state\.ready\)throw new Error/);
 assert.match(source,/attendanceCaptureStoreUrl/);
-assert.match(source,/knidplehpfhpgaeeogjpfldhgbfkogbc/);
+assert.match(source,/carometro-frequencia-leitura\/knidplehphfpgaeeogjpfldhgbfkogbc/);
 assert.match(source,/extensionLink\.classList\.add\('primary'\)/);
 assert.match(source,/Instalar o capturador de frequência/);
 assert.doesNotMatch(source,/carometro-frequencia-leitura-0\.7\.0\.zip/);

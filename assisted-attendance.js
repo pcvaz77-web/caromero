@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const normalizeName = value => String(value || '').replace(/^\s*\d+\s*[.\-)–—:]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   const normalizeClass = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
   const escapeHtml = value => { const node=document.createElement('span'); node.textContent=String(value || ''); return node.innerHTML; };
-  const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/knidplehpfhpgaeeogjpfldhgbfkogbc';
+  const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/carometro-frequencia-leitura/knidplehphfpgaeeogjpfldhgbfkogbc';
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
   const STATUS = {
     frequent:{ label:'Frequente', className:'attendance-frequent' },
