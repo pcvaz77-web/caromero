@@ -146,7 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
   extensionLink.href = extensionStoreUrl;
   extensionLink.target = '_blank';
   extensionLink.rel = 'noopener noreferrer';
-  extensionLink.textContent = 'Instalar pela Chrome Web Store';
+  extensionLink.classList.remove('secondary');
+  extensionLink.classList.add('primary');
+  extensionLink.textContent = 'Instalar o capturador de frequência';
   modal.querySelector('.sda-install-help').textContent = 'A instalação e as atualizações são feitas pela página oficial da extensão na Chrome Web Store.';
 
   const style = document.createElement('style');

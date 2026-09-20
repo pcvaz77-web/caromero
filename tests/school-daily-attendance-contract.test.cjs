@@ -44,7 +44,8 @@ assert.match(source, /Intl\.ListFormat\('pt-BR'/);
 assert.doesNotMatch(source, /\$\{collection\.context\.term\}.*data-sda-context/);
 assert.match(source, /siapAssistantStoreUrl/);
 assert.match(source, /extensionLink\.removeAttribute\('download'\)/);
-assert.match(source, /Instalar pela Chrome Web Store/);
+assert.match(source, /extensionLink\.classList\.add\('primary'\)/);
+assert.match(source, /Instalar o capturador de frequência/);
 assert.match(source, /getSchoolDailyAttendanceStatus/);
 assert.match(source, /getStudentAttendanceDetails/);
 assert.match(source, /source_key==='teacher'/);
@@ -60,7 +61,7 @@ assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
 assert.match(source, /carometro:school-context-ready', reloadActiveSchoolAttendance/);
 assert.match(source, /carometro:data-loaded', loadEffectiveBadges/);
-assert.match(index, /school-daily-attendance\.js\?v=14/);
+assert.match(index, /school-daily-attendance\.js\?v=15/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
