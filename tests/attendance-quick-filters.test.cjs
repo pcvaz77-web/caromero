@@ -17,8 +17,8 @@ test('filtros rápidos usam a classificação automática atual da frequência',
   assert.match(filters, /carometro:attendance-status-changed/);
   assert.match(schoolDaily, /window\.getSiapAttendanceStatus = studentId => effectiveBadges\.get\(studentId\)\?\.status \|\| null/);
   assert.match(attendance, /new CustomEvent\('carometro:attendance-status-changed'\)/);
-  assert.match(index, /assisted-attendance\.js\?v=20/);
-  assert.match(index, /school-daily-attendance\.js\?v=7/);
+  assert.match(index, /assisted-attendance\.js\?v=26/);
+  assert.match(index, /school-daily-attendance\.js\?v=18/);
   assert.match(index, /student-search-filters\.js\?v=8/);
 });
 

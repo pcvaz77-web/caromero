@@ -61,6 +61,9 @@ assert.match(source,/\.aa-student-photo\{width:54px;height:54px;border-radius:50
 assert.match(source,/\.aa-bar-frequent\{background:#16a36a\}/);
 assert.match(source,/\.aa-bar-absent\{background:#e5a000\}/);
 assert.match(source,/\.aa-bar-active_search\{background:#dc3545\}/);
+assert.match(source,/\[data-aa-import\]\{background:#16865f!important/);
+assert.match(source,/\[data-aa-clear\]\{background:#c93f4a!important/);
+assert.match(source,/\.assisted-attendance-actions a\{background:#7c3aed!important/);
 assert.match(source,/class="aa-bar-\$\{row\.status\}"/);
 assert.match(source,/import_siap_attendance_results/);
 assert.match(migration,/unique \(school_id, student_id, period_key\)/);

@@ -56,13 +56,16 @@ assert.match(source, /select\('school_year,bimester,starts_on,ends_on'\)/);
 assert.match(source, /percentage:item\.percentage/);
 assert.match(source, /\.attendance-percentage-ring\{/);
 assert.match(source, /conic-gradient\(var\(--attendance-color\)/);
+assert.match(source, /\[data-sda-import\]\{background:#16865f!important/);
+assert.match(source, /\[data-sda-clear\]\{background:#c93f4a!important/);
+assert.match(source, /\.sda-actions a\{background:#7c3aed!important/);
 assert.match(source, /<span class="attendance-badge \$\{status\.className\}">\$\{status\.label\}<\/span>/);
 assert.doesNotMatch(source, /shortPeriod/);
 assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
 assert.match(source, /carometro:school-context-ready', reloadActiveSchoolAttendance/);
 assert.match(source, /carometro:data-loaded', loadEffectiveBadges/);
-assert.match(index, /school-daily-attendance\.js\?v=17/);
+assert.match(index, /school-daily-attendance\.js\?v=18/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
