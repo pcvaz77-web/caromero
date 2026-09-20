@@ -42,6 +42,7 @@
 .video-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:28px;align-items:start}
 .video-card{overflow:hidden;border:1px solid #dfe6f2;border-radius:24px;background:#fff;box-shadow:0 18px 48px #17233a14}
 .video-frame{display:flex;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 8%,#3156b8 0,transparent 37%),linear-gradient(145deg,#071a39,#102e67)}
+.sales-video{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:16px;background:#020814;box-shadow:0 18px 40px #02081466}
 .youtube-embed{min-height:360px;align-items:center}
 .youtube-embed iframe{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:16px;background:#020814;box-shadow:0 18px 40px #02081466}
 .youtube-play{width:min(100%,560px);aspect-ratio:16/9;padding:28px;display:grid;place-content:center;gap:9px;border:1px solid #ffffff2b;border-radius:16px;background:linear-gradient(145deg,#172f69,#0b1733);color:#fff;box-shadow:0 18px 40px #02081466;cursor:pointer}
