@@ -130,3 +130,12 @@ test('trecho da disciplina mantém números impressos variáveis e não envia ga
  responseStart=1;await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic'},key,assessment),/[Nn]umeração/);
  }finally{globalThis.fetch=original;}
 });
+
+test('novas sessões não aguardam dois minutos; limite protege somente excesso de tentativas',async()=>{
+ const r=room(); await r.storage.put('owner:test',Date.now());
+ for(let i=0;i<20;i++) assert.equal((await r.call('create-limit',{owner:'test'})).status,200);
+ assert.equal((await r.call('create-limit',{owner:'test'})).status,429);
+ assert.equal((await r.call('create-limit',{owner:'other'})).status,200);
+ await r.storage.put('owner:test',[Date.now()-61000]);
+ assert.equal((await r.call('create-limit',{owner:'test'})).status,200);
+});

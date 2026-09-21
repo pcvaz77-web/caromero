@@ -80,8 +80,11 @@ export class ExamSession {
       return await this.ctx.blockConcurrencyWhile(async () => {
         if (action === 'create-limit') {
           const key = 'owner:' + body.owner, previous = await this.storage.get(key);
-          if (previous && previous > Date.now() - 120000) return json({ error: 'Aguarde dois minutos antes de criar outra sessão.' }, 429);
-          await this.storage.put(key, Date.now()); await this.storage.setAlarm(Date.now() + TTL);
+          // Allow normal classroom changes immediately; retain a burst limit for loops.
+          // Older numeric timestamps must not preserve the former two-minute lock.
+          const recent = (Array.isArray(previous) ? previous : []).filter(t => t > Date.now() - 60000);
+          if (recent.length >= 20) return json({ error: 'Muitas tentativas seguidas. Aguarde alguns segundos e tente novamente.' }, 429);
+          await this.storage.put(key, [...recent, Date.now()]); await this.storage.setAlarm(Date.now() + TTL);
           return json({ ok: true });
         }
         if (action === 'permit') {
