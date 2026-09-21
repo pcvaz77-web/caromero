@@ -5,16 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // eles representam o escopo, o resultado da pesquisa fica só no contador
   // "N alunos encontrados" da barra de filtros. Ao retornar para "Todos os
   // alunos", eles mostram a escola inteira.
-  let lastCounterRequest = 0;
-  const countStudents = classId => {
-    let query = db.from('students').select('id', { count:'exact', head:true });
-    const schoolId = window.getActiveSchoolId?.();
-    query = query.eq('school_id', schoolId);
-    if (classId) query = query.eq('class_id', classId);
-    return query;
-  };
-
-  const paintClassCounters = async classId => {
+  const paintClassCounters = classId => {
     const total = document.getElementById('total');
     const classesCountEl = document.getElementById('classesCount');
     if (!total || !classesCountEl || !Array.isArray(students)) return;
@@ -38,26 +29,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ? classes.filter(item => (item.shift || 'Matutino') === activeShift).length
         : classes.length;
 
-    // Mostra imediatamente o que já está em memória e, em seguida, substitui
-    // o total de alunos pela contagem exata do banco. A lista pode ter
-    // paginação; o contador não. Turmas cadastradas nunca é paginado, então
-    // fica só com o valor em memória.
+    // window.load busca todas as páginas sob RLS e mantém apenas alunos
+    // ativos. Só a renderização dos cards é limitada. Usar essa lista evita
+    // repetir COUNT(*) em cada render e incluir matrículas arquivadas no total.
     total.textContent = scope.length;
     classesCountEl.textContent = scopedClassesCount;
-
-    // Escopo de turno inteiro: a contagem em memória acima já vem de uma
-    // consulta real sob RLS (window.load), então não repete uma segunda
-    // consulta ao banco só para esse caso — mesma garantia de autoridade da
-    // RLS, sem tráfego extra.
-    if (activeShift) return;
-
-    const requestId = ++lastCounterRequest;
-    const totalResult = await countStudents(activeClassId);
-    if (requestId !== lastCounterRequest) return;
-    // Algumas configurações de RLS devolvem count=0 em consultas HEAD mesmo
-    // quando as linhas já foram carregadas normalmente. Não deixe esse falso
-    // zero apagar a contagem confiável que está em memória.
-    if (typeof totalResult.count === 'number' && (totalResult.count > 0 || scope.length === 0)) total.textContent = totalResult.count;
   };
 
   const originalRender = window.render;

@@ -726,7 +726,13 @@ document.addEventListener('DOMContentLoaded', () => {
   new MutationObserver(paintStudentCards).observe(get('list'), { childList:true });
   new MutationObserver(paintStudentCards).observe(get('studentDetails'), { childList:true, subtree:true });
   new MutationObserver(() => {
-    if (!get('app').classList.contains('hidden')) refreshLabelState();
+    if (!get('app').classList.contains('hidden')) {
+      // A carga/permissão pode terminar enquanto o bootstrap ainda oculta
+      // o app. Ao revelá-lo, resolva o acesso de novo antes de pintar o menu.
+      void refreshOccurrenceMembership().then(() => {
+        syncOccurrenceNavigation(); syncSaveAction(); refreshLabelState();
+      });
+    }
     else {
       membershipRequest += 1; historyRequest += 1; labelRequest += 1;
       occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission();

@@ -46,11 +46,12 @@ test('tela do coordenador usa o proprio vinculo quando diretorio retorna apenas 
 });
 
 test('professor ganha botao de ocorrencias quando permissoes carregam depois da abertura do app',async()=>{
-  const source=read('occurrence-management.js'),nodes=new Map(),events=new Map();
+  const source=read('occurrence-management.js'),nodes=new Map(),events=new Map(),observers=[];
   const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   let rights={can_view_occurrences:true,can_register_occurrences:true};
   const context={user:{id:'teacher'},window:{getActiveSchoolId:()=> 'school'},document:{getElementById:get,addEventListener:(name,fn)=>events.set(name,fn)},
     occurrenceButton:element(),modal:element(),historyRecords:new Map(),syncSaveAction(){},refreshLabelState:async()=>{},
+    MutationObserver:class{constructor(fn){observers.push(fn);}observe(){}},
     db:{auth:{getUser:async()=>({data:{user:{id:'teacher'}}})},removeChannel:async()=>{},from:table=>{
       const query={select(){return this;},eq(){return this;},maybeSingle:async()=>({data:table==='school_members'?{id:'member',school_id:'school',role:'teacher'}:rights})};return query;
     }}};
@@ -58,6 +59,7 @@ test('professor ganha botao de ocorrencias quando permissoes carregam depois da 
   vm.runInContext(between(source,'  const get =','  const escape ='),context);
   vm.runInContext(between(source,'  const syncOccurrenceNavigation =','  occurrenceButton.onclick'),context);
   vm.runInContext(between(source,"  document.addEventListener('carometro:data-loaded'",'  new MutationObserver(syncOccurrenceNavigation)'),context);
+  vm.runInContext(between(source,"  new MutationObserver(() => {\n    if (!get('app')","  document.addEventListener('carometro:occurrences-changed'"),context);
   await context.refreshOccurrenceMembership();vm.runInContext('syncOccurrenceNavigation()',context);
   assert.equal(context.occurrenceButton.hidden,true);
   get('app').classList.remove('hidden');await events.get('carometro:data-loaded')();
@@ -65,6 +67,11 @@ test('professor ganha botao de ocorrencias quando permissoes carregam depois da 
   assert.equal(context.occurrenceButton.classList.contains('hidden'),false);
   rights={can_view_occurrences:false};await events.get('carometro:data-loaded')();
   assert.equal(context.occurrenceButton.hidden,true,'revogacao continua ocultando o botao');
+  get('app').classList.add('hidden');rights={can_view_occurrences:true,can_register_occurrences:true};
+  await events.get('carometro:data-loaded')();
+  assert.equal(context.occurrenceButton.hidden,true,'carga que termina durante bootstrap nao expoe botao');
+  get('app').classList.remove('hidden');observers[0]();await flush();
+  assert.equal(context.occurrenceButton.hidden,false,'revelar app resolve acesso mesmo sem nova carga');
 });
 
 function occurrenceContext(queryResult){
