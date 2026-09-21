@@ -59,3 +59,27 @@ test('PEI local usa textos desenvolvidos com aberturas diferentes', () => {
   assert.match(source, /Para viabilizar a participação e a aprendizagem/);
   assert.match(source, /O processo avaliativo será contínuo e formativo/);
 });
+
+test('minimização é preservada após sucessivos recarregamentos dos filtros', async () => {
+  const vm = require('node:vm');
+  const install = source.slice(source.indexOf('  async function install() {'), source.indexOf('  async function refreshLicenseStatus()'));
+  let stored = {}, open;
+  const context = {
+    initialPageType:'exam',
+    chrome:{storage:{local:{get:async()=>({...stored})}}},
+    removeCompetitorOverlap(){}, createShell(value){open=value;},
+    setOpen(value){open=value;stored.panelOpen=value;},
+    refreshLicenseStatus(){},analyze(){},observeSiapUpdates(){},setTimeout(){}
+  };
+  vm.createContext(context);
+  await vm.runInContext(install+';install()',context);
+  assert.equal(open,true,'primeiro acesso pode abrir a correção');
+  context.setOpen(false);
+  for(let filter=0;filter<4;filter++){
+    await vm.runInContext('install()',context);
+    assert.equal(open,false,'trocar filtros mantém minimizado');
+  }
+  context.setOpen(true);
+  await vm.runInContext('install()',context);
+  assert.equal(open,true,'reabertura explícita também persiste');
+});

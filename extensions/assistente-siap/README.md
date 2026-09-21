@@ -1,4 +1,4 @@
-# Assistente SIAP — Correção de Provas 0.26.0
+# Assistente SIAP — Correção de Provas 0.26.1
 
 O fluxo de correção agora concentra gabarito, escolha do aluno, leitura e conferência no celular. O painel do SIAP faz o lançamento final dos resultados confirmados. Veja `../../services/siap-exam/README.md` para os limites e validação atuais. A pasta local foi atualizada; o Chrome requer recarregar a extensão. Nenhuma publicação na Web Store.
 
@@ -15,3 +15,7 @@ Não foram reescritos os fluxos de planejamento, frequência, conteúdo ou PEI. 
 O serviço e os limites de validação estão documentados em `../../services/siap-exam/README.md`. O pacote local não deve ser tratado como publicação na Chrome Web Store nem como piloto já validado com dados reais.
 
 `src/vendor/qrcode.js` é qrcode-generator 2.0.4 (Kazuhiko Arase, licença MIT indicada no cabeçalho), obtido do pacote oficial npm. O QR é produzido localmente.
+
+## 0.26.1
+
+Minimizar prevalece sobre a abertura automática da correção em novos carregamentos do SIAP. O usuário reabre pelo botão flutuante ou pela extensão. Ícone flutuante centralizado com dimensões explícitas e estilos isolados da página. 53 testes passaram, incluindo recarregamentos sucessivos após minimizar.

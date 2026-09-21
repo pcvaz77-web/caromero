@@ -1,12 +1,13 @@
 #assistente-siap-root { all: initial; }
 #assistente-siap-launcher {
+  all: initial; box-sizing: border-box; display: grid; place-items: center; margin: 0; line-height: 0;
   position: fixed; right: 18px; bottom: 18px; z-index: 2147483646;
   width: 54px; height: 54px; padding: 5px; border: 1px solid rgba(130,174,255,.65); border-radius: 18px;
   background: #17233a; box-shadow: 0 12px 30px rgba(23,35,58,.32); cursor: grab; touch-action: none;
 }
 #assistente-siap-launcher:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 15px 34px rgba(23,35,58,.38); }
 #assistente-siap-launcher:active { cursor: grabbing; }
-#assistente-siap-launcher img { display: block; width: 100%; height: 100%; border-radius: 14px; pointer-events: none; }
+#assistente-siap-launcher img { all: initial; box-sizing: border-box; display: block; width: 42px; height: 42px; margin: 0; padding: 0; border: 0; object-fit: contain; border-radius: 14px; pointer-events: none; }
 #assistente-siap-launcher[hidden] { display: none !important; }
 #assistente-siap-panel {
   position: fixed; top: 16px; right: 16px; z-index: 2147483645;

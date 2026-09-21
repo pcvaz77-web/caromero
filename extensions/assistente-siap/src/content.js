@@ -72,7 +72,7 @@
     // Na primeira utilização começa minimizado; depois preserva aberto/minimizado.
     createShell(stored.panelOpen === true, false, stored);
     refreshLicenseStatus();
-    if (initialPageType === "exam") setOpen(true, false);
+    if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
     observeSiapUpdates();
     setTimeout(analyze, 700);
