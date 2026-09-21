@@ -66,7 +66,7 @@ function renderOnboarding(state) {
   $('onboardingPasswordConfirmField').classList.toggle('hidden', !needsPassword);
   $('onboardingPassword').required = needsPassword;
   $('onboardingPasswordConfirm').required = needsPassword;
-  if (state === 'needs_both') $('onboardingNote').textContent = 'Antes de continuar, informe seu nome e defina a senha desta conta.';
+  if (state === 'needs_both') $('onboardingNote').textContent = 'Complete seu cadastro abaixo: informe seu nome e defina sua senha.';
   else if (state === 'needs_password') $('onboardingNote').textContent = 'Antes de continuar, defina a senha desta conta.';
   else if (state === 'needs_name') $('onboardingNote').textContent = 'Antes de continuar, confirme seu nome completo.';
 }
@@ -87,6 +87,7 @@ function showAuth() {
 
 function showSession(email, matches) {
   $('authBox').classList.add('hidden');
+  $('sessionLabel').textContent = matches ? 'E-mail confirmado:' : 'Conta conectada:';
   $('sessionEmail').textContent = email || '';
   $('sessionMismatch').classList.toggle('hidden', matches);
   $('sessionActions').classList.toggle('hidden', !matches);

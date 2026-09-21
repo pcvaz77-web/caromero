@@ -43,7 +43,7 @@
       <h1>Convite para entrar na escola</h1>
       <div class="preview"><b id="school"></b><span id="role"></span><span id="email"></span></div>
       <div id="sessionBox" class="hidden">
-        <p>Conta conectada: <b id="sessionEmail"></b></p>
+        <p><span id="sessionLabel">Conta conectada:</span> <b id="sessionEmail"></b></p>
         <p id="sessionError" class="error hidden"></p>
         <div id="sessionMismatch" class="note hidden">Esta conta não corresponde ao e-mail convidado. Para proteger seus dados, o convite não será processado com ela.</div>
         <div id="sessionActions">
@@ -78,7 +78,7 @@
   </main>
   <script>
     if (window.CAROMETRO_RUNTIME_CONFIG?.backendConfigured) {
-      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=8"><\/script>');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=9"><\/script>');
     } else {
       document.getElementById('fatal').textContent = 'O ambiente comercial ainda está em preparação.';
       document.getElementById('fatal').classList.remove('hidden');
