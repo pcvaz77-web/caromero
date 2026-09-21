@@ -42,7 +42,7 @@ test('instalacao oferece ajuda sem evento, continua apos recusa e oculta instala
   };
   vm.createContext(context);
   const source = read('pwa-notifications.js');
-  vm.runInContext(source.slice(source.indexOf('  let installedThisSession='), source.indexOf('  new MutationObserver(syncButtons)')), context);
+  vm.runInContext(source.slice(source.indexOf('  let installedThisSession='), source.indexOf('  pushButton.onclick=', source.indexOf('  let installedThisSession='))), context);
   assert.equal(hidden, false);
   await context.pwaButton.onclick();
   assert.equal(help, 1);

@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let occurrencePermissionChannel = null;
   let occurrenceMembershipChannel = null;
   let occurrenceChannelMemberId = null;
+  let membershipRequest = 0, historyRequest = 0, labelRequest = 0;
+  let savingOccurrence = false;
+  const occurrenceScope = () => ({ userId:user?.id, schoolId:window.getActiveSchoolId?.() });
+  const sameOccurrenceScope = scope => !!scope.userId && !!scope.schoolId
+    && scope.userId === user?.id && scope.schoolId === window.getActiveSchoolId?.()
+    && !get('app').classList.contains('hidden');
   const isSchoolAdmin = () => occurrenceMembership?.role === 'school_admin';
   // Espelha a policy "school_members_can_view_occurrences": bypass automático
   // só para school_admin; qualquer outro papel depende só das flags.
@@ -75,16 +81,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const canDeleteOccurrence = item => isOccurrenceAuthor(item) || isSchoolAdmin() || !!occurrencePermission.can_edit_all || !!occurrencePermission.can_delete_occurrences;
   const emptyOccurrencePermission = () => ({ can_view_occurrences:false, can_register_occurrences:false, can_edit_occurrences:false, can_delete_occurrences:false, can_edit_all:false });
   async function teardownOccurrenceChannels() {
-    if (occurrencePermissionChannel) { await db.removeChannel(occurrencePermissionChannel); occurrencePermissionChannel = null; }
-    if (occurrenceMembershipChannel) { await db.removeChannel(occurrenceMembershipChannel); occurrenceMembershipChannel = null; }
+    const oldPermission = occurrencePermissionChannel, oldMembership = occurrenceMembershipChannel;
+    occurrencePermissionChannel = null; occurrenceMembershipChannel = null;
     occurrenceChannelMemberId = null;
+    await Promise.all([oldPermission, oldMembership].filter(Boolean).map(channel => db.removeChannel(channel)));
   }
   // Garante exatamente um par de canais vivo, sempre referente ao member_id
   // atual — se o vínculo mudar (ex.: troca de conta), o par anterior é
   // removido antes de assinar o novo, evitando canais duplicados/vazados.
-  async function ensureOccurrenceChannels(memberId) {
+  async function ensureOccurrenceChannels(memberId, request, scope) {
     if (occurrenceChannelMemberId === memberId && occurrencePermissionChannel && occurrenceMembershipChannel) return;
     await teardownOccurrenceChannels();
+    if (request !== membershipRequest || !sameOccurrenceScope(scope)) return;
     if (!db.channel) return;
     occurrenceChannelMemberId = memberId;
     const onRemoteChange = () => { refreshOccurrenceMembership().then(() => { syncOccurrenceNavigation(); syncSaveAction(); refreshLabelState(); }); };
@@ -103,15 +111,19 @@ document.addEventListener('DOMContentLoaded', () => {
     ).subscribe();
   }
   async function refreshOccurrenceMembership() {
+    const request = ++membershipRequest, scope = occurrenceScope();
     const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (request !== membershipRequest) return;
     const schoolId = window.getActiveSchoolId?.();
-    if (!signedInUser || !schoolId) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
+    if (!sameOccurrenceScope(scope) || signedInUser?.id !== scope.userId) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
     const { data: membership } = await db.from('school_members').select('id,school_id,role').eq('user_id', signedInUser.id).eq('school_id', schoolId).eq('status', 'active').maybeSingle();
+    if (request !== membershipRequest || !sameOccurrenceScope(scope)) return;
     if (!membership) { occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission(); await teardownOccurrenceChannels(); return; }
-    occurrenceMembership = membership;
     const { data: perms } = await db.from('school_member_permissions').select('can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_edit_all').eq('member_id', membership.id).maybeSingle();
+    if (request !== membershipRequest || !sameOccurrenceScope(scope)) return;
+    occurrenceMembership = membership;
     occurrencePermission = perms || emptyOccurrencePermission();
-    await ensureOccurrenceChannels(membership.id);
+    await ensureOccurrenceChannels(membership.id, request, scope);
   }
   const escape = value => { const node = document.createElement('span'); node.textContent = value || ''; return node.innerHTML; };
   const today = () => new Date().toISOString().slice(0, 10);
@@ -193,7 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function syncSaveAction() {
     const button = get('saveOccurrence');
     const allowed = editingOccurrence ? canEditOccurrence(editingOccurrence) : canRegisterOccurrence();
-    button.disabled = !selectedClass() || !allowed;
+    button.disabled = savingOccurrence || !selectedClass() || !allowed;
     button.title = button.disabled ? 'O administrador precisa liberar a permissão de Ocorrência para esta turma.' : '';
   }
   function fillClasses() {
@@ -205,8 +217,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function fillSearchClasses() {
     const select = get('occurrenceSearchClass');
     const current = select.value;
-    select.innerHTML = '<option value="">Todas as turmas</option>' + classes.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('');
-    if (classes.some(item => item.id === current)) select.value = current;
+    const historyClasses = window.getSchoolHistoryData?.().classes || classes;
+    select.innerHTML = '<option value="">Todas as turmas</option>' + historyClasses.map(item => `<option value="${item.id}">${escape(item.name)}${item.archived_at ? ' (arquivada)' : ''}</option>`).join('');
+    if (historyClasses.some(item => item.id === current)) select.value = current;
   }
   function fillStudents() {
     const classId = selectedClass();
@@ -285,18 +298,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.dispatchEvent(new CustomEvent('carometro:occurrence-labels-changed'));
   };
   async function refreshLabelState() {
-    if (!canViewOccurrences()) {
+    const request = ++labelRequest, scope = occurrenceScope();
+    if (!sameOccurrenceScope(scope) || !canViewOccurrences()) {
       occurrenceStudentIds = new Set();
       occurrenceCounts = new Map();
       paintStudentCards();
       publishOccurrenceLabelState();
       return;
     }
-    const { data, error } = await db.from('student_occurrences').select('student_id').eq('school_id', occurrenceMembership.school_id);
+    const { data, error } = await readOccurrencePages(() => db.from('student_occurrences').select('id,student_id').eq('school_id', scope.schoolId).order('id'));
+    if (request !== labelRequest || !sameOccurrenceScope(scope) || !canViewOccurrences()) return;
     if (error) {
       if (!tableErrorShown) {
         tableErrorShown = true;
-        toast('O controle de Ocorrências ainda não foi instalado no banco. Execute o script supabase-occurrences.sql.');
+        toast('Não foi possível atualizar os indicadores de ocorrências. Tente novamente.');
       }
       return;
     }
@@ -307,7 +322,18 @@ document.addEventListener('DOMContentLoaded', () => {
     paintStudentCards();
     publishOccurrenceLabelState();
   }
+  async function readOccurrencePages(createQuery) {
+    const rows = [];
+    for (let from = 0; ; from += 1000) {
+      const result = await createQuery().range(from, from + 999);
+      if (result.error) return result;
+      rows.push(...(result.data || []));
+      if ((result.data || []).length < 1000) return { data:rows, error:null };
+    }
+  }
   async function refreshHistory() {
+    const request = ++historyRequest, scope = occurrenceScope();
+    if (!sameOccurrenceScope(scope) || !canViewOccurrences()) { historyRecords = new Map(); get('occurrenceHistoryList').innerHTML = ''; return; }
     const classId = selectedClass();
     const studentId = selectedStudent();
     const searchClassId = get('occurrenceSearchClass').value;
@@ -326,24 +352,30 @@ document.addEventListener('DOMContentLoaded', () => {
       .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,attachment_path,attachment_name,attachment_type,attachment_size,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name)')
       .eq('school_id', occurrenceMembership.school_id)
       .order('occurred_on', { ascending:false })
-      .order('created_at', { ascending:false });
+      .order('created_at', { ascending:false })
+      .order('id');
     if (focusedHistoryStudentId) {
       query = query.eq('student_id', focusedHistoryStudentId);
     } else if (normalizedName) {
-      const matches = students.filter(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedName) && (!searchClassId || item.classId === searchClassId));
+      const historyStudents = window.getSchoolHistoryData?.().students || students;
+      const matches = historyStudents.filter(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').includes(normalizedName));
       if (!matches.length) {
+        historyRecords = new Map();
         get('occurrenceHistoryMeta').textContent = 'Nenhum aluno encontrado com esse nome.';
         get('occurrenceHistoryList').innerHTML = '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
         return;
       }
       query = query.in('student_id', matches.map(item => item.id));
+      if (searchClassId) query = query.eq('class_id', searchClassId);
     } else if (searchClassId) query = query.eq('class_id', searchClassId);
     else if (studentId) query = query.eq('student_id', studentId);
     else if (classId) query = query.eq('class_id', classId);
     if (startDate) query = query.gte('occurred_on', startDate);
     if (endDate) query = query.lte('occurred_on', endDate);
-    const { data, error } = await query;
+    const { data, error } = await readOccurrencePages(() => query);
+    if (request !== historyRequest || !sameOccurrenceScope(scope) || !canViewOccurrences()) return;
     if (error) {
+      historyRecords = new Map();
       list.innerHTML = '<div class="occurrence-empty">Não foi possível consultar as ocorrências.</div>';
       get('occurrenceHistoryMeta').textContent = error.message;
       return;
@@ -426,76 +458,102 @@ document.addEventListener('DOMContentLoaded', () => {
     syncSaveAction();
   }
   async function save() {
+    if (savingOccurrence) return;
+    const scope = occurrenceScope();
+    if (!sameOccurrenceScope(scope)) return;
+    const editing = editingOccurrence, attachment = pendingAttachment, removing = removeAttachment;
     const classId = selectedClass();
     const studentId = selectedStudent();
     const text = get('occurrenceText').value.trim();
     const occurrenceDate = get('occurrenceDate').value;
     const classItem = classes.find(item => item.id === classId);
-    if (!editingOccurrence && (!classItem || !studentId)) { toast('Selecione a turma e o aluno.'); return; }
-    if (!editingOccurrence && !canRegisterOccurrence()) { toast('Sem permissão para registrar ocorrência.'); return; }
-    if (editingOccurrence && !canEditOccurrence(editingOccurrence)) { toast('Sem permissão para editar esta ocorrência.'); return; }
+    if (!editing && (!classItem || !studentId)) { toast('Selecione a turma e o aluno.'); return; }
+    if (!editing && !canRegisterOccurrence()) { toast('Sem permissão para registrar ocorrência.'); return; }
+    if (editing && !canEditOccurrence(editing)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     if (!occurrenceDate) { toast('Selecione a data da ocorrência.'); return; }
     if (!text) { toast('Digite a descrição da ocorrência.'); return; }
+    if (text.length > 500) { toast('A descrição deve ter no máximo 500 caracteres.'); return; }
     const button = get('saveOccurrence');
-    button.disabled = true;
-    button.textContent = pendingAttachment ? 'Enviando documento…' : 'Salvando…';
-    const occurrenceId = editingOccurrence?.id || crypto.randomUUID();
-    const oldAttachmentPath = editingOccurrence?.attachment_path || null;
-    let uploadedAttachmentPath = null;
-    let attachmentFields = {};
-    if (pendingAttachment) {
-      const extensionByType = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'application/pdf':'pdf' };
-      const authorId = editingOccurrence?.created_by || user?.id;
-      uploadedAttachmentPath = `${occurrenceMembership.school_id}/${authorId}/${occurrenceId}/${crypto.randomUUID()}.${extensionByType[pendingAttachment.type]}`;
-      const upload = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).upload(uploadedAttachmentPath, pendingAttachment, { contentType:pendingAttachment.type, upsert:false });
-      if (upload.error) {
+    savingOccurrence = true;
+    let writeConfirmed = false;
+    try {
+      button.disabled = true;
+      button.textContent = attachment ? 'Enviando documento…' : 'Salvando…';
+      const occurrenceId = editing?.id || crypto.randomUUID();
+      const oldAttachmentPath = editing?.attachment_path || null;
+      let uploadedAttachmentPath = null;
+      let attachmentFields = {};
+      if (attachment) {
+        const extensionByType = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'application/pdf':'pdf' };
+        const authorId = editing?.created_by || user?.id;
+        uploadedAttachmentPath = `${scope.schoolId}/${authorId}/${occurrenceId}/${crypto.randomUUID()}.${extensionByType[attachment.type]}`;
+        const upload = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).upload(uploadedAttachmentPath, attachment, { contentType:attachment.type, upsert:false });
+        if (upload.error) {
+          button.disabled = false;
+          button.textContent = editing ? 'Salvar alterações' : 'Salvar ocorrência';
+          toast('Não foi possível enviar o documento. A ocorrência não foi alterada.');
+          return;
+        }
+        if (!sameOccurrenceScope(scope)) return;
+        attachmentFields = { attachment_path:uploadedAttachmentPath, attachment_name:attachment.name, attachment_type:attachment.type, attachment_size:attachment.size };
+      } else if (removing) {
+        attachmentFields = { attachment_path:null, attachment_name:null, attachment_type:null, attachment_size:null };
+      }
+      if (!sameOccurrenceScope(scope)) return;
+      const write = editing
+        ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields }).eq('id', occurrenceId).eq('school_id', scope.schoolId).select('id').maybeSingle()
+        : await db.from('student_occurrences').insert({ id:occurrenceId, school_id:scope.schoolId, student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields }).select('id').maybeSingle();
+      if (!sameOccurrenceScope(scope)) return;
+      if (write.error || !write.data) {
+        // Sem resposta do servidor, a escrita pode ter sido concluída: preserve
+        // o arquivo até conferir o histórico, em vez de apagar um anexo válido.
+        if (uploadedAttachmentPath && (!write.error || write.error.code)) await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([uploadedAttachmentPath]);
         button.disabled = false;
-        button.textContent = editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
-        toast('Não foi possível enviar o documento. A ocorrência não foi alterada.');
+        button.textContent = editing ? 'Salvar alterações' : 'Salvar ocorrência';
+        toast(write.error?.message || 'A ocorrência não foi alterada. Ela pode ter sido removida ou sua permissão mudou.');
         return;
       }
-      attachmentFields = { attachment_path:uploadedAttachmentPath, attachment_name:pendingAttachment.name, attachment_type:pendingAttachment.type, attachment_size:pendingAttachment.size };
-    } else if (removeAttachment) {
-      attachmentFields = { attachment_path:null, attachment_name:null, attachment_type:null, attachment_size:null };
-    }
-    const write = editingOccurrence
-      ? await db.from('student_occurrences').update({ occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields }).eq('id', occurrenceId).eq('school_id', occurrenceMembership.school_id)
-      : await db.from('student_occurrences').insert({ id:occurrenceId, school_id:occurrenceMembership.school_id, student_id:studentId, class_id:classId, class_name:classItem.name, occurred_on:occurrenceDate, occurrence_text:text, ...attachmentFields });
-    if (write.error) {
-      if (uploadedAttachmentPath) await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([uploadedAttachmentPath]);
+      writeConfirmed = true;
+      let attachmentCleanupFailed = false;
+      if (oldAttachmentPath && (uploadedAttachmentPath || removing)) {
+        try {
+          const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([oldAttachmentPath]);
+          attachmentCleanupFailed = !!cleanup.error;
+        } catch { attachmentCleanupFailed = true; }
+      }
+      if (!sameOccurrenceScope(scope)) return;
       button.disabled = false;
+      const wasEditing = !!editing;
+      if (!wasEditing) {
+        occurrenceStudentIds.add(studentId);
+        occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
+      }
+      paintStudentCards();
+      if (!wasEditing) resetOccurrenceScreen();
+      else {
+        get('occurrenceText').value = '';
+        get('occurrenceTextCount').textContent = '0/500';
+        editingOccurrence = null;
+        get('saveOccurrence').textContent = 'Salvar ocorrência';
+        pendingAttachment = null;
+        removeAttachment = false;
+        get('occurrenceAttachmentInput').value = '';
+        renderAttachmentState();
+      }
+      toast(attachmentCleanupFailed ? 'Ocorrência salva. O documento anterior ficou preservado no armazenamento.' : (wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.'));
+      publishOccurrenceLabelState();
+      await refreshHistory();
+    } catch (error) {
+      if (sameOccurrenceScope(scope)) toast(writeConfirmed ? 'Ocorrência salva. Não foi possível atualizar a tela; consulte o histórico.' : 'Não foi possível confirmar o salvamento. Consulte o histórico antes de tentar novamente.');
+    } finally {
+      savingOccurrence = false;
       button.textContent = editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
-      toast(write.error.message);
-      return;
+      syncSaveAction();
     }
-    let attachmentCleanupFailed = false;
-    if (oldAttachmentPath && (uploadedAttachmentPath || removeAttachment)) {
-      const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([oldAttachmentPath]);
-      attachmentCleanupFailed = !!cleanup.error;
-    }
-    button.disabled = false;
-    const wasEditing = !!editingOccurrence;
-    if (!wasEditing) {
-      occurrenceStudentIds.add(studentId);
-      occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
-    }
-    paintStudentCards();
-    if (!wasEditing) resetOccurrenceScreen();
-    else {
-      get('occurrenceText').value = '';
-      get('occurrenceTextCount').textContent = '0/500';
-      editingOccurrence = null;
-      get('saveOccurrence').textContent = 'Salvar ocorrência';
-      pendingAttachment = null;
-      removeAttachment = false;
-      get('occurrenceAttachmentInput').value = '';
-      renderAttachmentState();
-    }
-    toast(attachmentCleanupFailed ? 'Ocorrência salva. O documento anterior ficou preservado no armazenamento.' : (wasEditing ? 'Ocorrência atualizada.' : 'Ocorrência salva. A etiqueta foi atualizada no card do aluno.'));
-    await refreshHistory();
   }
 
   function editOccurrence(item) {
+    if (savingOccurrence) return;
     if (!canEditOccurrence(item)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     editingOccurrence = item;
     get('occurrenceClass').value = item.class_id || '';
@@ -539,15 +597,26 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Promise(resolve => { deleteConfirmResolve = resolve; });
   }
   async function deleteOccurrence(item) {
+    const scope = occurrenceScope();
+    if (savingOccurrence || !sameOccurrenceScope(scope)) return;
     if (!canDeleteOccurrence(item)) { toast('Sem permissão para excluir esta ocorrência.'); return; }
       if (!(await confirmOccurrenceDeletion(item))) return;
-      const { error } = await db.from('student_occurrences').delete().eq('id', item.id).eq('school_id', occurrenceMembership.school_id);
-    if (error) { toast(error.message); return; }
+    if (!sameOccurrenceScope(scope) || !canDeleteOccurrence(item)) return;
+    savingOccurrence = true;
+    let deleteConfirmed = false;
+    try {
+      const { data, error } = await db.from('student_occurrences').delete().eq('id', item.id).eq('school_id', scope.schoolId).select('id').maybeSingle();
+    if (!sameOccurrenceScope(scope)) return;
+    if (error || !data) { toast(error?.message || 'Nenhuma ocorrência foi excluída. Atualize a consulta e confira sua permissão.'); return; }
+    deleteConfirmed = true;
     let attachmentCleanupFailed = false;
     if (item.attachment_path) {
-      const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([item.attachment_path]);
-      attachmentCleanupFailed = !!cleanup.error;
+      try {
+        const cleanup = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove([item.attachment_path]);
+        attachmentCleanupFailed = !!cleanup.error;
+      } catch { attachmentCleanupFailed = true; }
     }
+    if (!sameOccurrenceScope(scope)) return;
     const nextCount = Math.max(0, (occurrenceCounts.get(item.student_id) || 1) - 1);
     if (nextCount) occurrenceCounts.set(item.student_id, nextCount);
     else { occurrenceCounts.delete(item.student_id); occurrenceStudentIds.delete(item.student_id); }
@@ -559,7 +628,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     paintStudentCards();
     resetOccurrenceScreen();
+    publishOccurrenceLabelState();
     toast(attachmentCleanupFailed ? 'Ocorrência excluída. O documento anexado não pôde ser removido do armazenamento.' : 'Ocorrência excluída.');
+    } catch {
+      if (sameOccurrenceScope(scope)) toast(deleteConfirmed ? 'Ocorrência excluída. Não foi possível atualizar a tela; consulte o histórico.' : 'Não foi possível confirmar a exclusão. Atualize a consulta antes de tentar novamente.');
+    } finally { savingOccurrence = false; syncSaveAction(); }
   }
 
   const syncOccurrenceNavigation = () => {
@@ -569,10 +642,15 @@ document.addEventListener('DOMContentLoaded', () => {
     occurrenceButton.setAttribute('aria-hidden', String(!allowed));
     if (allowed) occurrenceButton.style.removeProperty('display');
     else occurrenceButton.style.setProperty('display', 'none', 'important');
-    if (!allowed) modal.classList.add('hidden');
+    if (!allowed) {
+      historyRequest += 1; labelRequest += 1;
+      historyRecords = new Map();
+      get('occurrenceHistoryList').innerHTML = '';
+      modal.classList.add('hidden');
+    }
   };
   occurrenceButton.onclick = open;
-  const closeOccurrence = () => { resetOccurrenceScreen(); modal.classList.add('hidden'); };
+  const closeOccurrence = () => { if (savingOccurrence) { toast('Aguarde o salvamento terminar.'); return; } resetOccurrenceScreen(); modal.classList.add('hidden'); };
   get('closeOccurrence').onclick = closeOccurrence;
   modal.onclick = event => { if (event.target === modal) closeOccurrence(); };
   get('occurrenceAttachmentPicker').onclick = openAttachmentDialog;
@@ -649,6 +727,14 @@ document.addEventListener('DOMContentLoaded', () => {
   new MutationObserver(paintStudentCards).observe(get('studentDetails'), { childList:true, subtree:true });
   new MutationObserver(() => {
     if (!get('app').classList.contains('hidden')) refreshLabelState();
+    else {
+      membershipRequest += 1; historyRequest += 1; labelRequest += 1;
+      occurrenceMembership = null; occurrencePermission = emptyOccurrencePermission();
+      historyRecords = new Map(); occurrenceStudentIds = new Set(); occurrenceCounts = new Map();
+      resetOccurrenceScreen(); closeAttachmentDialog(); closeDeleteConfirm(false);
+      syncOccurrenceNavigation(); publishOccurrenceLabelState();
+      void teardownOccurrenceChannels();
+    }
   }).observe(get('app'), { attributes:true, attributeFilter:['class'] });
   document.addEventListener('carometro:occurrences-changed', async () => {
     await refreshLabelState();

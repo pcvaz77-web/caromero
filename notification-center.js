@@ -67,6 +67,23 @@ document.addEventListener('DOMContentLoaded', () => {
   let notifications = [];
   let channel = null;
   const canUseNotifications = () => !permission?.is_secretary || !!permission?.can_receive_notifications;
+  let dataGeneration = 0;
+  let listRequest = 0;
+  let countRequest = 0;
+  const captureScope = () => ({ userId:user?.id, schoolId:window.getActiveSchoolId?.(), generation:dataGeneration });
+  const isCurrentScope = scope => !!scope.userId && !!scope.schoolId
+    && scope.userId === user?.id && scope.schoolId === window.getActiveSchoolId?.()
+    && scope.generation === dataGeneration && canUseNotifications()
+    && !document.getElementById('app').classList.contains('hidden');
+  function clearNotificationData() {
+    dataGeneration += 1;
+    listRequest += 1;
+    countRequest += 1;
+    notifications = [];
+    renderList();
+    renderCount(0);
+    panel.classList.add('hidden');
+  }
 
   const formatWhen = value => {
     try { return new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value)); }
@@ -85,9 +102,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function refreshUnreadCount() {
+    const scope = captureScope(), request = ++countRequest;
     if (!canUseNotifications()) { renderCount(0); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    const schoolId = window.getActiveSchoolId?.();
+    if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
+    const schoolId = scope.schoolId;
     if (!signedInUser || !schoolId) { renderCount(0); return; }
     const { count, error } = await db.from('user_notifications')
       .select('id', { count: 'exact', head: true })
@@ -95,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .eq('school_id', schoolId)
       .is('read_at', null)
       .is('dismissed_at', null);
-    if (error) return;
+    if (error || !isCurrentScope(scope) || request !== countRequest) return;
     renderCount(count || 0);
   }
 
@@ -123,9 +142,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadNotifications() {
+    const scope = captureScope(), request = ++listRequest;
     if (!canUseNotifications()) { notifications = []; renderList(); renderCount(0); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    const schoolId = window.getActiveSchoolId?.();
+    if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
+    const schoolId = scope.schoolId;
     if (!signedInUser || !schoolId) { notifications = []; renderList(); renderCount(0); return; }
     const { data, error } = await db.from('user_notifications')
       .select('id,school_id,title,body,class_id,read_at,created_at,target_type,target_id')
@@ -134,7 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
       .is('dismissed_at', null)
       .order('created_at', { ascending: false })
       .limit(50);
-    if (error) return;
+    if (!isCurrentScope(scope) || request !== listRequest) return;
+    if (error) {
+      notifications = [];
+      document.getElementById('notificationList').innerHTML = '<div class="notification-empty">Não foi possível carregar os avisos. Feche e abra o sino para tentar novamente.</div>';
+      return;
+    }
     notifications = data || [];
     renderList();
     await refreshUnreadCount();
@@ -197,24 +223,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function openNotificationTarget(id) {
+    const scope = captureScope();
+    if (!isCurrentScope(scope)) return;
     const numericId = Number(id);
     const item = notifications.find(entry => entry.id === numericId);
     if (!item || !isNotificationClickable(item)) return;
     const navigate = await resolveNotificationTarget(item);
+    if (!isCurrentScope(scope)) return;
     if (!navigate) {
       toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
       return;
     }
     panel.classList.add('hidden');
     if (!item.read_at) await markRead(id);
-    navigate();
+    if (isCurrentScope(scope)) navigate();
   }
 
   async function markRead(id) {
+    const scope = captureScope();
+    if (!isCurrentScope(scope)) return;
     const numericId = Number(id);
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
-    const { error } = await db.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', numericId).eq('school_id', schoolId);
+    const { error } = await db.from('user_notifications').update({ read_at: new Date().toISOString() }).eq('id', numericId).eq('school_id', schoolId).eq('recipient_id', scope.userId).is('read_at', null);
+    if (!isCurrentScope(scope)) return;
     if (error) { toast(error.message); return; }
     const item = notifications.find(entry => entry.id === numericId);
     if (item) item.read_at = new Date().toISOString();
@@ -230,6 +262,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // usuário), cai no mesmo "não disponível" que o sino já usa. Reaproveita
   // resolveNotificationTarget() em vez de duplicar a lógica por target_type.
   async function openNotificationById(id) {
+    const scope = captureScope();
+    if (!isCurrentScope(scope)) return;
     if (!canUseNotifications()) return;
     const numericId = Number(id);
     if (!Number.isFinite(numericId)) return;
@@ -238,7 +272,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data: item, error } = await db.from('user_notifications')
       .select('id,school_id,target_type,target_id,class_id,read_at')
       .eq('id', numericId)
+      .eq('recipient_id', scope.userId)
       .maybeSingle();
+    if (!isCurrentScope(scope)) return;
     if (error || !item) {
       toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
       return;
@@ -251,25 +287,29 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const navigate = await resolveNotificationTarget(item);
+    if (!isCurrentScope(scope)) return;
     if (!navigate) {
       toast('Este conteúdo não está disponível ou você não possui permissão para acessá-lo.');
       return;
     }
     panel.classList.add('hidden');
     if (!item.read_at) await markRead(id);
-    navigate();
+    if (isCurrentScope(scope)) navigate();
   }
   window.openNotificationById = openNotificationById;
 
   document.getElementById('markAllNotificationsRead').onclick = async () => {
+    const scope = captureScope();
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    const schoolId = window.getActiveSchoolId?.();
+    if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
+    const schoolId = scope.schoolId;
     if (!signedInUser || !schoolId) return;
     const { error } = await db.from('user_notifications')
       .update({ read_at: new Date().toISOString() })
       .eq('recipient_id', signedInUser.id)
       .eq('school_id', schoolId)
       .is('read_at', null);
+    if (!isCurrentScope(scope)) return;
     if (error) { toast(error.message); return; }
     const now = new Date().toISOString();
     notifications.forEach(item => { if (!item.read_at) item.read_at = now; });
@@ -278,16 +318,19 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('clearNotifications').onclick = async () => {
+    const scope = captureScope();
     if (!notifications.length) return;
     if (!confirm('Limpar todas as notificações do sino?')) return;
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    const schoolId = window.getActiveSchoolId?.();
+    if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
+    const schoolId = scope.schoolId;
     if (!signedInUser || !schoolId) return;
     const { error } = await db.from('user_notifications')
       .update({ dismissed_at: new Date().toISOString() })
       .eq('recipient_id', signedInUser.id)
       .eq('school_id', schoolId)
       .is('dismissed_at', null);
+    if (!isCurrentScope(scope)) return;
     if (error) { toast(error.message); return; }
     notifications = [];
     renderList();
@@ -334,7 +377,9 @@ document.addEventListener('DOMContentLoaded', () => {
   async function pollLatestNotification() {
     if (stopped || document.hidden || notificationPollPromise) return notificationPollPromise;
     notificationPollPromise = (async () => {
+      const scope = captureScope();
       const { data: { user: signedInUser } } = await db.auth.getUser();
+      if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
       const schoolId = window.getActiveSchoolId?.();
       if (!signedInUser || !schoolId) return;
       const { data, error } = await db.from('user_notifications')
@@ -344,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .is('dismissed_at', null)
         .order('created_at', { ascending:false })
         .limit(1);
-      if (error) return;
+      if (error || !isCurrentScope(scope)) return;
       const latestId = data?.[0]?.id ?? null;
       const currentId = notifications[0]?.id ?? null;
       if (latestId !== currentId) await loadNotifications();
@@ -373,14 +418,18 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function openNotificationChannel(force) {
+    const initialScope = captureScope();
     if (stopped || document.getElementById('app').classList.contains('hidden')) return;
     if (!canUseNotifications()) { await stopNotificationCenter(); return; }
     const { data: { user: signedInUser } } = await db.auth.getUser();
+    if (stopped || !isCurrentScope(initialScope) || signedInUser?.id !== initialScope.userId) return;
     const schoolId = window.getActiveSchoolId?.();
     if (!signedInUser || !schoolId) { bell.classList.add('hidden'); return; }
     bell.classList.remove('hidden');
     const scope = `${signedInUser.id}:${schoolId}`;
     if (!force && channel && activeScope === scope) return;
+    if (activeScope !== scope) clearNotificationData();
+    const dataScope = captureScope();
 
     channelGeneration += 1;
     const generation = channelGeneration;
@@ -393,9 +442,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stopped || generation !== channelGeneration) return;
     activeScope = scope;
     await loadNotifications();
+    if (stopped || generation !== channelGeneration || !isCurrentScope(dataScope)) return;
     channel = db.channel(`notification-center-${signedInUser.id}-${schoolId}-${generation}`)
       .on('postgres_changes', { event: 'INSERT', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
-        if (payload.new.recipient_id !== signedInUser.id) return;
+        if (stopped || generation !== channelGeneration || !isCurrentScope(dataScope) || payload.new.recipient_id !== signedInUser.id || payload.new.school_id !== schoolId) return;
+        if (notifications.some(item => item.id === payload.new.id) || payload.new.dismissed_at) return;
+        listRequest += 1;
         notifications.unshift(payload.new);
         if (notifications.length > 50) notifications.length = 50;
         renderList();
@@ -405,7 +457,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       })
       .on('postgres_changes', { event:'UPDATE', schema:'public', table:'user_notifications', filter:`school_id=eq.${schoolId}` }, async payload => {
-        if (payload.new.recipient_id !== signedInUser.id) return;
+        if (stopped || generation !== channelGeneration || !isCurrentScope(dataScope) || payload.new.recipient_id !== signedInUser.id || payload.new.school_id !== schoolId) return;
+        listRequest += 1;
         const index = notifications.findIndex(item => item.id === payload.new.id);
         if (payload.new.dismissed_at) { if (index !== -1) notifications.splice(index, 1); }
         else if (index !== -1) notifications[index] = payload.new;
@@ -428,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function requestNotificationChannel(force = false) {
     if (stopped) return Promise.resolve();
-    if (openingPromise) { reopenQueued = reopenQueued || force; return openingPromise; }
+    if (openingPromise) { reopenQueued = true; return openingPromise; }
     openingPromise = (async () => {
       let nextForce = force;
       do {
@@ -445,6 +498,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function stopNotificationCenter() {
     stopped = true;
+    clearNotificationData();
     stopNotificationPolling();
     clearRetry();
     reconnectAttempt = 0;

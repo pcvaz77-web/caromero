@@ -576,28 +576,50 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const teacherPermissionOptions = [
+    ['can_add_students', 'Pode adicionar alunos'],
+    ['can_edit_students', 'Pode editar e excluir alunos'],
+    ['can_edit_guardian_contact', 'Editar dados do responsável'],
+    ['can_view_class_summary', 'Visualizar Painel da Turma']
+  ];
+  function delegatedTeacherChecks(item, actorRights) {
+    return teacherPermissionOptions.map(([key, label]) => {
+      const checked = !!item[key] || !!item.can_edit_all;
+      // A RPC permite revogar, mas só permite conceder a flag que o ator tem.
+      const disabled = item.member_status !== 'active' || item.user_id === user?.id || !!item.can_edit_all || (!checked && actorRights[key] !== true);
+      return `<label class="check"><input type="checkbox" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="setGeneralPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
+    }).join('');
+  }
+
+  let permissionOpenRequest = 0;
   async function openPermissions() {
+    const request = ++permissionOpenRequest, viewerId = user?.id, schoolId = window.getActiveSchoolId?.();
+    const stillCurrent = () => request === permissionOpenRequest && !!viewerId && viewerId === user?.id
+      && schoolId === window.getActiveSchoolId?.() && window.canAccessPermissionsNav()
+      && !document.getElementById('app').classList.contains('hidden');
     // Fonte única: a mesma checagem comercial (window.counselorCanManage,
     // que já delega para can_manage_class_counselors(target_school_id) em
     // class-counselors.js) usada para o botão real "Gerenciar
     // Conselheiros" — nunca uma segunda lógica paralela que possa divergir
     // dela.
     const membership = await currentSchoolMembershipOrWarn();
-    if (!membership) return;
+    if (!membership || !stillCurrent()) return;
     if (permission.role !== 'admin') {
       const canManageTeachers = (!!permission.is_coordinator || !!permission.is_secretary) && !!permission.can_manage_member_permissions;
       const canManageSecretaryAttendance = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
       const canManageCounselors = !!window.counselorCanManage?.();
       if (!canManageTeachers && !canManageCounselors) return;
       const schoolPermissionMap = canManageTeachers ? await loadSchoolPermissions(membership.school_id) : new Map();
+      if (!stillCurrent()) return;
       const schoolScopedData = [...schoolPermissionMap.values()];
+      const actorRights = schoolPermissionMap.get(user?.id) || {};
       const teachers = schoolScopedData.filter(item => !item.is_coordinator && !item.is_secretary && item.role !== 'admin');
       const secretaries = schoolScopedData.filter(item => item.is_secretary);
       const teacherCards = teachers.map(item => {
         const name = item.profiles?.full_name?.trim() || 'Nome não informado';
         const email = item.profiles?.email || 'Usuário';
         const active = item.member_status === 'active';
-        return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Professor(a)</div></div><div></div><div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span><button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button></div></article>`;
+        return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Professor(a)</div></div><div class="permission-basic">${delegatedTeacherChecks(item, actorRights)}</div><div class="member-access"><span class="member-status ${active ? 'active' : 'suspended'}">${active ? 'Acesso ativo' : 'Acesso suspenso'}</span><button type="button" class="btn secondary" data-member-id="${esc(item.member_id)}" data-member-status="${active ? 'suspended' : 'active'}" data-member-email="${esc(email)}">${active ? 'Suspender' : 'Reativar'}</button><button type="button" class="btn danger-outline" data-remove-member-id="${esc(item.member_id)}" data-remove-member-email="${esc(email)}">Remover da escola</button></div></article>`;
       }).join('');
       const secretaryCards = secretaries.map(item => {
         const name = item.profiles?.full_name?.trim() || 'Nome não informado';
@@ -605,7 +627,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const active = item.member_status === 'active';
         return `<article class="perm ${active ? '' : 'member-suspended'}"><div class="permission-user"><b>${esc(name)}</b><div class="meta">${esc(email)} · Secretaria</div></div><label class="check"><input type="checkbox" ${active ? '' : 'disabled'} ${item.can_import_school_daily_attendance ? 'checked' : ''} onchange="setSchoolDailyAttendancePermission('${item.user_id}',this.checked)"> Usar Frequência da Secretaria</label><div class="meta">O botão aparece somente para este perfil e somente enquanto a permissão estiver ativa.</div></article>`;
       }).join('');
-      const teacherSection = canManageTeachers ? `<section><div class="permissions-heading"><b>Professores</b><div class="meta">Suspenda ou remova somente o vínculo com esta escola. A conta e o histórico serão preservados.</div></div>${teacherCards || '<div class="empty">Nenhum professor cadastrado.</div>'}</section>` : '';
+      const teacherSection = canManageTeachers ? `<section><div class="permissions-heading"><b>Professores</b><div class="meta">Selecione as permissões de cada professor. Você só pode conceder permissões que também possui. Suspender ou remover preserva a conta e o histórico.</div></div>${teacherCards || '<div class="empty">Nenhum professor cadastrado.</div>'}</section>` : '';
       const secretaryAttendanceSection = canManageSecretaryAttendance ? `<section><div class="permissions-heading"><b>Frequência da Secretaria</b><div class="meta">Libere ou remova o leitor exclusivo do CIAP da Secretaria.</div></div>${secretaryCards || '<div class="empty">Nenhuma conta de Secretaria cadastrada.</div>'}</section>` : '';
       const counselorSection = canManageCounselors ? `<details class="advanced-permissions" open><summary>Permissões avançadas</summary><div class="advanced-content"><section class="counselor-management"><div><b>Conselheiros de turma</b><div class="meta">Escolha, troque ou remova o conselheiro responsável por cada turma.</div></div><button id="openCounselors" type="button" class="btn secondary">Gerenciar conselheiros</button></section></div></details>` : '';
       document.getElementById('permissionsList').innerHTML = `${counselorSection}${secretaryAttendanceSection}${teacherSection}`;
@@ -619,6 +641,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const schoolPermissionMap = await loadSchoolPermissions(membership.school_id);
+    if (!stillCurrent()) return;
     const schoolScopedData = [...schoolPermissionMap.values()];
     const occMap = schoolPermissionMap;
     const check = (item, key, label, admin) => `<label class="check"><input ${admin || item.member_status !== 'active' || (item.can_edit_all && key !== 'can_edit_all') ? 'disabled' : ''} type="checkbox" ${item[key] || (item.can_edit_all && key !== 'can_edit_all') ? 'checked' : ''} onchange="setUserPermission('${item.user_id}','${key}',this.checked)"> ${label}</label>`;
@@ -701,7 +724,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const memberId = await findSchoolMemberId(id, membership.school_id);
     if (!memberId) { toast('Este usuário não pertence à escola ativa.'); return; }
     const { error:commercialError } = await db.rpc('set_school_member_permission', { target_member_id:memberId, permission_name:key, permission_value:value });
-    if (commercialError) { toast(commercialError.message); return; }
+    if (commercialError) { toast(commercialError.message); await openPermissions(); return; }
     toast('Permissão geral atualizada.');
     openPermissions();
   };

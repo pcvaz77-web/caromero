@@ -594,10 +594,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }).observe(appElement, { attributes: true, attributeFilter: ['class'] });
   }
   let latestLoadRequest = 0;
-  const fetchEveryStudent = async fields => {
+  let schoolHistory = { userId:null, schoolId:null, students:[], classes:[] };
+  window.getSchoolHistoryData = () => schoolHistory.userId === user?.id && schoolHistory.schoolId === window.getActiveSchoolId?.()
+    ? schoolHistory : { students:[], classes:[] };
+  const fetchEveryStudent = async (fields, schoolId) => {
     const pageSize = 1000;
     const rows = [];
-    const schoolId = window.getActiveSchoolId?.() || null;
     if (!schoolId) return { data:[], error:null };
     for (let from = 0; ; from += pageSize) {
       // A API limita cada resposta a 1.000 linhas. A ordenação secundária
@@ -615,30 +617,34 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   window.load = async () => {
     const requestId = ++latestLoadRequest;
+    const userId = user?.id;
     const schoolId = window.getActiveSchoolId?.() || null;
-    if (!schoolId) { classes = []; students = []; render(); document.dispatchEvent(new CustomEvent('carometro:data-loaded')); return; }
+    if (!schoolId || !userId) { schoolHistory = { userId:null, schoolId:null, students:[], classes:[] }; classes = []; students = []; render(); document.dispatchEvent(new CustomEvent('carometro:data-loaded')); return; }
     // A lista precisa conhecer as opções fixadas antes de desenhar os cards.
     // Professores normalmente não abrem o gerenciador de observações, então
     // não podem depender dessa tela para carregar pinnedObservationLabels.
     await loadObservationOptions();
+    if (requestId !== latestLoadRequest || userId !== user?.id || schoolId !== window.getActiveSchoolId?.()) return;
     let classesQuery = db.from('classes').select('*').order('name');
     classesQuery = classesQuery.eq('school_id', schoolId);
     const [studentsResult, classesResult] = await Promise.all([
-      fetchEveryStudent('*'),
+      fetchEveryStudent('*', schoolId),
       classesQuery
     ]);
     // Cadastros em lote disparam muitas atualizações ao mesmo tempo. Nunca
     // deixe uma resposta antiga substituir a lista mais recente na tela.
-    if (requestId !== latestLoadRequest) return;
-    if (studentsResult.error || classesResult.error) { toast('Atualize o banco de dados com o novo script de turmas.'); return; }
-    classes = classesResult.data || [];
-    const classNames = new Map(classes.map(item => [item.id, item.name]));
+    if (requestId !== latestLoadRequest || userId !== user?.id || schoolId !== window.getActiveSchoolId?.()) return;
+    if (studentsResult.error || classesResult.error) { toast('Não foi possível atualizar os alunos e turmas. Tente novamente.'); return; }
+    const allClasses = classesResult.data || [];
+    classes = allClasses.filter(item => !item.archived_at);
+    const classNames = new Map(allClasses.map(item => [item.id, item.name]));
     // O estado de uniforme vem da mesma carga paginada dos alunos: isso evita
     // que alunos depois do milésimo fiquem sem contador ou etiqueta.
     const uniformStateById = new Map((studentsResult.data || []).map(item => [item.id, item]));
     window.uniformStateByStudent = uniformStateById;
-    students = (studentsResult.data || []).map(item => ({
+    const allStudents = (studentsResult.data || []).map(item => ({
       id: item.id,
+      enrollmentStatus: item.enrollment_status || 'active',
       name: item.full_name,
       classId: item.class_id,
       className: classNames.get(item.class_id) || item.class_name,
@@ -657,6 +663,10 @@ document.addEventListener('DOMContentLoaded', () => {
       uniform_pending: uniformStateById.get(item.id)?.uniform_pending ?? item.uniform_pending,
       photoUrl: cachedPhotoUrl(item.photo_path)
     }));
+    schoolHistory = { userId, schoolId, students:allStudents, classes:allClasses };
+    students = allStudents.filter(item => item.enrollmentStatus === 'active');
+    if (selectedClassId && !classes.some(item => item.id === selectedClassId)) selectedClassId = null;
+    if (detailStudentId && !students.some(item => item.id === detailStudentId)) detailStudentId = null;
     render();
     // Ponto único de sincronização: recursos adicionais devem ouvir este
     // evento, sem substituir window.load nem iniciar uma carga concorrente.
