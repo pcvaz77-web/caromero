@@ -39,6 +39,7 @@ type DraftPayload = {
 }
 
 type LicenseStatus = {
+  accountEmail?: string | null
   examAccess?: { active:boolean; expiresAt:string|null; status:string }
   active?: boolean
   status?: 'trial' | 'subscribed' | 'free' | 'expired' | 'suspended' | 'manual' | 'grant_ended' | 'trial_ineligible'
@@ -302,6 +303,9 @@ Deno.serve(async (request) => {
     }
   }
   if (['license_status','create_device_session'].includes(String(accessAction))) {
+    const {data:account,error:accountError}=await admin.auth.admin.getUserById(userId);
+    if(accountError) return json(request,{ok:false,code:'account_check_failed'},503);
+    license.accountEmail=account?.user?.email?.trim().toLowerCase() || null;
     license.examAccess = await examAccessForUser(admin, userId);
   }
   if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string, unknown>).action === 'create_device_session') {

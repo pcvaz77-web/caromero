@@ -13,3 +13,26 @@
 #assistente-siap-panel .cm-exam .cm-btn:disabled{opacity:.55;cursor:not-allowed}
 
 #assistente-siap-panel .cm-exam .cm-btn{border-radius:20px;font-weight:700}#assistente-siap-panel .cm-exam .cm-primary{background:#2463eb;color:#fff}#assistente-siap-panel .cm-exam legend{font-weight:800}#assistente-siap-panel .cm-exam [data-exam-student]{font-weight:700!important}
+
+#assistente-siap-panel .cm-exam-access { background: #ecfdf3; border-color: #86d5a4; }
+#assistente-siap-panel .cm-exam-access h3, #assistente-siap-panel .cm-exam-access p { color: #166534; }
+#assistente-siap-panel .cm-exam-access p { font-weight: 600; margin-top: 6px; }
+#assistente-siap-panel .cm-exam-access {
+  background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+  border: 1px solid #86efac;
+  border-radius: 20px;
+  box-shadow: 0 6px 20px #16a34a12;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+#assistente-siap-panel .cm-exam-access h3 { color: #15803d; font-size: 15px; font-weight: 750; margin-top: 12px; }
+#assistente-siap-panel .cm-exam-access p { color: #15803d; font-size: 14px; line-height: 1.55; font-weight: 650; }
+#assistente-siap-panel .cm-exam-active-badge { display: inline-flex; padding: 7px 12px; border-radius: 999px; background: #dcfce7; color: #15803d; font-size: 14px; font-weight: 750; }
+#assistente-siap-panel .cm-exam-access .cm-exam-access-help { color: #466354; font-size: 12px; font-weight: 500; margin-top: 12px; }
+#assistente-siap-panel .cm-exam-plans { display: flex; justify-content: center; align-items: center; margin-top: 14px; padding: 12px 16px; border-radius: 999px; border: 1px solid #b8cafa; background: #eff5ff; color: #234583; font-weight: 700; text-decoration: none; text-align: center; cursor: pointer; }
+#assistente-siap-panel :is([data-exam-shop], .cm-exam-access, .cm-exam) .cm-btn { transition: transform .15s ease, box-shadow .15s ease, background-color .15s ease; }
+#assistente-siap-panel :is([data-exam-shop], .cm-exam-access, .cm-exam) .cm-btn:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 5px 14px #24488026; filter: brightness(1.04); }
+#assistente-siap-panel :is([data-exam-shop], .cm-exam-access, .cm-exam) .cm-btn:not(:disabled):active { transform: translateY(0); box-shadow: none; }
+#assistente-siap-panel :is([data-exam-shop], .cm-exam-access, .cm-exam) .cm-btn:focus-visible { outline: 3px solid #60a5fa; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  #assistente-siap-panel :is([data-exam-shop], .cm-exam-access, .cm-exam) .cm-btn { transition: none; transform: none !important; }
+}

@@ -37,7 +37,7 @@
     shift: "cphFuncionalidade_cphCampos_txtTurno",
     classroom: "cphFuncionalidade_cphCampos_txtTurma"
   });
-  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, sessionRequired: false };
+  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false };
   let panel;
   let contentResumeTimer;
   let attendanceResumeTimer;
@@ -72,6 +72,7 @@
     // Na primeira utilização começa minimizado; depois preserva aberto/minimizado.
     createShell(stored.panelOpen === true, false, stored);
     refreshLicenseStatus();
+    if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
     observeSiapUpdates();
@@ -93,11 +94,38 @@
       model.sessionRequired = result?.code === "ASSISTANT_SESSION_REQUIRED" || result?.code === "device_session_expired";
       if (result?.license) {
         model.license = result.license;
+        if ('accountEmail' in result.license) model.accountEmail = result.license.accountEmail;
         if (model.license.active !== true) lockAssistantAfterExpiry();
         render();
       }
-      else if (model.sessionRequired) render();
+      else if (model.sessionRequired) { model.accountEmail = null; render(); }
     } catch { /* A sessão do Assistente é verificada novamente ao usar a IA. */ }
+  }
+
+  function accessSummary(access, now = Date.now()) {
+    if (access?.active !== true) return [];
+    const lines = [];
+    const validity = value => {
+      const end = Date.parse(value);
+      if (!Number.isFinite(end)) return 'Validade não informada';
+      const days = Math.max(0, Math.ceil((end - now) / 86400000));
+      return `Válido até ${new Date(end).toLocaleDateString('pt-BR')} · ${days} dia(s) restante(s)`;
+    };
+    if (access.status === 'granted') {
+      lines.push('Licença concedida pelo proprietário');
+      lines.push(access.expiresAt === null ? 'Por tempo indeterminado' : validity(access.expiresAt));
+    } else if (access.status === 'subscription') {
+      lines.push('Plano com Correção de Provas ativo');
+      lines.push(validity(access.generalUntil || access.expiresAt));
+    } else {
+      lines.push('Correção por créditos');
+    }
+    const credits = Math.max(0, Math.floor(Number(access.credits) || 0));
+    const blocks = Math.max(0, Math.floor(Number(access.openBlocks) || 0));
+    if (credits || blocks || access.status === 'credits') {
+      lines.push(`${credits} crédito(s) disponível(is) · ${blocks} bloco(s) em andamento`);
+    }
+    return lines;
   }
 
   function licenseCard() {
@@ -298,7 +326,7 @@
 
     if (!panel.querySelector(".cm-body")) {
       panel.innerHTML = `<header class="cm-head">
-        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p></div>
+        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-account-identity" hidden></span></div>
         <div class="cm-window-actions"><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
@@ -306,6 +334,12 @@
     }
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
+    const identity = panel.querySelector('.cm-account-identity');
+    if (identity) {
+      identity.hidden = !model.accountEmail || model.sessionRequired;
+      identity.textContent = model.accountEmail ? 'Conectado como ' + model.accountEmail : '';
+      identity.title = identity.textContent;
+    }
     if (model.sessionRequired) {
       panel.querySelector(".cm-body").innerHTML = `<section class="cm-card cm-license cm-license-warning"><h3>Conecte sua conta do Assistente SIAP</h3><p>A sessão da extensão terminou. No computador, entre com o e-mail vinculado à licença e reconecte a extensão.</p><div class="cm-actions"><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/assistente-siap-conta.html" target="_blank" rel="noopener noreferrer">Entrar na minha conta</a></div></section>`;
       updateOperationStatus();
@@ -319,9 +353,46 @@
         panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
       } else window.SiapExamPanel?.mount(panel.querySelector(".cm-body"));
       const body=panel.querySelector('.cm-body');
-      if(!body.querySelector('[data-exam-shop]')) {
-        const shop=document.createElement('section');shop.dataset.examShop='';shop.className='cm-card';shop.open=model.license?.examAccess?.active!==true;
-        shop.innerHTML=`<h3>Correção de Provas</h3><p>Cada crédito corrige um bloco de avaliação em todas as suas turmas. Ao abrir o QR Code no celular, ele fica vinculado àquele bloco até você finalizar a correção.</p><label><input type="checkbox" data-exam-legal> Li e aceito os <a href="https://sistemacarometro.com.br/legal.html#termos" target="_blank" rel="noopener noreferrer">termos</a>.</label><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:12px;font-weight:700" class="cm-btn cm-primary" data-exam-buy="exam_one">1 crédito · R$ 20</button><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:10px;font-weight:700" class="cm-btn" data-exam-buy="exam_four">4 créditos · R$ 80</button><p data-exam-buy-status role="status"></p><a href="https://sistemacarometro.com.br/assistente-siap.html#correcao-de-provas" target="_blank" rel="noopener noreferrer">Entenda os créditos e veja os planos</a>`;
+      const access = model.license?.examAccess;
+      if (access?.active === true) {
+        body.querySelector('[data-exam-shop]')?.remove();
+        let card = body.querySelector('[data-exam-access]');
+        if (!card) {
+          card = document.createElement('section');
+          card.dataset.examAccess = '';
+          card.className = 'cm-card cm-license cm-exam-access';
+          body.prepend(card);
+        }
+        card.replaceChildren();
+        const title = document.createElement('h3');
+        title.textContent = 'Correção de Provas · Acesso ativo';
+        const badge = document.createElement('span');
+        badge.className = 'cm-exam-active-badge';
+        badge.textContent = '✓ Licença ativa';
+        card.append(badge, title);
+        for (const text of accessSummary(access)) {
+          const line = document.createElement('p');
+          line.textContent = text;
+          card.append(line);
+        }
+        const explanation = document.createElement('p');
+        explanation.className = 'cm-exam-access-help';
+        explanation.textContent = 'Cada crédito corrige um bloco de avaliação em todas as suas turmas. Ao abrir o QR Code no celular, ele fica vinculado àquele bloco até você finalizar a correção. Planos e concessões permitem corrigir durante sua validade.';
+        const plans = document.createElement('a');
+        plans.className = 'cm-btn cm-exam-plans';
+        plans.href = 'https://sistemacarometro.com.br/assistente-siap.html#correcao-de-provas';
+        plans.target = '_blank';
+        plans.rel = 'noopener noreferrer';
+        plans.textContent = 'Entenda os créditos e veja os planos ↗';
+        card.append(explanation, plans);
+      }
+      if(access && access.active !== true && access.status !== 'unavailable' && !body.querySelector('[data-exam-shop]')) {
+        const shop=document.createElement('section');shop.dataset.examShop='';shop.className='cm-card';
+        shop.innerHTML=`<h3>Correção de Provas</h3><p>Cada crédito corrige um bloco de avaliação em todas as suas turmas. Ao abrir o QR Code no celular, ele fica vinculado àquele bloco até você finalizar a correção.</p><label><input type="checkbox" data-exam-legal> Li e aceito os <a href="https://sistemacarometro.com.br/legal.html#termos" target="_blank" rel="noopener noreferrer">termos</a>.</label><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:12px;font-weight:700" class="cm-btn cm-primary" data-exam-buy="exam_one">1 crédito · R$ 20</button><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:10px;font-weight:700" class="cm-btn" data-exam-buy="exam_four">4 créditos · R$ 80</button><p data-exam-buy-status role="status"></p><a class="cm-btn cm-exam-plans" href="https://sistemacarometro.com.br/assistente-siap.html#correcao-de-provas" target="_blank" rel="noopener noreferrer">Entenda os créditos e veja os planos ↗</a>`;
+        const accountHint = document.createElement('p');
+        accountHint.className = 'cm-payment-account';
+        accountHint.textContent = model.accountEmail ? `No pagamento, use ${model.accountEmail}. O crédito será vinculado a essa conta.` : 'Use no pagamento o mesmo e-mail conectado ao Assistente.';
+        shop.querySelector('label').before(accountHint);
         shop.querySelectorAll('[data-exam-buy]').forEach(button=>button.onclick=async()=>{
           const status=shop.querySelector('[data-exam-buy-status]');
           if(!shop.querySelector('[data-exam-legal]').checked){status.textContent='Leia e aceite os termos para continuar.';return;}
@@ -2424,6 +2495,7 @@
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (message?.type === "ASSISTENTE_SIAP_LICENSE_UPDATED") {
       model.license = message.license || null;
+      if (message.license && 'accountEmail' in message.license) model.accountEmail = message.license.accountEmail;
       model.sessionRequired = false;
       if (model.license?.active !== true) lockAssistantAfterExpiry();
       render();

@@ -29,6 +29,7 @@
       <form id="loginForm" hidden>
         <h2>Entrar por e-mail</h2>
         <p>Enviaremos um link seguro para confirmar seu acesso.</p>
+        <p>Use o mesmo e-mail da compra na Hotmart. Se ainda vai comprar, escolha aqui o e-mail que usará no pagamento e na extensão.</p>
         <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
         <button class="button" type="submit">Enviar link de acesso</button>
         <p id="loginMessage" class="account-message" aria-live="polite"></p>
@@ -36,6 +37,7 @@
       <div id="checkoutPanel" hidden>
         <h2 id="accountPanelTitle">Confirme a assinatura</h2>
         <p id="accountIdentity" class="account-identity"></p>
+        <p id="paymentEmailHint" class="account-identity"></p>
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
@@ -54,6 +56,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=14"></script>
+  <script src="assistente-siap-conta.js?v=15"></script>
 </body>
 </html>

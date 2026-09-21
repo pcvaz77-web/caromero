@@ -88,3 +88,6 @@
 .cm-license a.cm-btn { display: grid; place-items: center; text-decoration: none; }
 .cm-log { margin: 8px 0 0; padding-left: 18px; max-height: 120px; overflow: auto; color: #5f6e69; font-size: 12px; }
 @media (max-width: 640px) { #assistente-siap-panel { top: 8px; right: 8px; width: calc(100vw - 16px); height: calc(100vh - 16px); border-radius: 18px; } #assistente-siap-launcher { right: 12px; bottom: 12px; } }
+#assistente-siap-panel .cm-account-identity { display: block; margin-top: 6px; color: #d0dff7; font: 500 11px/1.4 "Segoe UI", system-ui, sans-serif; overflow-wrap: anywhere; }
+#assistente-siap-panel .cm-account-identity[hidden] { display: none; }
+#assistente-siap-panel .cm-payment-account { padding: 10px 12px; border-radius: 12px; background: #eff5ff; color: #234583; font-weight: 600; overflow-wrap: anywhere; }

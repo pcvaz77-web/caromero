@@ -220,6 +220,7 @@
     checkoutPanel.hidden = !session;
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
+      document.getElementById('paymentEmailHint').textContent = `No pagamento da Hotmart, use ${session.user.email}. A licença e os créditos serão vinculados a essa conta. Já pagou com outro e-mail? Use “Entrar com outro e-mail”.`;
       await loadPlan();
       const status = await loadAccessStatus();
       if (status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);

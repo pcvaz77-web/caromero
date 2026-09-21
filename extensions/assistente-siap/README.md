@@ -1,4 +1,4 @@
-# Assistente SIAP — Correção de Provas 0.28.0
+# Assistente SIAP — Correção de Provas 0.28.2
 
 O fluxo de correção agora concentra gabarito, escolha do aluno, leitura e conferência no celular. O painel do SIAP faz o lançamento final dos resultados confirmados. Veja `../../services/siap-exam/README.md` para os limites e validação atuais. A pasta local foi atualizada; o Chrome requer recarregar a extensão. Nenhuma publicação na Web Store.
 
@@ -27,6 +27,16 @@ A tela de lançamento aplica `img { margin: 2px 2px 3px !important }`. Neutraliz
 ## 0.27.0
 
 Correção de Provas exige concessão específica por conta, com prazo próprio no painel do proprietário. A licença geral continua governando planejamento, frequência, conteúdo e PEI. Conta somente com correção também pode conectar uma sessão da extensão. Atualize em conjunto com a função de licença e serviço de correção.
+
+## 0.28.2
+
+- Identifica a conta autenticada no cabeçalho e orienta o e-mail antes da compra.
+- Atualiza a licença ao voltar à aba do SIAP após o pagamento.
+
+## 0.28.1
+
+- Licença de correção ativa exibida em verde, com origem, validade, créditos disponíveis e blocos em andamento.
+- Acesso ativo oculta termos e compra; mantém explicação e botão de planos com estados de interação.
 
 ## 0.28.0
 

@@ -65,6 +65,7 @@ test('minimização é preservada após sucessivos recarregamentos dos filtros',
   const install = source.slice(source.indexOf('  async function install() {'), source.indexOf('  async function refreshLicenseStatus()'));
   let stored = {}, open;
   const context = {
+    window:{addEventListener(){}},
     initialPageType:'exam',
     chrome:{storage:{local:{get:async()=>({...stored})}}},
     removeCompetitorOverlap(){}, createShell(value){open=value;},

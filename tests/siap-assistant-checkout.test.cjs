@@ -103,9 +103,10 @@ test('orienta a instalar a extensao antes de tentar conectar a conta', () => {
   assert.match(account, /conclua a instalação/);
 });
 
-test('mostra a marca Hotmart somente depois de entrar no checkout de pagamento', () => {
+test('orienta a usar o mesmo e-mail da Hotmart antes do pagamento', () => {
   assert.doesNotMatch(landing, /Hotmart/i);
-  assert.doesNotMatch(accountHtml, /Hotmart/i);
+  assert.match(accountHtml, /Use o mesmo e-mail da compra na Hotmart/);
+  assert.match(account, /paymentEmailHint/);
   assert.doesNotMatch(account, /confirmação da Hotmart/i);
   assert.match(account, /create-hotmart-assistant-checkout/);
 });

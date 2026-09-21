@@ -19,6 +19,7 @@ const event=(extra={})=>({version:'2.0.0',event:'PURCHASE_APPROVED',data:{produc
 test('checkout exige conta real e aceite; preço e quantidade vêm do catálogo',async()=>{
  const a=app();let r=await a.request({action:'checkout',offerKey:'exam_one',legalAccepted:true,amount:0,user_id:'other'},{Origin:'https://site.test'});
  assert.equal(r.status,200);assert.equal(a.writes[0].v.amount,20);assert.equal(a.writes[0].v.user_id,'real-user');
+ assert.equal(new URL((await r.json()).checkoutUrl).searchParams.get('email'),'test@example.invalid');
  assert.equal((await a.request({action:'checkout',offerKey:'exam_one'},{Origin:'https://site.test'})).status,400);
  assert.equal((await app({logged:false}).request({action:'checkout',legalAccepted:true},{Origin:'https://site.test'})).status,401);
  assert.equal((await a.request({action:'checkout',legalAccepted:true},{Origin:'https://evil.test'})).status,403);

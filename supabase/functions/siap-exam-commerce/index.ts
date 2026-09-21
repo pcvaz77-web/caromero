@@ -39,6 +39,9 @@ Deno.serve(async request=>{
   }
   const {error:insertError}=await admin.from('siap_exam_orders').insert({user_id:user.id,offer_key:offer.offer_key,payer_email:user.email.toLowerCase(),legal_accepted_at:new Date().toISOString(),amount:offer.amount,credits:offer.credits,months:offer.months,product_id:offer.product_id,offer_code:offer.offer_code});
   if(insertError) throw insertError;
+  // Pre-fill the account used to create this order, avoiding a different
+  // remembered Hotmart email. The authenticated webhook still validates it.
+  checkout.searchParams.set('email',user.email.trim().toLowerCase());
   // Customer must use their signed-in account email at checkout. Never trust a return URL as payment.
   return reply({ok:true,checkoutUrl:checkout.href},200,origin);
  }
