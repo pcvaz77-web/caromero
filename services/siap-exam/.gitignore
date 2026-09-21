@@ -1,0 +1,6 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env*
+test/synthetic-card.jpg
+test/live-vision-result.json

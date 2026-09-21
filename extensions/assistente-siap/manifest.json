@@ -1,0 +1,87 @@
+{
+  "manifest_version": 3,
+  "name": "Assistente SIAP do Professor",
+  "version": "0.26.0",
+  "description": "Organiza pendências do SIAP e auxilia o professor com planejamento, conteúdo, frequência e PEI.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://siap.educacao.go.gov.br/*",
+    "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft",
+    "https://correcao.sistemacarometro.com.br/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://sistemacarometro.com.br/*"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://sistemacarometro.com.br/*"
+      ],
+      "js": [
+        "src/carometro-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ],
+      "js": [
+        "src/page-bridge.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ],
+      "js": [
+        "src/core.js",
+        "src/exam-config.js",
+        "src/vendor/qrcode.js",
+        "src/exam-core.js",
+        "src/exam-dom.js",
+        "src/exam-panel.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css",
+        "src/exam.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "src/service-worker.js"
+  },
+  "action": {
+    "default_title": "Assistente SIAP do Professor",
+    "default_popup": "popup/popup.html",
+    "default_icon": "icons/carometro-icon-192.png"
+  },
+  "icons": {
+    "16": "icons/carometro-icon-192.png",
+    "32": "icons/carometro-icon-192.png",
+    "48": "icons/carometro-icon-192.png",
+    "128": "icons/carometro-icon-192.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "src/carometro-icon.svg"
+      ],
+      "matches": [
+        "https://siap.educacao.go.gov.br/*"
+      ]
+    }
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "version_name": "0.26.0"
+}

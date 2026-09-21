@@ -1,0 +1,17 @@
+{
+  "name": "correcao-de-provas",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-09-01",
+  "workers_dev": false,
+  "routes": [{ "pattern": "correcao.sistemacarometro.com.br", "custom_domain": true }],
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "durable_objects": { "bindings": [{ "name": "EXAMS", "class_name": "ExamSession" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ExamSession"] }],
+  "vars": {
+    "LICENSE_ENDPOINT": "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft",
+    "PUBLISHABLE_KEY": "sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn",
+    "EXTENSION_ORIGINS": "chrome-extension://fgpjjlikinpcjpmmjehbgbfonnbfibnc,chrome-extension://mohcmojnkjjkphgjaogcbokjmnijmggl,chrome-extension://iobkgohpoeoimlhlgdeiojlghbhcijli",
+    "OPENAI_MODEL": "gpt-5.6-sol"
+  },
+  "observability": { "enabled": false }
+}

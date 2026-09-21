@@ -1,0 +1,14 @@
+{
+  "name": "correcao-de-provas",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "test": "node --test test/*.test.mjs",
+    "check": "wrangler deploy --dry-run"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "wrangler": "^4.135.0"
+  }
+}

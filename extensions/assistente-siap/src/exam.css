@@ -1,0 +1,15 @@
+.cm-exam select,.cm-exam textarea{box-sizing:border-box;width:100%;font:inherit;color:#17263d;background:white;border:1px solid #bdcddc;border-radius:8px;padding:8px;margin:6px 0 12px}.cm-exam textarea{min-height:78px}.cm-exam fieldset{border:1px solid #bccedc;border-radius:10px;padding:10px;margin:16px 0}.cm-exam legend{font-weight:700}.cm-exam details{margin:12px 0}.cm-exam summary{cursor:pointer;font-weight:600}.cm-exam-absence{display:block;margin:12px 0}.cm-exam-photo{max-width:100%;margin:12px 0}.cm-exam [data-exam-qr]{background:#fff;padding:8px;max-width:300px;margin:auto}.cm-exam [data-exam-qr] svg{display:block;width:100%;height:auto}.cm-exam [data-exam-message]{white-space:pre-wrap;color:#92520b}.cm-exam [hidden]{display:none!important}
+/* Isolate correction controls from the legacy SIAP form styles. */
+#assistente-siap-panel .cm-exam label{display:block;float:none;width:auto;max-width:100%;height:auto;line-height:1.5;margin:10px 0;color:#17263d;white-space:normal}
+#assistente-siap-panel .cm-exam select{display:block;float:none;width:100%;max-width:100%;height:42px!important;min-height:42px;line-height:normal!important;padding:8px 10px!important;text-indent:0;font:14px/normal system-ui,sans-serif!important}
+#assistente-siap-panel .cm-exam textarea{display:block;float:none;width:100%;max-width:100%;height:auto;min-height:96px;line-height:1.6;resize:vertical;letter-spacing:.04em}
+#assistente-siap-panel .cm-exam fieldset{min-width:0;width:100%;box-sizing:border-box}
+#assistente-siap-panel .cm-exam legend{float:none;width:auto;max-width:100%;line-height:1.5;white-space:normal}
+#assistente-siap-panel .cm-exam .cm-btn{height:auto;min-height:40px;max-width:100%;white-space:normal;line-height:1.45;margin:6px 0;padding:9px 12px}
+#assistente-siap-panel .cm-exam [data-exam-image]{display:block}
+#assistente-siap-panel .cm-exam summary{line-height:1.5;white-space:normal;overflow-wrap:anywhere}
+#assistente-siap-panel .cm-exam input[type=checkbox]{display:inline-block;float:none;width:18px;height:18px;margin:0 8px 0 0;vertical-align:middle}
+#assistente-siap-panel .cm-exam [data-exam-ready]{padding:10px;margin:12px 0;background:#eef4ff;border:1px solid #cbd7ef;border-radius:8px;line-height:1.5}
+#assistente-siap-panel .cm-exam .cm-btn:disabled{opacity:.55;cursor:not-allowed}
+
+#assistente-siap-panel .cm-exam .cm-btn{border-radius:20px;font-weight:700}#assistente-siap-panel .cm-exam .cm-primary{background:#2463eb;color:#fff}#assistente-siap-panel .cm-exam legend{font-weight:800}#assistente-siap-panel .cm-exam [data-exam-student]{font-weight:700!important}

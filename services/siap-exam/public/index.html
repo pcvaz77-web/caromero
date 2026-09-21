@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><title>Correção de Provas · Assistente SIAP</title><link rel="stylesheet" href="capture.css"></head>
+<body><main><header><div class="brand"><img src="carometro-icon.svg" alt="" width="36" height="36"><span>Carômetro<small>Assistente SIAP</small></span></div><h1>Correção de Provas</h1><p id="context">Conectando ao computador…</p></header>
+<div class="reading-indicator" role="status"><span>Lendo a folha…</span><div class="reading-track"><i></i></div></div><p id="notice" role="status" aria-live="polite"></p>
+<section id="capture" hidden><h2 id="step">1. Gabarito oficial</h2><p id="help">Fotografe a folha inteira, com as respostas corretas e a divisão das disciplinas.</p>
+
+<details class="capture-options"><summary>Opções de captura</summary><label>Tipo de captura<select id="kind"><option value="official">Gabarito oficial</option><option value="student">Prova do aluno</option></select></label></details>
+<p id="connection" role="status"></p>
+<button id="students" type="button" class="secondary" disabled>Fotografar provas dos alunos</button>
+<div id="mobile-workflow" hidden>
+<nav class="steps" aria-label="Etapas"><span id="stage-key">1 · Gabarito</span><span id="stage-students">2 · Alunos</span><span>3 · SIAP</span></nav>
+<section id="key-review" hidden><h2>Confira o gabarito</h2><p>Confira uma vez. Ele será usado em todas as provas.</p><p id="key-summary"></p><details><summary>Ver foto do gabarito</summary><button id="key-photo-button" class="secondary" type="button">Abrir foto</button><button id="key-retake" class="secondary" type="button">Fotografar gabarito novamente</button><img id="key-photo" alt="Gabarito oficial desta sessão" hidden></details><div id="key-grid" class="answer-grid"></div><details><summary>Disciplinas e alternativas</summary><label>Alternativas<select id="key-alphabet"><option>ABCD</option><option>ABCDE</option></select></label><div id="key-ranges"></div></details><button id="key-confirm" type="button">Usar gabarito e escolher aluno</button></section>
+<div id="student-choice" hidden><label for="student-select">1. Selecione o aluno desta prova</label><select id="student-select"><option value="">Selecione o aluno</option></select><p class="privacy">Selecione o aluno com a prova em mãos. A câmera abre em seguida.</p></div>
+<section id="mobile-result" hidden aria-live="polite"><span class="eyebrow">PROVA LIDA</span><h2 id="result-name"></h2><div id="result-score"></div><p id="result-warning"></p><label for="result-student">Aluno desta prova</label><select id="result-student"></select><details><summary>Conferir foto e respostas</summary><button id="result-photo-button" class="secondary" type="button">Ver foto desta prova</button><img id="result-photo" alt="Prova selecionada" hidden><div id="result-answers" class="answer-grid"></div></details><button id="result-confirm" type="button">Enviar resultado e próximo aluno</button><button id="result-skip" class="secondary" type="button">Deixar pendente e continuar</button></section>
+<div id="mobile-summary" class="summary" role="status"></div>
+</div>
+<button id="camera" type="button">Abrir câmera</button>
+<div id="camera-view" role="dialog" aria-modal="true" aria-label="Fotografar folha" hidden>
+<div class="camera-top"><p id="camera-status" role="status">Abrindo câmera…</p><button id="stop" type="button" class="secondary">Fechar</button></div>
+<div class="viewfinder"><video id="video" autoplay muted playsinline disablepictureinpicture hidden></video><img id="camera-photo" alt="Folha capturada em leitura" hidden><div class="frame-guide" aria-hidden="true"></div><p id="camera-student"></p></div>
+<div class="camera-bottom"><div class="reading-indicator" role="status"><span>Lendo a folha…</span><div class="reading-track"><i></i></div></div><p>Enquadre todas as questões desta disciplina.</p><p id="camera-progress" role="status" aria-live="polite"></p><p id="camera-summary" role="status"></p><button id="camera-result" type="button" hidden>Conferir resultado</button><button id="snap" type="button" hidden>Fotografar folha</button></div>
+</div>
+<button id="native-camera" type="button" class="secondary" hidden>Tentar pelo aplicativo de câmera</button>
+<input id="native-file" type="file" accept="image/*" capture="environment" hidden>
+<button id="gallery" type="button" class="secondary">Selecionar foto da galeria</button>
+<input id="file" type="file" accept="image/*" hidden>
+<p>Inclua todas as questões e as bordas. Apoie a folha e evite sombras.</p>
+<img id="preview" alt="Foto capturada para conferência" hidden>
+<div id="confirm" hidden><button id="send" type="button">Enviar esta foto</button><button id="retake" type="button" class="secondary">Tirar outra</button></div>
+<details class="privacy"><summary>Sobre esta sessão</summary><p>Fotos são enviadas para leitura por IA. Nomes da turma ficam disponíveis somente nesta sessão temporária de até 2 horas. Não compartilhe o QR ou link.</p></details><h2>Provas desta sessão</h2><p id="progress" role="status" aria-live="polite"></p><ol id="queue"></ol></section>
+</main><script src="exam-core.js"></script><script src="capture.js"></script></body></html>
