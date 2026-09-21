@@ -15,6 +15,11 @@ document.addEventListener('DOMContentLoaded', () => {
   let revisionTimer = null;
   let revisionPolling = false;
   let lastRevisionId = null;
+  let revisionScope = null;
+  let revisionGeneration = 0;
+  let realtimeConnected = false;
+  const CONNECTED_POLL_INTERVAL = 30000;
+  const FALLBACK_POLL_INTERVAL = 2500;
   const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000];
 
   const appIsOpen = () => !document.getElementById('app').classList.contains('hidden');
@@ -46,7 +51,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const pollSchoolRevisions = async () => {
     if (stopped || revisionPolling || document.hidden || !appIsOpen() || navigator.onLine === false) return;
     const schoolId = window.getActiveSchoolId?.();
-    if (!schoolId) return;
+    const userId = user?.id;
+    if (!schoolId || !userId) return;
+    const scope = `${userId}:${schoolId}`;
+    if (revisionScope !== scope) { revisionScope = scope; lastRevisionId = null; revisionGeneration += 1; }
+    const pollGeneration = revisionGeneration;
     revisionPolling = true;
     try {
       let query = db.from('school_realtime_events')
@@ -56,23 +65,27 @@ document.addEventListener('DOMContentLoaded', () => {
         .limit(lastRevisionId === null ? 1 : 100);
       if (lastRevisionId !== null) query = query.gt('id', lastRevisionId);
       const { data, error } = await query;
-      if (error || !data?.length) return;
+      if (error || stopped || pollGeneration !== revisionGeneration || userId !== user?.id
+          || schoolId !== window.getActiveSchoolId?.()) return;
+      if (!data?.length) { lastRevisionId ??= 0; return; }
       const newestId = Math.max(...data.map(item => Number(item.id)));
       if (lastRevisionId !== null) {
         new Set(data.map(item => item.entity_type)).forEach(handleSchoolEntityChange);
         refreshData();
       }
-      lastRevisionId = newestId;
+      lastRevisionId = Math.max(Number(lastRevisionId || 0), newestId);
     } catch (error) {
       console.warn('[Realtime] Não foi possível conferir revisões escolares.', error);
     } finally {
       revisionPolling = false;
     }
   };
-  const startRevisionChecks = () => {
+  const startRevisionChecks = (checkNow = true) => {
     if (revisionTimer) clearInterval(revisionTimer);
-    revisionTimer = setInterval(pollSchoolRevisions, 2500);
-    pollSchoolRevisions();
+    if (stopped) { revisionTimer = null; return; }
+    revisionTimer = setInterval(pollSchoolRevisions,
+      realtimeConnected ? CONNECTED_POLL_INTERVAL : FALLBACK_POLL_INTERVAL);
+    if (checkNow) pollSchoolRevisions();
   };
   const clearRetry = () => {
     if (reconnectTimer) clearTimeout(reconnectTimer);
@@ -104,6 +117,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     generation += 1;
     const channelGeneration = generation;
+    realtimeConnected = false;
+    startRevisionChecks(false);
     clearRetry();
     if (liveChannel) {
       const oldChannel = liveChannel;
@@ -136,11 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
       .subscribe((status, error) => {
         if (channelGeneration !== generation) return;
         if (status === 'SUBSCRIBED') {
+          realtimeConnected = true;
+          startRevisionChecks();
           clearRetry();
           reconnectAttempt = 0;
           if (hasConnectedBefore) { console.info('[Realtime] Reconectado.'); runRefresh(); }
           else { hasConnectedBefore = true; console.info('[Realtime] Conectado.'); }
         } else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) && !stopped) {
+          realtimeConnected = false;
+          startRevisionChecks(false);
           console.warn(`[Realtime] Canal encerrado inesperadamente (${status}).`, error || '');
           scheduleReconnect(channelGeneration);
         }
@@ -166,11 +185,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function stopRealtime() {
     stopped = true;
+    realtimeConnected = false;
     clearRetry();
     reconnectAttempt = 0;
     hasConnectedBefore = false;
     activeScope = null;
     lastRevisionId = null;
+    revisionScope = null;
+    revisionGeneration += 1;
     generation += 1;
     if (revisionTimer) clearInterval(revisionTimer);
     revisionTimer = null;
@@ -212,6 +234,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (stopped) return;
     if (hiddenFor >= 60000) { clearRetry(); reconnectAttempt = 0; requestOpen(true); }
     pollSchoolRevisions();
-    refreshData();
+    if (hiddenFor >= 60000) refreshData();
   });
 });

@@ -25,6 +25,6 @@ assert.match(migration,/favorite_1<>favorite_2 and favorite_1<>favorite_3 and fa
 assert.match(migration,/public\.is_school_admin\(school_id\) or public\.is_school_coordinator\(school_id\)/);
 assert.match(migration,/replica identity full/);
 assert.match(index,/student-search-filters\.js\?v=8/);
-assert.match(index,/realtime-sync\.js\?v=15/);
+assert.match(index,/realtime-sync\.js\?v=16/);
 
 console.log('Três filtros favoritos configuráveis permanecem isolados por escola e sincronizados em tempo real.');

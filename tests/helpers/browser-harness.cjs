@@ -29,10 +29,10 @@ function harness(file, { permission='default', storage=new Map(), query, rpc }={
     setTimeout:()=>1,clearTimeout(){},setInterval:()=>1,clearInterval(){},console,Uint8Array,atob:value=>Buffer.from(value,'base64').toString('binary'),
     toast:message=>messages.push(message),alert:message=>messages.push(message),confirm:()=>true,esc:value=>String(value??''),Event:class{constructor(type){this.type=type;}},CustomEvent:class{constructor(type){this.type=type;}},
     db:{auth:{getUser:async()=>({data:{user:context.user}}),onAuthStateChange:fn=>on(events,'auth',fn)},rpc:async(name,args)=>{calls.push(name);return rpc?rpc(name,args):{error:null};},removeChannel:async()=>{},channel:name=>{
-      const channel={name,handlers:[],on(event,filter,fn){this.handlers.push({filter,fn});return this;},subscribe(){return this;}};channels.push(channel);return channel;
+      const channel={name,handlers:[],on(event,filter,fn){this.handlers.push({filter,fn});return this;},subscribe(fn){this.status=fn;return this;}};channels.push(channel);return channel;
     },from:table=>{
       const operations=[];const builder={then(resolve,reject){calls.push({table,operations});return Promise.resolve(query?query(table,operations):{data:[],error:null,count:0}).then(resolve,reject);}};
-      for(const method of ['select','eq','is','in','order','limit','range','update','insert','upsert','delete','maybeSingle','single','gte','lte'])builder[method]=(...args)=>{operations.push([method,...args]);return builder;};return builder;
+      for(const method of ['select','eq','is','in','order','limit','range','update','insert','upsert','delete','maybeSingle','single','gte','lte','gt'])builder[method]=(...args)=>{operations.push([method,...args]);return builder;};return builder;
     }}
   };
   context.window.Notification=context.Notification;

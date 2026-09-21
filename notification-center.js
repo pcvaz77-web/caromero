@@ -366,8 +366,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let hiddenSince = null;
   let notificationPollTimer = null;
   let notificationPollPromise = null;
+  let notificationConnected = false;
   const RETRY_DELAYS = [1000, 2000, 5000, 10000, 30000];
   const NOTIFICATION_POLL_INTERVAL = 2500;
+  const NOTIFICATION_CONNECTED_POLL_INTERVAL = 30000;
 
   const stopNotificationPolling = () => {
     if (notificationPollTimer) clearInterval(notificationPollTimer);
@@ -375,17 +377,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   async function pollLatestNotification() {
-    if (stopped || document.hidden || notificationPollPromise) return notificationPollPromise;
+    if (stopped || document.hidden || navigator.onLine === false || notificationPollPromise) return notificationPollPromise;
     notificationPollPromise = (async () => {
       const scope = captureScope();
-      const { data: { user: signedInUser } } = await db.auth.getUser();
-      if (!isCurrentScope(scope) || signedInUser?.id !== scope.userId) return;
-      const schoolId = window.getActiveSchoolId?.();
-      if (!signedInUser || !schoolId) return;
+      // A consulta continua protegida pela sessão/RLS; não precisa buscar
+      // /auth/user novamente a cada ciclo para ler os próprios avisos.
+      if (!isCurrentScope(scope)) return;
       const { data, error } = await db.from('user_notifications')
         .select('id')
-        .eq('recipient_id', signedInUser.id)
-        .eq('school_id', schoolId)
+        .eq('recipient_id', scope.userId)
+        .eq('school_id', scope.schoolId)
         .is('dismissed_at', null)
         .order('created_at', { ascending:false })
         .limit(1);
@@ -399,7 +400,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const startNotificationPolling = () => {
     stopNotificationPolling();
-    notificationPollTimer = setInterval(pollLatestNotification, NOTIFICATION_POLL_INTERVAL);
+    if (stopped) return;
+    notificationPollTimer = setInterval(pollLatestNotification,
+      notificationConnected ? NOTIFICATION_CONNECTED_POLL_INTERVAL : NOTIFICATION_POLL_INTERVAL);
   };
 
   const clearRetry = () => {
@@ -433,6 +436,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     channelGeneration += 1;
     const generation = channelGeneration;
+    notificationConnected = false;
+    startNotificationPolling();
     clearRetry();
     if (channel) {
       const oldChannel = channel;
@@ -468,11 +473,15 @@ document.addEventListener('DOMContentLoaded', () => {
       .subscribe((status, error) => {
         if (generation !== channelGeneration) return;
         if (status === 'SUBSCRIBED') {
+          notificationConnected = true;
+          startNotificationPolling();
           clearRetry();
           reconnectAttempt = 0;
           if (hasConnectedBefore) loadNotifications();
           else hasConnectedBefore = true;
         } else if (['CHANNEL_ERROR', 'TIMED_OUT', 'CLOSED'].includes(status) && !stopped) {
+          notificationConnected = false;
+          startNotificationPolling();
           console.warn(`[Notificações] Canal encerrado inesperadamente (${status}).`, error || '');
           scheduleReconnect(generation);
         }
@@ -498,6 +507,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function stopNotificationCenter() {
     stopped = true;
+    notificationConnected = false;
     clearNotificationData();
     stopNotificationPolling();
     clearRetry();
