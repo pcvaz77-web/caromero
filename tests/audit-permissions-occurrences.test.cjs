@@ -45,6 +45,28 @@ test('tela do coordenador usa o proprio vinculo quando diretorio retorna apenas 
   assert.equal((get('permissionsList').innerHTML.match(/disabled/g)||[]).length,1,'permissao ausente no proprio vinculo continua bloqueada');
 });
 
+test('professor ganha botao de ocorrencias quando permissoes carregam depois da abertura do app',async()=>{
+  const source=read('occurrence-management.js'),nodes=new Map(),events=new Map();
+  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
+  let rights={can_view_occurrences:true,can_register_occurrences:true};
+  const context={user:{id:'teacher'},window:{getActiveSchoolId:()=> 'school'},document:{getElementById:get,addEventListener:(name,fn)=>events.set(name,fn)},
+    occurrenceButton:element(),modal:element(),historyRecords:new Map(),syncSaveAction(){},refreshLabelState:async()=>{},
+    db:{auth:{getUser:async()=>({data:{user:{id:'teacher'}}})},removeChannel:async()=>{},from:table=>{
+      const query={select(){return this;},eq(){return this;},maybeSingle:async()=>({data:table==='school_members'?{id:'member',school_id:'school',role:'teacher'}:rights})};return query;
+    }}};
+  context.modal.classList.add('hidden');get('app').classList.add('hidden');vm.createContext(context);
+  vm.runInContext(between(source,'  const get =','  const escape ='),context);
+  vm.runInContext(between(source,'  const syncOccurrenceNavigation =','  occurrenceButton.onclick'),context);
+  vm.runInContext(between(source,"  document.addEventListener('carometro:data-loaded'",'  new MutationObserver(syncOccurrenceNavigation)'),context);
+  await context.refreshOccurrenceMembership();vm.runInContext('syncOccurrenceNavigation()',context);
+  assert.equal(context.occurrenceButton.hidden,true);
+  get('app').classList.remove('hidden');await events.get('carometro:data-loaded')();
+  assert.equal(context.occurrenceButton.hidden,false);
+  assert.equal(context.occurrenceButton.classList.contains('hidden'),false);
+  rights={can_view_occurrences:false};await events.get('carometro:data-loaded')();
+  assert.equal(context.occurrenceButton.hidden,true,'revogacao continua ocultando o botao');
+});
+
 function occurrenceContext(queryResult){
   const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const messages=[],deletedFiles=[];

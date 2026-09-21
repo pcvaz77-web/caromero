@@ -755,6 +755,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Recursos adicionais recebem a conclusão da carga central sem encadear
     // wrappers em window.load, o que evita respostas fora de ordem.
     await refreshOccurrenceMembership();
+    syncOccurrenceNavigation();
+    syncSaveAction();
     await refreshLabelState();
     if (!modal.classList.contains('hidden')) {
       fillClasses();
