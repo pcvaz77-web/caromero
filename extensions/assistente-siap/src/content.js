@@ -315,9 +315,20 @@
       if (!model.license) {
         panel.querySelector(".cm-body").textContent = 'Verificando acesso à Correção de Provas…';
       } else if (model.license.examAccess?.active !== true) {
-        panel.querySelector(".cm-body").innerHTML = `<section class="cm-card"><h3>Correção de Provas</h3><p>${model.license.examAccess?.status === 'unavailable' ? 'Não foi possível verificar este acesso. Tente novamente em instantes.' : 'Esta função precisa de uma liberação específica. Solicite ao proprietário do Carômetro a concessão para sua conta.'}</p><button type="button" class="cm-btn cm-primary" data-exam-check-access>Verificar acesso novamente</button></section>`;
+        panel.querySelector(".cm-body").innerHTML = `<section class="cm-card"><h3>Correção de Provas</h3><p>${model.license.examAccess?.status === 'unavailable' ? 'Não foi possível verificar este acesso. Tente novamente em instantes.' : 'Compre créditos ou utilize uma concessão gratuita do proprietário.'}</p><button type="button" class="cm-btn cm-primary" data-exam-check-access>Verificar acesso novamente</button></section>`;
         panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
       } else window.SiapExamPanel?.mount(panel.querySelector(".cm-body"));
+      const body=panel.querySelector('.cm-body');
+      if(!body.querySelector('[data-exam-shop]')) {
+        const shop=document.createElement('section');shop.dataset.examShop='';shop.className='cm-card';shop.open=model.license?.examAccess?.active!==true;
+        shop.innerHTML=`<h3>Correção de Provas</h3><p>Cada crédito corrige um bloco de avaliação em todas as suas turmas. Ao abrir o QR Code no celular, ele fica vinculado àquele bloco até você finalizar a correção.</p><label><input type="checkbox" data-exam-legal> Li e aceito os <a href="https://sistemacarometro.com.br/legal.html#termos" target="_blank" rel="noopener noreferrer">termos</a>.</label><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:12px;font-weight:700" class="cm-btn cm-primary" data-exam-buy="exam_one">1 crédito · R$ 20</button><button style="border-radius:999px;padding:13px 18px;width:100%;margin-top:10px;font-weight:700" class="cm-btn" data-exam-buy="exam_four">4 créditos · R$ 80</button><p data-exam-buy-status role="status"></p><a href="https://sistemacarometro.com.br/assistente-siap.html#correcao-de-provas" target="_blank" rel="noopener noreferrer">Entenda os créditos e veja os planos</a>`;
+        shop.querySelectorAll('[data-exam-buy]').forEach(button=>button.onclick=async()=>{
+          const status=shop.querySelector('[data-exam-buy-status]');
+          if(!shop.querySelector('[data-exam-legal]').checked){status.textContent='Leia e aceite os termos para continuar.';return;}
+          button.disabled=true;status.textContent='Abrindo pagamento seguro…';
+          try {const result=await chrome.runtime.sendMessage({type:'SIAP_EXAM_BUY',offerKey:button.dataset.examBuy,legalAccepted:true});status.textContent=result?.ok?'Pagamento aberto na Hotmart. Use o mesmo e-mail da sua conta do Assistente.':result?.error||'Conecte sua conta do Assistente para comprar.';}catch{status.textContent='Não foi possível abrir o pagamento.';}finally{button.disabled=false;}
+        });body.prepend(shop);
+      }
       return;
     }
     if (model.license && model.license.active !== true) {

@@ -46,6 +46,21 @@ Deno.serve(async request=>{
   const admin=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{autoRefreshToken:false,persistSession:false}})
   const purchase=data.purchase??{}
   const transaction=String(purchase.transaction??'')
+  // New correction offers share this verified webhook, but never use the
+  // legacy product/amount fallback or overwrite an existing assistant plan.
+  const examOfferCode=String(purchase.offer?.code??data.subscription?.plan?.offer?.code??data.plan?.offer?.code??'')
+  const {data:examOffer,error:examOfferError}=await admin.from('siap_exam_offers').select('offer_key').eq('product_id',productId).eq('offer_code',examOfferCode).limit(1).maybeSingle()
+  const {data:examPurchase,error:examPurchaseError}=transaction
+    ?await admin.from('siap_exam_purchases').select('order_id').eq('transaction_id',transaction).maybeSingle()
+    :{data:null,error:null}
+  if(examOfferError||examPurchaseError) return response({ok:false,reason:'exam_routing_unavailable'},503)
+  if(examOffer||examPurchase||productId===8564903){
+    if(isLegacy) return response({ok:false,reason:'exam_requires_webhook_2'},409)
+    const forwarded=await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/siap-exam-commerce`,{
+      method:'POST',headers:{'Content-Type':'application/json','x-hotmart-hottok':expected},body:JSON.stringify(raw)
+    })
+    return new Response(await forwarded.text(),{status:forwarded.status,headers:{'Content-Type':'application/json'}})
+  }
   const isCancellation=event==='SUBSCRIPTION_CANCELLATION'
   const subscriberCode=String((isCancellation?data.subscriber?.code:data.subscription?.subscriber?.code)??'')
   const buyerEmail=cleanEmail(isCancellation?data.subscriber?.email:data.buyer?.email)

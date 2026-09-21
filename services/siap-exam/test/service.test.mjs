@@ -13,6 +13,15 @@ function room() {
   return {storage,object,call};
 }
 const image='data:image/jpeg;base64,/9j/AAAA';
+test('QR de crédito: gerar não ativa; somente celular sinaliza leitura e computador valida o vínculo',async()=>{
+ const r=room(),init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID(),block:{year:'2026',term:'3',assessment:'Ciclo1 - MAT'}});
+ let status=await r.call('status',{},init.desktop);assert.equal(status.scanRequested,false);assert.equal(status.active,false);
+ assert.equal((await r.call('upload',{id:crypto.randomUUID(),kind:'official',image},init.mobile)).status,409);
+ status=await r.call('status',{},init.mobile);assert.equal(status.scanRequested,true);assert.equal(status.active,false);
+ assert.equal((await r.call('heartbeat',{activated:true},init.mobile)).status,403);
+ await r.call('heartbeat',{activated:true},init.desktop);assert.equal((await r.call('status',{},init.mobile)).active,true);
+ await r.call('pause',{paused:true},init.desktop);assert.equal((await r.call('status',{},init.mobile)).active,false);
+});
 test('tokens diferentes: celular envia mas não lê nomes, fotos ou altera resultados',async()=>{
   const r=room(), init=await r.call('init',{context:'Turma TESTE',sessionId:crypto.randomUUID()});
   assert.equal((await r.call('status',{},'wrong')).status,401);

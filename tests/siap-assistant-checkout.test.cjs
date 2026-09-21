@@ -77,7 +77,7 @@ test('checkout exige login e aceite antes de abrir a Hotmart', () => {
   assert.match(hotmartAssistantCheckout, /legal_acceptance_required/);
   assert.match(hotmartAssistantCheckout, /hotmart_product_mappings/);
   assert.match(schoolFrontend, /create-hotmart-school-checkout/);
-  assert.match(landing, /R\$ 89,90 \/ mês/);
+  assert.match(landing, /R\$ 79,90 \/ mês/);
   assert.match(landing, /R\$ 129,90 \/ 3 meses/);
   assert.match(landing, /data-assistant-plan="quarterly"/);
 });
@@ -136,7 +136,7 @@ test('oferece a demonstração na vitrine e separa o fluxo gratuito do checkout'
 test('não oferece novamente o teste a quem veio do Carômetro ou já utilizou a demonstração', () => {
   assert.match(landing, /Disponível uma única vez por e-mail/);
   assert.match(landing, /Verificar teste grátis/);
-  assert.match(landing, /assistente-siap\.js\?v=6/);
+  assert.match(landing, /assistente-siap\.js\?v=8/);
   assert.match(landingJs, /window\.location\.hash === '#planos'/);
   assert.match(landingJs, /get_siap_assistant_access_status/);
   assert.match(landingJs, /access\.status === 'free'/);

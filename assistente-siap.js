@@ -84,9 +84,14 @@
       if (trialCard) trialCard.style.display = 'none';
     }
   }).catch(() => {});
+  const offerResult = client.from('siap_exam_offers').select('offer_key,amount,active');
   client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order')
-    .then(({ data, error }) => {
+    .then(async ({ data, error }) => {
       if (error) return;
+      const {data:offers=[]}=await offerResult;
+      document.querySelectorAll('[data-exam-offer]').forEach(button=>{const offer=(offers||[]).find(o=>o.offer_key===button.dataset.examOffer&&o.active);button.disabled=!offer;button.onclick=()=>location.assign('assistente-siap-conta.html?plano='+encodeURIComponent(button.dataset.examOffer));});
+      const salesStatus=document.querySelector('[data-exam-sales-status]');
+      if(salesStatus) salesStatus.textContent=(offers||[]).some(o=>['exam_one','exam_four'].includes(o.offer_key)&&o.active)?'Pagamento seguro. Liberação após a confirmação da compra.':'Compra avulsa aguardando liberação da plataforma de pagamento.';
       (data || []).forEach(plan => {
         const button = document.querySelector(`[data-assistant-plan="${plan.plan_key}"]`);
         const card = button?.closest('.price-card');
@@ -95,7 +100,16 @@
         card.querySelector('.price').textContent = `${money(plan.amount)} / ${period}`;
         button.disabled = false;
         button.textContent = 'Assinar agora';
-        button.onclick = () => location.assign(`assistente-siap-conta.html?plano=${encodeURIComponent(plan.plan_key)}`);
+        const addon=document.querySelector(`[data-exam-addon="${plan.plan_key}"]`);
+        const update=()=>{
+          const offer=(offers||[]).find(o=>o.offer_key===plan.plan_key+'_exam');
+          const extra=Number(plan.billing_months)===1?35:45;
+          const chosen=addon?.checked;
+          card.querySelector('.price').textContent=`${money(Number(plan.amount)+(chosen?extra:0))} / ${period}`;
+          button.disabled=!!chosen&&(!offer?.active||Number(offer.amount)!==Number(plan.amount)+extra);
+          const hint=card.querySelector('[data-addon-status]');if(hint)hint.textContent=chosen?(button.disabled?'Oferta com correção em preparação.':'Correção incluída durante todo o plano.'):'Correção não incluída.';
+          button.onclick=()=>location.assign(`assistente-siap-conta.html?plano=${encodeURIComponent(plan.plan_key+(chosen?'_exam':''))}`);
+        };if(addon)addon.onchange=update;update();
       });
     });
 })();

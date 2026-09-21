@@ -50,6 +50,7 @@
       ${changed && canAdopt(snapshot) && official ? `<p>Confira abaixo as disciplinas e suas quantidades. Ajuste o gabarito somente se a leitura estiver errada; depois vincule a avaliação.</p>${keyForm(official)}` : ''}
       <details ${!remote?.key ? 'open' : ''}><summary>QR Code de conexão</summary><div data-exam-qr></div><p>Leia uma vez no celular. Expira em ${new Date(state.room.expires).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Não compartilhe este QR Code.</p></details>
       <button class="cm-btn" type="button" data-exam="close">Encerrar e apagar capturas</button>
+      ${remote?.accessMode==='block' ? '<details><summary>Concluir crédito avulso</summary><p>Use somente depois de terminar este bloco em todas as turmas, incluindo segundas chamadas. Encerrar as capturas acima não encerra seu crédito.</p><label><input type="checkbox" data-finish-block-confirm> Terminei este bloco em todas as turmas.</label><button class="cm-btn" type="button" data-exam="finishBlock">Finalizar bloco em todas as turmas</button></details>' : ''}
       ${state.queue && state.queue.phase !== 'done' ? `<button class="cm-btn" type="button" data-exam="${state.queue.paused ? 'resume' : 'pauseBatch'}">${state.queue.paused ? 'Retomar lote após conferência' : 'Pausar preenchimento'}</button>` : ''}
       ${!changed && !blocked ? `<p>${remote?.key ? 'Gabarito confirmado. Fotografe os cartões dos alunos.' : 'Faça a leitura e confira o gabarito no celular. Os resultados aparecerão aqui para o lançamento final.'}</p>
       ${official ? `<details><summary>Gabarito e ajustes pelo computador</summary>${keyForm(official)}</details>` : ''}
@@ -172,10 +173,16 @@
     hint.textContent=reason || (batch.pending.length ? 'Os identificados serão preenchidos. As exceções permanecem manuais; não haverá salvamento automático.' : 'Confira os resultados acima e envie em um clique.');
   }
   const operations = {
+    async finishBlock() {
+      assertContext();
+      if(!host.querySelector('[data-finish-block-confirm]')?.checked) throw new Error('Confirme que terminou o bloco em todas as turmas.');
+      if(applying||(state?.queue?.phase && state.queue.phase!=='done')||remote?.items?.some(item=>!item.discarded&&['queued','processing'].includes(item.status))) throw new Error('Aguarde a leitura e o lançamento terminarem.');
+      await api('finish-block'); blocked=true; message='Bloco finalizado em todas as turmas.';
+    },
     async start() {
       snapshot = current();
       if(snapshot.mode!=='entry'||!snapshot.roster.some(r=>!r.unavailable)) throw new Error('Abra a avaliação com a lista de alunos antes de gerar o QR Code.');
-      const room = await api('create', { context: `${snapshot.label} · ${snapshot.context.subject} · ${snapshot.context.total} questões`, mobileWorkflow: true, assessment: {subject:snapshot.context.subject,total:snapshot.context.total} });
+      const room = await api('create', { block:snapshot.block, context: `${snapshot.label} · ${snapshot.context.subject} · ${snapshot.context.total} questões`, mobileWorkflow: true, assessment: {subject:snapshot.context.subject,total:snapshot.context.total} });
       state = { room, scope: snapshot.scope, awaitingEvaluation: snapshot.mode === 'selection', base: snapshot.base, signature: snapshot.signature, queue: null }; blocked = false; drafts.clear();
       await save(); heartbeatAt = 0; await refresh(); message = 'Leia o QR Code no celular para iniciar.';
     },
@@ -296,7 +303,7 @@
         if (!matches(now)) {
           if (!blocked) { await api('pause', { paused: true }); blocked = true; draw(); }
         } else if (!blocked) {
-          if (Date.now() - heartbeatAt > 45000) { await api('heartbeat'); heartbeatAt = Date.now(); }
+          if (Date.now() - heartbeatAt > 45000 || remote?.scanRequested && !remote?.activated) { await api('heartbeat'); heartbeatAt = Date.now(); }
           if (state.queue && state.queue.phase !== 'done' && !state.queue.paused) await advance();
           else {
             await refresh();

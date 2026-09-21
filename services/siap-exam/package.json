@@ -8,6 +8,7 @@
     "check": "wrangler deploy --dry-run"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "jsdom": "^26.1.0",
     "wrangler": "^4.135.0"
   }

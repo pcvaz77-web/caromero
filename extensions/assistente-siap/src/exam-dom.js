@@ -38,7 +38,8 @@
     });
     if (!roster.length || new Set(roster.map(r => r.id)).size !== roster.length) throw new Error('Lista de estudantes vazia ou duplicada.');
     const base = JSON.stringify({ header, ...context, subject: undefined, total: undefined, roster: roster.map(r => [r.id, r.unavailable]) });
-    return { mode: 'entry', scope, context, roster, base, signature: JSON.stringify([base, context.subject, context.total]), label: `${context.classroom} · ${context.grade} · ${context.shift} · ${context.term} · ${context.assessment}` };
+    const block = {year:header.match(/20\d{2}/)?.[0],term:context.term.match(/[1-4]/)?.[0],assessment:context.assessment};
+    return { mode: 'entry', block, scope, context, roster, base, signature: JSON.stringify([base, context.subject, context.total]), label: `${context.classroom} · ${context.grade} · ${context.shift} · ${context.term} · ${context.assessment}` };
   }
   function controls(snapshot, id, call) {
     if (![1, 2].includes(call)) throw new Error('Selecione a primeira ou segunda chamada.');

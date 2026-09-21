@@ -48,3 +48,6 @@ verify_jwt = true
 
 [functions.hotmart-payment-webhook]
 verify_jwt = false
+
+[functions.siap-exam-commerce]
+verify_jwt = false

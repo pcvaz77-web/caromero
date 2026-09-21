@@ -1,5 +1,9 @@
 // A separate entitlement: never changes the four existing assistant features.
 export async function examAccessForUser(admin, userId, now = Date.now()) {
+  if (admin.rpc) {
+    const paid=await admin.rpc('siap_exam_commerce_access',{p_user:userId});
+    if (!paid.error && paid.data) return paid.data;
+  }
   const {data, error} = await admin.from('siap_exam_access_grants').select('expires_at,revoked_at').eq('user_id',userId).maybeSingle();
   if (error) return {active:false,expiresAt:null,status:'unavailable'};
   if (!data) return {active:false,expiresAt:null,status:'not_granted'};

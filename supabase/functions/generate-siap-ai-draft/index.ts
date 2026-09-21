@@ -1,4 +1,5 @@
 import { examAccessForUser } from './exam-access.mjs'
+import { examBlockKey } from './exam-block.mjs'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const baseCorsHeaders = {
@@ -281,6 +282,25 @@ Deno.serve(async (request) => {
     license = (licenseData ?? {}) as LicenseStatus
   }
   const accessAction = rawBody && typeof rawBody === 'object' ? (rawBody as Record<string, unknown>).action : '';
+  if (['exam_preview','exam_bind','exam_check','exam_finish'].includes(String(accessAction))) {
+    if(accessAction!=='exam_finish') {
+      const access=await examAccessForUser(admin,userId);
+      if(access.active && ['granted','subscription'].includes(access.status)) return json(request,{ok:true,license:{examAccess:access}});
+    }
+    let block;
+    try { block=examBlockKey((rawBody as Record<string,unknown>).block); }
+    catch { return json(request,{ok:false,code:'invalid_exam_block'},400); }
+    const {data,error}=await admin.rpc('siap_exam_commerce_access',{p_user:userId,p_block:block,p_operation:String(accessAction).slice(5)});
+    if(error) return json(request,{ok:false,code:'exam_access_failed'},503);
+    return json(request,{ok:true,license:{examAccess:data}});
+  }
+  // Device sessions use a separate resolver; include the paid bundle there too.
+  if (deviceToken) {
+    const commerce=await examAccessForUser(admin,userId);
+    if (commerce.generalUntil && Date.parse(commerce.generalUntil)>Date.now() && !(license.active && ['subscription','carometro'].includes(license.mode||''))) {
+      license={...license,active:true,mode:'subscription',status:'subscribed',freeUses:null,accessEndsAt:commerce.generalUntil};
+    }
+  }
   if (['license_status','create_device_session'].includes(String(accessAction))) {
     license.examAccess = await examAccessForUser(admin, userId);
   }

@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#071a39">
   <title>Assistente SIAP do Professor</title>
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assistente-siap.css?v=7">
+  <link rel="stylesheet" href="assistente-siap.css?v=8">
   <link rel="stylesheet" href="assistente-siap-support.css">
 </head>
 <body>
@@ -192,14 +192,25 @@
       <div class="section-heading"><span class="eyebrow">PLANOS E DEMONSTRAÇÃO</span><h2>Escolha como começar</h2><p>Assine para usar sem limite de demonstração ou experimente gratuitamente antes de decidir.</p></div>
       <div class="pricing-grid">
         <article class="price-card monthly-card">
-          <span class="plan-label">INDIVIDUAL</span><h3>Mensal</h3><p class="price">R$ 89,90 / mês</p><p>Flexibilidade para contratar e cancelar.</p>
+          <span class="plan-label">INDIVIDUAL</span><h3>Mensal</h3><p class="price">R$ 79,90 / mês</p><p>Flexibilidade para contratar e cancelar.</p>
           <ul><li>Planejamento, conteúdo, frequência e PEI</li><li>Atualizações da extensão</li><li>Suporte ao usuário</li></ul>
+          <label class="exam-option"><input type="checkbox" data-exam-addon="monthly"> Incluir Correção de Provas (+ R$ 35,00 no período)</label><p class="exam-offer-status" data-addon-status="monthly"></p>
           <button class="checkout-button" type="button" data-assistant-plan="monthly" disabled>Assinatura em preparação</button>
         </article>
         <article class="price-card featured quarterly-card">
           <span class="popular">CONDIÇÃO TEMPORÁRIA</span><span class="plan-label">INDIVIDUAL</span><h3>Trimestral</h3><p class="price">R$ 129,90 / 3 meses</p><p>Pagamento único para usar durante três meses.</p>
           <ul><li>Todos os recursos do plano mensal</li><li>Valor trimestral promocional</li><li>Três meses de acesso</li></ul>
+          <label class="exam-option"><input type="checkbox" data-exam-addon="quarterly"> Incluir Correção de Provas (+ R$ 45,00 no período)</label><p class="exam-offer-status" data-addon-status="quarterly"></p>
           <button class="checkout-button" type="button" data-assistant-plan="quarterly" disabled>Assinatura em preparação</button>
+        </article>
+        <article class="price-card exam-credit-card" id="correcao-de-provas">
+          <span class="popular">NOVIDADE</span><span class="plan-label">CRÉDITOS AVULSOS</span><h3>Correção de Provas</h3><p class="price">R$ 20,00 / crédito</p>
+          <p>Cada crédito corrige um bloco de avaliação em todas as suas turmas. Ao abrir o QR Code no celular, ele fica vinculado àquele bloco até você finalizar a correção.</p>
+          <ul><li>Vinculado ao bloco ao abrir o QR Code no celular</li><li>Inclui todas as disciplinas daquele bloco</li><li>Retome até finalizar o bloco em todas as turmas</li><li>Não inclui as demais funções do Assistente</li></ul>
+          <button class="checkout-button" data-exam-offer="exam_one" disabled>1 crédito · R$ 20</button>
+          <button class="checkout-button secondary" data-exam-offer="exam_four" disabled>4 créditos · R$ 80</button>
+          <small data-exam-sales-status role="status">Verificando disponibilidade das compras…</small>
+          <small>Os quatro créditos permitem corrigir os quatro blocos, conforme precisar. Cada crédito é utilizado uma vez.</small>
         </article>
         <article class="price-card trial-card">
           <span class="plan-label">DEMONSTRAÇÃO</span><h3>Experimentar grátis</h3><p class="price">R$ 0,00</p><p>Disponível uma única vez por e-mail. Verificamos seu direito ao entrar na conta.</p>
@@ -207,11 +218,12 @@
           <a class="price-link trial-link" href="assistente-siap-conta.html?plano=trial">Verificar teste grátis</a>
         </article>
         <article class="price-card institutional-card">
-          <span class="plan-label">INSTITUCIONAL</span><h3>Via Carômetro</h3><p class="price">Conforme a escola</p><p>Acesso concedido pelo administrador.</p>
+          <span class="plan-label">INSTITUCIONAL</span><h3>Via Carômetro</h3><p class="price">Conforme a escola</p><p>Acesso concedido pelo proprietário do Carômetro, conforme a liberação da conta.</p>
           <ul><li>Permissão individual por professor</li><li>Gestão no painel do proprietário</li><li>Sem misturar dados escolares e cobrança</li></ul>
           <a class="price-link" href="index.html">Acessar o Carômetro</a>
         </article>
       </div>
+      <p class="pricing-note">Ao incluir Correção de Provas no plano, você pode corrigir blocos durante toda a vigência contratada, sem consumir créditos avulsos.</p>
       <p class="pricing-note">O mensal tem renovação recorrente. O trimestral é pago uma vez e libera três meses de acesso, sem renovação automática.</p>
       <p class="pricing-note">Já comprou pelo celular? No computador com a extensão, <a href="assistente-siap-conta.html">entre na sua conta do Assistente SIAP</a> usando o mesmo e-mail da compra.</p>
     </section>
@@ -244,6 +256,6 @@
   </footer>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap.js?v=7"></script>
+  <script src="assistente-siap.js?v=8"></script>
 </body>
 </html>

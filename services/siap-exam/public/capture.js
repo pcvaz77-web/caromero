@@ -148,7 +148,7 @@
       $('kind').options[1].disabled = !keyReady;
       if (justReady && !pendingImage) { $('kind').value = 'student'; tell(mobileWorkflow ? 'Gabarito oficial pronto. Primeiro selecione o aluno; depois leia o cartão-resposta dele.' : 'Agora fotografe as provas dos alunos. A primeira foto será conferida; as seguintes serão enviadas automaticamente.'); }
       updateStep();
-      $('connection').textContent = active ? 'Conectado ao computador. Envio liberado.' : status.pauseReason === 'context' ? 'Envio pausado: confira o gabarito e vincule a avaliação no computador. Você pode fotografar; as fotos aguardam nesta aba.' : 'Computador sem conexão recente. Deixe o SIAP e o Assistente abertos. Você pode fotografar; as fotos aguardam nesta aba.';
+      $('connection').textContent = active ? 'Conectado ao computador. Envio liberado.' : status.block && status.scanRequested && !status.activated ? 'Vinculando seu acesso a este bloco… Mantenha o Assistente aberto no computador.' : status.pauseReason === 'context' ? 'Envio pausado: confira o gabarito e vincule a avaliação no computador. Você pode fotografar; as fotos aguardam nesta aba.' : 'Computador sem conexão recente. Deixe o SIAP e o Assistente abertos. Você pode fotografar; as fotos aguardam nesta aba.';
       if (active && !connectedOnce) { tell('Celular conectado. O QR Code não precisa ser lido novamente nesta sessão.'); connectedOnce = true; }
       render(status.items); renderMobile(status); setEnabled(); flush();
     } catch (error) { active = false; $('connection').textContent = 'Envio indisponível. As fotos não enviadas permanecem nesta aba.'; setEnabled(); tell(error.message); }

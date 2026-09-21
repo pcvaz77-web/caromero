@@ -14,14 +14,15 @@ export async function limitedJson(request, max = MAX_IMAGE + 3000) {
   for (;;) { const { value, done } = await reader.read(); if (done) break; length += value.length; if (length > max) { await reader.cancel(); throw new Error('Imagem muito grande.'); } text += decoder.decode(value, { stream: true }); }
   return JSON.parse(text + decoder.decode());
 }
-async function license(request, env) {
+async function license(request, env, action='license_status', block) {
   const response = await fetch(env.LICENSE_ENDPOINT, {
     method: 'POST', signal: AbortSignal.timeout(15000),
     headers: { 'Content-Type': 'application/json', Origin: request.headers.get('Origin') || '', apikey: env.PUBLISHABLE_KEY,
       Authorization: request.headers.get('Authorization') || '', 'X-Assistant-Session': request.headers.get('X-Assistant-Session') || '' },
-    body: JSON.stringify({ action: 'license_status' })
+    body: JSON.stringify({ action, block })
   });
   const result = await response.json();
+  if(action==='exam_finish') { if(!response.ok||!result.ok||result.license?.examAccess?.status!=='finished') throw new Error('Falha ao finalizar'); return result.license.examAccess; }
   return response.ok && result.ok && result.license?.examAccess?.active === true ? result.license.examAccess : null;
 }
 export default {
@@ -48,8 +49,24 @@ export default {
       const action = url.pathname.split('/').at(-1);
       const id = url.pathname.split('/')[2];
       let access = null;
-      if (action === 'create' || action === 'heartbeat') {
-        access = extension ? await license(request, env) : null;
+      if (action === 'create' || action === 'heartbeat' || action === 'finish-block') {
+        // Existing desktop capability validates the immutable block for heartbeats.
+        let block=body.block, roomStatus;
+        if (action!=='create' && extension && uuid(id)) {
+          const status=await env.EXAMS.get(env.EXAMS.idFromName(id)).fetch(new Request('https://internal/status',{method:'POST',headers:{'X-Exam-Token':request.headers.get('X-Exam-Token')||''},body:'{}'}));
+          if (!status.ok) throw new Error('Sessão inválida');
+          roomStatus=await status.json(); block=roomStatus.block;
+        }
+        if (action==='finish-block') {
+          if (!extension || !block) throw new Error('Bloco inválido');
+          await license(request,env,'exam_finish',block);
+          result=await env.EXAMS.get(env.EXAMS.idFromName(id)).fetch(new Request('https://internal/pause',{method:'POST',headers:{'X-Exam-Token':request.headers.get('X-Exam-Token')||''},body:'{"paused":true}'}));
+          return new Response(result.body,{status:result.status,headers:{...Object.fromEntries(result.headers),...cors}});
+        }
+        access = extension ? await license(request, env, block ? action==='create'?'exam_preview':roomStatus?.scanRequested?'exam_bind':'exam_preview':'license_status',block) : null;
+        if(action==='heartbeat') body.accessMode=access?.status;
+        if(action==='heartbeat') body.activated=!!roomStatus?.scanRequested && access?.active===true && access.status!=='pending_scan';
+        if (access?.status==='credits' && !block) access=null;
         if (!access) {
           if (extension && action === 'heartbeat' && uuid(id)) await env.EXAMS.get(env.EXAMS.idFromName(id)).fetch(new Request('https://internal/pause', {method:'POST',headers:{'X-Exam-Token':request.headers.get('X-Exam-Token')||''},body:JSON.stringify({paused:true})}));
           return new Response(JSON.stringify({ error: 'Correção de Provas sem acesso ativo. Solicite a liberação ao proprietário do Carômetro.' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -63,7 +80,7 @@ export default {
         if (!allowed.ok) result = allowed;
         else {
           const sessionId = crypto.randomUUID();
-          result = await env.EXAMS.get(env.EXAMS.idFromName(sessionId)).fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ ...body, sessionId, accessExpiresAt:access.expiresAt }) }));
+          result = await env.EXAMS.get(env.EXAMS.idFromName(sessionId)).fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ ...body, sessionId, accessMode:access.status, accessExpiresAt:access.expiresAt }) }));
         }
       } else if (uuid(id) && ['heartbeat', 'status', 'upload', 'image', 'key', 'review', 'pause', 'close', 'retry', 'discard', 'mobile-key', 'mobile-review', 'mobile-image', 'mobile-retry', 'mobile-discard', 'roster'].includes(action)) {
         if (!extension && ['heartbeat', 'key', 'review', 'pause', 'close', 'image', 'retry', 'discard', 'roster'].includes(action)) throw new Error('Operação exclusiva do computador.');
@@ -105,7 +122,7 @@ export class ExamSession {
           if (typeof body.context !== 'string' || body.context.length > 1000 || !body.context.trim()) throw new Error('Contexto inválido.');
           const desktop = token(), mobile = token();
           if(body.assessment && (typeof body.assessment.subject!=='string'||!body.assessment.subject.trim()||!Number.isInteger(body.assessment.total)||body.assessment.total<1||body.assessment.total>100)) throw new Error('Avaliação inválida.');
-          state = { assessment:body.assessment||null, sessionId: body.sessionId, context: body.context, desktop: await digest(desktop), mobile: await digest(mobile), expires: Math.min(Date.now() + TTL, body.accessExpiresAt ? Date.parse(body.accessExpiresAt) : Infinity), heartbeat: Date.now(), paused: false, items: [], key: null, mobileWorkflow: body.mobileWorkflow === true, roster: [] };
+          state = { accessMode:body.accessMode, block:body.block||null, scanRequested:false, activated:!body.block, assessment:body.assessment||null, sessionId: body.sessionId, context: body.context, desktop: await digest(desktop), mobile: await digest(mobile), expires: Math.min(Date.now() + TTL, body.accessExpiresAt ? Date.parse(body.accessExpiresAt) : Infinity), heartbeat: Date.now(), paused: false, items: [], key: null, mobileWorkflow: body.mobileWorkflow === true, roster: [] };
           await this.storage.put('session', state); await this.storage.setAlarm(state.expires);
           return json({ ok: true, id: state.sessionId, desktop, mobile, expires: state.expires });
         }
@@ -114,10 +131,10 @@ export class ExamSession {
         const desktop = hash === state.desktop;
         if (!desktop && hash !== state.mobile) return json({ error: 'Acesso inválido.' }, 401);
         if (!desktop && !['status', 'upload', ...(state.mobileWorkflow ? ['mobile-key', 'mobile-review', 'mobile-image', 'mobile-retry', 'mobile-discard'] : [])].includes(action)) return json({ error: 'Operação não autorizada.' }, 403);
-        if (action === 'heartbeat') { state.heartbeat = Date.now(); await this.storage.put('session', state); return json({ ok: true }); }
+        if (action === 'heartbeat') { state.heartbeat = Date.now(); state.accessMode=body.accessMode; if(state.block) state.activated=body.activated===true; await this.storage.put('session', state); return json({ ok: true }); }
         if (action === 'close') { await this.storage.deleteAll(); await this.storage.deleteAlarm(); return json({ ok: true }); }
         if (action === 'pause') { state.paused = body.paused !== false; await this.storage.put('session', state); return json({ ok: true }); }
-        const active = !state.paused && state.heartbeat > Date.now() - 120000;
+        const active = (!state.block || state.activated) && !state.paused && state.heartbeat > Date.now() - 120000;
         if (action === 'roster') {
           if (!Array.isArray(body.roster) || body.roster.length > 300 || typeof body.binding !== 'string') throw new Error('Turma inválida.');
           const roster = body.roster.map(r => {
@@ -131,7 +148,8 @@ export class ExamSession {
         if (!desktop && ['mobile-key','mobile-review','mobile-retry','mobile-discard'].includes(action) && !active) return json({error:'Sessão pausada. Reconecte o computador para confirmar.'},409);
         if (action === 'status') {
           const items = await Promise.all(state.items.map(id => this.storage.get('item:' + id)));
-          return json({ ok: true, context: state.context, expires: state.expires, active, pauseReason: state.paused ? 'context' : !active ? 'connection' : '', assessment:state.assessment, mobileWorkflow: !!state.mobileWorkflow, roster: state.mobileWorkflow ? state.roster : undefined, key: desktop || state.mobileWorkflow ? state.key : !!state.key,
+          if(!desktop && state.block && !state.scanRequested) {state.scanRequested=true;await this.storage.put('session',state);}
+          return json({ ok: true, accessMode:state.accessMode, block:state.block, scanRequested:state.scanRequested, activated:state.activated, context: state.context, expires: state.expires, active, pauseReason: state.paused ? 'context' : !active ? 'connection' : '', assessment:state.assessment, mobileWorkflow: !!state.mobileWorkflow, roster: state.mobileWorkflow ? state.roster : undefined, key: desktop || state.mobileWorkflow ? state.key : !!state.key,
             items: items.filter(Boolean).map(item => desktop ? { ...item, imageHash: undefined } : { id: item.id, kind: item.kind, status: item.status, error: item.error, ...(state.mobileWorkflow ? {result:item.result, review:item.review, selectedStudentId:item.selectedStudentId, discarded:item.discarded} : {}) }) });
         }
         if (action === 'key' || action === 'mobile-key') {
