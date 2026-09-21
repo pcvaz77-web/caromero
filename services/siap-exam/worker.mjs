@@ -22,7 +22,7 @@ async function license(request, env) {
     body: JSON.stringify({ action: 'license_status' })
   });
   const result = await response.json();
-  return response.ok && result.ok && result.license?.active === true && ['carometro', 'subscription'].includes(result.license.mode);
+  return response.ok && result.ok && result.license?.examAccess?.active === true ? result.license.examAccess : null;
 }
 export default {
   async fetch(request, env) {
@@ -47,8 +47,13 @@ export default {
       const body = await limitedJson(request);
       const action = url.pathname.split('/').at(-1);
       const id = url.pathname.split('/')[2];
+      let access = null;
       if (action === 'create' || action === 'heartbeat') {
-        if (!extension || !(await license(request, env))) return new Response(JSON.stringify({ error: 'Reconecte uma licença ativa do Assistente.' }), { status: 401, headers: { ...cors, 'Content-Type': 'application/json' } });
+        access = extension ? await license(request, env) : null;
+        if (!access) {
+          if (extension && action === 'heartbeat' && uuid(id)) await env.EXAMS.get(env.EXAMS.idFromName(id)).fetch(new Request('https://internal/pause', {method:'POST',headers:{'X-Exam-Token':request.headers.get('X-Exam-Token')||''},body:JSON.stringify({paused:true})}));
+          return new Response(JSON.stringify({ error: 'Correção de Provas sem acesso ativo. Solicite a liberação ao proprietário do Carômetro.' }), { status: 403, headers: { ...cors, 'Content-Type': 'application/json' } });
+        }
       }
       if (action === 'create') {
         // Rate-limit room creation per authenticated credential; no credentials are persisted.
@@ -58,7 +63,7 @@ export default {
         if (!allowed.ok) result = allowed;
         else {
           const sessionId = crypto.randomUUID();
-          result = await env.EXAMS.get(env.EXAMS.idFromName(sessionId)).fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ ...body, sessionId }) }));
+          result = await env.EXAMS.get(env.EXAMS.idFromName(sessionId)).fetch(new Request('https://internal/init', { method: 'POST', body: JSON.stringify({ ...body, sessionId, accessExpiresAt:access.expiresAt }) }));
         }
       } else if (uuid(id) && ['heartbeat', 'status', 'upload', 'image', 'key', 'review', 'pause', 'close', 'retry', 'discard', 'mobile-key', 'mobile-review', 'mobile-image', 'mobile-retry', 'mobile-discard', 'roster'].includes(action)) {
         if (!extension && ['heartbeat', 'key', 'review', 'pause', 'close', 'image', 'retry', 'discard', 'roster'].includes(action)) throw new Error('Operação exclusiva do computador.');
@@ -100,7 +105,7 @@ export class ExamSession {
           if (typeof body.context !== 'string' || body.context.length > 1000 || !body.context.trim()) throw new Error('Contexto inválido.');
           const desktop = token(), mobile = token();
           if(body.assessment && (typeof body.assessment.subject!=='string'||!body.assessment.subject.trim()||!Number.isInteger(body.assessment.total)||body.assessment.total<1||body.assessment.total>100)) throw new Error('Avaliação inválida.');
-          state = { assessment:body.assessment||null, sessionId: body.sessionId, context: body.context, desktop: await digest(desktop), mobile: await digest(mobile), expires: Date.now() + TTL, heartbeat: Date.now(), paused: false, items: [], key: null, mobileWorkflow: body.mobileWorkflow === true, roster: [] };
+          state = { assessment:body.assessment||null, sessionId: body.sessionId, context: body.context, desktop: await digest(desktop), mobile: await digest(mobile), expires: Math.min(Date.now() + TTL, body.accessExpiresAt ? Date.parse(body.accessExpiresAt) : Infinity), heartbeat: Date.now(), paused: false, items: [], key: null, mobileWorkflow: body.mobileWorkflow === true, roster: [] };
           await this.storage.put('session', state); await this.storage.setAlarm(state.expires);
           return json({ ok: true, id: state.sessionId, desktop, mobile, expires: state.expires });
         }

@@ -366,7 +366,8 @@
     </tr>`).join('');
   }
 
-  function renderSiapSchoolAccess(members, error) {
+  function renderSiapSchoolAccess(members, error, examGrants = [], examError = null) {
+    const examByUser = new Map(examGrants.map(grant => [grant.user_id, grant]));
     const target = document.getElementById('platformSiapSchoolAccess');
     if (!target) return;
     if (error) {
@@ -388,10 +389,16 @@
       <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user" data-siap-user-row="${esc(member.user_id)}">
         <div><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')} · ${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small>Assinatura paga ativa</small>' : (member.owner_granted ? `<small>${member.grant_permanent ? 'Concessão permanente' : `${esc(member.days_remaining)} dia(s) restante(s) · até ${esc(shortDate(member.grant_expires_at))}`}</small>` : '<small>Sem concessão do proprietário</small>')}</div>
         <div class="platform-siap-grant-controls">${member.owner_granted ? `<button type="button" class="btn danger-outline" data-siap-revoke="${esc(member.user_id)}">Cancelar concessão</button>` : `<select data-siap-grant-period="${esc(member.user_id)}"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" data-siap-grant-date="${esc(member.user_id)}"><button type="button" class="btn primary" data-siap-grant="${esc(member.user_id)}">Conceder</button>`}</div>
+        ${renderExamGrant(member, examByUser.get(member.user_id), examError)}
       </div>`).join('')}</div>
     </details>`).join('');
+    target.querySelectorAll('[data-exam-grant-period]').forEach(select => {
+      select.onchange = () => select.closest('[data-exam-access]').querySelector('[data-exam-grant-date]').classList.toggle('hidden', select.value !== 'custom');
+    });
+    target.querySelectorAll('[data-exam-grant]').forEach(button => { button.onclick = () => updateExamAccess(button, true); });
+    target.querySelectorAll('[data-exam-revoke]').forEach(button => { button.onclick = () => updateExamAccess(button, false); });
     target.querySelectorAll('[data-siap-grant-period]').forEach(select => {
-      select.onchange = () => target.querySelector(`[data-siap-grant-date="${select.dataset.siapGrantPeriod}"]`)?.classList.toggle('hidden', select.value !== 'custom');
+      select.onchange = () => select.closest('[data-siap-user-row]').querySelector('[data-siap-grant-date]')?.classList.toggle('hidden', select.value !== 'custom');
     });
     target.querySelectorAll('[data-siap-grant]').forEach(button => {
       button.onclick = () => grantSiapAssistantAccess(button.dataset.siapGrant, button);
@@ -399,6 +406,41 @@
     target.querySelectorAll('[data-siap-revoke]').forEach(button => {
       button.onclick = () => updateSiapAssistantAccess(button.dataset.siapRevoke, false, button);
     });
+  }
+
+  function renderExamGrant(member, grant, error) {
+    const active = grant?.active === true;
+    const status = error ? 'Não foi possível consultar este acesso.' : active ? (grant.expires_at ? `Liberado até ${shortDate(grant.expires_at)}` : 'Acesso permanente') : grant?.revoked_at ? 'Concessão cancelada' : grant?.expires_at ? `Vencido em ${shortDate(grant.expires_at)}` : 'Sem acesso à correção';
+    return `<div class="platform-exam-access" data-exam-access="${esc(member.user_id)}"><strong>Correção de Provas</strong><small>${esc(status)}</small>
+      ${error ? '' : `<div class="platform-siap-grant-controls"><select aria-label="Prazo da Correção de Provas" data-exam-grant-period><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" aria-label="Data final da Correção de Provas" data-exam-grant-date><button type="button" class="btn primary" data-exam-grant>${active ? 'Renovar correção' : 'Conceder correção'}</button>${active ? '<button type="button" class="btn danger-outline" data-exam-revoke>Cancelar correção</button>' : ''}</div>`}</div>`;
+  }
+
+  async function updateExamAccess(button, enabled) {
+    const card = button.closest('[data-exam-access]');
+    const userId = card.dataset.examAccess;
+    const period = card.querySelector('[data-exam-grant-period]').value;
+    let expiresAt = null;
+    if (enabled && period === 'custom') {
+      const date = card.querySelector('[data-exam-grant-date]').value;
+      const timestamp = date ? new Date(`${date}T23:59:59-03:00`).getTime() : NaN;
+      if (!Number.isFinite(timestamp) || timestamp <= Date.now()) { toast('Escolha uma data final no futuro.'); return; }
+      expiresAt = new Date(timestamp).toISOString();
+    } else if (enabled && period !== 'permanent') {
+      if (!['7','15','30','60','90'].includes(period)) return;
+      expiresAt = new Date(Date.now() + Number(period) * 86400000).toISOString();
+    }
+    const root = document.getElementById('platformSiapSchoolAccess');
+    const openSchools = [...root.querySelectorAll('details[open]')].map(el => el.dataset.schoolId);
+    card.querySelectorAll('button').forEach(el => { el.disabled = true; });
+    try {
+      const result = await db.rpc('platform_set_siap_exam_access', {p_user_id:userId,p_enabled:enabled,p_expires_at:expiresAt});
+      if (result.error) throw result.error;
+      toast(enabled ? 'Correção de Provas liberada para esta conta.' : 'Acesso à Correção de Provas cancelado.');
+      const [members, grants] = await Promise.all([db.rpc('platform_list_siap_school_users'), db.rpc('platform_list_siap_exam_access')]);
+      renderSiapSchoolAccess(members.data || [], members.error, grants.data || [], grants.error);
+      root.querySelectorAll('details[data-school-id]').forEach(el => { el.open = openSchools.includes(el.dataset.schoolId); });
+    } catch (error) { toast(error.message || 'Não foi possível atualizar a Correção de Provas.'); }
+    finally { card.querySelectorAll('button').forEach(el => { el.disabled = false; }); }
   }
 
   async function grantSiapAssistantAccess(userId, button) {
@@ -1742,7 +1784,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult, siapExamGrantsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1756,7 +1798,8 @@
       db.rpc('platform_list_siap_assistant_commercial_plans'),
       db.rpc('platform_list_school_commercial_mappings'),
       db.rpc('platform_list_siap_assistant_customers'),
-      db.rpc('platform_list_siap_school_users')
+      db.rpc('platform_list_siap_school_users'),
+      db.rpc('platform_list_siap_exam_access')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1806,7 +1849,7 @@
     renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
     renderSiapPlans(siapPlansResult.data || [], siapPlansResult.error);
     renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
-    renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error);
+    renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error, siapExamGrantsResult.data || [], siapExamGrantsResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
 
   }

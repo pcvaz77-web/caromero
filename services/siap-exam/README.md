@@ -55,3 +55,9 @@ A resposta da IA usa mapa compacto de número impresso para alternativa, validan
 Leitura oficial com disciplina conhecida retorna somente números impressos, marcas, alternativas e aviso; títulos e divisões já conhecidos são preenchidos pelo sistema. Mantidos modelo, imagem em alta resolução e validação de sequência/quantidade. Agendamento inicial em 100 ms para ambas as capturas. Teste sintético único: 15/15 marcas em 4,3 s; tempo real depende da foto, rede e fila. Os 52 testes passaram.
 
 Página móvel com identidade Carômetro, azul/marinho, seletor nativo arredondado, nomes em destaque e foco visível. Conferida em viewport de 390×844. Alterações desta etapa são no serviço; extensão permanece 0.26.0.
+
+## Concessão específica de Correção de Provas
+
+Migration 140 cria acesso independente por conta, administrado exclusivamente pelo proprietário. A função de licença retorna examAccess; o serviço exige esse acesso para criar e renovar a sessão, recusando licença geral isolada. A sessão não ultrapassa a validade da concessão. Revogação detectada no heartbeat pausa a sessão (normalmente até 45 segundos). Não há concessões automáticas. Painel com conceder, renovar, cancelar, dias, data final e permanente; as escolas apenas agrupam os usuários.
+
+83 testes passaram, incluindo checkout e regressões. SQL validado também em Postgres local com papéis autenticados, RLS, datas e auditoria. Aplicação autorizada pelo usuário em 21/09/2026.

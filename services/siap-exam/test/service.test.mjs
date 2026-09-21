@@ -139,3 +139,9 @@ test('novas sessões não aguardam dois minutos; limite protege somente excesso 
  await r.storage.put('owner:test',[Date.now()-61000]);
  assert.equal((await r.call('create-limit',{owner:'test'})).status,200);
 });
+
+test('sessão de correção nunca ultrapassa o vencimento da concessão',async()=>{
+ const r=room(),end=Date.now()+60000;
+ const init=await r.call('init',{context:'Turma fictícia',sessionId:crypto.randomUUID(),accessExpiresAt:new Date(end).toISOString()});
+ assert.equal(init.expires,end);
+});

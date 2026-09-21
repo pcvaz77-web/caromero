@@ -311,13 +311,18 @@
       updateOperationStatus();
       return;
     }
+    if (model.page === "exam") {
+      if (!model.license) {
+        panel.querySelector(".cm-body").textContent = 'Verificando acesso à Correção de Provas…';
+      } else if (model.license.examAccess?.active !== true) {
+        panel.querySelector(".cm-body").innerHTML = `<section class="cm-card"><h3>Correção de Provas</h3><p>${model.license.examAccess?.status === 'unavailable' ? 'Não foi possível verificar este acesso. Tente novamente em instantes.' : 'Esta função precisa de uma liberação específica. Solicite ao proprietário do Carômetro a concessão para sua conta.'}</p><button type="button" class="cm-btn cm-primary" data-exam-check-access>Verificar acesso novamente</button></section>`;
+        panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
+      } else window.SiapExamPanel?.mount(panel.querySelector(".cm-body"));
+      return;
+    }
     if (model.license && model.license.active !== true) {
       panel.querySelector(".cm-body").innerHTML = licenseCard();
       updateOperationStatus();
-      return;
-    }
-    if (model.page === "exam") {
-      window.SiapExamPanel?.mount(panel.querySelector(".cm-body"));
       return;
     }
     panel.querySelector(".cm-body").innerHTML = `
