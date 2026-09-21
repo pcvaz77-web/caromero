@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // botões exclusivos do administrador para usuários comuns.
   const syncAdminOnlyNavigation = () => {
     if (!window.matchMedia('(max-width:1100px)').matches) return;
-    const hideAdminCommands = permission?.role !== 'admin';
+    const hidePermissionCommands = !window.canAccessPermissionsNav?.();
     const canViewUniform = typeof window.canAccessUniformNav === 'function' ? window.canAccessUniformNav() : false;
     const canViewReports = permission?.role === 'admin' || !!permission?.is_coordinator;
     const syncButton = (id, hidden) => {
@@ -170,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // settingsNav é global e controla a própria visibilidade com
       // is_platform_owner(); o layout móvel não pode reexibi-lo com base no
       // papel legado admin. permissionsNav continua sendo gestão escolar.
-      ['permissionsNav'].forEach(id => syncButton(id, hideAdminCommands));
+      syncButton('permissionsNav', hidePermissionCommands);
       // A autorização de conselheiros é derivada do papel ativo na escola.
       syncButton('counselorNav', !(typeof window.counselorCanManage === 'function' ? window.counselorCanManage() : false));
     // Uniforme é recurso avançado: nunca pode aparecer por causa do CSS do

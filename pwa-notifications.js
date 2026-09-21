@@ -100,10 +100,22 @@ document.addEventListener('DOMContentLoaded',()=>{
         pushButton.dataset.active='false';
       }
     }}if(notificationChannel)await db.removeChannel(notificationChannel);notificationChannel=db.channel(`push-ui-${user.id}-${schoolId}`).on('postgres_changes',{event:'INSERT',schema:'public',table:'user_notifications',filter:`school_id=eq.${schoolId}`},payload=>{if(payload.new.recipient_id===user.id)toast(payload.new.title);}).subscribe();}
-  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;pwaButton.classList.remove('hidden');});
-  window.addEventListener('appinstalled',()=>{pwaButton.classList.add('hidden');toast('CARÔMETRO instalado.');});
-  if(isIos()&&!isStandalone()){pwaButton.classList.remove('hidden');pwaButton.textContent='Como instalar';}
-  pwaButton.onclick=async()=>{if(isIos()&&!installPrompt){alert('No iPhone/iPad: toque em Compartilhar e depois em Adicionar à Tela de Início. Abra o CARÔMETRO instalado para ativar as notificações.');return;}if(!installPrompt)return;await installPrompt.prompt();installPrompt=null;pwaButton.classList.add('hidden');};pushButton.onclick=()=>(pushButton.dataset.active==='true'?deactivatePush:activatePush)();
+  let installedThisSession=false;
+  const syncInstallButton=()=>pwaButton.classList.toggle('hidden',installedThisSession||isStandalone());
+  const showInstallHelp=()=>alert(isIos()
+    ? 'No iPhone/iPad: abra o CARÔMETRO no Safari, toque em Compartilhar e depois em Adicionar à Tela de Início.'
+    : 'Abra o CARÔMETRO no navegador. No menu, procure Instalar aplicativo ou Adicionar à tela inicial. No computador, procure também o ícone de instalação na barra de endereço. Se a opção não aparecer, tente no Chrome ou Edge. Se já estiver instalado, abra pelo ícone do CARÔMETRO.');
+  window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installPrompt=event;syncInstallButton();});
+  window.addEventListener('appinstalled',()=>{installedThisSession=true;installPrompt=null;syncInstallButton();toast('CARÔMETRO instalado.');});
+  matchMedia('(display-mode: standalone)').addEventListener('change',syncInstallButton);
+  syncInstallButton();
+  pwaButton.onclick=async()=>{
+    if(!installPrompt){showInstallHelp();return;}
+    const prompt=installPrompt;installPrompt=null;
+    try{await prompt.prompt();await prompt.userChoice;}catch{showInstallHelp();}
+    syncInstallButton();
+  };
+  pushButton.onclick=()=>(pushButton.dataset.active==='true'?deactivatePush:activatePush)();
   new MutationObserver(syncButtons).observe(document.getElementById('app'),{attributes:true,attributeFilter:['class']});
   document.addEventListener('carometro:permission-refresh',syncButtons);
   db.auth.onAuthStateChange((_event,session)=>{if(!session)void clearNotificationChannel().catch(()=>{});});

@@ -292,15 +292,19 @@ document.addEventListener('DOMContentLoaded', () => {
     openPermissions();
   };
 
+  window.canAccessPermissionsNav = () => {
+    const canManageTeachers = (!!permission?.is_coordinator || !!permission?.is_secretary) && !!permission?.can_manage_member_permissions;
+    const canManageCounselors = !!permission.is_coordinator && !!window.counselorCanManage?.();
+    return permission?.role === 'admin' || canManageTeachers || canManageCounselors;
+  };
+
   function applyCurrentPermission(nextPermission) {
     if (!nextPermission) return;
     permission = nextPermission.role === 'admin' ? { ...nextPermission, can_add_students:true, can_edit_students:true } : nextPermission;
     const admin = permission.role === 'admin';
     document.getElementById('roleLabel').textContent = permissionLabel(permission);
-    const canManageTeachers = (!!permission.is_coordinator || !!permission.is_secretary) && !!permission.can_manage_member_permissions;
-    const canManageCounselors = !!permission.is_coordinator && !!window.counselorCanManage?.();
     const permissionsNav = document.getElementById('permissionsNav');
-    const showPermissions = admin || canManageTeachers || canManageCounselors;
+    const showPermissions = window.canAccessPermissionsNav();
     permissionsNav.classList.toggle('hidden', !showPermissions);
     permissionsNav.hidden = !showPermissions;
     if (showPermissions) permissionsNav.style.removeProperty('display');
