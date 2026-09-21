@@ -6,9 +6,11 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '../src/service-worker.js'), 'utf8');
 function startWorker(deviceSession, fetchImpl, onBroadcast) {
   const listeners = [];
+  const local = {carometroAiDeviceSession:deviceSession}; const sessionStore = {};
+  const store = data => ({get:async()=>({...data}),set:async values=>Object.assign(data,values),remove:async keys=>{for(const key of [keys].flat()) delete data[key];}});
   const chrome = {
     runtime: { getManifest: () => ({version:'0.23.0'}), onMessage:{addListener: fn => listeners.push(fn)}, onMessageExternal:{addListener: () => {}} },
-    storage: { local:{get: async () => ({carometroAiDeviceSession:deviceSession}), set:async()=>{}, remove:async()=>{}}, session:{get:async()=>({}),set:async()=>{}} },
+    storage: {local:store(local),session:store(sessionStore)},
     tabs:{onRemoved:{addListener:()=>{}},query:async()=>onBroadcast ? [{id:1}] : [],sendMessage:async(_id, message)=>onBroadcast?.(message)}
   };
   const context = vm.createContext({chrome,fetch:fetchImpl,URL,Date,JSON,String,Number,Promise,AbortSignal});
@@ -46,4 +48,47 @@ test('outra conta gratuita nao substitui o cartao da licenca concedida', async (
   assert.equal(result.ok,true);
   assert.equal(result.temporary,true);
   assert.equal(broadcasts.length,0);
+});
+
+
+test('sair remove as duas sessoes e exige reconexao explicita validada', async () => {
+  let calls=0;const updates=[];
+  const worker=startWorker({deviceToken:'old',expiresAt:Date.now()+60000},async()=>{
+    calls++;return {ok:true,status:200,json:async()=>({ok:true,deviceToken:'new',expiresAt:new Date(Date.now()+120000).toISOString(),license:{active:true,accountEmail:'new@example.com'}})};
+  },message=>updates.push(message));
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'})).ok,true);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  const connect={type:'CAROMETRO_SIAP_CONNECT_INTERNAL',accessToken:'authenticated',expiresAt:Date.now()+60000};
+  const sender={tab:{url:'https://sistemacarometro.com.br/'}};
+  assert.equal((await worker(connect,sender)).code,'ASSISTANT_SIGNED_OUT');
+  assert.equal(calls,0);
+  assert.equal((await worker({...connect,explicit:true},sender)).ok,true);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
+  assert.equal(updates.at(-1).license.accountEmail,'new@example.com');
+});
+
+test('requisicao de conexao em andamento nao desfaz sair', async () => {
+  let complete;let started;
+  const ready=new Promise(resolve=>started=resolve);
+  const worker=startWorker(null,()=>new Promise(resolve=>{complete=resolve;started();}));
+  const pending=worker({type:'CAROMETRO_SIAP_CONNECT_INTERNAL',explicit:true,accessToken:'authenticated',expiresAt:Date.now()+60000},{tab:{url:'https://sistemacarometro.com.br/'}});
+  await ready;await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'});
+  complete({ok:true,status:200,json:async()=>({ok:true,deviceToken:'late',expiresAt:new Date(Date.now()+120000).toISOString(),license:{active:true}})});
+  assert.equal((await pending).code,'ASSISTANT_SIGNED_OUT');
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+});
+
+test('email direto consulta o servidor e conecta apenas resposta autorizada', async()=>{
+  let request;
+  const worker=startWorker(null,async(_url,options)=>{request=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,deviceToken:'credit-session',expiresAt:new Date(Date.now()+60000).toISOString(),license:{active:false,accountEmail:'paid@example.com',examAccess:{active:true}}})};});
+  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:' Paid@Example.com '});
+  assert.equal(request.action,'email_device_session');assert.equal(request.email,'paid@example.com');
+  assert.equal(result.ok,true);assert.equal(result.license.active,false);assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
+});
+test('email sem direito nao grava sessao e falha de rede nao libera acesso', async()=>{
+  for(const fetchImpl of [async()=>({ok:false,json:async()=>({ok:false,code:'no_active_access'})}),async()=>{throw Error('offline');}]) {
+    const worker=startWorker(null,fetchImpl);
+    assert.equal((await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:'none@example.com'})).ok,false);
+    assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  }
 });

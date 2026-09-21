@@ -127,7 +127,7 @@ test('oferece a demonstração na vitrine e separa o fluxo gratuito do checkout'
   assert.match(landing, /href="assistente-siap-conta\.html\?plano=trial"/);
   assert.match(landing, /2 usos de planejamento/);
   assert.match(account, /const trialFlow = planKey === 'trial'/);
-  assert.match(account, /get\('plano'\) \|\| 'trial'/);
+  assert.match(account, /get\('plano'\) \|\| 'account'/);
   assert.doesNotMatch(account, /get\('plano'\) \|\| 'monthly'/);
   assert.match(account, /checkoutButton\.hidden = trialFlow/);
   assert.match(account, /connectButton\.hidden = !trialFlow \|\| !available/);

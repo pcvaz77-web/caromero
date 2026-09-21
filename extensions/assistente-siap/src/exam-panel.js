@@ -316,6 +316,12 @@
     timer = setTimeout(tick, state?.queue && state.queue.phase !== 'done' && !state.queue.paused ? 1000 : 3500);
   }
   window.SiapExamPanel = {
+    isBusy() { return processing || applying; },
+    resetAccount() {
+      clearTimeout(timer); blocked=true;
+      if (state?.room) api('pause',{paused:true}).catch(()=>{});
+      state=null;remote=null;host=null;loading=true;drafts.clear();rendered='';
+    },
     mount(container) {
       if (host?.isConnected && host.parentElement === container) return;
       host = document.createElement('div'); host.className = 'cm-exam'; container.replaceChildren(host);

@@ -327,7 +327,7 @@
     if (!panel.querySelector(".cm-body")) {
       panel.innerHTML = `<header class="cm-head">
         <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-account-identity" hidden></span></div>
-        <div class="cm-window-actions"><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
+        <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
@@ -340,8 +340,35 @@
       identity.textContent = model.accountEmail ? 'Conectado como ' + model.accountEmail : '';
       identity.title = identity.textContent;
     }
+    const accountToggle = panel.querySelector('.cm-account-toggle');
+    if (accountToggle) {
+      const connected = !!model.accountEmail && !model.sessionRequired;
+      accountToggle.disabled = false;
+      accountToggle.textContent = connected ? 'Sair' : 'Entrar';
+      accountToggle.classList.toggle('cm-sign-out', connected);
+      accountToggle.onclick = async () => {
+        if (connected) {
+          if (model.busy || window.SiapExamPanel?.isBusy?.()) { accountToggle.title='Aguarde a operação terminar para sair.'; return; }
+          window.SiapExamPanel?.resetAccount?.();
+          accountToggle.disabled = true;
+          const result = await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_SIGN_OUT'}).catch(() => null);
+          if (!result?.ok) { accountToggle.disabled = false; return; }
+          model.accountEmail = null; model.license = null; model.sessionRequired = true;
+          lockAssistantAfterExpiry(); render();
+        } else { model.sessionRequired = true; render(); panel.querySelector('.cm-login-email')?.focus(); }
+      };
+    }
     if (model.sessionRequired) {
-      panel.querySelector(".cm-body").innerHTML = `<section class="cm-card cm-license cm-license-warning"><h3>Conecte sua conta do Assistente SIAP</h3><p>A sessão da extensão terminou. No computador, entre com o e-mail vinculado à licença e reconecte a extensão.</p><div class="cm-actions"><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/assistente-siap-conta.html" target="_blank" rel="noopener noreferrer">Entrar na minha conta</a></div></section>`;
+      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><p>Use o e-mail da sua compra ou da concessão do Carômetro. O sistema verifica a assinatura, os créditos ou a concessão ativa para esse e-mail.</p><form class="cm-login-form"><label>E-mail<input class="cm-login-email cm-input" type="email" autocomplete="email" required></label><button class="cm-btn cm-primary cm-full" type="submit">Entrar</button><p class="cm-login-message" role="status"></p></form><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap#planos" target="_blank" rel="noopener">Ver planos e comprar acesso</a></section>';
+      panel.querySelector('.cm-login-form').onsubmit = async event => {
+        event.preventDefault();
+        const form=event.currentTarget, button=form.querySelector('button'), status=form.querySelector('.cm-login-message');
+        button.disabled=true;status.textContent='Verificando acesso…';
+        const result=await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:form.querySelector('.cm-login-email').value.trim()}).catch(()=>null);
+        if(result?.ok) {model.license=result.license;model.accountEmail=result.license.accountEmail;model.sessionRequired=false;render();return;}
+        button.disabled=false;
+        status.textContent=result?.code==='no_active_access'?'Este e-mail não possui acesso ativo. Veja os planos abaixo.':result?.code==='invalid_email'?'Confira o e-mail informado.':'Não foi possível verificar agora. Tente novamente.';
+      };
       updateOperationStatus();
       return;
     }
@@ -2496,7 +2523,8 @@
     if (message?.type === "ASSISTENTE_SIAP_LICENSE_UPDATED") {
       model.license = message.license || null;
       if (message.license && 'accountEmail' in message.license) model.accountEmail = message.license.accountEmail;
-      model.sessionRequired = false;
+      model.sessionRequired = !message.license;
+      if (!message.license) { model.accountEmail = null; window.SiapExamPanel?.resetAccount?.(); }
       if (model.license?.active !== true) lockAssistantAfterExpiry();
       render();
       respond({ ok:true });

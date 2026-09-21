@@ -91,3 +91,5 @@
 #assistente-siap-panel .cm-account-identity { display: block; margin-top: 6px; color: #d0dff7; font: 500 11px/1.4 "Segoe UI", system-ui, sans-serif; overflow-wrap: anywhere; }
 #assistente-siap-panel .cm-account-identity[hidden] { display: none; }
 #assistente-siap-panel .cm-payment-account { padding: 10px 12px; border-radius: 12px; background: #eff5ff; color: #234583; font-weight: 600; overflow-wrap: anywhere; }
+
+.cm-account-toggle{border:0;border-radius:999px;background:#7560ed;color:white;padding:7px 12px;font:700 12px system-ui;cursor:pointer;transition:filter .15s,transform .15s}.cm-account-toggle.cm-sign-out{background:#b8324e}.cm-account-toggle:hover{filter:brightness(1.18);transform:translateY(-1px)}.cm-account-toggle:focus-visible{outline:2px solid white;outline-offset:2px}.cm-login-email{display:block;width:100%;box-sizing:border-box;margin:8px 0 14px;padding:12px;border:1px solid #cbd5e1;border-radius:12px}

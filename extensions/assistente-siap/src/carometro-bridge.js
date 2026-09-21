@@ -8,7 +8,7 @@
     const requestId = String(message.requestId || '');
     if (!requestId) return;
     chrome.runtime.sendMessage({
-      type: 'CAROMETRO_SIAP_CONNECT_INTERNAL',
+      type: 'CAROMETRO_SIAP_CONNECT_INTERNAL', explicit: message.explicit === true,
       accessToken: message.accessToken,
       expiresAt: message.expiresAt
     }).then(response => {

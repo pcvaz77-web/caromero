@@ -5,7 +5,8 @@
   // O retorno do link de autenticação pode chegar sem a query string.
   // Nessa situação, nunca presumimos uma compra: o backend decide se a
   // conta ainda pode experimentar, já possui assinatura ou tem concessão.
-  const planKey = new URLSearchParams(location.search).get('plano') || 'trial';
+  const planKey = new URLSearchParams(location.search).get('plano') || 'account';
+  const accountFlow = planKey === 'account';
   const trialFlow = planKey === 'trial';
   const examFlow = ['exam_one','exam_four','monthly_exam','quarterly_exam','semiannual_exam'].includes(planKey);
   const loading = document.getElementById('accountLoading');
@@ -38,6 +39,16 @@
     document.getElementById('accountPageIntro').textContent = 'Entre com seu e-mail, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
   }
 
+  if (accountFlow) {
+    document.querySelector('.site-header .brand small').textContent='MINHA CONTA';
+    document.querySelector('.account-copy .eyebrow').textContent='ACESSO AO ASSISTENTE';
+    document.querySelector('.account-copy h1').textContent='Entre na sua conta';
+    document.getElementById('accountPageIntro').textContent='Use o e-mail da compra ou da concessão do Carômetro. Após confirmar o e-mail, verificaremos suas licenças e créditos.';
+    document.querySelector('.payment-methods').hidden=true;
+    document.querySelector('.account-copy ul').hidden=true;
+  }
+  const emailHint = new URLSearchParams(location.hash.slice(1)).get('email');
+  if (emailHint) {document.getElementById('accountEmail').value=emailHint;history.replaceState(null,'',location.pathname+location.search);}
   const money = value => Number(value).toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
   const compareVersions = (left, right) => {
     const a = String(left || '').split('.').map(part => Number.parseInt(part, 10) || 0);
@@ -76,7 +87,7 @@
     }
     const accessLabel = accessStatus?.mode === 'subscription' ? 'Assinatura ativa'
       : accessStatus?.mode === 'carometro' ? 'Acesso institucional'
-      : 'Demonstração gratuita';
+      : examStatus?.active ? 'Correção de Provas' : 'Demonstração gratuita';
     message('checkoutMessage', installedVersion && recommendedVersion && compareVersions(installedVersion, recommendedVersion) < 0
       ? `Extensão ${installedVersion} conectada. Há uma atualização recomendada na Chrome Web Store.`
       : `${accessLabel} conectada${installedVersion ? ` à extensão ${installedVersion}` : ' à extensão'}. Abra o SIAP para continuar.`);
@@ -119,6 +130,11 @@
       panelTitle.textContent='Sua Correção de Provas';selectedPlanTarget.hidden=true;legal.hidden=true;checkoutButton.hidden=true;trialEndedLink.hidden=true;
       accessSummary.textContent=`Correção disponível · ${examStatus.credits||0} crédito(s) livre(s) · ${examStatus.openBlocks||0} bloco(s) em andamento.`;
       connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';return;
+    }
+    if (accountFlow) {
+      panelTitle.textContent='Acesso não disponível'; selectedPlanTarget.hidden=true;legal.hidden=true;checkoutButton.hidden=true;
+      accessSummary.textContent='Esta conta não possui assinatura, concessão ou créditos ativos. Escolha um plano para usar o Assistente.';
+      installSteps.hidden=true;connectButton.hidden=true;trialEndedLink.hidden=false;return;
     }
     const uses = status?.freeUses || {};
     const remaining = ['planning','content','attendance','pei'].map(key => Math.max(0, Number(uses[key] || 0)));
@@ -168,7 +184,7 @@
     }
     if (!silent) message('checkoutMessage', 'Validando licença…');
     const payload = {
-      type:'CAROMETRO_SIAP_CONNECT', accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
+      type:'CAROMETRO_SIAP_CONNECT', explicit:!silent, accessToken:currentSession.access_token, expiresAt:Number(currentSession.expires_at) * 1000
     };
     if (globalThis.chrome?.runtime?.sendMessage) {
       for (const extensionId of extensionIds) {
@@ -191,7 +207,7 @@
   };
 
   async function loadPlan() {
-    if (trialFlow) {
+    if (trialFlow || accountFlow) {
       selectedPlan = null;
       selectedPlanTarget.hidden = true;
       checkoutButton.disabled = true;
@@ -223,7 +239,7 @@
       document.getElementById('paymentEmailHint').textContent = `No pagamento da Hotmart, use ${session.user.email}. A licença e os créditos serão vinculados a essa conta. Já pagou com outro e-mail? Use “Entrar com outro e-mail”.`;
       await loadPlan();
       const status = await loadAccessStatus();
-      if (status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
+      if (!accountFlow && status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
         message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação do pagamento.');
       }
@@ -254,6 +270,12 @@
   };
   connectButton.onclick = () => connectCurrentSession(false);
   document.getElementById('signOutAssistant').onclick = async () => { await db.auth.signOut(); await refresh(); };
-  db.auth.onAuthStateChange(() => setTimeout(refresh, 0));
-  refresh();
+  let accountReady = false;
+  db.auth.onAuthStateChange(() => { if (accountReady) setTimeout(refresh, 0); });
+  (async () => {
+    const {data:{session}} = await db.auth.getSession();
+    if (emailHint && session && session.user.email?.toLowerCase() !== emailHint.trim().toLowerCase()) await db.auth.signOut({scope:'local'});
+    accountReady = true;
+    await refresh();
+  })();
 })();

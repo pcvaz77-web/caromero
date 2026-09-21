@@ -1,3 +1,4 @@
+import { normalizeAccessEmail, emailAccessLicense } from './email-access.mjs'
 import { examAccessForUser } from './exam-access.mjs'
 import { examBlockKey } from './exam-block.mjs'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -261,6 +262,21 @@ Deno.serve(async (request) => {
   try { rawBody = await request.json() } catch { return json(request, { ok: false, code: 'invalid_payload' }, 400) }
   const callerClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } })
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth:{ autoRefreshToken:false, persistSession:false } })
+  if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string,unknown>).action === 'email_device_session') {
+    const email = normalizeAccessEmail((rawBody as Record<string,unknown>).email);
+    if (!email) return json(request,{ok:false,code:'invalid_email'},400);
+    const {data:accountId,error:lookupError}=await admin.rpc('siap_assistant_resolve_access_email',{p_email:email});
+    if (lookupError) return json(request,{ok:false,code:'account_check_failed'},503);
+    if (!accountId) return json(request,{ok:false,code:'no_active_access'},403);
+    const general=await accessStatusForUser(admin,accountId);
+    const exam=await examAccessForUser(admin,accountId);
+    const access=emailAccessLicense(general,exam,email);
+    if (!access) return json(request,{ok:false,code:'no_active_access'},403);
+    const token=createSessionToken(); const expiresAt=new Date(Date.now()+30*86400000).toISOString();
+    const {error}=await admin.from('siap_assistant_device_sessions').insert({user_id:accountId,token_hash:await sessionTokenHash(token),expires_at:expiresAt});
+    if(error) return json(request,{ok:false,code:'device_session_create_failed'},503);
+    return json(request,{ok:true,deviceToken:token,expiresAt,license:access});
+  }
   const deviceToken = cleanText(request.headers.get('X-Assistant-Session'), 200)
   let userId = ''
   let license: LicenseStatus
@@ -270,6 +286,7 @@ Deno.serve(async (request) => {
     if (!deviceSession || deviceSession.revoked_at || new Date(deviceSession.expires_at).getTime() <= Date.now()) return json(request, { ok:false, code:'device_session_expired' }, 401)
     userId = deviceSession.user_id
     license = await accessStatusForUser(admin, userId)
+    if (license.mode === 'external') license = {...license, active:false, freeUses:null}
     await admin.from('siap_assistant_device_sessions').update({ last_used_at:new Date().toISOString(), expires_at:new Date(Date.now() + 30 * 86400000).toISOString() }).eq('id', deviceSession.id)
   } else {
     const { data: { user } } = await callerClient.auth.getUser()
