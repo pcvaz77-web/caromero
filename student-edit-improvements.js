@@ -143,6 +143,10 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   let observations = [...fallbackObservations];
   let observationOptionsLoaded = false;
+  let observationOptionsSchoolId = null;
+  let observationOptionsRequest = 0;
+  let observationOptionsPending = null;
+  let observationOptionsError = '';
   let pinnedObservationLabels = new Set();
   let topPriorityObservationLabels = new Set();
   const observationDisplayLabel = value => String(value || '')
@@ -286,40 +290,76 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedObservationValues = () => [...observationChoices.querySelectorAll('input:checked')].map(input => input.value);
   renderObservationChoices();
   const renderCustomObservations = () => {
+    if (observationOptionsError) {
+      document.getElementById('customObservationList').innerHTML = `<div class="meta" role="alert">${escapeHtml(observationOptionsError)}</div>`;
+      return;
+    }
     const managed = observations.filter(option => option.value && option.id);
     document.getElementById('customObservationList').innerHTML = managed.length
       ? `<b>Opções cadastradas</b>${managed.map(option => `<div class="custom-observation-item"><span>${escapeHtml(observationDisplayLabel(option.label))}</span><label class="custom-pin-toggle"><input type="checkbox" data-pin-id="${option.id}" ${option.isPinned ? 'checked' : ''}> Fixar</label><label class="custom-top-toggle"><input type="checkbox" data-top-id="${option.id}" ${option.isTopPriority ? 'checked' : ''}> Topo</label><button type="button" class="delete-custom-observation" data-id="${option.id}">Excluir</button></div>`).join('')}`
       : '<div class="meta">Nenhuma observação cadastrada.</div>';
   };
-  async function loadObservationOptions() {
-    if (observationOptionsLoaded) return;
-    const schoolId = window.getActiveSchoolId?.();
-    if (!schoolId) { observations = [fallbackObservations[0]]; observationOptionsLoaded = true; return; }
-    let query = db.from('observation_options').select('id,label,is_pinned,is_top_priority').order('display_order').order('created_at');
-    query = query.eq('school_id', schoolId);
-    const { data, error } = await query;
-    if (error) return;
-    observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, isPinned: item.is_pinned === true, isTopPriority:item.is_top_priority === true }))];
-    pinnedObservationLabels = new Set(observations.filter(option => option.isPinned).map(option => option.value));
-    topPriorityObservationLabels = new Set(observations.filter(option => option.isTopPriority).map(option => option.value));
-    observationOptionsLoaded = true;
-    const selected = selectedObservationValues();
-    configureObservationField('report');
-    configureObservationField('bulkReport');
-    renderObservationChoices(selected);
-    renderCustomObservations();
-    syncStudentCardLaudoLabels();
-    document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
-  }
-  document.addEventListener('carometro:observations-changed', async () => {
+  const resetObservationOptions = schoolId => {
+    observationOptionsRequest++;
+    observationOptionsSchoolId = schoolId;
     observationOptionsLoaded = false;
-    await loadObservationOptions();
-    render();
-  });
-  document.addEventListener('carometro:school-context-ready', () => {
-    observationOptionsLoaded = false;
+    observationOptionsPending = null;
+    observationOptionsError = '';
+    observations = [...fallbackObservations];
     pinnedObservationLabels = new Set();
     topPriorityObservationLabels = new Set();
+    renderObservationChoices();
+    renderCustomObservations();
+  };
+  async function loadObservationOptions({ force = false } = {}) {
+    const schoolId = window.getActiveSchoolId?.() || null;
+    if (schoolId !== observationOptionsSchoolId) resetObservationOptions(schoolId);
+    // Ausência de contexto não é um catálogo vazio carregado com sucesso.
+    if (!schoolId) return false;
+    if (!force && observationOptionsPending) return observationOptionsPending;
+    if (!force && observationOptionsLoaded) return true;
+    const requestId = ++observationOptionsRequest;
+    observationOptionsLoaded = false;
+    observationOptionsError = '';
+    const isCurrent = () => requestId === observationOptionsRequest && schoolId === window.getActiveSchoolId?.();
+    const pending = (async () => {
+      let result;
+      try {
+        result = await db.from('observation_options').select('id,label,is_pinned,is_top_priority')
+          .order('display_order').order('created_at').eq('school_id', schoolId);
+      } catch (error) { result = { error }; }
+      // Uma resposta de outra escola ou anterior à atualização não pode substituir o catálogo.
+      if (!isCurrent()) return false;
+      const { data, error } = result;
+      if (error) {
+        observationOptionsError = 'Não foi possível carregar as observações. Feche e abra esta janela para tentar novamente.';
+        renderCustomObservations();
+        return false;
+      }
+      observations = [fallbackObservations[0], ...(data || []).map(item => ({ id: item.id, value: item.label, label: item.label, isPinned: item.is_pinned === true, isTopPriority:item.is_top_priority === true }))];
+      pinnedObservationLabels = new Set(observations.filter(option => option.isPinned).map(option => option.value));
+      topPriorityObservationLabels = new Set(observations.filter(option => option.isTopPriority).map(option => option.value));
+      observationOptionsLoaded = true;
+      const selected = selectedObservationValues();
+      configureObservationField('report');
+      configureObservationField('bulkReport');
+      renderObservationChoices(selected);
+      renderCustomObservations();
+      syncStudentCardLaudoLabels();
+      document.querySelectorAll('#studentDetails .pill').forEach(paintObservation);
+      // O contexto pode terminar de carregar depois da primeira renderização dos alunos.
+      render();
+      return true;
+    })();
+    observationOptionsPending = pending;
+    try { return await pending; }
+    finally { if (observationOptionsPending === pending) observationOptionsPending = null; }
+  }
+  document.addEventListener('carometro:observations-changed', async () => {
+    await loadObservationOptions({ force:true });
+  });
+  document.addEventListener('carometro:school-context-ready', () => {
+    resetObservationOptions(window.getActiveSchoolId?.() || null);
     loadObservationOptions();
   });
   const observationColorClass = text => ({
@@ -984,7 +1024,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   manageObservations.onclick = async () => {
     if (!(permission.role === 'admin' || ((permission.is_coordinator || permission.is_secretary) && permission.can_manage_observation_options))) { toast('Sem permissão para gerenciar opções de observação.'); return; }
-    await loadObservationOptions();
+    await loadObservationOptions({ force:true });
     renderCustomObservations();
     document.getElementById('newObservation').value = '';
     document.getElementById('newObservationPinned').checked = false;

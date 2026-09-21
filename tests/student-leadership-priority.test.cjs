@@ -39,7 +39,7 @@ test('a mesma prioridade configurada e usada nas listas do Meu CEPI', () => {
 });
 
 test('versoes publicas invalidam o cache da regra de prioridade', () => {
-  assert.match(index, /student-edit-improvements\.js\?v=111/);
+  assert.match(index, /student-edit-improvements\.js\?v=112/);
   assert.match(index, /cepi-tutoring\.js\?v=15/);
 });
 
