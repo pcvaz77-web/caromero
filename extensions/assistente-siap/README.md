@@ -1,4 +1,4 @@
-# Assistente SIAP — Correção de Provas 0.26.1
+# Assistente SIAP — Correção de Provas 0.26.2
 
 O fluxo de correção agora concentra gabarito, escolha do aluno, leitura e conferência no celular. O painel do SIAP faz o lançamento final dos resultados confirmados. Veja `../../services/siap-exam/README.md` para os limites e validação atuais. A pasta local foi atualizada; o Chrome requer recarregar a extensão. Nenhuma publicação na Web Store.
 
@@ -19,3 +19,7 @@ O serviço e os limites de validação estão documentados em `../../services/si
 ## 0.26.1
 
 Minimizar prevalece sobre a abertura automática da correção em novos carregamentos do SIAP. O usuário reabre pelo botão flutuante ou pela extensão. Ícone flutuante centralizado com dimensões explícitas e estilos isolados da página. 53 testes passaram, incluindo recarregamentos sucessivos após minimizar.
+
+## 0.26.2
+
+A tela de lançamento aplica `img { margin: 2px 2px 3px !important }`. Neutralizada essa margem apenas na imagem do botão flutuante; a medição anterior mostrava deslocamento de 2 px nos dois eixos.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Assistente SIAP do Professor",
-  "version": "0.26.1",
+  "version": "0.26.2",
   "description": "Organiza pendências do SIAP e auxilia o professor com planejamento, conteúdo, frequência e PEI.",
   "permissions": [
     "storage"
@@ -83,5 +83,5 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
-  "version_name": "0.26.1"
+  "version_name": "0.26.2"
 }

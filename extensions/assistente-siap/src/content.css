@@ -7,7 +7,7 @@
 }
 #assistente-siap-launcher:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 15px 34px rgba(23,35,58,.38); }
 #assistente-siap-launcher:active { cursor: grabbing; }
-#assistente-siap-launcher img { all: initial; box-sizing: border-box; display: block; width: 42px; height: 42px; margin: 0; padding: 0; border: 0; object-fit: contain; border-radius: 14px; pointer-events: none; }
+#assistente-siap-launcher img { all: initial; box-sizing: border-box; display: block; width: 42px; height: 42px; margin: 0 !important; padding: 0; border: 0; object-fit: contain; border-radius: 14px; pointer-events: none; }
 #assistente-siap-launcher[hidden] { display: none !important; }
 #assistente-siap-panel {
   position: fixed; top: 16px; right: 16px; z-index: 2147483645;
