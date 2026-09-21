@@ -612,7 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const schoolPermissionMap = canManageTeachers ? await loadSchoolPermissions(membership.school_id) : new Map();
       if (!stillCurrent()) return;
       const schoolScopedData = [...schoolPermissionMap.values()];
-      const actorRights = schoolPermissionMap.get(user?.id) || {};
+      // O diretório de um coordenador contém somente professores; as suas
+      // próprias flags vêm do vínculo ativo, consultado antes de abrir a tela.
+      const actorRights = permissionFromMembership(membership) || {};
       const teachers = schoolScopedData.filter(item => !item.is_coordinator && !item.is_secretary && item.role !== 'admin');
       const secretaries = schoolScopedData.filter(item => item.is_secretary);
       const teacherCards = teachers.map(item => {

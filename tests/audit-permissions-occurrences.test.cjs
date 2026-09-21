@@ -22,6 +22,29 @@ test('coordenador recebe quatro checkboxes e so concede flags que possui',()=>{
   assert.match(source,/permission-basic.*delegatedTeacherChecks\(item, actorRights\)/);
 });
 
+test('tela do coordenador usa o proprio vinculo quando diretorio retorna apenas professores',async()=>{
+  const source=read('permissions-and-details.js'),nodes=new Map();
+  const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
+  const rights={can_manage_member_permissions:true,can_add_students:true,can_edit_students:true,can_edit_guardian_contact:true,can_view_class_summary:true};
+  const membership={id:'actor-member',user_id:'actor',school_id:'school',role:'coordinator',school_member_permissions:rights};
+  const teacher={user_id:'teacher',member_id:'teacher-member',member_status:'active',role:'viewer',can_view_class_summary:true,profiles:{full_name:'Professor de teste'}};
+  const context={user:{id:'actor'},permission:{role:'viewer',is_coordinator:true,can_manage_member_permissions:true},
+    window:{getActiveSchoolId:()=> 'school',canAccessPermissionsNav:()=>true},document:{getElementById:get},esc:value=>String(value||''),
+    currentSchoolMembershipOrWarn:async()=>membership,loadSchoolPermissions:async()=>new Map([['teacher',teacher]]),bindMemberAccountActions(){}};
+  vm.createContext(context);
+  vm.runInContext(between(source,'  const permissionFromMembership =','  // Consulta o vínculo'),context);
+  vm.runInContext(between(source,'  const teacherPermissionOptions =','  // can_manage_counselors nunca entra'),context);
+  await context.openPermissions();
+  let html=get('permissionsList').innerHTML;
+  assert.equal((html.match(/type="checkbox"/g)||[]).length,4);
+  assert.doesNotMatch(html,/disabled/);
+  assert.equal((html.match(/ checked /g)||[]).length,1);
+  teacher.can_view_class_summary=false;await context.openPermissions();
+  assert.doesNotMatch(get('permissionsList').innerHTML,/disabled/,'depois de desmarcar, o coordenador ainda pode remarcar');
+  membership.school_member_permissions=[{...rights,can_add_students:false}];await context.openPermissions();
+  assert.equal((get('permissionsList').innerHTML.match(/disabled/g)||[]).length,1,'permissao ausente no proprio vinculo continua bloqueada');
+});
+
 function occurrenceContext(queryResult){
   const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const messages=[],deletedFiles=[];
