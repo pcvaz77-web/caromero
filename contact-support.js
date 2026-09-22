@@ -52,16 +52,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const { data:profile } = await db.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
       if (profile?.full_name?.trim()) name = profile.full_name.trim();
     }
-    return { school, role, name };
+    return { school, role, name, email: user?.email || 'Não informado' };
   };
   const open = async () => {
     button.disabled = true;
     try {
-      const { school, role, name } = await contactContext();
+      const { school, role, name, email } = await contactContext();
       const subject = 'Sugestão para o Carômetro';
-      const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
+      const body = `Olá! Gostaria de enviar uma sugestão para o Carômetro.\n\nNome: ${name}\nE-mail: ${email}\nEscola: ${school}\nPerfil: ${role}\nVersão: web\n\nMinha sugestão:\n`;
       modal.querySelector('#contactSuggestion').href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nNome: ${name}\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
+      const message = `Olá! Preciso de ajuda para usar o Carômetro.\n\nNome: ${name}\nE-mail: ${email}\nEscola: ${school}\nPerfil: ${role}\n\nMinha dúvida:`;
       modal.querySelector('#contactQuestion').href = `https://wa.me/${CONTACT_WHATSAPP}?text=${encodeURIComponent(message)}`;
       modal.classList.remove('hidden');
     } finally {
