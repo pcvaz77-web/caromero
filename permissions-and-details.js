@@ -592,18 +592,46 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let permissionOpenRequest = 0;
+  function showPermissionsLoadState(message, retry) {
+    const modal = document.getElementById('permissionsModal');
+    const list = document.getElementById('permissionsList');
+    if (!modal || !list) return;
+    list.innerHTML = `<div class="empty permission-load-state">${esc(message)}${retry ? '<br><br><button id="retryOpenPermissions" type="button" class="btn secondary">Tentar novamente</button>' : ''}</div>`;
+    modal.classList.remove('hidden');
+    document.getElementById('retryOpenPermissions')?.addEventListener('click', openPermissions, { once:true });
+  }
   async function openPermissions() {
     const request = ++permissionOpenRequest, viewerId = user?.id, schoolId = window.getActiveSchoolId?.();
     const stillCurrent = () => request === permissionOpenRequest && !!viewerId && viewerId === user?.id
       && schoolId === window.getActiveSchoolId?.() && window.canAccessPermissionsNav()
       && !document.getElementById('app').classList.contains('hidden');
+    const opener = document.getElementById('permissionsNav');
+    if (opener) {
+      opener.disabled = true;
+      opener.setAttribute('aria-busy', 'true');
+    }
+    // Não deixe um clique aparentemente sem resposta enquanto a confirmação
+    // do vínculo chega pela rede. A abertura definitiva continua dependente
+    // de stillCurrent() e das mesmas checagens de permissão abaixo.
+    showPermissionsLoadState('Carregando permissões…');
+    try {
     // Fonte única: a mesma checagem comercial (window.counselorCanManage,
     // que já delega para can_manage_class_counselors(target_school_id) em
     // class-counselors.js) usada para o botão real "Gerenciar
     // Conselheiros" — nunca uma segunda lógica paralela que possa divergir
     // dela.
     const membership = await currentSchoolMembershipOrWarn();
-    if (!membership || !stillCurrent()) return;
+    if (!membership || !stillCurrent()) {
+      // Se a autorização não puder ser confirmada naquele instante, mantenha
+      // uma resposta acionável em vez de fechar silenciosamente a janela.
+      // Nenhum conteúdo de gestão é exposto antes da confirmação.
+      if (request === permissionOpenRequest && viewerId === user?.id && !document.getElementById('app')?.classList.contains('hidden') && window.canAccessPermissionsNav?.()) {
+        showPermissionsLoadState('Não foi possível confirmar seu acesso a esta escola agora.', true);
+      } else if (request === permissionOpenRequest) {
+        document.getElementById('permissionsModal')?.classList.add('hidden');
+      }
+      return;
+    }
     if (permission.role !== 'admin') {
       const canManageTeachers = (!!permission.is_coordinator || !!permission.is_secretary) && !!permission.can_manage_member_permissions;
       const canManageSecretaryAttendance = !!permission.is_coordinator && !!permission.can_manage_member_permissions;
@@ -696,6 +724,17 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.onkeyup = () => window.filterPermissionUsers(searchInput.value);
     document.getElementById('permissionSearchForm').onsubmit = event => { event.preventDefault(); window.filterPermissionUsers(searchInput.value); };
     document.getElementById('permissionsModal').classList.remove('hidden');
+    } catch (error) {
+      if (request === permissionOpenRequest && viewerId === user?.id && !document.getElementById('app')?.classList.contains('hidden')) {
+        showPermissionsLoadState('Não foi possível carregar as permissões agora.', true);
+        toast(error?.message || 'Tente novamente.');
+      }
+    } finally {
+      if (request === permissionOpenRequest && opener) {
+        opener.disabled = false;
+        opener.setAttribute('aria-busy', 'false');
+      }
+    }
   }
 
   // can_manage_counselors nunca entra no bulk de "Editar tudo": não é mais

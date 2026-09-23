@@ -317,6 +317,14 @@ document.addEventListener('DOMContentLoaded', () => {
       () => { refreshAssignments(); }
     ).subscribe();
   });
+  // A carga principal termina enquanto #app ainda está oculto pela cortina de
+  // autenticação. Sem este gatilho, as etiquetas de conselheiro dependem do
+  // próximo intervalo de 4 s e podem aparecer no celular, mas ainda não no
+  // desktop recém-aberto. A consulta continua filtrada pela escola ativa.
+  const app = document.getElementById('app');
+  if (app) new MutationObserver(() => {
+    if (!app.classList.contains('hidden')) void refreshAssignments();
+  }).observe(app, { attributes:true, attributeFilter:['class'] });
   refreshAssignments();
   setInterval(refreshAssignments, 4000);
 });
