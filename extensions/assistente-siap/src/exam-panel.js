@@ -73,7 +73,7 @@
       ${(remote?.items || []).filter(i => !i.discarded && ['queued', 'processing', 'error'].includes(i.status)).map(i => `<p>${i.kind === 'official' ? 'Gabarito' : 'Prova'}: ${escape(i.error || (i.status === 'processing' ? 'lendo a foto…' : 'na fila'))} ${i.status === 'error' ? `<button type="button" class="cm-btn" data-exam-retry="${i.id}">Tentar ler novamente</button><button type="button" class="cm-btn" data-exam-discard="${i.id}">Descartar</button>` : ''}</p>`).join('')}
       ${selecting ? `<p>${rows.length} prova(s) recebida(s). Abra a avaliação para associar os alunos e conferir os acertos. As fotos continuam na mesma sessão.</p>` : rows.filter(i => i.result).map(studentForm).join('')}
       ${remote?.key && !selecting ? `<hr><label>Chamada <select data-exam-call><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label>
-      <details><summary>Alunos sem prova identificada — confirmar faltas</summary><p>Marque apenas quem faltou. Sem foto não significa falta.</p>${pendingStudents(rows).map(r => `<label class="cm-exam-absence"><input type="checkbox" data-exam-absent="${escape(r.id)}"> ${escape(r.name)}</label>`).join('')}</details>
+      <details><summary>Possíveis faltas — confirme somente quem realmente faltou</summary><p>Esta lista mostra apenas alunos sem prova identificada e sem acerto, presença ou falta já registrados nesta chamada. Marcar a caixa lança falta. Sem foto não significa falta.</p>${pendingStudents(rows).map(r => `<label class="cm-exam-absence"><input type="checkbox" data-exam-absent="${escape(r.id)}"> ${escape(r.name)}</label>`).join('') || '<p>Nenhum aluno sem prova e sem lançamento nesta chamada.</p>'}</details>
       <p data-exam-summary role="status"></p>
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
       <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
@@ -96,7 +96,10 @@
       const el=[...(scope?.querySelectorAll('['+focusAttr.name+']')||[])].find(el=>el.getAttribute(focusAttr.name)===focusAttr.value);
       el?.focus({preventScroll:true});if(selection&&el?.setSelectionRange)el.setSelectionRange(...selection);
     }
-    host.querySelector('[data-exam-call]')?.addEventListener('change',updateReadiness);
+    host.querySelector('[data-exam-call]')?.addEventListener('change',() => {
+      rendered = '';
+      draw();
+    });
     host.querySelectorAll('[data-exam-item]').forEach(el=>{try{el.querySelector('[data-exam-score]').textContent=Core.score(remote.key,el.querySelector('[data-exam-answers]').value.trim().split(/[\s,;]+/)).map(r=>`${r.subject}: ${r.correct}/${r.total}`).join(' · ');}catch(e){el.querySelector('[data-exam-score]').textContent=e.message;}});
     updateAbsentOptions(); updateReadiness(); rendered = JSON.stringify(remote);
     host.querySelectorAll('[data-exam-confirm],[data-exam-absent]').forEach(el => el.onchange = updateReadiness);
@@ -145,7 +148,12 @@
       <button class="cm-btn" type="button" data-exam-discard="${item.id}">Descartar captura duplicada ou incorreta</button></details></fieldset>`;
   }
   function pendingStudents(items) {
-    return snapshot.roster.filter(r => !r.unavailable);
+    const call = Number(host.querySelector('[data-exam-call]')?.value || 1);
+    return snapshot.roster.filter(row => {
+      if (row.unavailable) return false;
+      const controls = Dom.controls(snapshot, row.id, call);
+      return !controls.present.checked && !controls.absent.checked && !controls.field?.value.trim();
+    });
   }
   function updateAbsentOptions() {
     const mapped = new Set([...host.querySelectorAll('[data-exam-student]')].map(el => el.value));

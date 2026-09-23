@@ -45,6 +45,13 @@ test('painel preenche lote confirmado e exige Salvar no SIAP mesmo quando comple
     assert.match(app.container.textContent,/clique em Salvar/);
   }finally{app.dom.window.close();}
 });
+test('lista de possíveis faltas não mostra aluno com lançamento já salvo na chamada',async()=>{
+  const app=await setup({html:fixture({filled:'9'})});
+  try{
+    assert.equal(app.container.querySelectorAll('[data-exam-absent]').length,0);
+    assert.match(app.container.textContent,/sem acerto, presença ou falta já registrados nesta chamada/i);
+  }finally{app.dom.window.close();}
+});
 test('mudança de turma entre revisão e aplicação bloqueia o preenchimento',async()=>{
   const app=await setup();
   try{
@@ -130,10 +137,11 @@ test('troca de turma gera outra sessao com contexto atual e preserva a anterior'
  }finally{app.dom.window.close();}
 });
 test('resultado confirmado substitui acerto já preenchido na mesma chamada',async()=>{
- const app=await setup({html:fixture({filled:'9'})});try{
+ const app=await setup();try{
+  const row=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[1];
+  row.cells[5].querySelector('input').value='9';
   app.container.querySelector('[data-exam-absent]:not(:disabled)').checked=true;
   app.container.querySelector('[data-exam=prepare]').click();await settle();
-  const row=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[1];
   const absentRow=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[2];
   row.cells[2].querySelector('input').checked=false;
   for(let i=0;i<14;i++)await app.tick();
