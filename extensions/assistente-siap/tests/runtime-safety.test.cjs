@@ -9,6 +9,8 @@ test('estado visual persiste independente da execucao', () => {
   assert.match(source, /createShell\(stored\.panelOpen === true, false, stored\)/);
   assert.match(source, /data-action="minimize"[^\n]+setOpen\(false, false\)/);
   assert.match(source, /installDrag\(panel, panel\.querySelector\("\.cm-head"\), "panelPosition"\)/);
+  assert.match(source, /function syncPanelWithSiapDialog\(\)/);
+  assert.match(source, /\[role="dialog"\], \.ui-dialog, \.modal-dialog, \.modal/);
   assert.doesNotMatch(source, /function render\(\)[\s\S]{0,2500}panel\.hidden\s*=/);
 });
 

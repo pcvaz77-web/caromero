@@ -41,6 +41,7 @@
   let panel;
   let contentResumeTimer;
   let attendanceResumeTimer;
+  let panelDialogShift;
 
   function installNavigationBridge() {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -216,6 +217,7 @@
     let drag = null;
     handle.addEventListener("pointerdown", (event) => {
       if (event.button !== 0 || event.target.closest("button") && handle !== element) return;
+      if (storageKey === "panelPosition") clearPanelDialogShift();
       const rect = element.getBoundingClientRect();
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false };
       handle.setPointerCapture?.(event.pointerId);
@@ -253,6 +255,42 @@
           ? readCalendarDays()
           : [];
     render();
+    syncPanelWithSiapDialog();
+  }
+
+  function clearPanelDialogShift() {
+    if (!panelDialogShift || !panel) return;
+    panel.style.transform = panelDialogShift.transform;
+    panelDialogShift = null;
+  }
+
+  function syncPanelWithSiapDialog() {
+    if (!panel || panel.hidden) return clearPanelDialogShift();
+    const dialog = [...document.querySelectorAll('[role="dialog"], .ui-dialog, .modal-dialog, .modal')].find((element) => {
+      if (element === panel || panel.contains(element)) return false;
+      const style = getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== "none" && style.visibility !== "hidden" && rect.width >= 180 && rect.height >= 100;
+    });
+    if (!dialog) return clearPanelDialogShift();
+    clearPanelDialogShift();
+    const dialogRect = dialog.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const overlap = panelRect.left < dialogRect.right && panelRect.right > dialogRect.left && panelRect.top < dialogRect.bottom && panelRect.bottom > dialogRect.top;
+    if (!overlap) return;
+    panelDialogShift = { transform: panel.style.transform };
+    const margin = 16;
+    let left = dialogRect.left - panelRect.width - margin;
+    let top = panelRect.top;
+    if (left < 8) {
+      left = dialogRect.right + margin;
+      if (left + panelRect.width > innerWidth - 8) {
+        left = Math.max(8, Math.min(panelRect.left, innerWidth - panelRect.width - 8));
+        top = dialogRect.top - panelRect.height - margin;
+        if (top < 8) top = Math.min(innerHeight - panelRect.height - 8, dialogRect.bottom + margin);
+      }
+    }
+    panel.style.transform = `translate(${Math.round(left - panelRect.left)}px, ${Math.round(top - panelRect.top)}px)`;
   }
 
   function readContext() {
