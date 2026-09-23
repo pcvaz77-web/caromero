@@ -73,7 +73,6 @@
     createShell(stored.panelOpen === true, false, stored);
     refreshLicenseStatus();
     if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
-    window.addEventListener("resize", () => syncPanelSpace(!panel?.hidden));
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
     observeSiapUpdates();
@@ -201,13 +200,7 @@
     launcher.hidden = open || closed;
     applyStoredPosition(launcher, stored.launcherPosition);
     installDrag(launcher, launcher, "launcherPosition", () => setOpen(true));
-    syncPanelSpace(open);
     render();
-  }
-
-  function syncPanelSpace(open) {
-    const reserveSpace = !!open && innerWidth >= 980;
-    document.documentElement.classList.toggle("assistente-siap-open", reserveSpace);
   }
 
   function applyStoredPosition(element, position) {
@@ -2113,7 +2106,6 @@
     const launcher = document.getElementById("assistente-siap-launcher");
     panel.hidden = !open;
     if (launcher) launcher.hidden = open || closed;
-    syncPanelSpace(open);
     chrome.storage.local.set({ panelOpen: open, panelClosed: closed });
   }
 
