@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   sideNavigation?.insertBefore(counselorNav, document.getElementById('profileNav'));
   let assignments = [];
   let ownAssignments = [];
+  let counselorLabels = [];
   let registeredUsers = [];
   let ownProfile = null;
   let editingCounselorId = null;
@@ -100,7 +101,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const canManageCounselors = () => !!counselorAuthorized;
   window.counselorCanManage = canManageCounselors;
   const syncCounselorNavigation = () => counselorNav.classList.toggle('hidden', !canManageCounselors());
-  const counselorNamesForClass = classId => assignments.filter(item => item.class_id === classId).map(item => counselorDisplayName(item.counselor_user_id)).filter(Boolean);
+  const counselorNamesForClass = classId => counselorLabels
+    .filter(item => item.class_id === classId)
+    .map(item => item.counselor_name || counselorDisplayName(item.counselor_user_id))
+    .filter(Boolean);
   // Fonte compartilhada para módulos que exibem o mesmo perfil do aluno,
   // como CEPI/Tutoria. Evita copiar ou inferir o nome do conselheiro.
   window.counselorNamesForClass = counselorNamesForClass;
@@ -165,21 +169,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // autorizado, para que a etiqueta "Conselheiro ..." na lista de turmas
     // já resolva o nome mesmo sem o usuário nunca ter aberto o modal
     // "Gerenciar Conselheiros" nesta sessão.
-    const [{ data, error }, usersResult] = await Promise.all([
+    const [{ data, error }, { data: labels, error: labelsError }, usersResult] = await Promise.all([
       db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id),
+      db.rpc('list_school_class_counselor_labels', { target_school_id: counselorMembership.school_id }),
       counselorAuthorized
         ? db.rpc('list_counselor_candidates', { target_school_id: counselorMembership.school_id })
         : Promise.resolve({ data: null, error: null }),
     ]);
-    if (error) {
-      if (lastLoadError !== error.message) toast(`Não foi possível carregar os conselheiros: ${error.message}`);
-      lastLoadError = error.message;
+    if (error || labelsError) {
+      const loadError = error || labelsError;
+      if (lastLoadError !== loadError.message) toast(`Não foi possível carregar os conselheiros: ${loadError.message}`);
+      lastLoadError = loadError.message;
       return;
     }
     lastLoadError = '';
     if (counselorAuthorized && !usersResult.error) registeredUsers = usersResult.data || [];
     const previous = JSON.stringify(assignments);
     assignments = data || [];
+    counselorLabels = labels || [];
     ownAssignments = assignments.filter(item => item.counselor_user_id === signedInUser.id);
     if (previous !== JSON.stringify(assignments)) render();
     drawCounselorLabels();
