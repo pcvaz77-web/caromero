@@ -77,7 +77,7 @@
       <p data-exam-summary role="status"></p>
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
       <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
-      <p>Ao enviar, você confirma somente este lote. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
+      <p>Ao enviar, os resultados conferidos no Assistente substituem acertos e presença/falta já marcados para estes alunos nesta chamada. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
     if(selecting && !state){const start=host.querySelector('[data-exam=start]');if(start){start.disabled=true;start.textContent='Abra a avaliação com os alunos para conectar';}}
     host.querySelectorAll('[data-exam]').forEach(button => button.onclick = () => action(() => operations[button.dataset.exam]()));
     host.querySelectorAll('[data-exam-subject]').forEach(button => button.onclick = () => action(() => chooseSubject(button.dataset.examSubject)));
@@ -157,13 +157,17 @@
   }
   function batchState(includeApplied = false) {
     const pending = [], ready = [], seen = new Map();
-    const already = new Set(appliedIds(snapshot.signature, Number(host.querySelector('[data-exam-call]')?.value || 1)));
+    const call = Number(host.querySelector('[data-exam-call]')?.value || 1);
+    const already = new Set(appliedIds(snapshot.signature, call)), preserved = [];
     for (const el of host.querySelectorAll('[data-exam-item]')) {
       const id = el.querySelector('[data-exam-student]').value;
       if(remote.mobileWorkflow && !remote.items.find(i=>i.id===el.dataset.examItem)?.review?.reviewed) {pending.push(el.dataset.examItem);continue;}
       if (!includeApplied && already.has(id)) continue;
       try {
         if (!id) throw new Error('Nome ilegível');
+        // A score field is shared by the two calls in SIAP. Never replace a
+        // result already marked as present in the other call.
+        if (Dom.controls(snapshot, id, call).otherPresent.checked) { preserved.push(id); continue; }
         const answers = Core.answers(el.querySelector('[data-exam-answers]').value, remote.key.answers.length, remote.key.alphabet);
         Core.score(remote.key, answers);
         const item = { id: el.dataset.examItem, studentId: id, answers, reviewed: true };
@@ -173,7 +177,7 @@
     const unique = ready.filter(i=>seen.get(i.studentId)===1);
     pending.push(...ready.filter(i=>seen.get(i.studentId)>1).map(i=>i.id));
     pending.push(...(remote?.items||[]).filter(i=>i.kind==='student'&&!i.discarded&&i.status!=='ready').map(i=>i.id));
-    return { ready: unique, pending };
+    return { ready: unique, pending, preserved };
   }
   function readiness() {
     if(connectionLost || blocked) return 'Conexão indisponível. Aguarde a reconexão antes de enviar.';
@@ -185,7 +189,7 @@
     if (total !== snapshot.context.total) return `O gabarito tem ${total} questões, mas o SIAP tem ${snapshot.context.total}. Confira a avaliação e os intervalos.`;
     if (state.queue && state.queue.phase !== 'done') return 'Lançamento em andamento. Aguarde ou retome o lote pausado.';
     const batch = batchState();
-    if (!batch.ready.length && !host.querySelector('[data-exam-absent]:checked')) return batch.pending.length ? 'Há somente exceções. Confira nomes e marcações duvidosas; os campos ficam para preenchimento manual.' : 'Aguardando provas dos alunos. Até agora há apenas o gabarito ou resultados já preenchidos.';
+    if (!batch.ready.length && !host.querySelector('[data-exam-absent]:checked')) return batch.preserved.length ? `Há ${batch.preserved.length} aluno(s) já marcado(s) como presente na outra chamada. Esses resultados foram preservados.` : batch.pending.length ? 'Há somente exceções. Confira nomes e marcações duvidosas; os campos ficam para preenchimento manual.' : 'Aguardando provas dos alunos. Até agora há apenas o gabarito ou resultados já preenchidos.';
     return '';
   }
   function updateReadiness() {
@@ -193,8 +197,8 @@
     if(!button||!hint)return;
     const batch=batchState(), reason=readiness();
     button.disabled=!!reason; button.textContent=`Enviar ${batch.ready.length} identificado(s) para o SIAP`;
-    host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)).length} aluno(s) preenchido(s).`;
-    hint.textContent=reason || (batch.pending.length ? 'Os identificados serão preenchidos. As exceções permanecem pendentes. Confira e salve no SIAP.' : 'Confira os resultados acima e envie em um clique.');
+    host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${batch.preserved.length} preservada(s) de outra chamada · ${appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)).length} aluno(s) preenchido(s).`;
+    hint.textContent=reason || (batch.pending.length ? 'Os identificados substituirão os valores já marcados nesta chamada. As exceções permanecem pendentes. Confira e salve no SIAP.' : batch.preserved.length ? 'Os resultados da outra chamada permanecerão intactos. Envie somente os alunos prontos desta chamada.' : 'Confira os resultados acima e envie em um clique. Eles substituirão os valores desta chamada.');
   }
   const operations = {
     async finishBlock() {
@@ -337,7 +341,6 @@
       const c = Dom.controls(now, entry.id, q.call);
       const wanted = entry.present ? c.present : c.absent, other = entry.present ? c.absent : c.present;
       if (q.phase === 'presence') {
-        if (c.field?.value.trim()) throw new Error('Um resultado foi preenchido enquanto o lote estava em andamento. Confira antes de continuar.');
         q.phase = 'wait'; q.attempts = 0; await save();
         if (!wanted.checked) wanted.click();
         return;
@@ -347,12 +350,18 @@
       }
       if (entry.present) {
         if (q.phase === 'wait') {
-          if (c.field.value.trim() && Number(c.field.value) !== entry.correct) throw new Error('Há outro resultado neste campo. O Assistente não irá sobrescrever.');
           // Persist before events: Web Forms may navigate in response to a change.
           q.phase = 'verify'; await save();
           c.field.value = String(entry.correct); c.field.dispatchEvent(new Event('input', { bubbles: true })); c.field.dispatchEvent(new Event('change', { bubbles: true })); return;
         }
         if (c.field.value.trim() === '' || Number(c.field.value) !== entry.correct) throw new Error('O SIAP não manteve o valor preenchido. Confira este aluno.');
+      } else if (c.field?.value.trim() !== '') {
+        // A confirmed absence must not retain an earlier score in this call.
+        if (q.phase === 'wait') {
+          q.phase = 'clear-absent-score'; await save();
+          c.field.value = ''; c.field.dispatchEvent(new Event('input', { bubbles: true })); c.field.dispatchEvent(new Event('change', { bubbles: true })); return;
+        }
+        if (c.field.value.trim() !== '') throw new Error('O SIAP não limpou o acerto do aluno marcado como ausente. Confira este aluno.');
       }
       state.appliedByCall ||= {};state.appliedByCall[now.signature] ||= {};state.appliedByCall[now.signature][q.call] ||= [];
       if(!state.appliedByCall[now.signature][q.call].includes(entry.id))state.appliedByCall[now.signature][q.call].push(entry.id);
@@ -360,7 +369,7 @@
       state.applied ||= {}; state.applied[now.signature] ||= []; if (!state.applied[now.signature].includes(entry.id)) state.applied[now.signature].push(entry.id);
       q.index++; q.phase = 'presence'; q.attempts = 0; await save();
       notify(`Preenchidos ${q.index} de ${q.entries.length}. Aguarde antes de salvar.`);
-    } catch (e) { q.paused = true; await save(); notify(e.message + ' Os campos já preenchidos foram mantidos; confira e salve no SIAP.');draw(); }
+    } catch (e) { q.paused = true; await save(); notify(e.message + ' O lote foi pausado; confira os campos já alterados antes de salvar no SIAP.');draw(); }
     finally { applying = false; }
   }
   async function tick() {

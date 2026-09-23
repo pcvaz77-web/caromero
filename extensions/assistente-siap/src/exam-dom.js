@@ -45,11 +45,12 @@
     if (![1, 2].includes(call)) throw new Error('Selecione a primeira ou segunda chamada.');
     const student = snapshot.roster.find(r => r.id === id);
     if (!student || student.unavailable) throw new Error('Aluno indisponível.');
-    const [present, absent] = student.boxes.slice((call - 1) * 2, call * 2);
+    const [firstPresent, firstAbsent, secondPresent, secondAbsent] = student.boxes;
+    const [present, absent] = call === 1 ? [firstPresent, firstAbsent] : [secondPresent, secondAbsent];
     if (present.disabled || absent.disabled) throw new Error('Chamada bloqueada no SIAP.');
     const fields = [...(student.row.cells[5]?.querySelectorAll('input:not([type=hidden])') || [])].filter(i => ['text', 'number', 'tel'].includes(i.type));
     if (fields.length > 1) throw new Error('Campo de acertos ambíguo.');
-    return { present, absent, field: fields[0] || null };
+    return { present, absent, otherPresent: call === 1 ? secondPresent : firstPresent, field: fields[0] || null };
   }
   function preflight(snapshot, entries, call) {
     if (!entries.length) throw new Error('Não há resultados selecionados.');
@@ -57,8 +58,9 @@
     for (const entry of entries) {
       if (seen.has(entry.id)) throw new Error('Aluno repetido no lote.'); seen.add(entry.id);
       const c = controls(snapshot, entry.id, call);
-      if (c.field && c.field.value.trim() !== '') throw new Error('Há acertos já preenchidos. Revise o aluno no SIAP antes de iniciar outro lote.');
-      if (!entry.present && c.present.checked) throw new Error('Um aluno selecionado como ausente já está presente no SIAP.');
+      // The confirmed correction is the source of truth for the selected
+      // student and call. Existing SIAP values are deliberately replaced by
+      // the reviewed batch; unavailable or ambiguous controls still block.
       if (entry.present && (!Number.isInteger(entry.correct) || entry.correct < 0 || entry.correct > snapshot.context.total)) throw new Error('Total de acertos inválido.');
     }
   }

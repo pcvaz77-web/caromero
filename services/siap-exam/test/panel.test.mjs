@@ -129,6 +129,34 @@ test('troca de turma gera outra sessao com contexto atual e preserva a anterior'
   assert.equal(app.getSaves(),0);
  }finally{app.dom.window.close();}
 });
+test('resultado confirmado substitui acerto já preenchido na mesma chamada',async()=>{
+ const app=await setup({html:fixture({filled:'9'})});try{
+  app.container.querySelector('[data-exam-absent]:not(:disabled)').checked=true;
+  app.container.querySelector('[data-exam=prepare]').click();await settle();
+  const row=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[1];
+  const absentRow=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[2];
+  row.cells[2].querySelector('input').checked=false;
+  for(let i=0;i<14;i++)await app.tick();
+  assert.equal(row.cells[5].querySelector('input').value,'14');
+  assert.equal(absentRow.cells[5].querySelector('input').value,'');
+  assert.equal(app.getSaves(),0);
+  assert.match(app.container.textContent,/substituem acertos/);
+ }finally{app.dom.window.close();}
+});
+test('segunda chamada preserva o resultado já marcado como presente na primeira',async()=>{
+ const app=await setup({html:fixture({filled:'9'})});try{
+  const row=app.w.document.querySelectorAll('#cphFuncionalidade_cphCampos_gdvLista tr')[1];
+  row.cells[1].querySelector('input').checked=true;
+  row.cells[2].querySelector('input').checked=false;
+  const call=app.container.querySelector('[data-exam-call]');call.value='2';call.dispatchEvent(new app.w.Event('change'));
+  app.container.querySelector('[data-exam=prepare]').click();await settle();
+  assert.equal(row.cells[5].querySelector('input').value,'9');
+  assert.equal(row.cells[3].querySelector('input').checked,false);
+  assert.equal(row.cells[4].querySelector('input').checked,false);
+  assert.match(app.container.textContent,/outra chamada/);
+  assert.equal(app.getSaves(),0);
+ }finally{app.dom.window.close();}
+});
 
 test('retomar a leitura usa a sessão e o crédito já abertos, sem criar outro bloco',async()=>{
  const app=await setup({mobile:true});try{
@@ -208,11 +236,11 @@ test('resultado alterado antes do envio exige nova conferência',async()=>{
  a.container.querySelector('[data-exam=prepare]').click();await settle();assert.equal(a.getState().queue,null);assert.equal(a.w.document.querySelector('#check_0_0').checked,false);
  }finally{a.dom.window.close();}
 });
-test('segunda chamada não herda bloqueio da primeira',async()=>{
+test('segunda chamada preserva o resultado já confirmado na primeira',async()=>{
  const a=await setup();try{
  a.container.querySelector('[data-exam=prepare]').click();await settle();a.w.document.querySelector('#check_0_1').checked=false;for(let i=0;i<8;i++)await a.tick();
  const call=a.container.querySelector('[data-exam-call]');call.value='2';call.dispatchEvent(new a.w.Event('change'));
- assert.equal(a.container.querySelector('[data-exam=prepare]').disabled,false);assert.match(a.container.querySelector('[data-exam-summary]').textContent,/1 prova/);
+ assert.equal(a.container.querySelector('[data-exam=prepare]').disabled,true);assert.match(a.container.querySelector('[data-exam-summary]').textContent,/outra chamada/);
  }finally{a.dom.window.close();}
 });
 test('encerrar tenta todas as sessões e preserva referência se exclusão falhar',async()=>{

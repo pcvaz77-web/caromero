@@ -46,11 +46,11 @@ test('adaptador vincula escola, turma, avaliação, disciplina e lista; não con
   assert.notEqual(a.base,b.base); assert.equal(a.base,c.base); assert.notEqual(a.signature,c.signature);
   assert.throws(()=>Dom.snapshot(new JSDOM(fixture()).window.document,'/FrequenciaAlunoEdicao.aspx'));
 });
-test('pré-validação preserva acertos existentes, transferidos e chamada diária', () => {
+test('pré-validação permite substituir acertos existentes, mas protege transferidos e chamada diária', () => {
   const get=options=>Dom.snapshot(new JSDOM(fixture(options)).window.document,Dom.route);
   const entries=[{id:'1 - JOÃO PEDRO TESTE',present:true,correct:12}];
   assert.doesNotThrow(()=>Dom.preflight(get({}),entries,1));
-  assert.throws(()=>Dom.preflight(get({filled:'0'}),entries,1),/já preenchidos/);
+  assert.doesNotThrow(()=>Dom.preflight(get({filled:'0'}),entries,1));
   assert.throws(()=>Dom.preflight(get({unavailable:true}),entries,1),/indisponível/);
   assert.throws(()=>Dom.preflight(get({}),entries,3),/chamada/);
 });
