@@ -18,9 +18,6 @@
 }
 #assistente-siap-panel[hidden] { display: none !important; }
 #assistente-siap-panel * { box-sizing: border-box; }
-@media (min-width: 1350px) {
-  #assistente-siap-panel { width: 318px; }
-}
 .cm-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 11px; padding: 14px 15px; color: #fff; background: linear-gradient(135deg, #17233a 0%, #263b63 100%); }
 .cm-logo { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 13px; overflow: hidden; box-shadow: 0 5px 14px rgba(0,0,0,.18); }
 .cm-logo img { display: block; width: 100%; height: 100%; }

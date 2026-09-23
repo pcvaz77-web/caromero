@@ -198,6 +198,7 @@
     panel = root.querySelector("#assistente-siap-panel");
     const launcher = root.querySelector("#assistente-siap-launcher");
     launcher.hidden = open || closed;
+    applyStoredPosition(panel, stored.panelPosition);
     applyStoredPosition(launcher, stored.launcherPosition);
     installDrag(launcher, launcher, "launcherPosition", () => setOpen(true));
     render();
@@ -334,6 +335,7 @@
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
+      installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
