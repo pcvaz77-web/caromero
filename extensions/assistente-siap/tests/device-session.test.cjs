@@ -92,3 +92,16 @@ test('email sem direito nao grava sessao e falha de rede nao libera acesso', asy
     assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
   }
 });
+
+test('renova sessao expirada com email salvo sem pedir entrada novamente',async()=>{
+  let calls=0;
+  const worker=startWorker({deviceToken:'expired',expiresAt:Date.now()-1000,accountEmail:'paid@example.com'},async()=>{
+    calls++;return {ok:true,json:async()=>({ok:true,deviceToken:'renewed',expiresAt:new Date(Date.now()+60000).toISOString()})};
+  });
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
+  assert.equal(calls,1);
+  await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'});
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  assert.equal(calls,1);
+});

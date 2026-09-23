@@ -26,6 +26,18 @@ async function readConnectedSession() {
   const { carometroAiDeviceSession } = await chrome.storage.local.get("carometroAiDeviceSession");
   const deviceExpiresAt = Number(carometroAiDeviceSession?.expiresAt || 0);
   if (typeof carometroAiDeviceSession?.deviceToken === "string" && deviceExpiresAt > Date.now() + 30000) return carometroAiDeviceSession;
+  if (carometroAiDeviceSession?.accountEmail) {
+    const generation=accountGeneration;
+    try {
+      const {response,data}=await callAssistantApi({},{action:'email_device_session',email:carometroAiDeviceSession.accountEmail});
+      if(generation!==accountGeneration || (await chrome.storage.local.get('assistantSignedOut')).assistantSignedOut) return null;
+      const nextExpiry=Date.parse(data.expiresAt||'');
+      if(response.ok && data.ok && typeof data.deviceToken==='string' && Number.isFinite(nextExpiry)) {
+        const renewed={deviceToken:data.deviceToken,expiresAt:nextExpiry,accountEmail:carometroAiDeviceSession.accountEmail};
+        await chrome.storage.local.set({carometroAiDeviceSession:renewed});return renewed;
+      }
+    } catch { /* Preserve the saved account for the next retry. */ }
+  }
   const { carometroAiSession } = await chrome.storage.session.get("carometroAiSession");
   const expiresAt = Number(carometroAiSession?.expiresAt || 0);
   return typeof carometroAiSession?.accessToken === "string" && expiresAt > Date.now() + 30000
@@ -36,7 +48,7 @@ async function readConnectedSession() {
 async function renewLocalDeviceSession(session, data) {
   if (!session?.deviceToken || (await chrome.storage.local.get("assistantSignedOut")).assistantSignedOut) return;
   const expiresAt = Date.parse(data?.deviceExpiresAt || "");
-  if (Number.isFinite(expiresAt)) await chrome.storage.local.set({ carometroAiDeviceSession:{ deviceToken:session.deviceToken, expiresAt } });
+  if (Number.isFinite(expiresAt)) await chrome.storage.local.set({ carometroAiDeviceSession:{ ...session, deviceToken:session.deviceToken, expiresAt } });
 }
 
 async function clearExamAccountState() {
@@ -64,7 +76,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       if(typeof data.deviceToken!=='string'||!Number.isFinite(expiresAt)) return respond({ok:false,code:'DEVICE_SESSION_INVALID'});
       await chrome.storage.session.remove('carometroAiSession');
       await clearExamAccountState();
-      await chrome.storage.local.set({assistantSignedOut:false,carometroAiDeviceSession:{deviceToken:data.deviceToken,expiresAt}});
+      await chrome.storage.local.set({assistantSignedOut:false,carometroAiDeviceSession:{deviceToken:data.deviceToken,expiresAt,accountEmail:email}});
       await broadcastLicense(data.license);respond({ok:true,license:data.license});
     })().catch(()=>respond({ok:false,code:'LICENSE_CONNECTION_FAILED'}));return true;
   }
@@ -110,7 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         }
         const deviceExpiresAt = Date.parse(data.expiresAt || "");
         if (typeof data.deviceToken !== "string" || !Number.isFinite(deviceExpiresAt)) return respond({ ok:false, code:"DEVICE_SESSION_INVALID" });
-        await chrome.storage.local.set({ carometroAiDeviceSession:{ deviceToken:data.deviceToken, expiresAt:deviceExpiresAt } });
+        await chrome.storage.local.set({ carometroAiDeviceSession:{ deviceToken:data.deviceToken, expiresAt:deviceExpiresAt, accountEmail:data.license?.accountEmail } });
         await chrome.storage.session.set({carometroAiSession:{accessToken,expiresAt}});
         await chrome.storage.local.set({assistantSignedOut:false});
         await broadcastLicense(data.license || null);
@@ -258,7 +270,7 @@ chrome.runtime.onMessageExternal.addListener((message, sender, respond) => {
       }
       const deviceExpiresAt = Date.parse(data.expiresAt || "");
       if (typeof data.deviceToken !== "string" || !Number.isFinite(deviceExpiresAt)) return respond({ ok:false, code:"DEVICE_SESSION_INVALID" });
-      await chrome.storage.local.set({ carometroAiDeviceSession:{ deviceToken:data.deviceToken, expiresAt:deviceExpiresAt } });
+      await chrome.storage.local.set({ carometroAiDeviceSession:{ deviceToken:data.deviceToken, expiresAt:deviceExpiresAt, accountEmail:data.license?.accountEmail } });
       await chrome.storage.session.set({carometroAiSession:{accessToken,expiresAt}});
         await chrome.storage.local.set({assistantSignedOut:false});
         await broadcastLicense(data.license || null);

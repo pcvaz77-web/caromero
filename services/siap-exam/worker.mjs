@@ -150,7 +150,7 @@ export class ExamSession {
           const items = await Promise.all(state.items.map(id => this.storage.get('item:' + id)));
           if(!desktop && state.block && !state.scanRequested) {state.scanRequested=true;await this.storage.put('session',state);}
           return json({ ok: true, accessMode:state.accessMode, block:state.block, scanRequested:state.scanRequested, activated:state.activated, context: state.context, expires: state.expires, active, pauseReason: state.paused ? 'context' : !active ? 'connection' : '', assessment:state.assessment, mobileWorkflow: !!state.mobileWorkflow, roster: state.mobileWorkflow ? state.roster : undefined, key: desktop || state.mobileWorkflow ? state.key : !!state.key,
-            items: items.filter(Boolean).map(item => desktop ? { ...item, imageHash: undefined } : { id: item.id, kind: item.kind, status: item.status, error: item.error, ...(state.mobileWorkflow ? {result:item.result, review:item.review, selectedStudentId:item.selectedStudentId, discarded:item.discarded} : {}) }) });
+            items: items.filter(Boolean).map(item => desktop ? { ...item, imageHash: undefined } : { id: item.id, kind: item.kind, status: item.status, error: item.error, ...(state.mobileWorkflow ? {result:item.result, review:item.review, selectedStudentId:item.selectedStudentId, discarded:item.discarded,timing:item.timing} : {}) }) });
         }
         if (action === 'key' || action === 'mobile-key') {
           const key = Core.validateKey(body.key);
@@ -173,8 +173,8 @@ export class ExamSession {
           if (state.mobileWorkflow && body.kind==='student' && !body.studentId) throw new Error('Escolha o aluno no celular antes de fotografar.');
           if (body.studentId && (!state.mobileWorkflow || !state.roster.some(r=>r.id===body.studentId))) throw new Error('Aluno não pertence à turma conectada.');
           const chunks = Math.ceil(body.image.length / 50000);
-          for (let i = 0; i < chunks; i++) await this.storage.put(`photo:${body.id}:${i}`, body.image.slice(i * 50000, (i + 1) * 50000));
-          const item = { id: body.id, kind: body.kind, status: 'queued', chunks, imageHash, attempts: 0, selectedStudentId: body.kind==='student' ? (body.studentId || '') : '' };
+          await Promise.all(Array.from({length:chunks},(_,i)=>this.storage.put(`photo:${body.id}:${i}`,body.image.slice(i*50000,(i+1)*50000))));
+          const item = { id: body.id, kind: body.kind, status: 'queued', queuedAt:Date.now(), chunks, imageHash, attempts: 0, selectedStudentId: body.kind==='student' ? (body.studentId || '') : '' };
           await this.storage.put('item:' + body.id, item);
           state.items.push(body.id); await this.storage.put('session', state);
           await this.storage.setAlarm(Date.now() + 100);
@@ -188,10 +188,12 @@ export class ExamSession {
         }
         if (action === 'retry' || action === 'mobile-retry') {
           if (item.status !== 'error' || item.attempts >= 2) throw new Error('Fotografe novamente; limite de tentativas atingido.');
-          item.status = 'queued'; item.error = ''; await this.storage.put('item:' + item.id, item); await this.storage.setAlarm(Date.now() + 1000); return json({ ok: true });
+          item.status = 'queued'; item.queuedAt=Date.now();item.timing=null; item.error = ''; await this.storage.put('item:' + item.id, item); await this.storage.setAlarm(Date.now() + 1000); return json({ ok: true });
         }
         if (action === 'review' || action === 'mobile-review') {
           if (!item.result || !state.key || item.discarded) throw new Error('Captura ainda não disponível.');
+          if(action==='review' && body.key && JSON.stringify(body.key)!==JSON.stringify(state.key)) throw new Error('O gabarito mudou. Confira novamente.');
+          if(action==='review' && Object.hasOwn(body,'expectedReview') && JSON.stringify(body.expectedReview)!==JSON.stringify(item.review||null)) throw new Error('A revisão mudou em outro dispositivo. Confira novamente.');
           const response = Core.answers(body.answers, state.key.answers.length, state.key.alphabet);
           if (response.includes('?')) throw new Error('Resolva as dúvidas de leitura.');
           if (typeof body.studentId !== 'string' || body.studentId.length > 150 || !body.studentId) throw new Error('Selecione o aluno.');
@@ -204,7 +206,7 @@ export class ExamSession {
       });
     } catch (error) { return json({ error: error.message || 'Operação interrompida.' }, 400); }
   }
-  async photo(item) { let result = ''; for (let i = 0; i < item.chunks; i++) result += await this.storage.get(`photo:${item.id}:${i}`) || ''; return result; }
+  async photo(item) { return (await Promise.all(Array.from({length:item.chunks},(_,i)=>this.storage.get(`photo:${item.id}:${i}`)))).map(part=>part||'').join(''); }
   async alarm() {
     const state = await this.storage.get('session');
     if (!state || state.expires <= Date.now()) { await this.storage.deleteAll(); return; }
@@ -223,10 +225,12 @@ export class ExamSession {
       if (!(await this.storage.get('session'))) {
         await capacity.fetch(new Request('https://internal/release', {method:'POST',body:JSON.stringify({id:item.id})})); return;
       }
+      const started=Date.now();item.timing={queueMs:Math.max(0,started-(item.queuedAt||started))};
       item.status='processing'; item.attempts++; await this.storage.put('item:'+item.id,item);
       try { item.result=await recognize(await this.photo(item),this.env,item.kind==='student'?state.key:null,state.assessment); item.status='ready'; item.error=''; }
       catch { item.status='error'; item.error='Não foi possível ler com segurança. Confira a foto e tente novamente.'; }
       finally { await capacity.fetch(new Request('https://internal/release',{method:'POST',body:JSON.stringify({id:item.id})})); }
+      item.timing.readMs=Date.now()-started;
       const latest=await this.storage.get('session');
       if(!latest || latest.expires<=Date.now()) return;
       const current=await this.storage.get('item:'+item.id);

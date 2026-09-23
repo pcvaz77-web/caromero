@@ -2,7 +2,7 @@
   'use strict';
   const Core = window.SiapExamCore, Dom = window.SiapExamDom;
   let host, state = null, snapshot, remote = null, timer, heartbeatAt = 0, loading = true, processing = false, applying = false;
-  let message = '', blocked = false, rendered = '';
+  let message = '', blocked = false, rendered = '', attemptedContext = '', contextPaused = false, connectionLost = false;
   const drafts = new Map();
   function keepEdits() {
     host?.querySelectorAll('textarea,select,input').forEach(el => {
@@ -19,15 +19,22 @@
   }
   const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const send = data => chrome.runtime.sendMessage(data);
+  async function syncLicenseAfterBinding() {
+    const result = await send({ type:'ASSISTENTE_SIAP_LICENSE_STATUS' });
+    const access = result?.license?.examAccess;
+    if (access && typeof window.SiapExamAccessUpdated === 'function') window.SiapExamAccessUpdated(access);
+  }
   const save = async () => { const result = await send({ type: 'SIAP_EXAM_STATE_PUT', value: state }); if (!result?.ok) throw new Error('Não foi possível preservar a sessão.'); };
   const api = async (action, body = {}) => {
     const result = await send({ type: 'SIAP_EXAM_API', action, room: state?.room.id, token: state?.room.desktop, body });
-    if (!result?.ok) { if ([401, 410].includes(result?.status)) blocked = true; throw new Error(result?.error || 'Serviço de correção indisponível.'); }
+    if (!result?.ok) { if ([401, 403, 410].includes(result?.status)) blocked = true; throw new Error(result?.error || 'Serviço de correção indisponível.'); }
     return result;
   };
+  const revision = data => JSON.stringify({key:data?.key,items:(data?.items||[]).map(i=>({id:i.id,kind:i.kind,status:i.status,discarded:!!i.discarded,selectedStudentId:i.selectedStudentId,result:i.result,review:i.review}))});
+  const appliedIds = (signature, call) => state?.appliedByCall?.[signature]?.[call] || (call === 1 ? state?.applied?.[signature] || [] : []);
   function current() { return Dom.snapshot(document, location.pathname); }
-  function matches(now) { return state && (now.signature === state.signature || (now.mode === 'selection' && now.scope === state.scope && (!state.queue || state.queue.phase === 'done'))); }
-  function canAdopt(now) { return state && now.mode === 'entry' && (now.base === state.base || (state.awaitingEvaluation && now.scope === state.scope)); }
+  function matches(now) { if (remote?.mobileWorkflow || state?.mobileWorkflow) return !!state && now.mode === 'entry' && now.signature === state.signature; return state && (now.signature === state.signature || (now.mode === 'selection' && now.scope === state.scope && (!state.queue || state.queue.phase === 'done'))); }
+  function canAdopt(now) { if (remote?.mobileWorkflow || state?.mobileWorkflow) return false; return state && now.mode === 'entry' && (now.base === state.base || (state.awaitingEvaluation && now.scope === state.scope)); }
   function assertContext() { const now = current(); if (!matches(now)) throw new Error('A turma ou avaliação mudou. Confira o contexto antes de continuar.'); return now; }
   function notify(text) { message = text; host?.querySelectorAll('[data-exam-message]').forEach(el => { el.textContent = text; }); }
   async function action(fn) {
@@ -38,20 +45,28 @@
   }
   function draw() {
     if (!host || loading) return;
+    const focused = host.contains(document.activeElement) ? document.activeElement : null;
+    const focusItem = focused?.closest('[data-exam-item]')?.dataset.examItem;
+    const focusAttr = focused && [...focused.attributes].find(a=>a.name.startsWith('data-exam'));
+    const selection = focused?.tagName==='TEXTAREA' ? [focused.selectionStart,focused.selectionEnd] : null;
+    const openDetails = [...host.querySelectorAll('details')].map(el=>el.open);
     keepEdits();
     try { snapshot = current(); } catch (e) { host.textContent = e.message; return; }
     const changed = state && !matches(snapshot), selecting = snapshot.mode === 'selection';
+    const preservedCards = (remote?.items || []).filter(item => item.kind === 'student' && !item.discarded).length;
     const rows = (remote?.items || []).filter(i => i.kind === 'student' && !i.discarded);
     const official = (remote?.items || []).filter(i => i.kind === 'official' && i.result && !i.discarded).at(-1);
     host.innerHTML = `<section class="cm-card"><h3>Correção de Provas</h3><p>${escape(snapshot.label)}<br><strong>${selecting ? 'Identificar disciplinas pelo gabarito' : `${escape(snapshot.context.subject)} · ${snapshot.context.total} questões`}</strong></p>
       <p data-exam-message role="status">${escape(message)}</p>
       ${!state ? '<p>Abra a avaliação com a disciplina e a lista de alunos. O celular receberá esses dados para a correção.</p><button class="cm-btn cm-primary" data-exam="start" type="button">Conectar celular por QR Code</button>' : `
-      ${changed ? `<p>A página mudou. As capturas e o preenchimento estão pausados.</p>${canAdopt(snapshot) ? '<button class="cm-btn" type="button" data-exam="adopt">Conferi: vincular esta avaliação às capturas</button>' : '<p>Encerre esta sessão antes de iniciar outra turma ou avaliação.</p>'}` : ''}
+      ${changed ? `<p>A página mudou. As capturas e o preenchimento estão pausados.</p>${canAdopt(snapshot) ? '<button class="cm-btn" type="button" data-exam="adopt">Conferi: vincular esta avaliação às capturas</button>' : `<p><strong>${preservedCards} prova(s) já enviada(s) continuam preservadas.</strong> Abra novamente a mesma avaliação no SIAP para retomar a leitura pelo celular. Nenhuma prova foi apagada.</p>`}` : ''}
       ${changed && canAdopt(snapshot) && official ? `<p>Confira abaixo as disciplinas e suas quantidades. Ajuste o gabarito somente se a leitura estiver errada; depois vincule a avaliação.</p>${keyForm(official)}` : ''}
-      <details ${!remote?.key ? 'open' : ''}><summary>QR Code de conexão</summary><div data-exam-qr></div><p>Leia uma vez no celular. Expira em ${new Date(state.room.expires).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Não compartilhe este QR Code.</p></details>
+      ${!changed && !blocked ? `<details ${!remote?.key ? 'open' : ''}><summary>QR Code de conexão</summary><div data-exam-qr></div><p>Leia uma vez no celular. Expira em ${new Date(state.room.expires).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}. Não compartilhe este QR Code.</p></details>` : ''}
+      ${!changed && !blocked && remote?.key ? `<button class="cm-btn cm-primary" type="button" data-exam="continueCapture">Continuar fotografando provas no celular</button><p>${preservedCards} prova(s) preservada(s). Este botão retoma a mesma sessão; não cria outro lote nem apaga provas já enviadas.</p>` : ''}
       <button class="cm-btn" type="button" data-exam="close">Encerrar e apagar capturas</button>
+      ${blocked && !changed ? '<button class="cm-btn" type="button" data-exam="reconnect">Verificar conexão e acesso</button>' : ''}
       ${remote?.accessMode==='block' ? '<details><summary>Concluir crédito avulso</summary><p>Use somente depois de terminar este bloco em todas as turmas, incluindo segundas chamadas. Encerrar as capturas acima não encerra seu crédito.</p><label><input type="checkbox" data-finish-block-confirm> Terminei este bloco em todas as turmas.</label><button class="cm-btn" type="button" data-exam="finishBlock">Finalizar bloco em todas as turmas</button></details>' : ''}
-      ${state.queue && state.queue.phase !== 'done' ? `<button class="cm-btn" type="button" data-exam="${state.queue.paused ? 'resume' : 'pauseBatch'}">${state.queue.paused ? 'Retomar lote após conferência' : 'Pausar preenchimento'}</button>` : ''}
+      ${state.queue && state.queue.phase !== 'done' ? `<button class="cm-btn" type="button" data-exam="${state.queue.paused ? 'resume' : 'pauseBatch'}">${state.queue.paused ? 'Retomar lote após conferência' : 'Pausar preenchimento'}</button><button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
       ${!changed && !blocked ? `<p>${remote?.key ? 'Gabarito confirmado. Fotografe os cartões dos alunos.' : 'Faça a leitura e confira o gabarito no celular. Os resultados aparecerão aqui para o lançamento final.'}</p>
       ${official ? `<details><summary>Gabarito e ajustes pelo computador</summary>${keyForm(official)}</details>` : ''}
       ${selecting && remote?.key ? selectionForm() : ''}
@@ -62,20 +77,28 @@
       <p data-exam-summary role="status"></p>
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
       <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
-      <p>Ao enviar, você confirma os resultados exibidos. O salvamento automático só ocorre quando não há exceções nem alunos sem resultado ou falta confirmada.</p>` : ''}` : ''}`}</section>`;
+      <p>Ao enviar, você confirma somente este lote. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
     if(selecting && !state){const start=host.querySelector('[data-exam=start]');if(start){start.disabled=true;start.textContent='Abra a avaliação com os alunos para conectar';}}
     host.querySelectorAll('[data-exam]').forEach(button => button.onclick = () => action(() => operations[button.dataset.exam]()));
     host.querySelectorAll('[data-exam-subject]').forEach(button => button.onclick = () => action(() => chooseSubject(button.dataset.examSubject)));
     host.querySelectorAll('[data-exam-retry]').forEach(b => b.onclick = () => action(async () => { await api('retry', { id: b.dataset.examRetry }); await refresh(); }));
     host.querySelectorAll('[data-exam-discard]').forEach(b => b.onclick = () => action(async () => { await api('discard', { id: b.dataset.examDiscard }); await refresh(); }));
     host.querySelectorAll('[data-exam-image]').forEach(b => b.onclick = async () => { try { const data = await api('image', { id: b.dataset.examImage }); const image = b.parentElement.querySelector('img'); image.src = data.image; image.hidden = false; } catch(e) { notify(e.message); } });
-    if (state && window.qrcode) {
+    if (state && !changed && !blocked && window.qrcode) {
       const qr = qrcode(0, 'M');
       qr.addData(`${SiapExamConfig.origin}/#session=${state.room.id}&token=${state.room.mobile}`); qr.make();
       // Local QR generation; the pairing capability is never sent to a third-party QR service.
       host.querySelector('[data-exam-qr]').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true });
     }
-    restoreEdits(); updateAbsentOptions(); updateReadiness(); rendered = JSON.stringify(remote);
+    restoreEdits();
+    host.querySelectorAll('details').forEach((el,i)=>{if(openDetails[i]!==undefined)el.open=openDetails[i];});
+    if(focusAttr){const scope=focusItem ? host.querySelector('[data-exam-item="'+focusItem+'"]') : host;
+      const el=[...(scope?.querySelectorAll('['+focusAttr.name+']')||[])].find(el=>el.getAttribute(focusAttr.name)===focusAttr.value);
+      el?.focus({preventScroll:true});if(selection&&el?.setSelectionRange)el.setSelectionRange(...selection);
+    }
+    host.querySelector('[data-exam-call]')?.addEventListener('change',updateReadiness);
+    host.querySelectorAll('[data-exam-item]').forEach(el=>{try{el.querySelector('[data-exam-score]').textContent=Core.score(remote.key,el.querySelector('[data-exam-answers]').value.trim().split(/[\s,;]+/)).map(r=>`${r.subject}: ${r.correct}/${r.total}`).join(' · ');}catch(e){el.querySelector('[data-exam-score]').textContent=e.message;}});
+    updateAbsentOptions(); updateReadiness(); rendered = JSON.stringify(remote);
     host.querySelectorAll('[data-exam-confirm],[data-exam-absent]').forEach(el => el.onchange = updateReadiness);
     host.querySelectorAll('[data-exam-student]').forEach(el => el.onchange = updateAbsentOptions);
     host.querySelectorAll('[data-exam-answers]').forEach(el => el.oninput = () => {
@@ -134,7 +157,7 @@
   }
   function batchState(includeApplied = false) {
     const pending = [], ready = [], seen = new Map();
-    const already = new Set(state?.applied?.[snapshot.signature] || []);
+    const already = new Set(appliedIds(snapshot.signature, Number(host.querySelector('[data-exam-call]')?.value || 1)));
     for (const el of host.querySelectorAll('[data-exam-item]')) {
       const id = el.querySelector('[data-exam-student]').value;
       if(remote.mobileWorkflow && !remote.items.find(i=>i.id===el.dataset.examItem)?.review?.reviewed) {pending.push(el.dataset.examItem);continue;}
@@ -153,6 +176,7 @@
     return { ready: unique, pending };
   }
   function readiness() {
+    if(connectionLost || blocked) return 'Conexão indisponível. Aguarde a reconexão antes de enviar.';
     if (!remote?.key || snapshot.mode !== 'entry') return '';
     if(state.appliedKeySignature && state.appliedKeySignature!==JSON.stringify(remote.key) && Object.values(state.applied||{}).some(ids=>ids.length)) return 'O gabarito mudou após um preenchimento. Confira e ajuste os campos já lançados manualmente antes de salvar.';
     const range = remote.key.ranges.find(r => Core.normalize(r.subject) === Core.normalize(snapshot.context.subject));
@@ -169,8 +193,8 @@
     if(!button||!hint)return;
     const batch=batchState(), reason=readiness();
     button.disabled=!!reason; button.textContent=`Enviar ${batch.ready.length} identificado(s) para o SIAP`;
-    host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${(state?.applied?.[snapshot.signature] || []).length} aluno(s) preenchido(s).`;
-    hint.textContent=reason || (batch.pending.length ? 'Os identificados serão preenchidos. As exceções permanecem manuais; não haverá salvamento automático.' : 'Confira os resultados acima e envie em um clique.');
+    host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)).length} aluno(s) preenchido(s).`;
+    hint.textContent=reason || (batch.pending.length ? 'Os identificados serão preenchidos. As exceções permanecem pendentes. Confira e salve no SIAP.' : 'Confira os resultados acima e envie em um clique.');
   }
   const operations = {
     async finishBlock() {
@@ -180,13 +204,44 @@
       await api('finish-block'); blocked=true; message='Bloco finalizado em todas as turmas.';
     },
     async start() {
-      snapshot = current();
+      const snapshot = current();
       if(snapshot.mode!=='entry'||!snapshot.roster.some(r=>!r.unavailable)) throw new Error('Abra a avaliação com a lista de alunos antes de gerar o QR Code.');
+      attemptedContext = snapshot.signature;
+      const previousSessions = [...(state?.previousSessions || [])];
+      if (state && state.signature !== snapshot.signature) {
+        await api('pause', {paused:true});
+        const {previousSessions:ignored, ...previous} = state;
+        if(previous.queue) previous.queue={...previous.queue,paused:true};
+        const index = previousSessions.findIndex(item=>item.signature===previous.signature);
+        if(index>=0) previousSessions.splice(index,1);
+        previousSessions.push(previous);
+      }
+      const reusable = previousSessions.find(item=>item.signature===snapshot.signature && item.room.expires>Date.now());
+      if(reusable) {
+        state={...reusable,previousSessions:previousSessions.filter(item=>item!==reusable)};
+        remote=null;blocked=false;contextPaused=false;drafts.clear();await save();await api('pause',{paused:false});await refresh();
+        message='Sessão da avaliação atual retomada. Leia o QR Code correspondente.';return;
+      }
       const room = await api('create', { block:snapshot.block, context: `${snapshot.label} · ${snapshot.context.subject} · ${snapshot.context.total} questões`, mobileWorkflow: true, assessment: {subject:snapshot.context.subject,total:snapshot.context.total} });
-      state = { room, scope: snapshot.scope, awaitingEvaluation: snapshot.mode === 'selection', base: snapshot.base, signature: snapshot.signature, queue: null }; blocked = false; drafts.clear();
+      state = { room, mobileWorkflow:true, previousSessions:previousSessions.filter(item=>item.room.expires>Date.now()), scope: snapshot.scope, awaitingEvaluation: snapshot.mode === 'selection', base: snapshot.base, signature: snapshot.signature, queue: null }; blocked = false; contextPaused=false; drafts.clear();
       await save(); heartbeatAt = 0; await refresh(); message = 'Leia o QR Code no celular para iniciar.';
     },
-    async close() { try { await api('close'); } catch (e) { if (!blocked) throw e; } state = null; remote = null; blocked = false; drafts.clear(); host.replaceChildren(); await save(); message = 'Sessão encerrada. As capturas expiram automaticamente no serviço.'; },
+    async close() {
+      for(const session of [...(state?.previousSessions||[]),state].filter(Boolean)) {
+        const result=await send({type:'SIAP_EXAM_API',action:'close',room:session.room.id,token:session.room.desktop,body:{}});
+        if(!result?.ok && result?.status!==410) throw new Error('Não foi possível confirmar o encerramento de todas as sessões. Tente novamente.');
+      }
+      state=null;remote=null;blocked=false;connectionLost=false;drafts.clear();host.replaceChildren();await save();message='Sessões encerradas e capturas apagadas.';
+    },
+    async reconnect() { assertContext();await api('heartbeat');await api('pause',{paused:false});blocked=false;contextPaused=false;await refresh();message='Conexão verificada. Confira os resultados antes de retomar qualquer lote.'; },
+    async continueCapture() {
+      assertContext();
+      await api('heartbeat'); await api('pause',{paused:false});
+      blocked=false; contextPaused=false; await refresh();
+      const count=(remote?.items || []).filter(item => item.kind==='student' && !item.discarded).length;
+      message=`Sessão retomada. ${count} prova(s) permanecem preservada(s); continue a leitura no celular.`;
+    },
+    async cancelBatch() { if(state?.queue) {state.queue=null;await save();message='Restante do lote cancelado. Confira os campos já preenchidos no SIAP.';} },
     async pauseBatch() { if (state.queue) { state.queue.paused = true; await save(); message = 'Lote pausado. Confira os campos já preenchidos antes de retomar.'; } },
     async resume() { assertContext(); await api('heartbeat'); if (state.queue) { state.queue.paused = false; state.queue.attempts = 0; await save(); await advance(); } },
     async adopt() {
@@ -213,7 +268,8 @@
       const now = assertContext();
       if (now.mode !== 'entry') throw new Error('Abra a avaliação antes de preencher.');
       const reason = readiness(); if (reason) throw new Error(reason);
-      const batch = batchState(), items = batch.ready;
+      const expected=revision(remote), batch = batchState(), items = batch.ready;
+      const expectedReviews=new Map((remote.items||[]).map(i=>[i.id,i.review||null]));
       const entries = Core.batch(remote.key, items, now.roster, now.context.subject, now.context.total);
       for (const el of host.querySelectorAll('[data-exam-absent]:checked')) {
         if (entries.some(e => e.id === el.dataset.examAbsent)) throw new Error('Um aluno com prova também foi marcado como ausente.');
@@ -222,19 +278,35 @@
       const call = Number(host.querySelector('[data-exam-call]').value);
       Dom.preflight(now, entries, call);
       await api('heartbeat');
-      for (const item of items) await api('review', item);
-      const covered = new Set([...(state.applied?.[now.signature] || []), ...entries.map(e=>e.id)]);
-      const autoSave = !batch.pending.length && now.roster.filter(r=>!r.unavailable).every(r=>covered.has(r.id));
-      state.queue = { entries, call, index: 0, phase: 'presence', attempts: 0, paused: false, signature: now.signature, autoSave, keySignature: JSON.stringify(remote.key), itemIds: (remote.items||[]).filter(i=>!i.discarded).map(i=>i.id) };
+      await refresh();assertContext();
+      if(expected!==revision(remote)) throw new Error('Os resultados mudaram. Confira a lista atualizada e envie novamente.');
+      const reviewed=JSON.parse(JSON.stringify(remote));
+      for(const item of items)reviewed.items.find(i=>i.id===item.id).review={studentId:item.studentId,answers:item.answers,reviewed:true};
+      for (const item of items) {
+        const previous=expectedReviews.get(item.id), next={studentId:item.studentId,answers:item.answers,reviewed:true};
+        if(JSON.stringify(previous)!==JSON.stringify(next))await api('review', {...item,key:remote.key,expectedReview:previous});
+      }
+      await refresh();assertContext();
+      if(revision(remote)!==revision(reviewed)) throw new Error('Os resultados mudaram durante a confirmação. Confira novamente.');
+      for(const item of items){const actual=remote.items.find(i=>i.id===item.id);if(!actual || actual.discarded || (actual.review && JSON.stringify(actual.review)!==JSON.stringify({studentId:item.studentId,answers:item.answers,reviewed:true}))) throw new Error('A conferência mudou. Confira os resultados novamente.');}
+      Dom.preflight(assertContext(),entries,call);
+      const autoSave = false;
+      state.queue = { entries, call, index: 0, phase: 'presence', attempts: 0, paused: false, signature: now.signature, revision:revision(remote), autoSave, keySignature: JSON.stringify(remote.key), itemIds: (remote.items||[]).filter(i=>!i.discarded).map(i=>i.id) };
       await save(); message = 'Preenchendo o lote revisado…'; await advance();
     }
   };
   async function refresh() {
     if (!state) return;
     const previous=remote; remote = await api('status');
+    if(connectionLost){connectionLost=false;rendered='';message='Conexão recuperada. Lotes pausados exigem sua conferência para retomar.';}
     for(const item of remote.items||[]) if(JSON.stringify(previous?.items?.find(i=>i.id===item.id)?.review)!==JSON.stringify(item.review)) {
       for(const k of drafts.keys()) if(k.startsWith(item.id+':')) drafts.delete(k);
       host?.querySelector(`[data-exam-item="${item.id}"]`)?.querySelectorAll('[data-exam-student],[data-exam-answers]').forEach(el=>{if(item.review)el.value=el.hasAttribute('data-exam-student')?item.review.studentId:item.review.answers.join(' ');});
+    }
+    if(previous && JSON.stringify(previous.key)!==JSON.stringify(remote.key)) {
+      for(const key of drafts.keys())if(key.startsWith(':data-exam-key')||key.startsWith(':data-exam-ranges')||key.startsWith(':data-exam-alphabet'))drafts.delete(key);
+      const key=remote.key;
+      if(key){const fields={'[data-exam-key]':key.answers.join(' '),'[data-exam-ranges]':key.ranges.map(r=>r.subject+'; '+r.from+'; '+r.to).join('\n'),'[data-exam-alphabet]':key.alphabet};for(const [selector,value] of Object.entries(fields)){const el=host?.querySelector(selector);if(el)el.value=value;}}
     }
     const now=current();
     if(remote.mobileWorkflow && now.mode==='entry' && matches(now)) {
@@ -249,22 +321,17 @@
     if (applying || !q || q.paused || q.phase === 'done') return;
     applying = true;
     try {
-      const now = assertContext();
+      let now = assertContext();
       if (now.mode !== 'entry') throw new Error('Retorne à avaliação para continuar o lote.');
       if (q.signature !== now.signature || blocked) throw new Error('Lote pausado por mudança de contexto ou acesso.');
+      await refresh();now=assertContext();
+      if(!q.revision || q.revision!==revision(remote)) throw new Error('O gabarito ou as capturas mudaram. Cancele o restante do lote e confira os resultados antes de enviar novamente.');
+      if(rendered!==JSON.stringify(remote)) draw();
       const entry = q.entries[q.index];
       if (!entry) {
         await refresh();
-        const incoming = (remote.items||[]).filter(i=>!i.discarded);
-        const unchanged = JSON.stringify(remote.key)===q.keySignature && incoming.length===q.itemIds.length && incoming.every(i=>q.itemIds.includes(i.id));
-        q.phase='done';
-        draw();
-        const button=document.getElementById('cphFuncionalidade_btnAlterar');
-        if(q.autoSave && unchanged && button && !button.disabled) {
-          q.saveRequested=true; await save();
-          notify('Campos preenchidos. Salvamento solicitado ao SIAP; confira a confirmação na página.');
-          button.click();
-        } else { await save(); notify('Identificados preenchidos. Há pendências ou alunos sem resultado: complete manualmente e depois use Salvar no SIAP.'); }
+        q.phase='done';await save();draw();
+        notify('Identificados preenchidos. Confira os campos, complete manualmente as pendências e clique em Salvar no SIAP.');
         return;
       }
       const c = Dom.controls(now, entry.id, q.call);
@@ -287,33 +354,48 @@
         }
         if (c.field.value.trim() === '' || Number(c.field.value) !== entry.correct) throw new Error('O SIAP não manteve o valor preenchido. Confira este aluno.');
       }
+      state.appliedByCall ||= {};state.appliedByCall[now.signature] ||= {};state.appliedByCall[now.signature][q.call] ||= [];
+      if(!state.appliedByCall[now.signature][q.call].includes(entry.id))state.appliedByCall[now.signature][q.call].push(entry.id);
       state.appliedKeySignature ||= JSON.stringify(remote.key);
       state.applied ||= {}; state.applied[now.signature] ||= []; if (!state.applied[now.signature].includes(entry.id)) state.applied[now.signature].push(entry.id);
       q.index++; q.phase = 'presence'; q.attempts = 0; await save();
       notify(`Preenchidos ${q.index} de ${q.entries.length}. Aguarde antes de salvar.`);
-    } catch (e) { q.paused = true; await save(); notify(e.message + ' Os campos já preenchidos foram mantidos; confira e salve no SIAP.'); }
+    } catch (e) { q.paused = true; await save(); notify(e.message + ' Os campos já preenchidos foram mantidos; confira e salve no SIAP.');draw(); }
     finally { applying = false; }
   }
   async function tick() {
     clearTimeout(timer);
     if (!host?.isConnected) return;
+    if(processing || applying){timer=setTimeout(tick,1000);return;}
+    processing=true;
     try {
-      if (state && !processing && !applying) {
+      if (state) {
         const now = current();
         if (!matches(now)) {
-          if (!blocked) { await api('pause', { paused: true }); blocked = true; draw(); }
-        } else if (!blocked) {
-          if (Date.now() - heartbeatAt > 45000 || remote?.scanRequested && !remote?.activated) { await api('heartbeat'); heartbeatAt = Date.now(); }
+          if (!blocked) { blocked = true; contextPaused=true; draw(); await api('pause', { paused: true }); }
+          if(now.mode==='entry' && attemptedContext!==now.signature) { await operations.start();draw(); }
+        } else if (!blocked || contextPaused) {
+          if(contextPaused){await api('pause',{paused:false});blocked=false;contextPaused=false;draw();}
+          const bindingCredit = remote?.scanRequested && !remote?.activated;
+          if (Date.now() - heartbeatAt > 45000 || bindingCredit) {
+            await api('heartbeat'); heartbeatAt = Date.now();
+            if (bindingCredit) { await refresh(); await syncLicenseAfterBinding(); }
+          }
           if (state.queue && state.queue.phase !== 'done' && !state.queue.paused) await advance();
           else {
             await refresh();
             // Do not erase teacher edits when polling or the SIAP observer rerenders.
-            if (rendered !== JSON.stringify(remote) && !host.contains(document.activeElement)) draw();
+            if (rendered !== JSON.stringify(remote)) draw();
           }
         }
       }
-    } catch (e) { notify(e.message); }
-    timer = setTimeout(tick, state?.queue && state.queue.phase !== 'done' && !state.queue.paused ? 1000 : 3500);
+    } catch (e) {
+      connectionLost=true;if(state?.queue){state.queue.paused=true;try{await save();}catch{}}
+      notify(e.message+(blocked?' Verifique a conexão e o acesso para continuar.':' Tentando reconectar; nenhum novo lote será iniciado.'));draw();
+    } finally {processing=false;}
+    clearTimeout(timer);
+    const awaitingResult=remote?.items?.some(i=>!i.discarded && (['queued','processing'].includes(i.status) || i.kind==='student' && i.status==='ready' && !i.review?.reviewed));
+    timer = setTimeout(tick, (state?.queue && state.queue.phase !== 'done' && !state.queue.paused) || awaitingResult ? 1000 : 3500);
   }
   window.SiapExamPanel = {
     isBusy() { return processing || applying; },
@@ -330,6 +412,7 @@
         state = result?.value || null;
         if (state?.room.expires <= Date.now()) { state = null; save(); }
         if (state) {
+          if(state.queue && state.queue.phase!=='done'){state.queue.paused=true;await save();message='Lote pausado após recarregar. Confira os campos antes de retomar.';}
           try { await refresh(); if (matches(current())) await api('pause', { paused: false }); }
           catch(e) { message = e.message; }
         }

@@ -112,8 +112,8 @@
   async function flush() {
     if (uploading || !active) return;
     const item = outbox.find(i => i.status === 'waiting'); if (!item) return;
-    uploading = true; setEnabled(); item.status = 'sending'; render();
-    try { await api('upload', { id: item.id, kind: item.kind, image: item.image, studentId: item.studentId || '' }); item.status = 'received'; item.image = ''; tell(mobileWorkflow ? 'Foto enviada. Lendo a folha… O resultado aparecerá neste celular.' : item.kind === 'official' ? 'Gabarito recebido. Confirme a leitura no computador e depois toque em Fotografar provas dos alunos.' : 'Foto recebida no computador. Pode fotografar a próxima.'); }
+    uploading = true; const uploadStarted=Date.now(); setEnabled(); item.status = 'sending'; render();
+    try { await api('upload', { id: item.id, kind: item.kind, image: item.image, studentId: item.studentId || '' }); item.uploadMs=Date.now()-uploadStarted; item.status = 'received'; item.image = ''; tell(mobileWorkflow ? 'Foto enviada. Lendo a folha… O resultado aparecerá neste celular.' : item.kind === 'official' ? 'Gabarito recebido. Confirme a leitura no computador e depois toque em Fotografar provas dos alunos.' : 'Foto recebida no computador. Pode fotografar a próxima.'); }
     catch (error) { item.status = 'failed'; tell(error.message + ' A foto continua nesta aba para tentar novamente.'); }
     finally { uploading = false; setEnabled(); render(); if (outbox.some(i => i.status === 'waiting')) flush(); }
   }
@@ -200,7 +200,7 @@
       select.onchange=()=>{color();onChange(index,select.value);};label.append(select);target.append(label);
     });
   }
-  let keyDraft=null, resultAnswers=[];
+  let keyDraft=null, resultAnswers=[], resultKey=null, confirming=false;
   function renderMobile(status) {
     $('mobile-workflow').hidden=!mobileWorkflow;if(!mobileWorkflow)return;
     const selected=$('student-select').value;
@@ -235,25 +235,26 @@
       const server=status.items.find(i=>i.id===item.id);if(server?.kind!=='student'||server.status!=='ready')continue;
       const li=$('queue').children[index];if(!li)continue;
       const name=roster.find(r=>r.id===(server.review?.studentId||server.selectedStudentId))?.name || 'Aluno não selecionado';
-      li.textContent=`${name} — ${server.review?.reviewed?'conferida':'conferir resultado'}`;li.classList.add('student-row');
+      li.textContent=`${name} — ${server.review?.reviewed?'conferida':'conferir resultado'}${server.timing ? (item.uploadMs!==undefined?' · envio '+(item.uploadMs/1000).toFixed(1)+' s':'')+' · fila '+(server.timing.queueMs/1000).toFixed(1)+' s · leitura '+((server.timing.readMs||0)/1000).toFixed(1)+' s' : ''}`;li.classList.add('student-row');
       const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent='Ver resultado';button.onclick=()=>showResult(server);li.append(button);
     }
   }
   function cameraResult(item){
+    const reviewedKey=JSON.parse(JSON.stringify(currentKey));
     const studentId=item.review?.studentId||item.selectedStudentId,student=roster.find(r=>r.id===studentId),answers=item.review?.answers||item.result.answers;
     try {
-      const scores=Core.score(currentKey,answers);if(!student)throw new Error('Selecione o aluno.');
+      const scores=Core.score(currentKey,answers);if(item.result.warning?.trim())throw new Error(item.result.warning);if(!student)throw new Error('Selecione o aluno.');
       $('camera-summary').textContent=student.name+' — '+scores.map(r=>`${r.subject}: ${r.correct}/${r.total} acertos`).join(' · ');
       completeCamera(async()=>{
         $('camera-result').disabled=true;
-        try{await api('mobile-review',{id:item.id,studentId,answers,key:currentKey});const row=lastRemote.find(i=>i.id===item.id);if(row)row.review={studentId,answers,reviewed:true};resultItem=item;stopCamera();nextStudent();render();renderMobile({items:lastRemote});}
+        try{await api('mobile-review',{id:item.id,studentId,answers,key:reviewedKey});const row=lastRemote.find(i=>i.id===item.id);if(row)row.review={studentId,answers,reviewed:true};resultItem=item;stopCamera();nextStudent();render();renderMobile({items:lastRemote});}
         catch(e){$('camera-status').textContent=e.message;tell(e.message);}finally{$('camera-result').disabled=false;}
       },'Enviar resultado e próximo aluno');
     }catch(e){$('camera-summary').textContent=e.message;completeCamera(()=>showResult(item),'Conferir marcações');}
   }
   function completeCamera(next,label){document.body.classList.add('camera-complete');document.body.dataset.readStage='ready';document.body.classList.remove('reading');$('camera-status').textContent='Leitura concluída. Confira o resultado.';$('camera-result').hidden=false;$('camera-result').textContent=label;$('camera-result').onclick=next;$('snap').hidden=true;}
   function showResult(item){
-    resultItem=item;resultAnswers=[...(item.review?.answers||item.result.answers)];
+    resultKey=JSON.parse(JSON.stringify(currentKey));resultItem=item;resultAnswers=[...(item.review?.answers||item.result.answers)];
     const id=item.review?.studentId||item.selectedStudentId||'';
     fillStudents($('result-student'),id);$('result-student').options[0].textContent='Selecione o aluno desta prova';
     $('result-photo').hidden=true;$('result-photo').removeAttribute('src');
@@ -265,13 +266,15 @@
     $('result-name').textContent=student?.name||'Selecione o aluno';
     $('result-score').replaceChildren();
     let valid=false;
-    try {const scores=Core.score(currentKey,resultAnswers),total=scores.reduce((a,r)=>a+r.total,0),correct=scores.reduce((a,r)=>a+r.correct,0);
+    try {const scores=Core.score(resultKey,resultAnswers),total=scores.reduce((a,r)=>a+r.total,0),correct=scores.reduce((a,r)=>a+r.correct,0);
       const big=document.createElement('div');big.className='score-big';big.textContent=`${correct} / ${total}`;const small=document.createElement('small');small.textContent=' acertos';big.append(small);$('result-score').append(big);
       for(const score of scores){const row=document.createElement('div');row.className='subject-score';row.textContent=`${score.subject}: ${score.correct} de ${score.total}`;$('result-score').append(row);}valid=true;
     }catch(e){$('result-score').textContent=e.message;}
     const different=false;
     $('result-warning').textContent=different?'O nome lido difere do aluno escolhido. Confira a foto antes de confirmar.':!student?'Escolha o aluno com a prova em mãos ou deixe pendente para preencher manualmente.':resultItem.result.warning||'Confira o aluno e os acertos antes de confirmar.';
-    $('result-confirm').disabled=!student||!valid||!active;
+    const changed=JSON.stringify(resultKey)!==JSON.stringify(currentKey);
+    if(changed)$('result-warning').textContent='O gabarito mudou. Reabra este resultado para conferir novamente.';
+    $('result-confirm').disabled=confirming||changed||!student||!valid||!active;
   }
   $('key-retake').onclick=async()=>{try{await api('mobile-discard',{id:keyDraftId});$('key-review').hidden=true;document.body.classList.remove('mobile-reviewing');keyDraftId='';focusedCapture='';camera();}catch(e){tell(e.message);}};
   $('key-photo-button').onclick=async()=>{try{const data=await api('mobile-image',{id:keyDraftId});$('key-photo').src=data.image;$('key-photo').hidden=false;}catch(e){tell(e.message);}};
@@ -286,9 +289,10 @@
   $('result-photo-button').onclick=async()=>{try{const id=resultItem.id,data=await api('mobile-image',{id});if(resultItem.id===id){$('result-photo').src=data.image;$('result-photo').hidden=false;}}catch(e){tell(e.message);}};
   function nextStudent(){dismissed.add(resultItem.id);resultItem=null;$('mobile-result').hidden=true;document.body.classList.remove('mobile-reviewing');focusedCapture='';$('student-select').value='';updateStep();setEnabled();$('student-choice').scrollIntoView?.({block:'center',behavior:'smooth'});tell('Próximo aluno: escolha o nome para abrir a câmera.');}
   $('result-confirm').onclick=async()=>{
+    if(confirming)return;confirming=true;
     $('result-confirm').disabled=true;
-    try{await api('mobile-review',{id:resultItem.id,studentId:$('result-student').value,answers:resultAnswers,key:currentKey});const item=lastRemote.find(i=>i.id===resultItem.id);if(item)item.review={studentId:$('result-student').value,answers:[...resultAnswers],reviewed:true};nextStudent();render();renderMobile({items:lastRemote});}
-    catch(e){tell(e.message);$('result-confirm').disabled=false;}
+    try{await api('mobile-review',{id:resultItem.id,studentId:$('result-student').value,answers:resultAnswers,key:resultKey});const item=lastRemote.find(i=>i.id===resultItem.id);if(item)item.review={studentId:$('result-student').value,answers:[...resultAnswers],reviewed:true};nextStudent();render();renderMobile({items:lastRemote});}
+    catch(e){tell(e.message);}finally{confirming=false;if(resultItem)resultScore();}
   };
   $('result-skip').onclick=nextStudent;
 

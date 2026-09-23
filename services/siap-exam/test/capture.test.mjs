@@ -137,3 +137,20 @@ test('detecção estável dispara uma única foto automaticamente e encerra ao f
  a.w.document.getElementById('stop').click();assert.equal(worker.terminated,true);
  }finally{a.dom.window.close();}
 });
+
+
+test('três alunos consecutivos e aviso encaminhado para revisão detalhada',async()=>{
+ const a=await setup();try{
+ const key={alphabet:'ABCD',answers:['A','B'],ranges:[{subject:'Teste',from:1,to:2}]};a.remote.mobileWorkflow=true;a.remote.key=key;a.remote.roster=[1,2,3].map(n=>({id:String(n),name:'FICTICIO '+n}));
+ const poll=async()=>{await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();};await poll();
+ Object.defineProperty(a.w.document.getElementById('video'),'videoHeight',{value:100});a.w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});a.w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/jpeg;base64,AAAA';
+ for(let n=1;n<=3;n++){
+ const select=a.w.document.getElementById('student-select');select.value=String(n);select.dispatchEvent(new a.w.Event('change'));await settle();a.w.document.getElementById('snap').click();await settle();assert.equal(a.uploads.length,n);
+ a.remote.items.push({id:a.uploads[n-1].id,kind:'student',status:'ready',selectedStudentId:String(n),timing:{queueMs:100,readMs:200},result:{...key,name:'',warning:n===3?'Sombra: confira a foto':''}});await poll();
+ if(n===3){assert.match(a.w.document.getElementById('camera-summary').textContent,/Sombra/);assert.equal(a.w.document.getElementById('camera-result').textContent,'Conferir marcações');a.w.document.getElementById('camera-result').click();await settle();assert.match(a.w.document.getElementById('result-warning').textContent,/Sombra/);
+ a.remote.key={...key,answers:['B','B']};await poll();assert.equal(a.w.document.getElementById('result-confirm').disabled,true);assert.match(a.w.document.getElementById('result-warning').textContent,/gabarito mudou/);
+ }else{assert.match(a.w.document.getElementById('camera-summary').textContent,new RegExp('FICTICIO '+n));a.w.document.getElementById('camera-result').click();await settle();assert.equal(select.value,'');}
+ }
+ assert.match(a.w.document.getElementById('queue').textContent,/fila 0.1 s.*leitura 0.2 s/);
+ }finally{a.dom.window.close();}
+});

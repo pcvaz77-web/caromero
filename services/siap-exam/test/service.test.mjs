@@ -154,3 +154,26 @@ test('sessão de correção nunca ultrapassa o vencimento da concessão',async()
  const init=await r.call('init',{context:'Turma fictícia',sessionId:crypto.randomUUID(),accessExpiresAt:new Date(end).toISOString()});
  assert.equal(init.expires,end);
 });
+
+
+test('revisão antiga do computador não sobrescreve celular nem gabarito novo',async()=>{
+ const r=room(),init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID(),mobileWorkflow:true});
+ const key={alphabet:'ABCD',answers:['A'],ranges:[{subject:'Teste',from:1,to:1}]};
+ await r.call('roster',{binding:'t',roster:[{id:'1',name:'FICTICIO'}]},init.desktop);await r.call('key',{key},init.desktop);
+ const id=crypto.randomUUID();await r.call('upload',{id,kind:'student',image,studentId:'1'},init.mobile);
+ const item=await r.storage.get('item:'+id);item.status='ready';item.result={...key,warning:'',name:''};await r.storage.put('item:'+id,item);
+ await r.call('mobile-review',{id,key,studentId:'1',answers:['B']},init.mobile);
+ assert.equal((await r.call('review',{id,key,expectedReview:null,studentId:'1',answers:['A']},init.desktop)).status,400);
+ assert.deepEqual((await r.storage.get('item:'+id)).review.answers,['B']);
+ await r.call('key',{key:{...key,answers:['C']}},init.desktop);
+ assert.equal((await r.call('review',{id,key,expectedReview:null,studentId:'1',answers:['A']},init.desktop)).status,400);
+});
+test('foto em múltiplos blocos preserva bytes e leitura expõe somente tempos',async()=>{
+ const r=room(),init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID(),mobileWorkflow:true});
+ const id=crypto.randomUUID(),large='data:image/jpeg;base64,'+'A'.repeat(120000);await r.call('upload',{id,kind:'official',image:large},init.mobile);
+ assert.equal(await r.object.photo(await r.storage.get('item:'+id)),large);
+ const original=globalThis.fetch;r.object.env={OPENAI_API_KEY:'synthetic-test-only',EXAMS:{idFromName:x=>x,get:()=>({fetch:async()=>Response.json({ok:true})})}};
+ try{globalThis.fetch=async()=>Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({name:'',title:'',warning:'',alphabet:'ABCD',questions:[{number:1,mark:'A'}],ranges:[{subject:'Teste',from:1,to:1}]})}]}]});await r.object.alarm();
+ const status=await r.call('status',{},init.mobile);assert.equal(status.items[0].status,'ready');assert.ok(status.items[0].timing.readMs>=0);assert.ok(status.items[0].timing.queueMs>=0);assert.equal(status.items[0].imageHash,undefined);
+ }finally{globalThis.fetch=original;}
+});

@@ -5,9 +5,23 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   try { source = new URL(sender.tab?.url || ''); } catch { respond({ error: 'Origem inválida.' }); return; }
   if (source.origin !== 'https://siap.educacao.go.gov.br' || !['/LancamentoNotasModeloEdicao.aspx', '/LancamentoNotasModeloListagem.aspx'].includes(source.pathname) || !Number.isInteger(sender.tab?.id)) { respond({ error: 'Abra a avaliação no SIAP.' }); return; }
   const key = `siapExamTab:${sender.tab.id}`;
+  // The SIAP can save or leave the assessment page while the phone is still
+  // sending cards. Keep only the short-lived pairing state for this browser
+  // session: images remain exclusively in the correction service.
+  const resumeKey = 'siapExamResume';
+  const validState = value => value && value.room && Number(value.room.expires) > Date.now();
   (async () => {
-    if (message.type === 'SIAP_EXAM_STATE_GET') return { ok: true, value: (await chrome.storage.session.get(key))[key] || null };
-    if (message.type === 'SIAP_EXAM_STATE_PUT') { await chrome.storage.session.set({ [key]: message.value }); return { ok: true }; }
+    if (message.type === 'SIAP_EXAM_STATE_GET') {
+      const stored = await chrome.storage.session.get([key, resumeKey]);
+      const value = validState(stored[key]) ? stored[key] : validState(stored[resumeKey]) ? stored[resumeKey] : null;
+      if (!value && (stored[key] || stored[resumeKey])) await chrome.storage.session.remove([key, resumeKey]);
+      return { ok: true, value };
+    }
+    if (message.type === 'SIAP_EXAM_STATE_PUT') {
+      if (validState(message.value)) await chrome.storage.session.set({ [key]: message.value, [resumeKey]: message.value });
+      else await chrome.storage.session.remove([key, resumeKey]);
+      return { ok: true };
+    }
     if(message.type==='SIAP_EXAM_BUY') {
       if(!['exam_one','exam_four'].includes(message.offerKey)||message.legalAccepted!==true) throw new Error('Compra inválida');
       const session=await readConnectedSession();
@@ -36,4 +50,6 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   })().then(respond).catch(() => respond({ error: 'Não foi possível conectar ao serviço de correção. Confira a ativação do serviço e a conexão.' }));
   return true;
 });
+// Closing the SIAP tab must not discard a correction that is still being
+// captured on the phone. The resume record expires with the remote session.
 chrome.tabs.onRemoved.addListener(tabId => chrome.storage.session.remove(`siapExamTab:${tabId}`));

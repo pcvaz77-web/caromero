@@ -1,4 +1,4 @@
-# Correção de Provas — 0.26.0
+# Correção de Provas — 0.28.4
 
 Serviço: https://correcao.sistemacarometro.com.br · Worker `correcao-de-provas`.
 Extensão de desenvolvimento: `extensions/assistente-siap`. Instalação local: `C:/Users/pcvaz/Documents/Codex/Assistente-SIAP-v0.22.0` (o nome histórico da pasta não indica a versão do manifesto).
@@ -9,7 +9,7 @@ Extensão de desenvolvimento: `extensions/assistente-siap`. Instalação local: 
 2. Fotografe o gabarito. A foto é enviada ao fotografar. Confira alternativas, foto e intervalos por disciplina no próprio celular; confirme uma vez.
 3. Escolha o aluno e a câmera abre. A seleção é obrigatória; a IA não lê nomes manuscritos. Um toque captura e envia. A barra azul indica processamento sem estimar porcentagem. Ao concluir a leitura, a barra fica cheia e a moldura azul; o professor avança para conferir o resultado.
 4. O celular mostra nome, acertos totais e por disciplina. Confira foto e alternativas se necessário; confirme o resultado e passe ao próximo aluno. O vínculo usa exclusivamente o aluno escolhido pelo professor. Respostas incertas ficam pendentes.
-5. O computador recebe os resultados conferidos. O botão Enviar identificados para o SIAP confirma o lote final, preenche presença e acertos. Sem foto nunca implica falta. Salvar só é solicitado se não houver pendências, todos os alunos estiverem definidos e não houver novas fotos ou mudança de gabarito. O professor confere a confirmação final na página do SIAP. Nada é salvo por uma ação do celular isoladamente.
+5. O computador recebe os resultados conferidos. O botão Enviar identificados para o SIAP confirma o lote final, preenche presença e acertos. Sem foto nunca implica falta. O Assistente não clica em Salvar. O professor confere os campos e salva no próprio SIAP. Uma recarga pausa o lote e exige retomada explícita. Mudanças no gabarito ou nas capturas interrompem o restante do lote. Nada é salvo por uma ação do celular isoladamente.
 
 ## Isolamento e privacidade
 
@@ -61,3 +61,14 @@ Página móvel com identidade Carômetro, azul/marinho, seletor nativo arredonda
 Migration 140 cria acesso independente por conta, administrado exclusivamente pelo proprietário. A função de licença retorna examAccess; o serviço exige esse acesso para criar e renovar a sessão, recusando licença geral isolada. A sessão não ultrapassa a validade da concessão. Revogação detectada no heartbeat pausa a sessão (normalmente até 45 segundos). Não há concessões automáticas. Painel com conceder, renovar, cancelar, dias, data final e permanente; as escolas apenas agrupam os usuários.
 
 83 testes passaram, incluindo checkout e regressões. SQL validado também em Postgres local com papéis autenticados, RLS, datas e auditoria. Aplicação autorizada pelo usuário em 21/09/2026.
+
+
+## Correções locais 0.28.4 — 21/09/2026
+
+Painel recebe novas provas mesmo com foco, preservando edição e cursor; conexão transitória é recuperada sem iniciar lote. Atualização mais frequente enquanto há leitura ou conferência pendente. Lotes exigem clique no computador, ficam pausados após recarregar e verificam a revisão das capturas antes de cada etapa. O professor salva no SIAP; não há clique automático em Salvar. É possível cancelar o restante de um lote preservando os campos já preenchidos.
+
+Controle de preenchidos separado por chamada. Revisões antigas são recusadas pelo serviço quando conflitam com outra revisão ou gabarito; resultados já conferidos e inalterados no celular dispensam reenvio da revisão. Encerrar apaga todas as sessões temporárias conhecidas daquela aba e não afirma exclusão quando a operação falha.
+
+Avisos de leitura na câmera encaminham à conferência detalhada. Mudança de gabarito durante a conferência exige reabri-la. Envio, espera na fila e processamento passam a ter duração exibida na lista móvel, sem logs de fotos ou nomes. Blocos de imagem são gravados/lidos em paralelo, mantendo bytes e limites. O modelo e a qualidade da imagem foram preservados; ganho de latência ainda precisa ser medido em câmera física.
+
+Validação: 99 testes automatizados com dados fictícios; validação de sintaxe e empacotamento do Worker em dry-run. Não foi feito teste com câmera física nem escrita no SIAP real. Publicação e cópia local autorizadas explicitamente e concluídas em 21/09/2026. Worker: 4f1613d1-e5fd-49b1-854b-3976796218b5. capture.js, card-detector.js, exam-core.js e index.html conferidos no domínio oficial por HTTP 200 e SHA256 (quebras de linha normalizadas). Manifesto e exam-panel.js copiados para a instalação local e conferidos por SHA256, com backup em TEMP. Ativação no Chrome ainda depende de recarregar a extensão: a ferramenta de navegador não permite acessar chrome://extensions/. Sem commit ou push.

@@ -93,3 +93,16 @@
 #assistente-siap-panel .cm-payment-account { padding: 10px 12px; border-radius: 12px; background: #eff5ff; color: #234583; font-weight: 600; overflow-wrap: anywhere; }
 
 .cm-account-toggle{border:0;border-radius:999px;background:#7560ed;color:white;padding:7px 12px;font:700 12px system-ui;cursor:pointer;transition:filter .15s,transform .15s}.cm-account-toggle.cm-sign-out{background:#b8324e}.cm-account-toggle:hover{filter:brightness(1.18);transform:translateY(-1px)}.cm-account-toggle:focus-visible{outline:2px solid white;outline-offset:2px}.cm-login-email{display:block;width:100%;box-sizing:border-box;margin:8px 0 14px;padding:12px;border:1px solid #cbd5e1;border-radius:12px}
+/* Login actions: block layout prevents inline link padding from overlapping submit. */
+#assistente-siap-panel .cm-login-form { display: grid; gap: 12px; margin: 12px 0 0; }
+#assistente-siap-panel .cm-login-form label { display: block; margin: 0; }
+#assistente-siap-panel .cm-login-form .cm-login-email { height: auto; min-height: 44px; margin: 8px 0 0; }
+#assistente-siap-panel .cm-login-form > .cm-btn,
+#assistente-siap-panel .cm-login-form + a.cm-btn { display: flex; align-items: center; justify-content: center; width: 100%; box-sizing: border-box; min-height: 44px; margin: 0; text-align: center; text-decoration: none; line-height: 1.4; white-space: normal; }
+#assistente-siap-panel .cm-login-form + a.cm-btn { margin-top: 12px; }
+#assistente-siap-panel .cm-login-message { margin: 0; }
+#assistente-siap-panel .cm-login-message:empty { display: none; }
+#assistente-siap-panel .cm-login-form + a.cm-btn { border-color: transparent; border-radius: 14px; background: linear-gradient(100deg, #356ae6, #7a38ee); color: #fff; font-weight: 700; box-shadow: 0 5px 14px rgba(78, 66, 210, .2); }
+#assistente-siap-panel .cm-login-form + a.cm-btn:hover { background: linear-gradient(100deg, #285bd0, #6928db); color: #fff; box-shadow: 0 7px 18px rgba(78, 66, 210, .3); transform: translateY(-1px); }
+#assistente-siap-panel .cm-login-form + a.cm-btn:active { transform: translateY(0); }
+#assistente-siap-panel .cm-login-form + a.cm-btn:focus-visible { outline: 3px solid #b6c9ff; outline-offset: 3px; }
