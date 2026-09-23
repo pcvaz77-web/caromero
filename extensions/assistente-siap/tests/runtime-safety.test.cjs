@@ -8,6 +8,9 @@ const source = fs.readFileSync(path.join(__dirname, '../src/content.js'), 'utf8'
 test('estado visual persiste independente da execucao', () => {
   assert.match(source, /createShell\(stored\.panelOpen === true, false, stored\)/);
   assert.match(source, /data-action="minimize"[^\n]+setOpen\(false, false\)/);
+  assert.match(source, /function syncPanelSpace\(open\)/);
+  assert.match(source, /syncPanelSpace\(open\)/);
+  assert.doesNotMatch(source, /installDrag\(panel, panel\.querySelector/);
   assert.doesNotMatch(source, /function render\(\)[\s\S]{0,2500}panel\.hidden\s*=/);
 });
 

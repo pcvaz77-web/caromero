@@ -73,6 +73,7 @@
     createShell(stored.panelOpen === true, false, stored);
     refreshLicenseStatus();
     if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
+    window.addEventListener("resize", () => syncPanelSpace(!panel?.hidden));
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
     observeSiapUpdates();
@@ -198,11 +199,15 @@
     panel = root.querySelector("#assistente-siap-panel");
     const launcher = root.querySelector("#assistente-siap-launcher");
     launcher.hidden = open || closed;
-    applyStoredPosition(panel, stored.panelPosition);
     applyStoredPosition(launcher, stored.launcherPosition);
     installDrag(launcher, launcher, "launcherPosition", () => setOpen(true));
-    document.documentElement.classList.remove("assistente-siap-open");
+    syncPanelSpace(open);
     render();
+  }
+
+  function syncPanelSpace(open) {
+    const reserveSpace = !!open && innerWidth >= 980;
+    document.documentElement.classList.toggle("assistente-siap-open", reserveSpace);
   }
 
   function applyStoredPosition(element, position) {
@@ -336,7 +341,6 @@
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
-      installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
@@ -2109,7 +2113,7 @@
     const launcher = document.getElementById("assistente-siap-launcher");
     panel.hidden = !open;
     if (launcher) launcher.hidden = open || closed;
-    document.documentElement.classList.remove("assistente-siap-open");
+    syncPanelSpace(open);
     chrome.storage.local.set({ panelOpen: open, panelClosed: closed });
   }
 
