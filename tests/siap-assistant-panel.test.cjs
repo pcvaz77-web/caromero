@@ -89,6 +89,8 @@ test('concessoes permitem busca e preservam a escola aberta ao atualizar', () =>
   assert.match(css, /\.platform-siap-product-card/);
   assert.match(css, /\.platform-siap-user-email/);
   assert.match(css, /grid-template-columns:minmax\(102px,1fr\) auto auto/);
+  assert.match(css, /platform-siap-school-access \.platform-panel-head h4\{font-size:18px/);
+  assert.match(css, /min-width:min\(100%,330px\)/);
   assert.match(dashboard, /data-label="Cliente"/);
   assert.match(css, /\.platform-siap-customer-table thead\{display:none\}/);
 });
