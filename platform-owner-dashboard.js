@@ -449,8 +449,9 @@
 
   function renderExamGrant(member, grant, error) {
     const active = grant?.active === true;
-    const status = error ? 'Não foi possível consultar este acesso.' : active ? (grant.expires_at ? `Liberado até ${shortDate(grant.expires_at)}` : 'Acesso permanente') : grant?.revoked_at ? 'Concessão cancelada' : grant?.expires_at ? `Vencido em ${shortDate(grant.expires_at)}` : 'Sem acesso à correção';
-    return `<section class="platform-siap-product-card platform-exam-access" data-exam-access="${esc(member.user_id)}"><div class="platform-siap-product-head"><span class="platform-siap-product-icon" aria-hidden="true">✓</span><div><strong>Correção de Provas</strong><small>${esc(status)}</small></div></div>
+    const status = error ? 'Não foi possível consultar este acesso.' : active ? (grant.expires_at ? `Liberação até ${shortDate(grant.expires_at)}` : 'Acesso permanente') : grant?.revoked_at ? 'Concessão cancelada' : grant?.expires_at ? `Vencido em ${shortDate(grant.expires_at)}` : 'Sem acesso à correção';
+    const statusClass = active ? 'granted' : 'inactive';
+    return `<section class="platform-siap-product-card platform-exam-access" data-exam-access="${esc(member.user_id)}"><div class="platform-siap-product-head"><span class="platform-siap-product-icon" aria-hidden="true">✓</span><div><strong>Correção de Provas</strong><small class="platform-siap-product-status ${statusClass}">${esc(status)}</small></div></div>
       ${error ? '' : `<div class="platform-siap-grant-controls"><select aria-label="Prazo da Correção de Provas" data-exam-grant-period><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" aria-label="Data final da Correção de Provas" data-exam-grant-date><button type="button" class="btn primary" data-exam-grant>${active ? 'Renovar correção' : 'Conceder correção'}</button>${active ? '<button type="button" class="btn danger-outline" data-exam-revoke>Cancelar correção</button>' : ''}</div>`}</section>`;
   }
 
