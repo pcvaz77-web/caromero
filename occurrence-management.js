@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const style = document.createElement('style');
   style.textContent = `
-    #occurrenceRemarkModal.occurrence-remark-modal { z-index:240!important; }.occurrence-remark-dialog { width:min(520px,100%); }.occurrence-remark-dialog textarea { min-height:130px; }.occurrence-remarks { display:grid; gap:8px; margin-top:12px; }.occurrence-remark { padding:10px 12px; border-left:3px solid #4165eb; border-radius:6px; background:#f3f6ff; }.occurrence-remark b { font-size:12px; }.occurrence-remark p { margin:5px 0 0; white-space:pre-wrap; font-size:13px; }.occurrence-remark-action { background:#eef2ff; color:#214dba; }
+    #occurrenceRemarkModal.occurrence-remark-modal { z-index:240!important; }.occurrence-remark-dialog { width:min(520px,100%); }.occurrence-remark-dialog textarea { min-height:130px; }.occurrence-remarks { display:grid; gap:8px; margin-top:10px; }.occurrence-remark { padding:10px 12px; border-left:3px solid #4165eb; border-radius:6px; background:#f3f6ff; }.occurrence-remark b { font-size:12px; }.occurrence-remark p { margin:5px 0 0; white-space:pre-wrap; font-size:13px; }.occurrence-remark-action { background:#eef2ff; color:#214dba; }.occurrence-item-footer { border-top:1px solid #dbe4f5; margin-top:12px; padding-top:10px; }.occurrence-item-meta { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }.occurrence-item-meta .occurrence-responsible,.occurrence-item-meta .occurrence-updated { margin:0; }
     #occurrenceNav { border:0; background:#2b3c5d; color:#fff; } #occurrenceNav:hover { background:#38527e; }
     .occurrence-item-focused { outline:2px solid #2b3c5d; box-shadow:0 0 0 3px rgba(43,60,93,.18); }
     #occurrenceDeleteConfirmModal.occurrence-delete-confirm-modal,#occurrenceAttachmentModal.occurrence-attachment-modal { z-index:240!important; }.occurrence-delete-confirm-dialog { width:min(460px,100%); }.occurrence-delete-confirm-body { padding:20px 24px 24px; }.occurrence-delete-confirm-details { display:grid; gap:7px; margin:0 0 14px; }.occurrence-delete-confirm-details > div { display:flex; justify-content:space-between; align-items:baseline; gap:12px; font-size:13px; }.occurrence-delete-confirm-details dt { margin:0; color:var(--muted); font-weight:650; flex:0 0 auto; }.occurrence-delete-confirm-details dd { margin:0; font-weight:750; text-align:right; }.occurrence-delete-confirm-text { margin:0 0 16px; padding:10px 12px; border-left:3px solid #dbe4f5; border-radius:4px; background:#f8faff; font-size:13px; line-height:1.45; white-space:pre-wrap; color:#344054; }.occurrence-delete-confirm-warning { margin:0 0 16px; font-size:13px; font-weight:750; color:#b42318; }.occurrence-delete-confirm-actions { justify-content:flex-end; gap:10px; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit { background:#b42318; color:#fff; }.occurrence-delete-confirm-actions .occurrence-delete-confirm-submit:hover { background:#932016; }.occurrence-attachment-dialog { width:min(470px,100%); }.occurrence-attachment-body { padding:20px 24px 24px; }.occurrence-file-select { width:max-content; margin-top:8px; }.occurrence-attachment-draft { min-height:36px; margin-top:12px; padding:9px 11px; border:1px dashed #c9d6ee; border-radius:8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }.occurrence-attachment-dialog-actions { justify-content:flex-end; gap:8px; margin-top:18px; }
@@ -350,19 +350,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const remarks = [...(item.student_occurrence_remarks || [])]
       .sort((first, second) => first.created_at.localeCompare(second.created_at));
     return `<article class="occurrence-item" data-occurrence-id="${item.id}">
-      <div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)} · Registro às ${formatTime(item.created_at)}</span>
+      <div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)} · Registro às ${formatTime(item.created_at)} · Responsável: ${escape(item.created_by_name || 'Não informado')}</span>
         <div class="occurrence-item-actions">
           ${canRemarkOccurrence(item) ? `<button class="occurrence-remark-action" type="button" data-occurrence-remark="${item.id}">Fazer Ressalva</button>` : ''}
           ${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}
           ${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}
-        </div><span class="occurrence-item-student">${escape(item.students?.full_name || 'Aluno removido')} · ${escape(item.class_name || 'Turma não informada')}</span>
+        </div><span class="occurrence-item-student"><strong>${escape(item.students?.full_name || 'Aluno removido')}</strong> · ${escape(item.class_name || 'Turma não informada')}</span>
       </div>
       <div class="occurrence-item-text">${escape(item.occurrence_text)}</div>
       ${item.attachment_path ? `<button class="occurrence-item-attachment" type="button" data-occurrence-attachment="${item.id}">📎 Abrir ${escape(item.attachment_name || 'documento anexado')}</button>` : ''}
-      <div><span class="occurrence-responsible">Responsável: ${escape(item.created_by_name || 'Não informado')}</span><span class="occurrence-updated">Registrada em: ${formatDateTime(item.created_at)}</span>
-        ${item.updated_at ? `<span class="occurrence-updated">Última edição: ${escape(item.updated_by_name || 'Não informado')} — ${formatDateTime(item.updated_at)}</span>` : ''}
-      </div>
-      ${remarks.length ? `<section class="occurrence-remarks" aria-label="Ressalvas">${remarks.map(remark => `<div class="occurrence-remark"><b>Ressalva de ${escape(remark.created_by_name)} — ${formatDateTime(remark.created_at)}</b><p>${escape(remark.body)}</p></div>`).join('')}</section>` : ''}
+      ${item.updated_at || remarks.length ? `<footer class="occurrence-item-footer">
+      ${item.updated_at ? `<div class="occurrence-item-meta"><span class="occurrence-updated">Última edição: ${escape(item.updated_by_name || 'Não informado')} — ${formatDateTime(item.updated_at)}</span></div>` : ''}
+      ${remarks.length ? `<section class="occurrence-remarks" aria-label="Ressalvas">${remarks.map(remark => `<div class="occurrence-remark"><b>Ressalva de ${escape(remark.created_by_name)} — ${formatDateTime(remark.created_at)}</b><p>${escape(remark.body)}</p></div>`).join('')}</section>` : ''}</footer>` : ''}
     </article>`;
   }
 

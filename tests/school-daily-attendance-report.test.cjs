@@ -24,7 +24,7 @@ assert.match(reports, /FREQUÊNCIA DIÁRIA GERAL — SECRETARIA/);
 assert.match(reports, /HISTÓRICO DA FREQUÊNCIA DA SECRETARIA/);
 assert.match(reports, /Dias letivos: \$\{item\.school_day_count\}/);
 assert.match(reports, /school_daily_attendance: filters\.withSchoolDailyAttendance/);
-assert.match(index, /reports\.js\?v=15/);
+assert.match(index, /reports\.js\?v=16/);
 assert.ok(reports.indexOf('FREQUÊNCIA DIÁRIA GERAL — SECRETARIA') < reports.indexOf('FREQUÊNCIA POR PROFESSOR E DISCIPLINA'));
 
 console.log('Relatório exige escolha única entre frequência do professor e da Secretaria.');

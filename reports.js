@@ -293,10 +293,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const signature = JSON.stringify([studentIds, filters.start, filters.end]);
     if (signature === occurrenceSignature) return;
     const token = ++fetchToken;
-    // Mesma escola ativa usada em report_students — report_occurrences
+    // Mesma escola ativa usada em report_students — a RPC de detalhes
     // também reautoriza no servidor e restringe o resultado a alunos
     // dessa escola, nunca confiando só nos IDs enviados.
-    const { data, error, stale } = await fetchAllPages('report_occurrences', {
+    const { data, error, stale } = await fetchAllPages('report_occurrence_details', {
       p_school_id: filters.schoolId,
       p_student_ids: studentIds,
       p_start: filters.start,
@@ -619,6 +619,10 @@ document.addEventListener('DOMContentLoaded', () => {
     return value ? `${new Intl.DateTimeFormat('pt-BR').format(new Date(value))} ${new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit' }).format(new Date(value))}` : '';
   }
 
+  function formatTime(value) {
+    return value ? new Intl.DateTimeFormat('pt-BR', { hour:'2-digit', minute:'2-digit' }).format(new Date(value)) : '--:--';
+  }
+
   async function loadPhotoDataUrl(photoPath) {
     if (!photoPath) return null;
     try {
@@ -829,33 +833,41 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         records.forEach(record => {
           const continuationLabel = `Continuação — ${student.full_name}`;
-          y = ensureSpace(doc, y, 12, continuationLabel);
+          y = ensureSpace(doc, y, 18, continuationLabel);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(20, 32, 58);
-          doc.text(`${formatDate(record.occurred_on)} — Responsável: ${record.created_by_name || 'Não informado'}`, MARGIN_X, y);
-          y += 5;
-          // Autoria/data de criação nunca são substituídas por uma edição —
-          // esta linha reflete sempre o registro original (created_at real,
-          // com hora, vindo do banco), independente de a ocorrência já ter
-          // sido editada ou não.
-          doc.setFont('helvetica', 'normal');
-          doc.setFontSize(8.5);
-          doc.setTextColor(102, 112, 133);
-          y = ensureSpace(doc, y, 5, continuationLabel);
-          doc.text(`Registrado em: ${formatDateTime(record.created_at)}`, MARGIN_X, y);
-          y += 5;
-          if (record.updated_at) {
-            y = ensureSpace(doc, y, 5, continuationLabel);
-            doc.text(`Última edição: ${record.updated_by_name || 'Não informado'} — ${formatDateTime(record.updated_at)}`, MARGIN_X, y);
-            y += 5;
-          }
+          y = printLines(doc, doc.splitTextToSize(`${formatDate(record.occurred_on)} · Registro às ${formatTime(record.created_at)} · Responsável: ${record.created_by_name || 'Não informado'}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
+          doc.setFontSize(9);
+          y = printLines(doc, doc.splitTextToSize(student.full_name || 'Aluno', A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
           y += 1;
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10.5);
           doc.setTextColor(52, 64, 84);
           const split = doc.splitTextToSize(record.occurrence_text || '', A4_WIDTH - MARGIN_X * 2);
           y = printLines(doc, split, MARGIN_X, y, 5.4, continuationLabel);
+          const remarks = Array.isArray(record.remarks) ? record.remarks : [];
+          if (record.updated_at || remarks.length) {
+            y = ensureSpace(doc, y + 2, 8, continuationLabel);
+            doc.setDrawColor(219, 228, 245);
+            doc.line(MARGIN_X, y, A4_WIDTH - MARGIN_X, y);
+            y += 5;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(102, 112, 133);
+            if (record.updated_at) {
+              y = printLines(doc, doc.splitTextToSize(`Última edição: ${record.updated_by_name || 'Não informado'} — ${formatDateTime(record.updated_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+            }
+            for (const remark of remarks) {
+              y = ensureSpace(doc, y + 2, 10, continuationLabel);
+              doc.setFont('helvetica', 'bold');
+              y = printLines(doc, doc.splitTextToSize(`Ressalva de ${remark.created_by_name || 'Não informado'} — ${formatDateTime(remark.created_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(52, 64, 84);
+              y = printLines(doc, doc.splitTextToSize(remark.body || '', A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+              doc.setTextColor(102, 112, 133);
+            }
+          }
           y += 6;
         });
       }
