@@ -87,6 +87,34 @@ document.addEventListener('DOMContentLoaded', () => {
     .occurrence-remarks { margin-top:10px; }
     .occurrence-remark p { margin-top:8px; font-size:14px; line-height:1.55; }
     @media(max-width:800px) { #occurrenceModal.occurrence-modal { padding:0!important; align-items:stretch!important; }.occurrence-dialog { width:100vw; height:100dvh; max-height:100dvh; }.occurrence-dialog .modal-head { padding:14px 18px; }.occurrence-form { display:flex; flex-direction:column; padding:18px; }.occurrence-form > .occurrence-grid { order:0; }.occurrence-form > .occurrence-date-field { order:1; }.occurrence-form > .occurrence-attachment-field { order:2; }.occurrence-form > .field:not(.occurrence-date-field) { order:3; }.occurrence-form > .occurrence-actions { order:4; }.occurrence-form > .occurrence-date-filters { order:5; }.occurrence-form > .occurrence-history { order:6; }.occurrence-form textarea { min-height:220px; height:30dvh; }.occurrence-history { margin-top:26px; border-left:0; border-top:1px solid var(--line); padding:20px 0 0; }.occurrence-history-list { max-height:none; overflow:visible; padding-right:0; }.occurrence-item { padding:16px; }.occurrence-item-actions { margin-left:0; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; } }
+    .occurrence-dialog .modal-head { min-height:104px; border:0; color:#fff; background:linear-gradient(120deg,#174f9b 0%,#284eb6 55%,#4937c9 100%)!important; }
+    .occurrence-dialog .modal-head h3 { margin:0 0 6px; color:#fff; font-size:28px; line-height:1.15; font-weight:850; }
+    .occurrence-dialog .modal-head .meta { color:#fff; font-size:15px; line-height:1.35; font-weight:700; }
+    .occurrence-dialog #closeOccurrence { width:42px; height:42px; flex:none; display:grid; place-items:center; border-radius:12px; color:#fff; background:rgba(255,255,255,.16); font-size:28px; }
+    .occurrence-dialog #closeOccurrence:hover { background:rgba(255,255,255,.28); }
+    .occurrence-dialog .field label { display:block; margin-bottom:7px; color:#172b4d; font-size:14px; font-weight:800; }
+    .occurrence-dialog .field :is(input,select,textarea) { border:1px solid #c9d5ec; border-radius:12px; background:#f9fbff; color:#172b4d; box-shadow:0 1px 2px rgba(23,43,77,.04); }
+    .occurrence-dialog .field :is(input,select) { min-height:50px; padding:10px 14px; }
+    .occurrence-dialog .field textarea { padding:14px; line-height:1.55; }
+    .occurrence-dialog .field :is(input,select,textarea):focus-visible { outline:3px solid rgba(73,55,201,.24); outline-offset:1px; border-color:#4937c9; background:#fff; }
+    .occurrence-dialog .field :is(input,select):disabled { color:#667085; background:#f1f4fa; cursor:not-allowed; }
+    .occurrence-dialog .occurrence-attachment-picker,.occurrence-dialog #searchOccurrences,.occurrence-dialog #saveOccurrence { min-height:44px; padding:10px 16px; border:0; border-radius:10px; color:#fff; font-weight:800; box-shadow:0 3px 9px rgba(23,43,77,.16); }
+    .occurrence-dialog .occurrence-attachment-picker { background:#284eb6; }
+    .occurrence-dialog .occurrence-attachment-picker:hover { background:#1d3f9a; }
+    .occurrence-dialog #searchOccurrences { background:#172b4d; }
+    .occurrence-dialog #searchOccurrences:hover { background:#294985; }
+    .occurrence-dialog #saveOccurrence { background:#4937c9; }
+    .occurrence-dialog #saveOccurrence:hover { background:#3928a5; }
+    .occurrence-dialog .occurrence-item-actions button { border:0; color:#fff; box-shadow:0 2px 5px rgba(23,43,77,.14); }
+    .occurrence-dialog .occurrence-remark-action { background:#4937c9; }
+    .occurrence-dialog .occurrence-remark-action:hover { background:#3928a5; }
+    .occurrence-dialog .occurrence-edit { background:#284eb6; }
+    .occurrence-dialog .occurrence-edit:hover { background:#1d3f9a; }
+    .occurrence-dialog .occurrence-delete { background:#b42318; }
+    .occurrence-dialog .occurrence-delete:hover { background:#932016; }
+    .occurrence-dialog :is(#closeOccurrence,.occurrence-attachment-picker,#searchOccurrences,#saveOccurrence,.occurrence-item-actions button):focus-visible { outline:3px solid #8fb8ff; outline-offset:3px; }
+    .occurrence-dialog :is(#searchOccurrences,#saveOccurrence,.occurrence-attachment-picker,.occurrence-item-actions button):disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
+    @media(max-width:800px) { .occurrence-dialog .modal-head { min-height:96px; }.occurrence-dialog .modal-head h3 { font-size:24px; }.occurrence-dialog .modal-head .meta { font-size:14px; } }
   `;
   document.head.appendChild(style);
 
