@@ -833,14 +833,26 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         records.forEach(record => {
           const continuationLabel = `Continuação — ${student.full_name}`;
-          y = ensureSpace(doc, y, 18, continuationLabel);
+          const registrationDate = formatDateTime(record.created_at);
+          const registrationDay = (registrationDate || '').split(' ')[0] || 'Sem data';
+          const occurrenceDate = formatDate(record.occurred_on);
+          y = ensureSpace(doc, y, 23, continuationLabel);
           doc.setFont('helvetica', 'bold');
           doc.setFontSize(10);
           doc.setTextColor(20, 32, 58);
-          y = printLines(doc, doc.splitTextToSize(`${formatDate(record.occurred_on)} · Registro às ${formatTime(record.created_at)} · Responsável: ${record.created_by_name || 'Não informado'}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
+          y = printLines(doc, doc.splitTextToSize(`Registrada em ${registrationDay} às ${formatTime(record.created_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(8.5);
+          doc.setTextColor(102, 112, 133);
+          if (occurrenceDate !== registrationDay) {
+            y = printLines(doc, doc.splitTextToSize(`Data da ocorrência: ${occurrenceDate}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+          }
+          y = printLines(doc, doc.splitTextToSize(`Responsável: ${record.created_by_name || 'Não informado'}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+          doc.setFont('helvetica', 'bold');
           doc.setFontSize(9);
+          doc.setTextColor(20, 32, 58);
           y = printLines(doc, doc.splitTextToSize(student.full_name || 'Aluno', A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
-          y += 1;
+          y += 2;
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10.5);
           doc.setTextColor(52, 64, 84);
@@ -856,13 +868,21 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.setFontSize(8.5);
             doc.setTextColor(102, 112, 133);
             if (record.updated_at) {
-              y = printLines(doc, doc.splitTextToSize(`Última edição: ${record.updated_by_name || 'Não informado'} — ${formatDateTime(record.updated_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+              doc.setFont('helvetica', 'bold');
+              doc.setTextColor(20, 32, 58);
+              y = printLines(doc, ['Edição'], MARGIN_X, y, 4.5, continuationLabel);
+              doc.setFont('helvetica', 'normal');
+              doc.setTextColor(102, 112, 133);
+              y = printLines(doc, doc.splitTextToSize(`Responsável: ${record.updated_by_name || 'Não informado'} · ${formatDateTime(record.updated_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
             }
             for (const remark of remarks) {
               y = ensureSpace(doc, y + 2, 10, continuationLabel);
               doc.setFont('helvetica', 'bold');
-              y = printLines(doc, doc.splitTextToSize(`Ressalva de ${remark.created_by_name || 'Não informado'} — ${formatDateTime(remark.created_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
+              doc.setTextColor(20, 32, 58);
+              y = printLines(doc, ['Ressalva'], MARGIN_X, y, 4.5, continuationLabel);
               doc.setFont('helvetica', 'normal');
+              doc.setTextColor(102, 112, 133);
+              y = printLines(doc, doc.splitTextToSize(`Responsável: ${remark.created_by_name || 'Não informado'} · ${formatDateTime(remark.created_at)}`, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
               doc.setTextColor(52, 64, 84);
               y = printLines(doc, doc.splitTextToSize(remark.body || '', A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 4.5, continuationLabel);
               doc.setTextColor(102, 112, 133);

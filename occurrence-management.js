@@ -52,6 +52,41 @@ document.addEventListener('DOMContentLoaded', () => {
     @media(max-width:800px) { .occurrence-delete-confirm-dialog,.occurrence-attachment-dialog { width:100%; } .occurrence-delete-confirm-actions,.occurrence-attachment-dialog-actions { display:grid; grid-template-columns:1fr; gap:8px; } .occurrence-delete-confirm-actions .btn,.occurrence-attachment-dialog-actions .btn { width:100%; } }
     #occurrenceModal.occurrence-modal { z-index:230!important; }.occurrence-dialog { width:min(820px,100%); }.occurrence-grid { display:grid; grid-template-columns:1fr 1.4fr; gap:12px; }.occurrence-dates,.occurrence-search-fields { grid-template-columns:1fr 1fr; }.occurrence-date-field { max-width:260px; }.occurrence-date-filters { margin-top:14px; padding:14px; border:1px solid #dbe4f5; border-radius:10px; background:#f8faff; }.occurrence-date-filters .field { margin-bottom:7px; }.occurrence-form textarea { min-height:120px; }.occurrence-text-meta { display:flex; justify-content:space-between; gap:10px; margin-top:6px; color:var(--muted); font-size:12px; }.occurrence-attachment-field { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:12px; }.occurrence-attachment-picker { min-height:38px; }.occurrence-attachment-state { display:flex; align-items:center; flex-wrap:wrap; gap:8px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }.occurrence-attachment-state strong { color:#344054; }.occurrence-attachment-remove { border:0; background:#fff0ed; color:#b42318; border-radius:6px; padding:5px 8px; font-weight:750; cursor:pointer; }.occurrence-actions { justify-content:space-between; }.occurrence-history { margin-top:22px; border-top:1px solid var(--line); padding-top:18px; }.occurrence-history-head { display:flex; justify-content:space-between; gap:12px; margin-bottom:11px; }.occurrence-history-list { display:grid; gap:9px; max-height:290px; overflow:auto; padding-right:3px; }.occurrence-item { border:1px solid var(--line); border-radius:9px; padding:12px; background:#fafbfc; }.occurrence-item-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:7px; }.occurrence-item-date { color:#344054; font-size:13px; font-weight:800; }.occurrence-item-actions { display:flex; gap:6px; margin-left:auto; }.occurrence-item-actions button { min-height:29px; padding:5px 8px; border-radius:6px; font-size:12px; font-weight:750; }.occurrence-edit { background:#e8efff; color:#214dba; }.occurrence-delete { background:#fff0ed; color:#b42318; }.occurrence-item-student { color:var(--muted); font-size:12px; }.occurrence-item-text { white-space:pre-wrap; line-height:1.45; font-size:14px; }.occurrence-item-attachment { display:inline-flex; align-items:center; gap:6px; margin-top:10px; border:1px solid #c9d6ee; border-radius:8px; background:#f2f6ff; color:#214dba; padding:7px 10px; font-size:12px; font-weight:800; cursor:pointer; }.occurrence-responsible { display:inline-flex; width:max-content; max-width:100%; margin-top:9px; padding:4px 8px; border-radius:99px; background:#172b4d; color:#fff; font-size:11px; font-weight:800; line-height:1.25; overflow-wrap:anywhere; }.occurrence-updated { display:inline-flex; width:max-content; max-width:100%; margin-top:6px; margin-left:6px; padding:4px 8px; border-radius:99px; background:#eef2f8; color:#344054; font-size:11px; font-weight:750; line-height:1.25; overflow-wrap:anywhere; }.occurrence-empty { padding:23px 10px; color:var(--muted); text-align:center; }.occurrence-label { display:inline-flex; width:max-content; margin-top:6px; padding:4px 8px; border-radius:99px; background:#101828; color:#fff; font-size:11px; font-weight:800; line-height:1.15; }.occurrence-detail-label { align-items:center; justify-content:center; gap:10px; min-height:44px; margin-top:11px; padding:11px 16px; border:1px solid #294985; border-radius:10px; background:#172b4d; font-family:inherit; font-size:14px; font-weight:850; letter-spacing:.01em; cursor:pointer; box-shadow:0 3px 8px rgba(16,24,40,.22); transition:background-color .16s ease, transform .16s ease, box-shadow .16s ease; }.occurrence-detail-label::after { content:'→'; display:grid; place-items:center; width:23px; height:23px; border-radius:6px; background:rgba(255,255,255,.14); font-size:16px; line-height:1; }.occurrence-detail-label:hover { background:#294985; transform:translateY(-1px); box-shadow:0 5px 12px rgba(16,24,40,.28); }.occurrence-detail-label:active { transform:translateY(0); box-shadow:0 1px 3px rgba(16,24,40,.22); }.occurrence-detail-label:focus-visible { outline:3px solid #82aeff; outline-offset:3px; box-shadow:0 0 0 1px #fff; }
     @media(max-width:800px) { .side .nav #occurrenceNav { flex:1 1 0!important; min-width:0; }.occurrence-modal { padding:10px!important; align-items:center!important; }.occurrence-dialog { width:100%; max-height:calc(100dvh - 20px); }.occurrence-dialog .modal-head { padding:16px; }.occurrence-form { padding:16px; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; gap:0; }.occurrence-actions { display:grid; grid-template-columns:1fr; gap:8px; }.occurrence-actions .btn { width:100%; }.occurrence-text-meta { flex-direction:column; gap:3px; }.occurrence-history-list { max-height:34vh; }.occurrence-item-head { flex-direction:column; align-items:flex-start; gap:7px; }.occurrence-item-actions { flex-wrap:wrap; margin-left:0; }.occurrence-item-student { overflow-wrap:anywhere; } }
+    #occurrenceModal.occurrence-modal { inset:0!important; padding:0!important; align-items:stretch!important; overscroll-behavior:none; }
+    .occurrence-dialog { width:100vw; max-width:none; height:100dvh; max-height:100dvh; border-radius:0; display:flex; flex-direction:column; overflow:hidden; }
+    .occurrence-dialog .modal-head { flex:none; padding:18px 32px; }
+    .occurrence-form { flex:1; min-height:0; overflow-y:auto; display:grid; grid-template-columns:minmax(300px,.9fr) minmax(420px,1.1fr); gap:0 30px; align-content:start; padding:24px 32px 32px; }
+    .occurrence-form > :not(.occurrence-history) { grid-column:1; min-width:0; }
+    .occurrence-form > .occurrence-grid { grid-row:1; }
+    .occurrence-form > .occurrence-date-field { grid-row:2; max-width:none; }
+    .occurrence-form > .occurrence-attachment-field { grid-row:3; margin:0 0 18px; }
+    .occurrence-form > .field:not(.occurrence-date-field) { grid-row:4; }
+    .occurrence-form textarea { min-height:260px; height:min(38dvh,420px); resize:vertical; }
+    .occurrence-form > .occurrence-actions { grid-row:5; justify-content:flex-start; flex-wrap:wrap; margin-top:2px; }
+    .occurrence-form > .occurrence-date-filters { grid-row:6; }
+    .occurrence-history { grid-column:2; grid-row:1 / span 6; min-width:0; margin:0; border-top:0; border-left:1px solid var(--line); padding:0 0 0 30px; }
+    .occurrence-history-head { margin:0 0 16px; }
+    .occurrence-history-list { max-height:calc(100dvh - 170px); gap:16px; padding-right:8px; }
+    .occurrence-item { padding:20px 22px; background:#fff; box-shadow:0 2px 10px rgba(23,43,77,.05); }
+    .occurrence-item-head { display:grid; justify-content:stretch; gap:7px; margin-bottom:16px; }
+    .occurrence-item-date { font-size:14px; line-height:1.45; }
+    .occurrence-item-author { font-size:13px; color:#344054; }
+    .occurrence-item-author strong { color:#172b4d; }
+    .occurrence-item-fact-date { color:var(--muted); font-size:12px; }
+    .occurrence-item-student { font-size:13px; margin-top:3px; }
+    .occurrence-item-student strong { color:#172b4d; font-weight:800; }
+    .occurrence-item-text { font-size:15px; line-height:1.65; overflow-wrap:anywhere; }
+    .occurrence-item-actions { display:flex; flex-wrap:wrap; gap:8px; margin:16px 0 0; }
+    .occurrence-item-actions button { min-height:36px; padding:8px 12px; font-size:13px; }
+    .occurrence-item-footer { margin-top:18px; padding-top:14px; }
+    .occurrence-revision,.occurrence-remark { padding:12px 14px; border-radius:8px; background:#f5f7fc; }
+    .occurrence-revision { border-left:3px solid #64748b; }
+    .occurrence-remark { border-left:3px solid #4165eb; }
+    .occurrence-revision h4,.occurrence-remark h4 { margin:0 0 4px; font-size:13px; color:#172b4d; }
+    .occurrence-event-meta { font-size:12px; color:#475467; line-height:1.5; overflow-wrap:anywhere; }
+    .occurrence-remarks { margin-top:10px; }
+    .occurrence-remark p { margin-top:8px; font-size:14px; line-height:1.55; }
+    @media(max-width:800px) { #occurrenceModal.occurrence-modal { padding:0!important; align-items:stretch!important; }.occurrence-dialog { width:100vw; height:100dvh; max-height:100dvh; }.occurrence-dialog .modal-head { padding:14px 18px; }.occurrence-form { display:flex; flex-direction:column; padding:18px; }.occurrence-form > .occurrence-grid { order:0; }.occurrence-form > .occurrence-date-field { order:1; }.occurrence-form > .occurrence-attachment-field { order:2; }.occurrence-form > .field:not(.occurrence-date-field) { order:3; }.occurrence-form > .occurrence-actions { order:4; }.occurrence-form > .occurrence-date-filters { order:5; }.occurrence-form > .occurrence-history { order:6; }.occurrence-form textarea { min-height:220px; height:30dvh; }.occurrence-history { margin-top:26px; border-left:0; border-top:1px solid var(--line); padding:20px 0 0; }.occurrence-history-list { max-height:none; overflow:visible; padding-right:0; }.occurrence-item { padding:16px; }.occurrence-item-actions { margin-left:0; }.occurrence-grid,.occurrence-dates { grid-template-columns:1fr; } }
   `;
   document.head.appendChild(style);
 
@@ -349,19 +384,30 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderOccurrenceItem(item) {
     const remarks = [...(item.student_occurrence_remarks || [])]
       .sort((first, second) => first.created_at.localeCompare(second.created_at));
+    const registrationDate = formatDateTime(item.created_at);
+    const occurrenceDate = formatDate(item.occurred_on);
+    const registrationDay = (registrationDate || '').split(' ')[0] || 'Sem data';
+    const canRemark = canRemarkOccurrence(item);
+    const canEdit = canEditOccurrence(item);
+    const canDelete = canDeleteOccurrence(item);
     return `<article class="occurrence-item" data-occurrence-id="${item.id}">
-      <div class="occurrence-item-head"><span class="occurrence-item-date">${formatDate(item.occurred_on)} · Registro às ${formatTime(item.created_at)} · Responsável: ${escape(item.created_by_name || 'Não informado')}</span>
-        <div class="occurrence-item-actions">
-          ${canRemarkOccurrence(item) ? `<button class="occurrence-remark-action" type="button" data-occurrence-remark="${item.id}">Fazer Ressalva</button>` : ''}
-          ${canEditOccurrence(item) ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}
-          ${canDeleteOccurrence(item) ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}
-        </div><span class="occurrence-item-student"><strong>${escape(item.students?.full_name || 'Aluno removido')}</strong> · ${escape(item.class_name || 'Turma não informada')}</span>
-      </div>
+      <header class="occurrence-item-head">
+        <div class="occurrence-item-date">Registrada em ${registrationDay} às ${formatTime(item.created_at)}</div>
+        ${occurrenceDate !== registrationDay ? `<div class="occurrence-item-fact-date">Data da ocorrência: ${occurrenceDate}</div>` : ''}
+        <div class="occurrence-item-author">Responsável: <strong>${escape(item.created_by_name || 'Não informado')}</strong></div>
+        <div class="occurrence-item-student"><strong>${escape(item.students?.full_name || 'Aluno removido')}</strong> · ${escape(item.class_name || 'Turma não informada')}</div>
+      </header>
       <div class="occurrence-item-text">${escape(item.occurrence_text)}</div>
       ${item.attachment_path ? `<button class="occurrence-item-attachment" type="button" data-occurrence-attachment="${item.id}">📎 Abrir ${escape(item.attachment_name || 'documento anexado')}</button>` : ''}
+      ${canRemark || canEdit || canDelete ? `<div class="occurrence-item-actions">
+        ${canRemark ? `<button class="occurrence-remark-action" type="button" data-occurrence-remark="${item.id}">Fazer Ressalva</button>` : ''}
+        ${canEdit ? `<button class="occurrence-edit" type="button" data-occurrence-edit="${item.id}">Editar</button>` : ''}
+        ${canDelete ? `<button class="occurrence-delete" type="button" data-occurrence-delete="${item.id}">Excluir</button>` : ''}
+      </div>` : ''}
       ${item.updated_at || remarks.length ? `<footer class="occurrence-item-footer">
-      ${item.updated_at ? `<div class="occurrence-item-meta"><span class="occurrence-updated">Última edição: ${escape(item.updated_by_name || 'Não informado')} — ${formatDateTime(item.updated_at)}</span></div>` : ''}
-      ${remarks.length ? `<section class="occurrence-remarks" aria-label="Ressalvas">${remarks.map(remark => `<div class="occurrence-remark"><b>Ressalva de ${escape(remark.created_by_name)} — ${formatDateTime(remark.created_at)}</b><p>${escape(remark.body)}</p></div>`).join('')}</section>` : ''}</footer>` : ''}
+        ${item.updated_at ? `<section class="occurrence-revision" aria-label="Edição"><h4>Edição</h4><div class="occurrence-event-meta">Responsável: ${escape(item.updated_by_name || 'Não informado')} · ${formatDateTime(item.updated_at)}</div></section>` : ''}
+        ${remarks.length ? `<section class="occurrence-remarks" aria-label="Ressalvas">${remarks.map(remark => `<div class="occurrence-remark"><h4>Ressalva</h4><div class="occurrence-event-meta">Responsável: ${escape(remark.created_by_name || 'Não informado')} · ${formatDateTime(remark.created_at)}</div><p>${escape(remark.body)}</p></div>`).join('')}</section>` : ''}
+      </footer>` : ''}
     </article>`;
   }
 
