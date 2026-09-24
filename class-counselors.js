@@ -161,6 +161,19 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
+    const schoolId = window.getActiveSchoolId?.();
+    // O nome pode chegar enquanto as demais consultas de permissões e vínculos
+    // continuam. A RPC valida a escola ativa no servidor.
+    const labelsRequest = schoolId
+      ? db.rpc('list_school_class_counselor_labels', { target_school_id: schoolId }).then(result => {
+        if (!result.error && window.getActiveSchoolId?.() === schoolId) {
+          counselorLabels = result.data || [];
+          drawCounselorLabels();
+          drawCounselorTitle();
+        }
+        return result;
+      })
+      : Promise.resolve({ data: [], error: null });
     await refreshCounselorMembership();
     syncCounselorNavigation();
     await refreshOwnProfile(signedInUser.id);
@@ -171,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // "Gerenciar Conselheiros" nesta sessão.
     const [{ data, error }, { data: labels, error: labelsError }, usersResult] = await Promise.all([
       db.from('class_counselors').select('*').eq('school_id', counselorMembership.school_id),
-      db.rpc('list_school_class_counselor_labels', { target_school_id: counselorMembership.school_id }),
+      labelsRequest,
       counselorAuthorized
         ? db.rpc('list_counselor_candidates', { target_school_id: counselorMembership.school_id })
         : Promise.resolve({ data: null, error: null }),
@@ -182,6 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
       lastLoadError = loadError.message;
       return;
     }
+    if (window.getActiveSchoolId?.() !== counselorMembership.school_id) return;
     lastLoadError = '';
     if (counselorAuthorized && !usersResult.error) registeredUsers = usersResult.data || [];
     const previous = JSON.stringify(assignments);
@@ -296,8 +310,14 @@ document.addEventListener('DOMContentLoaded', () => {
     window.openCounselorManager();
   });
 
-  // Acrescenta o conselheiro sempre que a lista ou o card forem redesenhados.
-  // Assim a etiqueta não depende do intervalo de atualização do navegador.
+  // Recoloca o nome assim que o card é desenhado, inclusive quando o aluno é
+  // aberto diretamente. O nome já carregado não espera a atualização periódica.
+  const baseRenderStudentDetails = renderStudentDetails;
+  renderStudentDetails = (...args) => {
+    baseRenderStudentDetails(...args);
+    drawCounselorLabels();
+  };
+  // A lista de turmas e o título também são redesenhados por render().
   const baseRender = render;
   render = (...args) => {
     baseRender(...args);
