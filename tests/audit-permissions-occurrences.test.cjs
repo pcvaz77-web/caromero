@@ -25,7 +25,7 @@ test('coordenador recebe quatro checkboxes e so concede flags que possui',()=>{
 test('tela do coordenador usa o proprio vinculo quando diretorio retorna apenas professores',async()=>{
   const source=read('permissions-and-details.js'),nodes=new Map();
   const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
-  const rights={can_manage_member_permissions:true,can_add_students:true,can_edit_students:true,can_edit_guardian_contact:true,can_view_class_summary:true};
+  const rights={can_manage_member_permissions:true,can_edit_occurrences:true,can_delete_occurrences:true,can_add_students:true,can_edit_students:true,can_edit_guardian_contact:true,can_view_class_summary:true};
   const membership={id:'actor-member',user_id:'actor',school_id:'school',role:'coordinator',school_member_permissions:rights};
   const teacher={user_id:'teacher',member_id:'teacher-member',member_status:'active',role:'viewer',can_view_class_summary:true,profiles:{full_name:'Professor de teste'}};
   const context={user:{id:'actor'},permission:{role:'viewer',is_coordinator:true,can_manage_member_permissions:true},
@@ -36,7 +36,9 @@ test('tela do coordenador usa o proprio vinculo quando diretorio retorna apenas 
   vm.runInContext(between(source,'  const teacherPermissionOptions =','  // can_manage_counselors nunca entra'),context);
   await context.openPermissions();
   let html=get('permissionsList').innerHTML;
-  assert.equal((html.match(/type="checkbox"/g)||[]).length,4);
+  assert.equal((html.match(/type="checkbox"/g)||[]).length,6);
+  assert.match(html,/Editar ocorrências que registrou/);
+  assert.match(html,/Excluir ocorrências que registrou/);
   assert.doesNotMatch(html,/disabled/);
   assert.equal((html.match(/ checked /g)||[]).length,1);
   teacher.can_view_class_summary=false;await context.openPermissions();
@@ -74,15 +76,41 @@ test('professor ganha botao de ocorrencias quando permissoes carregam depois da 
   assert.equal(context.occurrenceButton.hidden,false,'revelar app resolve acesso mesmo sem nova carga');
 });
 
+test('editar e excluir dependem de flags separadas; ressalva pertence ao autor',()=>{
+  const source=read('occurrence-management.js');
+  const context={user:{id:'author'}};vm.createContext(context);
+  vm.runInContext("let occurrenceMembership={role:'teacher'}; let occurrencePermission={can_edit_occurrences:false,can_delete_occurrences:false};",context);
+  vm.runInContext(between(source,'  const isSchoolAdmin =','  async function teardownOccurrenceChannels'),context);
+  const action=(name,author)=>vm.runInContext(`${name}({created_by:'${author}'})`,context);
+  assert.equal(action('canEditOccurrence','author'),false);
+  assert.equal(action('canDeleteOccurrence','author'),false);
+  assert.equal(action('canRemarkOccurrence','author'),true);
+  assert.equal(action('canRemarkOccurrence','other'),false);
+  vm.runInContext('occurrencePermission.can_edit_occurrences=true',context);
+  assert.equal(action('canEditOccurrence','author'),true);
+  assert.equal(action('canDeleteOccurrence','author'),false);
+  assert.equal(action('canEditOccurrence','other'),false);
+  vm.runInContext("occurrenceMembership.role='coordinator'; occurrencePermission.can_edit_occurrences=false",context);
+  assert.equal(action('canRemarkOccurrence','author'),true);
+  assert.equal(action('canRemarkOccurrence','other'),false);
+  vm.runInContext('occurrencePermission.can_delete_occurrences=true',context);
+  assert.equal(action('canDeleteOccurrence','other'),true);
+  assert.equal(action('canEditOccurrence','other'),false);
+  vm.runInContext("occurrenceMembership.role='school_admin'",context);
+  assert.equal(action('canEditOccurrence','other'),true);
+  assert.equal(action('canDeleteOccurrence','other'),true);
+  assert.equal(action('canRemarkOccurrence','other'),true);
+});
+
 function occurrenceContext(queryResult){
   const nodes=new Map();const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const messages=[],deletedFiles=[];
   const context={get,user:{id:'actor'},window:{getActiveSchoolId:()=>context.school},school:'school-a',
     occurrenceMembership:{school_id:'school-a'},editingOccurrence:{id:'occ-1',created_by:'actor',attachment_path:'old-file'},pendingAttachment:null,removeAttachment:false,savingOccurrence:false,
     selectedClass:()=> 'class-a',selectedStudent:()=> 'student-a',classes:[{id:'class-a',name:'A'}],
-    canEditOccurrence:()=>true,canRegisterOccurrence:()=>true,canDeleteOccurrence:()=>true,canViewOccurrences:()=>true,
+    canEditOccurrence:()=>true,canRegisterOccurrence:()=>true,canDeleteOccurrence:()=>true,canRemarkOccurrence:()=>false,canViewOccurrences:()=>true,
     occurrenceStudentIds:new Set(),occurrenceCounts:new Map(),historyRecords:new Map(),historyRequest:0,labelRequest:0,
-    focusedHistoryStudentId:null,students:[],escape:value=>value,formatDate:value=>value,formatDateTime:value=>value,
+    focusedHistoryStudentId:null,students:[],escape:value=>value,formatDate:value=>value,formatDateTime:value=>value,formatTime:value=>value,
     crypto:{randomUUID:()=> 'new-id'},OCCURRENCE_ATTACHMENT_BUCKET:'occurrence-attachments',
     toast:value=>messages.push(value),paintStudentCards(){},publishOccurrenceLabelState(){},syncSaveAction(){},resetOccurrenceScreen(){},renderAttachmentState(){},refreshHistory:async()=>{},confirmOccurrenceDeletion:async()=>true,
     db:{from:()=>{const builder={};for(const method of ['select','update','insert','delete','eq','order','in','gte','lte','range','maybeSingle'])builder[method]=()=>builder;builder.then=(resolve,reject)=>Promise.resolve(typeof queryResult==='function'?queryResult():queryResult).then(resolve,reject);return builder;},storage:{from:()=>({remove:async paths=>{deletedFiles.push(...paths);return {error:null};}})}}
