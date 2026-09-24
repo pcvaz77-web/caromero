@@ -142,7 +142,7 @@
                 <article><span>3</span><div><h4>Licenças individuais</h4><p>Fonte de dados própria, sem reutilizar assinaturas ou permissões escolares.</p></div><b class="platform-badge active">Backend conectado</b></article>
                 <article><span>4</span><div><h4>Pagamentos</h4><p>Planos mensal e semestral integrados à confirmação de compra da Hotmart.</p></div><b class="platform-badge active">Hotmart integrada</b></article>
               </div>
-              <section class="platform-panel platform-siap-school-access"><div class="platform-panel-head"><div><h4>Permitir acesso por escola</h4><p>Abra uma escola e escolha individualmente quais usuários verão o botão Assistente SIAP.</p></div></div><div id="platformSiapSchoolAccess" class="platform-siap-school-list"><div class="meta">Carregando escolas e usuários…</div></div></section>
+              <section class="platform-panel platform-siap-school-access"><div class="platform-panel-head platform-siap-access-head"><div><h4>Concessões por escola</h4><p>Libere o Assistente SIAP e a Correção de Provas por usuário. As alterações ficam nesta lista.</p></div><label class="platform-siap-search"><span>Buscar professor</span><input id="platformSiapSchoolSearch" type="search" autocomplete="off" placeholder="Nome ou e-mail"></label></div><div id="platformSiapSchoolAccess" class="platform-siap-school-list"><div class="meta">Carregando escolas e usuários…</div></div></section>
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
@@ -252,6 +252,7 @@
 
   let cachedPlatformPlans = [];
   let showApplicationHistory = false;
+  const siapSchoolAccessState = { query:'', openSchools:new Set() };
 
   function closeDashboard() {
     document.getElementById('platformDashboardModal')?.classList.add('hidden');
@@ -370,6 +371,14 @@
     const examByUser = new Map(examGrants.map(grant => [grant.user_id, grant]));
     const target = document.getElementById('platformSiapSchoolAccess');
     if (!target) return;
+    const search = document.getElementById('platformSiapSchoolSearch');
+    if (search) {
+      search.value = siapSchoolAccessState.query;
+      search.oninput = event => {
+        siapSchoolAccessState.query = event.currentTarget.value;
+        renderSiapSchoolAccess(members, error, examGrants, examError);
+      };
+    }
     if (error) {
       target.innerHTML = '<div class="empty">A lista por escola ficará disponível após a aplicação da nova permissão.</div>';
       return;
@@ -384,14 +393,28 @@
       return;
     }
     const roleLabels = { school_admin:'Administrador(a)', coordinator:'Coordenador(a)', teacher:'Professor(a)', secretary:'Secretário(a)' };
-    target.innerHTML = [...grouped.entries()].map(([schoolId, school]) => `<details class="platform-siap-school" data-school-id="${esc(schoolId)}">
-      <summary><span><strong>${esc(school.name || 'Escola sem nome')}</strong><small>${esc(school.members.length)} usuário(s)</small></span><b>Ver usuários</b></summary>
-      <div class="platform-siap-school-users">${school.members.map(member => `<div class="platform-siap-school-user" data-siap-user-row="${esc(member.user_id)}">
-        <div><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')} · ${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small>Assinatura paga ativa</small>' : (member.owner_granted ? `<small>${member.grant_permanent ? 'Concessão permanente' : `${esc(member.days_remaining)} dia(s) restante(s) · até ${esc(shortDate(member.grant_expires_at))}`}</small>` : '<small>Sem concessão do proprietário</small>')}</div>
-        <div class="platform-siap-grant-controls">${member.owner_granted ? `<button type="button" class="btn danger-outline" data-siap-revoke="${esc(member.user_id)}">Cancelar concessão</button>` : `<select data-siap-grant-period="${esc(member.user_id)}"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" data-siap-grant-date="${esc(member.user_id)}"><button type="button" class="btn primary" data-siap-grant="${esc(member.user_id)}">Conceder</button>`}</div>
+    const query = siapSchoolAccessState.query.trim().toLocaleLowerCase('pt-BR');
+    const schools = [...grouped.entries()].map(([schoolId, school]) => ({
+      schoolId,
+      ...school,
+      visibleMembers: query ? school.members.filter(member => `${member.full_name || ''} ${member.email || ''}`.toLocaleLowerCase('pt-BR').includes(query)) : school.members
+    })).filter(school => school.visibleMembers.length);
+    target.innerHTML = schools.length ? schools.map(school => `<details class="platform-siap-school" data-school-id="${esc(school.schoolId)}" ${siapSchoolAccessState.openSchools.has(school.schoolId) ? 'open' : ''}>
+      <summary><span><strong>${esc(school.name || 'Escola sem nome')}</strong><small>${esc(school.visibleMembers.length)} de ${esc(school.members.length)} usuário(s) exibido(s)</small></span><b>${siapSchoolAccessState.openSchools.has(school.schoolId) ? 'Ocultar usuários' : 'Ver usuários'}</b></summary>
+      <div class="platform-siap-school-users">${school.visibleMembers.map(member => `<article class="platform-siap-school-user" data-siap-user-row="${esc(member.user_id)}">
+        <div class="platform-siap-user-identity"><strong>${esc(member.full_name || 'Nome não informado')}</strong><span>${esc(member.email || '')}</span><span class="platform-siap-role">${esc(roleLabels[member.member_role] || member.member_role)}${member.member_status !== 'active' ? ' · Vínculo suspenso' : ''}</span>${member.paid_active ? '<small class="platform-siap-access-status paid">Assinatura paga ativa</small>' : (member.owner_granted ? `<small class="platform-siap-access-status granted">${member.grant_permanent ? 'Concessão permanente' : `${esc(member.days_remaining)} dia(s) restante(s) · até ${esc(shortDate(member.grant_expires_at))}`}</small>` : '<small class="platform-siap-access-status inactive">Assistente SIAP não concedido</small>')}</div>
+        <div class="platform-siap-access-action"><span>Assistente SIAP</span><div class="platform-siap-grant-controls">${member.owner_granted ? `<button type="button" class="btn danger-outline" data-siap-revoke="${esc(member.user_id)}">Cancelar concessão</button>` : `<select aria-label="Prazo do Assistente SIAP" data-siap-grant-period="${esc(member.user_id)}"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select><input class="hidden" type="date" aria-label="Data final do Assistente SIAP" data-siap-grant-date="${esc(member.user_id)}"><button type="button" class="btn primary" data-siap-grant="${esc(member.user_id)}">Conceder</button>`}</div></div>
         ${renderExamGrant(member, examByUser.get(member.user_id), examError)}
-      </div>`).join('')}</div>
-    </details>`).join('');
+      </article>`).join('')}</div>
+    </details>`).join('') : '<div class="empty">Nenhum usuário encontrado com esse nome ou e-mail.</div>';
+    target.querySelectorAll('details[data-school-id]').forEach(details => {
+      details.ontoggle = () => {
+        if (details.open) siapSchoolAccessState.openSchools.add(details.dataset.schoolId);
+        else siapSchoolAccessState.openSchools.delete(details.dataset.schoolId);
+        const label = details.querySelector('summary b');
+        if (label) label.textContent = details.open ? 'Ocultar usuários' : 'Ver usuários';
+      };
+    });
     target.querySelectorAll('[data-exam-grant-period]').forEach(select => {
       select.onchange = () => select.closest('[data-exam-access]').querySelector('[data-exam-grant-date]').classList.toggle('hidden', select.value !== 'custom');
     });
@@ -406,6 +429,18 @@
     target.querySelectorAll('[data-siap-revoke]').forEach(button => {
       button.onclick = () => updateSiapAssistantAccess(button.dataset.siapRevoke, false, button);
     });
+  }
+
+  function captureSiapSchoolAccessState() {
+    const target = document.getElementById('platformSiapSchoolAccess');
+    if (!target) return;
+    siapSchoolAccessState.openSchools = new Set([...target.querySelectorAll('details[open][data-school-id]')].map(item => item.dataset.schoolId));
+  }
+
+  async function refreshSiapSchoolAccess() {
+    captureSiapSchoolAccessState();
+    const [members, grants] = await Promise.all([db.rpc('platform_list_siap_school_users'), db.rpc('platform_list_siap_exam_access')]);
+    renderSiapSchoolAccess(members.data || [], members.error, grants.data || [], grants.error);
   }
 
   function renderExamGrant(member, grant, error) {
@@ -429,16 +464,12 @@
       if (!['7','15','30','60','90'].includes(period)) return;
       expiresAt = new Date(Date.now() + Number(period) * 86400000).toISOString();
     }
-    const root = document.getElementById('platformSiapSchoolAccess');
-    const openSchools = [...root.querySelectorAll('details[open]')].map(el => el.dataset.schoolId);
     card.querySelectorAll('button').forEach(el => { el.disabled = true; });
     try {
       const result = await db.rpc('platform_set_siap_exam_access', {p_user_id:userId,p_enabled:enabled,p_expires_at:expiresAt});
       if (result.error) throw result.error;
       toast(enabled ? 'Correção de Provas liberada para esta conta.' : 'Acesso à Correção de Provas cancelado.');
-      const [members, grants] = await Promise.all([db.rpc('platform_list_siap_school_users'), db.rpc('platform_list_siap_exam_access')]);
-      renderSiapSchoolAccess(members.data || [], members.error, grants.data || [], grants.error);
-      root.querySelectorAll('details[data-school-id]').forEach(el => { el.open = openSchools.includes(el.dataset.schoolId); });
+      await refreshSiapSchoolAccess();
     } catch (error) { toast(error.message || 'Não foi possível atualizar a Correção de Provas.'); }
     finally { card.querySelectorAll('button').forEach(el => { el.disabled = false; }); }
   }
@@ -1181,8 +1212,11 @@
       if (error) throw error;
       if (refresh) {
         toast(enabled ? 'Acesso ao Assistente SIAP autorizado.' : 'Acesso ao Assistente SIAP revogado.');
-        await openDashboard();
-        showPlatformPage('siap');
+        if (document.getElementById('platformSiapSchoolAccess')) await refreshSiapSchoolAccess();
+        else {
+          await openDashboard();
+          showPlatformPage('siap');
+        }
       }
       return data;
     } catch (error) {

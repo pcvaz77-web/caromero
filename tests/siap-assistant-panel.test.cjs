@@ -25,7 +25,7 @@ test('nao carrega o modulo de importacao de frequencia', () => {
   const permissions = fs.readFileSync(path.join(__dirname, '../permissions-and-details.js'), 'utf8');
   assert.doesNotMatch(index, /siap-attendance-core\.js/);
   assert.match(index, /siap-integration\.js\?v=20/);
-  assert.match(index, /permissions-and-details\.js\?v=68/);
+  assert.match(index, /permissions-and-details\.js\?v=69/);
   assert.doesNotMatch(permissions, /siapCheck\(item,'can_import_siap_attendance','Importar frequência do SIAP'/);
   assert.match(permissions, /const commercialUpdates = key === 'can_edit_all'[\s\S]{0,180}secretaryPermissionFields : permissionFields/);
   assert.doesNotMatch(permissions, /setSiapPermission|Usar Assistente SIAP/);
@@ -42,7 +42,7 @@ test('exibe o botao somente com concessao do proprietario ou assinatura paga', (
   assert.match(dashboard, /Clientes e vencimentos/);
   assert.match(dashboard, /Novos em 30 dias/);
   assert.match(dashboard, /days_remaining/);
-  assert.match(dashboard, /Permitir acesso por escola/);
+  assert.match(dashboard, /Concessões por escola/);
   assert.match(dashboard, /platform_list_siap_school_users/);
   assert.match(dashboard, /data-siap-grant/);
   assert.match(migration, /not public\.is_platform_owner\(\)/);
@@ -67,6 +67,20 @@ test('lista usuarios por escola e mantem rolagem ate o final do painel', () => {
   assert.match(migration, /not public\.is_platform_owner\(\)/);
   assert.match(dashboard, /renderSiapSchoolAccess/);
   assert.match(css, /\.platform-content\s*\{[^}]*flex:1;[^}]*min-height:0;[^}]*overflow:auto/);
+});
+
+test('concessoes permitem busca e preservam a escola aberta ao atualizar', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../platform-owner-dashboard.js'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../platform-owner-dashboard.css'), 'utf8');
+  const updateAccess = dashboard.slice(dashboard.indexOf('async function updateSiapAssistantAccess'), dashboard.indexOf('async function lookupAccount'));
+  assert.match(dashboard, /platformSiapSchoolSearch/);
+  assert.match(dashboard, /Nome ou e-mail/);
+  assert.match(dashboard, /siapSchoolAccessState/);
+  assert.match(dashboard, /refreshSiapSchoolAccess/);
+  assert.match(updateAccess, /await refreshSiapSchoolAccess\(\)/);
+  assert.match(updateAccess, /if \(document\.getElementById\('platformSiapSchoolAccess'\)\) await refreshSiapSchoolAccess\(\)/);
+  assert.match(css, /\.platform-siap-search/);
+  assert.match(css, /\.platform-siap-school-user\{display:grid/);
 });
 
 test('permite concessao do Assistente por prazo ou permanente', () => {
