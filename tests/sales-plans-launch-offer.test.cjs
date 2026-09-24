@@ -46,7 +46,7 @@ test('oferta publica fica restrita a visitantes externos, fora do fluxo de convi
   assert.match(storefront, /carometro:known-account-or-invitation/);
   assert.match(storefront, /isExternalPublicPlansVisitor/);
   assert.match(storefront, /db\.auth\.getSession\(\)/);
-  assert.match(storefront, /readSubscriptionVisibilitySetting\(\) && await isExternalPublicPlansVisitor\(\)/);
+  assert.match(storefront, /publicPlansOpenedFromDirectLink \|\| await isExternalPublicPlansVisitor\(\)/);
   assert.match(storefront, /db\.auth\.onAuthStateChange/);
   assert.match(storefront, /loginFormShowsAccountIntent/);
   assert.match(storefront, /carometro-login-autofill-detected/);
@@ -66,6 +66,18 @@ test('dono pode visualizar a mesma página pública de vendas pelo painel de pla
   assert.match(styles, /\.platform-sales-preview-button/);
   assert.match(styles, /\.public-plans-modal \{[^}]*z-index:420!important/);
   assert.match(styles, /\.school-application-bg\{z-index:430!important/);
+});
+
+test('a vitrine de planos tem um link público curto e copiável', () => {
+  const redirects = read('_redirects');
+  assert.match(redirects, /^\/planos \/index\.html 200$/m);
+  assert.match(storefront, /const publicPlansPath = '\/planos'/);
+  assert.match(storefront, /publicPlansOpenedFromDirectLink/);
+  assert.match(storefront, /await openPublicPlansPreview\(\)/);
+  assert.match(dashboard, /id="platformCopyPublicPlansLink"/);
+  assert.match(dashboard, /new URL\('\/planos', window\.location\.origin\)\.href/);
+  assert.match(dashboard, /Link da página de planos copiado\./);
+  assert.match(styles, /\.platform-sales-actions/);
 });
 
 test('usa os termos comerciais solicitados com concordância correta', () => {

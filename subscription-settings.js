@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let publicPlans = [];
   let publicPlanFeatures = [];
   let loginIntentDetected = false;
+  const publicPlansPath = '/planos';
+  const publicPlansOpenedFromDirectLink = location.pathname.replace(/\/+$/, '') === publicPlansPath;
   const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
@@ -81,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function markLoginAccountIntent() {
     loginIntentDetected = true;
-    hidePublicPlansEntry();
+    if (!publicPlansOpenedFromDirectLink) hidePublicPlansEntry();
   }
 
   function detectAutofilledLogin() {
@@ -125,7 +127,13 @@ document.addEventListener('DOMContentLoaded', () => {
     </main>`;
   document.body.appendChild(publicPlansModal);
   publicPlansModal.querySelector('.public-plans-close').setAttribute('aria-label', 'Fechar página de planos');
-  publicPlansModal.querySelector('.public-plans-close').onclick = () => publicPlansModal.classList.add('hidden');
+  publicPlansModal.querySelector('.public-plans-close').onclick = () => {
+    if (publicPlansOpenedFromDirectLink) {
+      location.assign('/');
+      return;
+    }
+    publicPlansModal.classList.add('hidden');
+  };
 
   [loginEmail, loginPassword].filter(Boolean).forEach(field => {
     field.addEventListener('input', markLoginAccountIntent);
@@ -358,9 +366,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function refreshPublicPlansVisibility() {
-    const visible = await readSubscriptionVisibilitySetting() && await isExternalPublicPlansVisitor();
-    plansButton.classList.toggle('hidden', !visible);
+    const visible = await readSubscriptionVisibilitySetting()
+      && (publicPlansOpenedFromDirectLink || await isExternalPublicPlansVisitor());
+    plansButton.classList.toggle('hidden', !visible || publicPlansOpenedFromDirectLink);
     if (!visible) publicPlansModal.classList.add('hidden');
+    if (visible && publicPlansOpenedFromDirectLink) await openPublicPlansPreview();
     return visible;
   }
   refreshPublicPlansVisibility();
@@ -368,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
   db.auth.onAuthStateChange((_event, session) => {
     if (!session?.user) return;
     rememberKnownCarometroAudience();
-    hidePublicPlansEntry();
+    if (!publicPlansOpenedFromDirectLink) hidePublicPlansEntry();
   });
 
   const modal = document.createElement('div');

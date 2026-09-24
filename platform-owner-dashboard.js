@@ -150,7 +150,7 @@
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
             </section>
-            <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button></div><div id="platformPlansList" class="platform-plans-list"></div></section>
+            <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><div class="platform-sales-actions"><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button><button id="platformCopyPublicPlansLink" class="btn secondary platform-copy-sales-link" type="button"><span aria-hidden="true">⧉</span>Copiar link</button></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
             <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
             <section class="platform-page" data-platform-section="audit"><div class="platform-page-heading"><div><h3>Auditoria</h3><p>Operações administrativas registradas pela plataforma.</p></div></div>
           <section class="platform-panel">
@@ -206,6 +206,26 @@
       } finally {
         button.disabled = false;
       }
+    };
+    modal.querySelector('#platformCopyPublicPlansLink').onclick = async event => {
+      const button = event.currentTarget;
+      const link = new URL('/planos', window.location.origin).href;
+      try {
+        await navigator.clipboard.writeText(link);
+      } catch {
+        const field = document.createElement('textarea');
+        field.value = link;
+        field.setAttribute('readonly', '');
+        field.style.cssText = 'position:fixed;opacity:0;pointer-events:none';
+        document.body.appendChild(field);
+        field.select();
+        document.execCommand('copy');
+        field.remove();
+      }
+      const label = button.textContent;
+      button.textContent = 'Link copiado';
+      toast('Link da página de planos copiado.');
+      setTimeout(() => { button.textContent = label; }, 1800);
     };
     modal.querySelector('#platformToggleApplicationHistory').onclick = async () => {
       showApplicationHistory = !showApplicationHistory;
