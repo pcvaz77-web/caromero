@@ -81,6 +81,8 @@ test('concessoes permitem busca e preservam a escola aberta ao atualizar', () =>
   assert.match(updateAccess, /if \(document\.getElementById\('platformSiapSchoolAccess'\)\) await refreshSiapSchoolAccess\(\)/);
   assert.match(css, /\.platform-siap-search/);
   assert.match(css, /\.platform-siap-school-user\{display:grid/);
+  assert.match(dashboard, /data-label="Cliente"/);
+  assert.match(css, /\.platform-siap-customer-table thead\{display:none\}/);
 });
 
 test('permite concessao do Assistente por prazo ou permanente', () => {

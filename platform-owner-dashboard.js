@@ -357,13 +357,13 @@
     };
     const planLabel = item => item.plan_name || (item.owner_granted ? 'Concessão do proprietário' : (item.entitlement_type === 'trial' ? 'Teste gratuito' : 'Sem plano'));
     body.innerHTML = rows.map(item => `<tr>
-      <td><strong>${esc(item.full_name || 'Nome não informado')}</strong><span>${esc(item.email || '')}</span>${item.is_new_customer ? '<b class="platform-badge active">Novo</b>' : ''}</td>
-      <td>${item.owner_granted ? 'Autorização manual' : (item.entitlement_type === 'subscription' ? 'Assinatura' : 'Teste')}</td>
-      <td>${esc(planLabel(item))}</td>
-      <td>${item.customer_since ? esc(shortDate(item.customer_since)) : '—'}</td>
-      <td>${item.access_ends_at ? esc(shortDate(item.access_ends_at)) : 'Ainda não iniciado'}</td>
-      <td><strong>${item.days_remaining === null ? '—' : esc(item.days_remaining)}</strong></td>
-      <td><span class="platform-siap-customer-status ${esc(item.access_status)}">${esc(statusLabels[item.access_status] || item.access_status)}</span></td>
+      <td data-label="Cliente"><strong>${esc(item.full_name || 'Nome não informado')}</strong><span>${esc(item.email || '')}</span>${item.is_new_customer ? '<b class="platform-badge active">Novo</b>' : ''}</td>
+      <td data-label="Acesso">${item.owner_granted ? 'Autorização manual' : (item.entitlement_type === 'subscription' ? 'Assinatura' : 'Teste')}</td>
+      <td data-label="Plano">${esc(planLabel(item))}</td>
+      <td data-label="Início">${item.customer_since ? esc(shortDate(item.customer_since)) : '—'}</td>
+      <td data-label="Vencimento">${item.access_ends_at ? esc(shortDate(item.access_ends_at)) : 'Ainda não iniciado'}</td>
+      <td data-label="Dias restantes"><strong>${item.days_remaining === null ? '—' : esc(item.days_remaining)}</strong></td>
+      <td data-label="Situação"><span class="platform-siap-customer-status ${esc(item.access_status)}">${esc(statusLabels[item.access_status] || item.access_status)}</span></td>
     </tr>`).join('');
   }
 
