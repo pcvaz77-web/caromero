@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Planos | CARÔMETRO</title>
+</head>
+<body>
+  <script>
+    // Pages entrega este arquivo em /planos. Carregamos a mesma aplicação
+    // comercial sem alterar a URL curta compartilhada pelo visitante.
+    fetch('/', { cache: 'no-store' })
+      .then(response => response.text())
+      .then(html => {
+        document.open();
+        document.write(html);
+        document.close();
+      })
+      .catch(() => {
+        document.body.innerHTML = '<p>Não foi possível carregar os planos agora. Tente novamente em instantes.</p>';
+      });
+  </script>
+</body>
+</html>

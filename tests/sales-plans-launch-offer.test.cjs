@@ -69,8 +69,9 @@ test('dono pode visualizar a mesma página pública de vendas pelo painel de pla
 });
 
 test('a vitrine de planos tem um link público curto e copiável', () => {
-  const redirects = read('_redirects');
-  assert.match(redirects, /^\/planos \/index\.html 200$/m);
+  const plansPage = read('planos.html');
+  assert.match(plansPage, /fetch\('\/', \{ cache: 'no-store' \}\)/);
+  assert.match(plansPage, /document\.write\(html\)/);
   assert.match(storefront, /const publicPlansPath = '\/planos'/);
   assert.match(storefront, /publicPlansOpenedFromDirectLink/);
   assert.match(storefront, /await openPublicPlansPreview\(\)/);
