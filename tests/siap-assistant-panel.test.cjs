@@ -83,7 +83,10 @@ test('concessoes permitem busca e preservam a escola aberta ao atualizar', () =>
   assert.match(css, /\.platform-siap-school-user\{display:grid/);
   assert.match(dashboard, /platform-siap-user-avatar/);
   assert.match(dashboard, /platform-siap-product-grid/);
+  assert.match(dashboard, /Renovar concessão/);
+  assert.match(dashboard, /platform-siap-product-status/);
   assert.match(css, /\.platform-siap-product-card/);
+  assert.match(css, /\.platform-siap-user-email/);
   assert.match(dashboard, /data-label="Cliente"/);
   assert.match(css, /\.platform-siap-customer-table thead\{display:none\}/);
 });
