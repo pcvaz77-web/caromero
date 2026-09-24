@@ -8,8 +8,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let publicPlanFeatures = [];
   let loginIntentDetected = false;
   const publicPlansPath = '/planos';
-  const publicPlansOpenedFromDirectLink = location.pathname.replace(/\/+$/, '') === publicPlansPath;
+  const publicPlansOpenedFromDirectLink = location.pathname.replace(/\/+$/, '') === publicPlansPath
+    || new URLSearchParams(location.search).get('planos') === '1';
   const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
+
+  if (new URLSearchParams(location.search).get('planos') === '1') {
+    history.replaceState({}, document.title, publicPlansPath);
+  }
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
     setTimeout(() => toast('Pagamento recebido pela Hotmart. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
