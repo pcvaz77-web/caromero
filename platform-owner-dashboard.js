@@ -347,7 +347,7 @@
       ['Clientes acompanhados', rows.length],
       ['Ativos', active],
       ['Vencendo em breve', expiring],
-      ['Novos em 30 dias', newest],
+      ['Novos em 3 dias', newest],
       ['Assinaturas pagas', paid]
     ].map(([label,value]) => `<article><span>${esc(label)}</span><strong>${esc(value)}</strong></article>`).join('');
     if (!rows.length) {

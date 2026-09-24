@@ -40,7 +40,9 @@ test('exibe o botao somente com concessao do proprietario ou assinatura paga', (
   assert.match(dashboard, /platform_set_siap_assistant_access/);
   assert.match(dashboard, /platform_list_siap_assistant_customers/);
   assert.match(dashboard, /Clientes e vencimentos/);
-  assert.match(dashboard, /Novos em 30 dias/);
+  assert.match(dashboard, /Novos em 3 dias/);
+  const newCustomerMigration = fs.readFileSync(path.join(__dirname, '../supabase/migrations/125_siap_new_customer_three_days.sql'), 'utf8');
+  assert.match(newCustomerMigration, /effective_start >= now\(\)-interval '3 days'/);
   assert.match(dashboard, /days_remaining/);
   assert.match(dashboard, /Concessões por escola/);
   assert.match(dashboard, /platform_list_siap_school_users/);
