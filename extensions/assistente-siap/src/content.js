@@ -37,7 +37,7 @@
     shift: "cphFuncionalidade_cphCampos_txtTurno",
     classroom: "cphFuncionalidade_cphCampos_txtTurma"
   });
-  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false };
+  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false, activitySiteEnabled:false };
   let panel;
   let contentResumeTimer;
   let attendanceResumeTimer;
@@ -73,6 +73,8 @@
     // Na primeira utilização começa minimizado; depois preserva aberto/minimizado.
     createShell(stored.panelOpen === true, false, stored);
     refreshLicenseStatus();
+    refreshActivitySiteStatus();
+    window.addEventListener('focus', () => { if (!document.hidden) refreshActivitySiteStatus(); });
     if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
@@ -133,6 +135,14 @@
       lines.push(`${credits} crédito(s) disponível(is) · ${blocks} bloco(s) em andamento`);
     }
     return lines;
+  }
+
+  async function refreshActivitySiteStatus() {
+    try {
+      const result = await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS" });
+      model.activitySiteEnabled = result?.visible === true;
+    } catch { model.activitySiteEnabled = false; }
+    render();
   }
 
   function licenseCard() {
@@ -216,7 +226,7 @@
   function installDrag(element, handle, storageKey, activate) {
     let drag = null;
     handle.addEventListener("pointerdown", (event) => {
-      if (event.button !== 0 || event.target.closest("button") && handle !== element) return;
+      if (event.button !== 0 || event.target.closest("button,a") && handle !== element) return;
       if (storageKey === "panelPosition") clearPanelDialogShift();
       const rect = element.getBoundingClientRect();
       drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false };
@@ -371,12 +381,15 @@
       panel.innerHTML = `<header class="cm-head">
         <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-account-identity" hidden></span></div>
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
+        <a class="cm-activity-link" href="https://atividades.sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer" aria-label="Atividades para professores (abre em nova guia)" title="Atividades para professores" hidden>Atividades ↗</a>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
+    const activityLink = panel.querySelector('.cm-activity-link');
+    if (activityLink) activityLink.hidden = !(model.activitySiteEnabled && (model.license?.active === true || model.license?.examAccess?.active === true) && !model.sessionRequired);
     const identity = panel.querySelector('.cm-account-identity');
     if (identity) {
       identity.hidden = !model.accountEmail || model.sessionRequired;
@@ -397,7 +410,7 @@
           accountToggle.disabled = true;
           const result = await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_SIGN_OUT'}).catch(() => null);
           if (!result?.ok) { accountToggle.disabled = false; return; }
-          model.accountEmail = null; model.license = null; model.sessionRequired = true;
+          model.accountEmail = null; model.license = null; model.sessionRequired = true; model.activitySiteEnabled = false;
           lockAssistantAfterExpiry(); render();
         } else { model.sessionRequired = true; render(); panel.querySelector('.cm-login-email')?.focus(); }
       };
@@ -412,7 +425,7 @@
         const form=event.currentTarget, button=form.querySelector('button'), status=form.querySelector('.cm-login-message');
         button.disabled=true;status.textContent='Verificando acesso…';
         const result=await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:form.querySelector('.cm-login-email').value.trim()}).catch(()=>null);
-        if(result?.ok) {model.license=result.license;model.accountEmail=result.license.accountEmail;model.sessionRequired=false;render();return;}
+        if(result?.ok) {model.license=result.license;model.accountEmail=result.license.accountEmail;model.sessionRequired=false;render();refreshActivitySiteStatus();return;}
         button.disabled=false;
         const loginMessages = {
           no_active_access: 'Você não possui uma licença ativa.',
@@ -2582,6 +2595,7 @@
       if (!message.license) { model.accountEmail = null; window.SiapExamPanel?.resetAccount?.(); }
       if (model.license?.active !== true) lockAssistantAfterExpiry();
       render();
+      refreshActivitySiteStatus();
       respond({ ok:true });
       return;
     }

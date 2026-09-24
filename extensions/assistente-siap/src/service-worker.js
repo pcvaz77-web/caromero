@@ -1,6 +1,7 @@
 importScripts("exam-config.js", "exam-worker.js");
 const AI_ENDPOINT = "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft";
 const SUPABASE_ANON_KEY = "sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn";
+const ACTIVITY_SETTING_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/platform_settings?select=show_activity_site&id=eq.true";
 let accountGeneration = 0;
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
@@ -19,6 +20,15 @@ async function callAssistantApi(session, payload) {
   });
   const data = await response.json().catch(() => ({}));
   return { response, data };
+}
+
+async function readActivitySiteVisibility() {
+  const response = await fetch(ACTIVITY_SETTING_URL, {
+    headers:{ "apikey":SUPABASE_ANON_KEY }, cache:"no-store"
+  });
+  if (!response.ok) return false;
+  const rows = await response.json();
+  return Array.isArray(rows) && rows[0]?.show_activity_site === true;
 }
 
 async function readConnectedSession() {
@@ -136,6 +146,18 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 
   if (message?.type === "ASSISTENTE_SIAP_AI_STATUS") {
     readConnectedSession().then((session) => respond({ ok:true, connected:!!session, extensionVersion:EXTENSION_VERSION }));
+    return true;
+  }
+
+  if (message?.type === "ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS") {
+    const generation = accountGeneration;
+    readConnectedSession().then(async (session) => {
+      if (!session || generation !== accountGeneration) return respond({ visible:false });
+      try {
+        const visible = await readActivitySiteVisibility();
+        respond({ visible:visible && generation === accountGeneration });
+      } catch { respond({ visible:false }); }
+    }).catch(() => respond({ visible:false }));
     return true;
   }
 
