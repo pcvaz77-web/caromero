@@ -194,6 +194,9 @@
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;
     modal.querySelector('#platformAccountForm').onsubmit = lookupAccount;
     modal.querySelector('#platformShowSubscription').onchange = toggleShowSubscription;
+    modal.querySelector('[data-platform-section="settings"] .platform-panel').insertAdjacentHTML('beforeend',
+      '<div class="platform-settings-row"><div><h4>Site de atividades</h4><p>Exibir o botão para professores no Carômetro e para usuários do Assistente SIAP, em qualquer plano.</p><p id="platformShowActivitySiteError" class="error hidden" style="margin-top:8px"></p></div><label class="platform-switch"><input id="platformShowActivitySite" type="checkbox" aria-label="Exibir site de atividades"><span></span></label></div>');
+    modal.querySelector('#platformShowActivitySite').onchange = toggleShowActivitySite;
     modal.querySelector('#platformPreviewPublicPlans').onclick = async event => {
       const button = event.currentTarget;
       if (typeof window.openCarometroPublicPlansPreview !== 'function') {
@@ -766,6 +769,34 @@
       const { error } = await db.rpc('platform_set_subscription_visibility', { p_show_subscription: show });
       if (error) { checkbox.checked = !show; toast(error.message); return; }
       toast(show ? 'Planos exibidos na tela de login.' : 'Planos ocultados da tela de login.');
+    } finally {
+      checkbox.disabled = false;
+    }
+  }
+
+  function refreshShowActivitySiteToggle(result) {
+    const checkbox = document.getElementById('platformShowActivitySite');
+    const errorNote = document.getElementById('platformShowActivitySiteError');
+    if (!checkbox) return;
+    const unavailable = !!result.error || !result.data;
+    checkbox.checked = !unavailable && result.data.show_activity_site === true;
+    checkbox.disabled = unavailable;
+    errorNote?.classList.toggle('hidden', !unavailable);
+    if (errorNote && unavailable) errorNote.textContent = 'Não foi possível confirmar esta configuração agora. Tente novamente.';
+  }
+
+  async function toggleShowActivitySite(event) {
+    const checkbox = event.currentTarget;
+    const show = checkbox.checked;
+    checkbox.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_set_activity_site_visibility', { p_show_activity_site:show });
+      if (error) { checkbox.checked = !show; toast(error.message); return; }
+      toast(show ? 'Botão do site de atividades liberado.' : 'Botão do site de atividades ocultado.');
+      document.dispatchEvent(new CustomEvent('carometro:activity-site-setting-changed'));
+    } catch {
+      checkbox.checked = !show;
+      toast('Não foi possível atualizar o site de atividades agora.');
     } finally {
       checkbox.disabled = false;
     }
@@ -1843,7 +1874,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult, siapExamGrantsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult, siapExamGrantsResult, activitySettingsResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1858,7 +1889,8 @@
       db.rpc('platform_list_school_commercial_mappings'),
       db.rpc('platform_list_siap_assistant_customers'),
       db.rpc('platform_list_siap_school_users'),
-      db.rpc('platform_list_siap_exam_access')
+      db.rpc('platform_list_siap_exam_access'),
+      db.from('platform_settings').select('show_activity_site').eq('id', true).maybeSingle()
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1910,6 +1942,7 @@
     renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
     renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error, siapExamGrantsResult.data || [], siapExamGrantsResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
+    refreshShowActivitySiteToggle(activitySettingsResult);
 
   }
 
