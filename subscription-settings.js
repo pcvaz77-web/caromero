@@ -9,10 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let loginIntentDetected = false;
   const publicPlansPath = '/planos';
   const publicPlansOpenedFromDirectLink = location.pathname.replace(/\/+$/, '') === publicPlansPath
-    || new URLSearchParams(location.search).get('planos') === '1';
+    || new URLSearchParams(location.search).has('planos');
   const knownCarometroAudienceKey = 'carometro:known-account-or-invitation';
 
-  if (new URLSearchParams(location.search).get('planos') === '1') {
+  if (new URLSearchParams(location.search).has('planos')) {
     history.replaceState({}, document.title, publicPlansPath);
   }
 

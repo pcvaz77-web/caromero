@@ -70,13 +70,13 @@ test('dono pode visualizar a mesma página pública de vendas pelo painel de pla
 
 test('a vitrine de planos tem um link público curto e copiável', () => {
   const plansPage = read('planos.html');
-  assert.match(plansPage, /location\.replace\('\/\?planos=1'\)/);
+  assert.match(plansPage, /location\.replace\('\/\?planos'\)/);
   assert.match(storefront, /const publicPlansPath = '\/planos'/);
   assert.match(storefront, /publicPlansOpenedFromDirectLink/);
   assert.match(storefront, /history\.replaceState\(\{\}, document\.title, publicPlansPath\)/);
   assert.match(storefront, /await openPublicPlansPreview\(\)/);
   assert.match(dashboard, /id="platformCopyPublicPlansLink"/);
-  assert.match(dashboard, /new URL\('\/planos', window\.location\.origin\)\.href/);
+  assert.match(dashboard, /new URL\('\/\?planos', window\.location\.origin\)\.href/);
   assert.match(dashboard, /Link da página de planos copiado\./);
   assert.match(styles, /\.platform-sales-actions/);
 });

@@ -209,7 +209,7 @@
     };
     modal.querySelector('#platformCopyPublicPlansLink').onclick = async event => {
       const button = event.currentTarget;
-      const link = new URL('/planos', window.location.origin).href;
+      const link = new URL('/?planos', window.location.origin).href;
       try {
         await navigator.clipboard.writeText(link);
       } catch {
