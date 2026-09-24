@@ -17,11 +17,14 @@ function initializeActivitySiteLink() {
   let requestId = 0;
   async function refresh() {
     const currentRequest = ++requestId;
-    link.classList.add('hidden');
-    if (app.classList.contains('hidden') || window.getActiveSchoolRole?.() !== 'teacher') return;
+    if (app.classList.contains('hidden') || window.getActiveSchoolRole?.() !== 'teacher') {
+      link.classList.add('hidden');
+      return;
+    }
     try {
       const { data:{ user }, error:authError } = await db.auth.getUser();
-      if (authError || !user) return;
+      if (currentRequest !== requestId) return;
+      if (authError || !user) { link.classList.add('hidden'); return; }
       const { data, error } = await db.from('platform_settings')
         .select('show_activity_site').eq('id', true).maybeSingle();
       if (currentRequest !== requestId || app.classList.contains('hidden') || window.getActiveSchoolRole?.() !== 'teacher') return;
