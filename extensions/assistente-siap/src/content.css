@@ -63,6 +63,8 @@
 .cm-primary { border-color: #4f82df; background: linear-gradient(135deg, #4f82df, #6b9cf2); color: white; }
 .cm-primary:hover { background: linear-gradient(135deg, #3f72cf, #5f90e6); }
 .cm-full { grid-column: 1 / -1; }
+#assistente-siap-panel .cm-login-actions { display: grid; gap: 8px; margin-top: 14px; }
+#assistente-siap-panel .cm-login-actions > a.cm-btn { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; text-align: center; text-decoration: none; line-height: 1.4; white-space: normal; }
 .cm-note { margin-top: 9px !important; color: #65756f; font-size: 12px; }
 .cm-check { display: flex; gap: 8px; align-items: flex-start; margin: 10px 0; }
 .cm-option-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
