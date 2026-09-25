@@ -52,16 +52,17 @@ test('outra conta gratuita nao substitui o cartao da licenca concedida', async (
 
 
 test('sair remove as duas sessoes e exige reconexao explicita validada', async () => {
-  let calls=0;const updates=[];
-  const worker=startWorker({deviceToken:'old',expiresAt:Date.now()+60000},async()=>{
-    calls++;return {ok:true,status:200,json:async()=>({ok:true,deviceToken:'new',expiresAt:new Date(Date.now()+120000).toISOString(),license:{active:true,accountEmail:'new@example.com'}})};
+  const actions=[];const updates=[];
+  const worker=startWorker({deviceToken:'old',expiresAt:Date.now()+60000},async(_url,options)=>{
+    const action=JSON.parse(options.body).action;actions.push(action);
+    return {ok:true,status:200,json:async()=>action==='revoke_device_session' ? {ok:true} : {ok:true,deviceToken:'new',expiresAt:new Date(Date.now()+120000).toISOString(),license:{active:true,accountEmail:'new@example.com'}}};
   },message=>updates.push(message));
   assert.equal((await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'})).ok,true);
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
   const connect={type:'CAROMETRO_SIAP_CONNECT_INTERNAL',accessToken:'authenticated',expiresAt:Date.now()+60000};
   const sender={tab:{url:'https://sistemacarometro.com.br/'}};
   assert.equal((await worker(connect,sender)).code,'ASSISTANT_SIGNED_OUT');
-  assert.equal(calls,0);
+  assert.deepEqual(actions,['revoke_device_session']);
   assert.equal((await worker({...connect,explicit:true},sender)).ok,true);
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
   assert.equal(updates.at(-1).license.accountEmail,'new@example.com');
@@ -78,30 +79,35 @@ test('requisicao de conexao em andamento nao desfaz sair', async () => {
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
 });
 
-test('email direto consulta o servidor e conecta apenas resposta autorizada', async()=>{
-  let request;
-  const worker=startWorker(null,async(_url,options)=>{request=JSON.parse(options.body);return {ok:true,json:async()=>({ok:true,deviceToken:'credit-session',expiresAt:new Date(Date.now()+60000).toISOString(),license:{active:false,accountEmail:'paid@example.com',examAccess:{active:true}}})};});
-  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:' Paid@Example.com '});
-  assert.equal(request.action,'email_device_session');assert.equal(request.email,'paid@example.com');
-  assert.equal(result.ok,true);assert.equal(result.license.active,false);assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
-});
-test('email sem direito nao grava sessao e falha de rede nao libera acesso', async()=>{
-  for(const fetchImpl of [async()=>({ok:false,json:async()=>({ok:false,code:'no_active_access'})}),async()=>{throw Error('offline');}]) {
-    const worker=startWorker(null,fetchImpl);
-    assert.equal((await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:'none@example.com'})).ok,false);
-    assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
-  }
+test('email sem verificacao nao cria sessao nem consulta o servidor', async()=>{
+  let calls=0;
+  const worker=startWorker(null,async()=>{calls++;throw Error('fetch não esperado');});
+  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:'paid@example.com'});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'email_verification_required');
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  assert.equal(calls,0);
 });
 
-test('renova sessao expirada com email salvo sem pedir entrada novamente',async()=>{
+test('sessao expirada nao e renovada apenas com email salvo',async()=>{
   let calls=0;
-  const worker=startWorker({deviceToken:'expired',expiresAt:Date.now()-1000,accountEmail:'paid@example.com'},async()=>{
-    calls++;return {ok:true,json:async()=>({ok:true,deviceToken:'renewed',expiresAt:new Date(Date.now()+60000).toISOString()})};
-  });
-  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
-  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
-  assert.equal(calls,1);
-  await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'});
+  const worker=startWorker({deviceToken:'expired',expiresAt:Date.now()-1000,accountEmail:'paid@example.com'},async()=>{calls++;throw Error('fetch não esperado');});
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  assert.equal(calls,0);
+});
+
+test('sair retenta revogacao do token quando a rede volta',async()=>{
+  let calls=0;
+  const worker=startWorker({deviceToken:'token-to-revoke',expiresAt:Date.now()+60000},async(_url,options)=>{
+    assert.equal(JSON.parse(options.body).action,'revoke_device_session');
+    calls++;
+    if(calls===1) throw Error('offline');
+    return {ok:true,status:200,json:async()=>({ok:true})};
+  });
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_SIGN_OUT'})).ok,true);
   assert.equal(calls,1);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  assert.equal(calls,2);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
+  assert.equal(calls,2);
 });

@@ -25,7 +25,9 @@
   let currentSession = null;
   let accessStatus = null;
   let examStatus = null;
+  let pendingEmail = '';
   const extensionIds = [
+    'bfbjocbablljmknahhlkjhllpjmihibe',
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
     'mohcmojnkjjkphgjaogcbokjmnijmggl',
     'iobkgohpoeoimlhlgdeiojlghbhcijli'
@@ -43,7 +45,7 @@
     document.querySelector('.site-header .brand small').textContent='MINHA CONTA';
     document.querySelector('.account-copy .eyebrow').textContent='ACESSO AO ASSISTENTE';
     document.querySelector('.account-copy h1').textContent='Entre na sua conta';
-    document.getElementById('accountPageIntro').textContent='Use o e-mail da compra ou da concessão do Carômetro. Após confirmar o e-mail, verificaremos suas licenças e créditos.';
+    document.getElementById('accountPageIntro').textContent='Se você já entrou no Carômetro, sua conta será reconhecida aqui. Caso contrário, confirme o e-mail da compra pelo link enviado à sua caixa de entrada. Depois verificaremos suas licenças e créditos.';
     document.querySelector('.payment-methods').hidden=true;
     document.querySelector('.account-copy ul').hidden=true;
   }
@@ -251,7 +253,22 @@
     const email = document.getElementById('accountEmail').value.trim();
     const redirectTo = `${location.origin}${location.pathname}?plano=${encodeURIComponent(planKey)}`;
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
-    message('loginMessage', error ? 'Não foi possível enviar o link. Tente novamente.' : 'Link enviado. Confira seu e-mail para continuar.', !!error);
+    pendingEmail = error ? '' : email;
+    document.getElementById('accountCodeStep').hidden = !!error;
+    message('loginMessage', error ? 'Não foi possível enviar a confirmação. Tente novamente.' : 'Confira seu e-mail. Abra o link recebido ou digite o código, se houver.', !!error);
+  };
+  document.getElementById('verifyAccountCode').onclick = async () => {
+    const token = document.getElementById('accountOtp').value.trim();
+    if (!pendingEmail || !/^\d{6,8}$/.test(token)) {
+      message('loginMessage', 'Confira o código recebido no e-mail.', true);
+      return;
+    }
+    const { error } = await db.auth.verifyOtp({ email:pendingEmail, token, type:'email' });
+    if (error) {
+      message('loginMessage', 'Código inválido ou vencido. Confira o e-mail ou solicite outro.', true);
+      return;
+    }
+    await refresh();
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
   checkoutButton.onclick = async () => {

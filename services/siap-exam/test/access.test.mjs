@@ -27,7 +27,7 @@ function setup(){
  const members=[{school_id:'s1',school_name:'Escola A',user_id:'u1',full_name:'Professor Teste',member_role:'teacher',member_status:'active'},{school_id:'s2',school_name:'Escola B',user_id:'u1',full_name:'Professor Teste',member_role:'teacher',member_status:'active'}];
  w.esc=s=>String(s??'').replaceAll('<','&lt;');w.shortDate=s=>s.slice(0,10);w.toast=()=>{};
  w.db={rpc:async(name,args)=>{calls.push({name,args});return {data:name==='platform_list_siap_school_users'?members:name==='platform_list_siap_exam_access'?[{user_id:'u1',active:true,expires_at:null}]:{},error:null};}};
- w.eval(source.slice(source.indexOf('  function renderSiapSchoolAccess('),source.indexOf('  function limitLabel('))+';window.renderAccess=renderSiapSchoolAccess;window.updateAccess=updateExamAccess;');
+ w.eval('const siapSchoolAccessState = { query:"", openSchools:new Set() };'+source.slice(source.indexOf('  function renderSiapSchoolAccess('),source.indexOf('  function limitLabel('))+';window.renderAccess=renderSiapSchoolAccess;window.updateAccess=updateExamAccess;');
  w.renderAccess(members,null,[],null);return {w,calls,dom};
 }
 test('dono concede correção pela conta, mantém escola aberta e atualiza conta nas duas escolas',async()=>{

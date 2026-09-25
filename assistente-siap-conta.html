@@ -28,10 +28,14 @@
       <div id="accountLoading">Verificando sua conta…</div>
       <form id="loginForm" hidden>
         <h2>Entrar por e-mail</h2>
-        <p>Enviaremos um link seguro para confirmar seu acesso.</p>
+        <p>Enviaremos uma confirmação para seu e-mail. Se a mensagem trouxer um código, digite-o abaixo; o link de confirmação também funciona.</p>
         <p>Use o mesmo e-mail da compra na Hotmart ou da conta que recebeu a concessão pelo Carômetro.</p>
         <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
         <button class="button" type="submit">Enviar link de acesso</button>
+        <div id="accountCodeStep" hidden>
+          <label>Código recebido<input id="accountOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+          <button id="verifyAccountCode" class="button button-outline" type="button">Confirmar código</button>
+        </div>
         <p id="loginMessage" class="account-message" aria-live="polite"></p>
       </form>
       <div id="checkoutPanel" hidden>
@@ -56,6 +60,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=16"></script>
+  <script src="assistente-siap-conta.js?v=17"></script>
 </body>
 </html>

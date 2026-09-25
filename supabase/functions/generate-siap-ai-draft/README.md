@@ -4,8 +4,10 @@ Gera quatro campos pedagógicos para planejamento ou PEI usando a OpenAI.
 
 ## Garantias
 
-- exige sessão autenticada do Carômetro;
-- exige vínculo escolar ativo e `can_use_siap_assistant`, salvo administrador da escola;
+- aceita a sessão autenticada da conta no site ou uma sessão do Assistente criada a partir dela;
+- verifica a concessão individual do Carômetro, a assinatura paga ou os usos restantes do teste grátis;
+- não cria sessão a partir de um endereço de e-mail sem autenticação;
+- revoga no servidor a sessão persistente quando o usuário escolhe **Sair**;
 - rejeita origens não configuradas;
 - limita tamanho e quantidade de todos os campos;
 - solicita saída estruturada com exatamente quatro textos;

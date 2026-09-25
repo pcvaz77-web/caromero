@@ -169,6 +169,10 @@
   }
 
   async function consumeFeature(feature) {
+    if (model.license?.active === false) {
+      addLog("Seu acesso ao Assistente SIAP terminou. Confira sua licença antes de continuar.");
+      return false;
+    }
     if (!featureHasFreeUse(feature)) {
       addLog("O limite gratuito desta função terminou. Use o botão Assinar o Assistente SIAP.");
       return false;
@@ -412,32 +416,11 @@
           if (!result?.ok) { accountToggle.disabled = false; return; }
           model.accountEmail = null; model.license = null; model.sessionRequired = true; model.activitySiteEnabled = false;
           lockAssistantAfterExpiry(); render();
-        } else { model.sessionRequired = true; render(); panel.querySelector('.cm-login-email')?.focus(); }
+        } else { model.sessionRequired = true; render(); }
       };
     }
     if (model.sessionRequired) {
-      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><p>Use o e-mail da sua compra ou da concessão do Carômetro. O sistema verifica a assinatura, os créditos ou a concessão ativa para esse e-mail.</p><form class="cm-login-form"><label>E-mail<input class="cm-login-email cm-input" type="email" autocomplete="email" required></label><button class="cm-btn cm-primary cm-full" type="submit">Entrar</button><p class="cm-login-message" role="status"></p></form><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap#planos" target="_blank" rel="noopener">Ver planos e comprar acesso</a></section>';
-      const loginEmailInput=panel.querySelector('.cm-login-email');
-      loginEmailInput.oninvalid=()=>loginEmailInput.setCustomValidity(loginEmailInput.validity.valueMissing?'Informe seu e-mail.':'E-mail inválido. Confira o endereço digitado.');
-      loginEmailInput.oninput=()=>loginEmailInput.setCustomValidity('');
-      panel.querySelector('.cm-login-form').onsubmit = async event => {
-        event.preventDefault();
-        const form=event.currentTarget, button=form.querySelector('button'), status=form.querySelector('.cm-login-message');
-        button.disabled=true;status.textContent='Verificando acesso…';
-        const result=await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:form.querySelector('.cm-login-email').value.trim()}).catch(()=>null);
-        if(result?.ok) {model.license=result.license;model.accountEmail=result.license.accountEmail;model.sessionRequired=false;render();refreshActivitySiteStatus();return;}
-        button.disabled=false;
-        const loginMessages = {
-          no_active_access: 'Você não possui uma licença ativa.',
-          invalid_email: 'E-mail inválido. Confira o endereço digitado.',
-          forbidden_origin: 'Esta instalação do Assistente não está autorizada. Entre em contato com o suporte.',
-          account_check_failed: 'Não foi possível consultar sua licença agora. Tente novamente em instantes.',
-          device_session_create_failed: 'Não foi possível concluir sua entrada. Tente novamente.',
-          ASSISTANT_SIGNED_OUT: 'A entrada foi cancelada porque você saiu da conta.',
-          DEVICE_SESSION_INVALID: 'Não foi possível validar sua sessão. Tente entrar novamente.'
-        };
-        status.textContent=loginMessages[result?.code] || 'Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.';
-      };
+      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><p>Se você recebeu acesso pelo Carômetro, entre no Carômetro com sua conta e conecte a extensão na página aberta. Não é necessário confirmar o e-mail novamente. Para compra individual, confirme o e-mail pelo link enviado à sua caixa de entrada.</p><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/assistente-siap-conta.html?plano=account" target="_blank" rel="noopener noreferrer">Abrir minha conta e conectar</a><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap-conta.html?plano=trial" target="_blank" rel="noopener noreferrer">Experimentar grátis</a><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap.html#planos" target="_blank" rel="noopener noreferrer">Ver planos e comprar acesso</a></section>';
       updateOperationStatus();
       return;
     }

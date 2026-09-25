@@ -32,27 +32,25 @@ async function readActivitySiteVisibility() {
 }
 
 async function readConnectedSession() {
+  await retryPendingRevocation();
   if ((await chrome.storage.local.get("assistantSignedOut")).assistantSignedOut) return null;
   const { carometroAiDeviceSession } = await chrome.storage.local.get("carometroAiDeviceSession");
   const deviceExpiresAt = Number(carometroAiDeviceSession?.expiresAt || 0);
   if (typeof carometroAiDeviceSession?.deviceToken === "string" && deviceExpiresAt > Date.now() + 30000) return carometroAiDeviceSession;
-  if (carometroAiDeviceSession?.accountEmail) {
-    const generation=accountGeneration;
-    try {
-      const {response,data}=await callAssistantApi({},{action:'email_device_session',email:carometroAiDeviceSession.accountEmail});
-      if(generation!==accountGeneration || (await chrome.storage.local.get('assistantSignedOut')).assistantSignedOut) return null;
-      const nextExpiry=Date.parse(data.expiresAt||'');
-      if(response.ok && data.ok && typeof data.deviceToken==='string' && Number.isFinite(nextExpiry)) {
-        const renewed={deviceToken:data.deviceToken,expiresAt:nextExpiry,accountEmail:carometroAiDeviceSession.accountEmail};
-        await chrome.storage.local.set({carometroAiDeviceSession:renewed});return renewed;
-      }
-    } catch { /* Preserve the saved account for the next retry. */ }
-  }
   const { carometroAiSession } = await chrome.storage.session.get("carometroAiSession");
   const expiresAt = Number(carometroAiSession?.expiresAt || 0);
   return typeof carometroAiSession?.accessToken === "string" && expiresAt > Date.now() + 30000
     ? carometroAiSession
     : null;
+}
+
+async function retryPendingRevocation() {
+  const { pendingAssistantRevocation } = await chrome.storage.local.get("pendingAssistantRevocation");
+  if (typeof pendingAssistantRevocation !== "string" || !pendingAssistantRevocation) return;
+  try {
+    const { response } = await callAssistantApi({deviceToken:pendingAssistantRevocation}, {action:"revoke_device_session"});
+    if (response.ok || response.status === 401) await chrome.storage.local.remove("pendingAssistantRevocation");
+  } catch { /* Retentar quando o navegador voltar a consultar a sessão. */ }
 }
 
 async function renewLocalDeviceSession(session, data) {
@@ -75,28 +73,18 @@ async function broadcastLicense(license) {
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type === 'ASSISTENTE_SIAP_EMAIL_SIGN_IN') {
-    const email=typeof message.email==='string'?message.email.trim().toLowerCase():'';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254) {respond({ok:false,code:'invalid_email'});return;}
-    const generation=++accountGeneration;
-    (async()=>{
-      const {response,data}=await callAssistantApi({},{action:'email_device_session',email});
-      if(generation!==accountGeneration) return respond({ok:false,code:'ASSISTANT_SIGNED_OUT'});
-      if(!response.ok||!data?.ok) return respond({ok:false,code:data?.code||'LICENSE_CONNECTION_FAILED'});
-      const expiresAt=Date.parse(data.expiresAt||'');
-      if(typeof data.deviceToken!=='string'||!Number.isFinite(expiresAt)) return respond({ok:false,code:'DEVICE_SESSION_INVALID'});
-      await chrome.storage.session.remove('carometroAiSession');
-      await clearExamAccountState();
-      await chrome.storage.local.set({assistantSignedOut:false,carometroAiDeviceSession:{deviceToken:data.deviceToken,expiresAt,accountEmail:email}});
-      await broadcastLicense(data.license);respond({ok:true,license:data.license});
-    })().catch(()=>respond({ok:false,code:'LICENSE_CONNECTION_FAILED'}));return true;
+    respond({ok:false,code:'email_verification_required'});
+    return;
   }
   if (message?.type === 'ASSISTENTE_SIAP_SIGN_OUT') {
     (async () => {
       accountGeneration += 1;
-      await chrome.storage.local.set({assistantSignedOut:true});
+      const { carometroAiDeviceSession } = await chrome.storage.local.get('carometroAiDeviceSession');
+      await chrome.storage.local.set({assistantSignedOut:true,...(carometroAiDeviceSession?.deviceToken ? {pendingAssistantRevocation:carometroAiDeviceSession.deviceToken} : {})});
       await chrome.storage.local.remove('carometroAiDeviceSession');
       await chrome.storage.session.remove('carometroAiSession');
       await broadcastLicense(null);
+      await retryPendingRevocation();
       respond({ok:true});
     })().catch(() => respond({ok:false}));
     return true;
@@ -194,6 +182,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (license) await broadcastLicense(license);
         if (!response.ok || data?.ok !== true) {
           respond({ ok:false, code:data?.code || "FEATURE_ACCESS_FAILED", license, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : "Não foi possível validar o uso desta função." });
+          return;
+        }
+        if (session.deviceToken && (license?.active !== true || !["carometro", "subscription"].includes(license.mode))) {
+          respond({ ok:false, code:"license_expired", license, message:"Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." });
           return;
         }
         respond({ ok:true, license, usage:data?.usage || { allowed:true, unlimited:true } });

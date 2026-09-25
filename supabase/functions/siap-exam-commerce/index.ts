@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-const origins=()=> [...(Deno.env.get('ALLOWED_ORIGINS')||'').split(',').map(v=>v.trim()),...['fgpjjlikinpcjpmmjehbgbfonnbfibnc','mohcmojnkjjkphgjaogcbokjmnijmggl','iobkgohpoeoimlhlgdeiojlghbhcijli'].map(id=>'chrome-extension://'+id)];
+const origins=()=> [...(Deno.env.get('ALLOWED_ORIGINS')||'').split(',').map(v=>v.trim()),...['fgpjjlikinpcjpmmjehbgbfonnbfibnc','mohcmojnkjjkphgjaogcbokjmnijmggl','iobkgohpoeoimlhlgdeiojlghbhcijli','bfbjocbablljmknahhlkjhllpjmihibe'].map(id=>'chrome-extension://'+id)];
 const reply=(body:unknown,status=200,origin='')=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json','Cache-Control':'no-store',...(origins().includes(origin)?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info,x-assistant-session','Access-Control-Allow-Methods':'POST,OPTIONS','Vary':'Origin'}:{})}});
 Deno.serve(async request=>{
  const origin=request.headers.get('Origin')||'';
