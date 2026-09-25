@@ -9,7 +9,7 @@ const html = fs.readFileSync(path.join(root,'assistente-siap-conta.html'),'utf8'
 const script = fs.readFileSync(path.join(root,'assistente-siap-conta.js'),'utf8');
 const settle = () => new Promise(resolve => setTimeout(resolve,0));
 
-function accountPage(initialSession=null) {
+function accountPage(initialSession=null, accessStatus={active:true,mode:'carometro',daysRemaining:5}) {
   const dom = new JSDOM(html,{url:'https://sistemacarometro.com.br/assistente-siap-conta.html?plano=account',runScripts:'outside-only'});
   const {window} = dom;
   let session=initialSession;
@@ -23,7 +23,7 @@ function accountPage(initialSession=null) {
       signOut:async()=>{session=null;}
     },
     functions:{invoke:async()=>({data:{ok:true,access:{active:false}}})},
-    rpc:async()=>({data:{active:true,mode:'carometro',daysRemaining:5},error:null})
+    rpc:async()=>({data:accessStatus,error:null})
   };
   window.CAROMETRO_RUNTIME_CONFIG={supabaseUrl:'https://test.supabase.co',supabasePublishableKey:'test',siapAssistantStoreUrl:'https://example.com/extension'};
   window.supabase={createClient:()=>db};
@@ -38,6 +38,18 @@ test('concessão com login existente no Carômetro não exige novo código',asyn
   assert.equal(window.document.getElementById('checkoutPanel').hidden,false);
   assert.equal(window.document.getElementById('connectAssistantAccount').hidden,false);
   assert.deepEqual(calls,[]);
+  dom.window.close();
+});
+
+test('concessão permanente não aparece como zero dias restantes',async()=>{
+  const {dom,window}=accountPage(
+    {access_token:'carometro-session',expires_at:Math.floor(Date.now()/1000)+3600,user:{email:'professor@example.com'}},
+    {active:true,mode:'carometro',daysRemaining:null,permanent:true}
+  );
+  await settle();
+  const summary=window.document.getElementById('assistantAccessSummary').textContent;
+  assert.match(summary,/concessão permanente/);
+  assert.doesNotMatch(summary,/0 dia\(s\)/);
   dom.window.close();
 });
 

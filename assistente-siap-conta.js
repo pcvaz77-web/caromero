@@ -113,7 +113,7 @@
       checkoutButton.hidden = true;
       trialEndedLink.hidden = true;
       connectButton.hidden = false;
-      accessSummary.textContent = `Assinatura ativa${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
+      accessSummary.textContent = `Assinatura ativa${status.daysRemaining != null && Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
@@ -124,7 +124,7 @@
       checkoutButton.hidden = true;
       trialEndedLink.hidden = true;
       connectButton.hidden = false;
-      accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro${Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
+      accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro · ${status.permanent === true || status.daysRemaining == null ? 'concessão permanente' : `${Number(status.daysRemaining)} dia(s) restante(s)`}.`;
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
