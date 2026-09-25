@@ -115,6 +115,42 @@ document.addEventListener('DOMContentLoaded', () => {
     .occurrence-dialog :is(#closeOccurrence,.occurrence-attachment-picker,#searchOccurrences,#saveOccurrence,.occurrence-item-actions button):focus-visible { outline:3px solid #8fb8ff; outline-offset:3px; }
     .occurrence-dialog :is(#searchOccurrences,#saveOccurrence,.occurrence-attachment-picker,.occurrence-item-actions button):disabled { opacity:.55; cursor:not-allowed; box-shadow:none; }
     @media(max-width:800px) { .occurrence-dialog .modal-head { min-height:96px; }.occurrence-dialog .modal-head h3 { font-size:24px; }.occurrence-dialog .modal-head .meta { font-size:14px; } }
+    @media(max-width:1100px) {
+      .occurrence-form { display:flex; flex-direction:column; padding:24px clamp(18px,4vw,36px) 36px; }
+      .occurrence-form > .occurrence-grid { order:0; }
+      .occurrence-form > .occurrence-date-field { order:1; }
+      .occurrence-form > .occurrence-attachment-field { order:2; }
+      .occurrence-form > .field:not(.occurrence-date-field) { order:3; }
+      .occurrence-form > .occurrence-actions { order:4; }
+      .occurrence-form > .occurrence-date-filters { order:5; }
+      .occurrence-form > .occurrence-history { order:6; }
+      .occurrence-grid { grid-template-columns:minmax(0,1fr) minmax(0,1.25fr); gap:14px; }
+      .occurrence-history { margin-top:26px; padding:22px 0 0; border-left:0; border-top:1px solid var(--line); }
+      .occurrence-history-list { max-height:none; overflow:visible; padding-right:0; }
+      .occurrence-form textarea { min-height:240px; height:min(34dvh,360px); }
+    }
+    @media(max-width:600px) {
+      .occurrence-dialog .modal-head { min-height:100px; padding:16px; gap:12px; }
+      .occurrence-dialog .modal-head h3 { font-size:24px; }
+      .occurrence-dialog .modal-head .meta { font-size:14px; }
+      .occurrence-dialog #closeOccurrence { width:40px; height:40px; }
+      .occurrence-form { padding:20px 16px 32px; }
+      .occurrence-grid,.occurrence-dates,.occurrence-search-fields { grid-template-columns:minmax(0,1fr); gap:0; }
+      .occurrence-form .field { margin-bottom:15px; }
+      .occurrence-form textarea { min-height:210px; height:30dvh; }
+      .occurrence-attachment-field { display:grid; gap:8px; }
+      .occurrence-dialog .occurrence-attachment-picker { width:100%; }
+      .occurrence-dialog .occurrence-attachment-state { line-height:1.4; }
+      .occurrence-actions { display:grid; grid-template-columns:minmax(0,1fr); gap:9px; }
+      .occurrence-actions .btn { width:100%; min-height:48px; }
+      .occurrence-date-filters { padding:14px; }
+      .occurrence-history { margin-top:24px; padding-top:20px; }
+      .occurrence-item { padding:16px; }
+      .occurrence-item-actions button { min-height:44px; flex:1 1 120px; }
+      .occurrence-item-attachment { max-width:100%; overflow-wrap:anywhere; }
+      .occurrence-revision,.occurrence-remark { overflow-wrap:anywhere; }
+      .occurrence-text-meta { flex-direction:column; gap:4px; }
+    }
   `;
   document.head.appendChild(style);
 
