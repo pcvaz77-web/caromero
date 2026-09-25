@@ -642,10 +642,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  function drawReportHeader(doc, schoolName) {
+    const centerX = A4_WIDTH / 2;
+    let y = 17;
+    doc.setTextColor(20, 32, 58);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('Relatório individual do estudante', centerX, y, { align:'center' });
+    y += 7;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    const schoolLines = doc.splitTextToSize(schoolName, A4_WIDTH - MARGIN_X * 2);
+    doc.text(schoolLines, centerX, y, { align:'center' });
+    y += schoolLines.length * 5.2 + 3;
+    doc.setDrawColor(228, 231, 236);
+    doc.line(MARGIN_X, y, A4_WIDTH - MARGIN_X, y);
+    return y + 8;
+  }
+
   function ensureSpace(doc, y, needed, continuationLabel) {
     if (y + needed <= A4_HEIGHT - BOTTOM_MARGIN) return y;
     doc.addPage();
-    let top = 18;
+    let top = drawReportHeader(doc, doc.carometroReportSchoolName);
     if (continuationLabel) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
@@ -672,20 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function renderStudentPage(doc, student, filters, isFirst) {
     if (!isFirst) doc.addPage();
-    let y = 18;
-
-    doc.setTextColor(53, 106, 230);
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(11);
-    doc.text('CARÔMETRO', MARGIN_X, y);
-    doc.setTextColor(20, 32, 58);
-    doc.setFontSize(16);
-    y += 8;
-    doc.text('RELATÓRIO DO ALUNO', MARGIN_X, y);
-    y += 6;
-    doc.setDrawColor(228, 231, 236);
-    doc.line(MARGIN_X, y, A4_WIDTH - MARGIN_X, y);
-    y += 8;
+    let y = drawReportHeader(doc, filters.schoolName);
 
     let textX = MARGIN_X;
     const headStartY = y;
@@ -986,11 +991,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const timeStr = new Intl.DateTimeFormat('pt-BR', { timeStyle:'short' }).format(generatedAt);
     for (let page = 1; page <= total; page++) {
       doc.setPage(page);
+      doc.setDrawColor(228, 231, 236);
+      doc.line(MARGIN_X, A4_HEIGHT - 22, A4_WIDTH - MARGIN_X, A4_HEIGHT - 22);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
+      doc.setFontSize(7);
       doc.setTextColor(102, 112, 133);
-      doc.text(`Documento gerado pelo Carômetro • ${dateStr} às ${timeStr} • Gerado por: ${generatedByName}`, MARGIN_X, A4_HEIGHT - 8);
-      doc.text(`Página ${page} de ${total}`, A4_WIDTH - MARGIN_X, A4_HEIGHT - 8, { align:'right' });
+      const detailLines = doc.splitTextToSize(`Gerado em ${dateStr} às ${timeStr} · Responsável: ${generatedByName}`, A4_WIDTH - MARGIN_X * 2);
+      doc.text(detailLines, MARGIN_X, A4_HEIGHT - 14 - (detailLines.length - 1) * 3.2);
+      doc.text(`Página ${page} de ${total}`, MARGIN_X, A4_HEIGHT - 7);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(53, 106, 230);
+      doc.text('CARÔMETRO®', A4_WIDTH - MARGIN_X, A4_HEIGHT - 7, { align:'right' });
     }
   }
 
@@ -999,6 +1011,14 @@ document.addEventListener('DOMContentLoaded', () => {
   async function currentUserDisplayName() {
     const { data } = await db.from('profiles').select('full_name,email').eq('id', user.id).maybeSingle();
     return data?.full_name?.trim() || user.user_metadata?.full_name?.trim() || data?.email || user.email?.split('@')[0] || 'Usuário';
+  }
+
+  async function currentReportSchoolName(schoolId) {
+    const membership = window.getActiveSchoolMembership?.();
+    const activeName = membership?.school_id === schoolId ? membership.schools?.name?.trim() : null;
+    if (activeName) return activeName;
+    const { data, error } = await db.from('schools').select('name').eq('id', schoolId).maybeSingle();
+    return error ? null : data?.name?.trim() || null;
   }
 
   async function generateReport() {
@@ -1042,6 +1062,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
+    const schoolName = await currentReportSchoolName(filters.schoolId);
+    if (!schoolName) { toast('Não foi possível obter o nome da escola para o relatório. Tente novamente.'); return; }
 
     const generateButton = get('generateReport');
     generateButton.disabled = true;
@@ -1059,9 +1081,10 @@ document.addEventListener('DOMContentLoaded', () => {
       // Ano letivo do Livro/Revisa já vem de filters.livroRevisaYear (campo
       // próprio do formulário, lido em currentFilters()) — nunca mais fixo
       // no ano de geração do PDF, para permitir relatórios de anos anteriores.
-      const renderFilters = { ...filters, emittedAtLabel };
+      const renderFilters = { ...filters, schoolName, emittedAtLabel };
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit:'mm', format:'a4' });
+      doc.carometroReportSchoolName = schoolName;
 
       for (let index = 0; index < reportTargets.length; index++) {
         const student = reportTargets[index];
