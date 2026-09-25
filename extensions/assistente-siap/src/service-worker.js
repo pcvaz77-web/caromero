@@ -73,8 +73,22 @@ async function broadcastLicense(license) {
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (message?.type === 'ASSISTENTE_SIAP_EMAIL_SIGN_IN') {
-    respond({ok:false,code:'email_verification_required'});
-    return;
+    const email=typeof message.email==='string'?message.email.trim().toLowerCase():'';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254) {respond({ok:false,code:'invalid_email'});return;}
+    const generation=++accountGeneration;
+    (async()=>{
+      const {response,data}=await callAssistantApi({},{action:'email_device_session',email});
+      if(generation!==accountGeneration) return respond({ok:false,code:'ASSISTANT_SIGNED_OUT'});
+      if(!response.ok||!data?.ok) return respond({ok:false,code:data?.code||'LICENSE_CONNECTION_FAILED'});
+      const expiresAt=Date.parse(data.expiresAt||'');
+      if(typeof data.deviceToken!=='string'||!Number.isFinite(expiresAt)) return respond({ok:false,code:'DEVICE_SESSION_INVALID'});
+      await chrome.storage.session.remove('carometroAiSession');
+      await clearExamAccountState();
+      await chrome.storage.local.set({assistantSignedOut:false,carometroAiDeviceSession:{deviceToken:data.deviceToken,expiresAt,accountEmail:email}});
+      await broadcastLicense(data.license);
+      respond({ok:true,license:data.license});
+    })().catch(()=>respond({ok:false,code:'LICENSE_CONNECTION_FAILED'}));
+    return true;
   }
   if (message?.type === 'ASSISTENTE_SIAP_SIGN_OUT') {
     (async () => {

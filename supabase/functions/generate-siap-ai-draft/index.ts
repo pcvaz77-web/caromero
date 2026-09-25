@@ -1,3 +1,5 @@
+import { normalizeAccessEmail, emailAccessLicense } from './email-access.mjs'
+import { consumeDeviceFreeUse } from './device-free-use.mjs'
 import { examAccessForUser } from './exam-access.mjs'
 import { examBlockKey } from './exam-block.mjs'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -263,7 +265,19 @@ Deno.serve(async (request) => {
   const callerClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authorization } } })
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth:{ autoRefreshToken:false, persistSession:false } })
   if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string,unknown>).action === 'email_device_session') {
-    return json(request,{ok:false,code:'email_verification_required'},403);
+    const email=normalizeAccessEmail((rawBody as Record<string,unknown>).email)
+    if (!email) return json(request,{ok:false,code:'invalid_email'},400)
+    const {data:accountId,error:lookupError}=await admin.rpc('siap_assistant_resolve_access_email',{p_email:email})
+    if (lookupError) return json(request,{ok:false,code:'account_check_failed'},503)
+    if (!accountId) return json(request,{ok:false,code:'no_active_access'},403)
+    const general=await accessStatusForUser(admin,accountId)
+    const exam=await examAccessForUser(admin,accountId)
+    const access=emailAccessLicense(general,exam,email)
+    if (!access) return json(request,{ok:false,code:'no_active_access'},403)
+    const token=createSessionToken(), expiresAt=new Date(Date.now()+30*86400000).toISOString()
+    const {error}=await admin.from('siap_assistant_device_sessions').insert({user_id:accountId,token_hash:await sessionTokenHash(token),expires_at:expiresAt})
+    if (error) return json(request,{ok:false,code:'device_session_create_failed'},503)
+    return json(request,{ok:true,deviceToken:token,expiresAt,license:access})
   }
   const deviceToken = cleanText(request.headers.get('X-Assistant-Session'), 200)
   let userId = ''
@@ -278,7 +292,6 @@ Deno.serve(async (request) => {
     }
     userId = deviceSession.user_id
     license = await accessStatusForUser(admin, userId)
-    if (license.mode === 'external') license = {...license, active:false, freeUses:null}
     await admin.from('siap_assistant_device_sessions').update({ last_used_at:new Date().toISOString(), expires_at:new Date(Date.now() + 30 * 86400000).toISOString() }).eq('id', deviceSession.id)
   } else {
     const { data: { user } } = await callerClient.auth.getUser()
@@ -330,10 +343,15 @@ Deno.serve(async (request) => {
     return json(request, { ok: true, license, deviceExpiresAt:deviceToken ? new Date(Date.now() + 30 * 86400000).toISOString() : undefined })
   }
   if (rawBody && typeof rawBody === 'object' && (rawBody as Record<string, unknown>).action === 'consume_feature') {
-    if (deviceToken) return json(request, { ok:false, code:'device_action_not_supported' }, 400)
     const feature = cleanText((rawBody as Record<string, unknown>).feature, 20)
     if (!['planning','content','attendance','pei'].includes(feature)) return json(request, { ok:false, code:'invalid_feature' }, 400)
-    const { data:usage, error:usageError } = await callerClient.rpc('consume_siap_assistant_feature', { p_feature_key:feature })
+    let usage, usageError
+    if (deviceToken) {
+      try { usage=await consumeDeviceFreeUse(admin,userId,feature,accessStatusForUser) } catch { usageError=true }
+    } else {
+      const result=await callerClient.rpc('consume_siap_assistant_feature', { p_feature_key:feature })
+      usage=result.data; usageError=result.error
+    }
     if (usageError) return json(request, { ok:false, code:'usage_check_failed' }, 500)
     return usage?.allowed === true
       ? json(request, { ok:true, usage, license:usage.access ?? license })
@@ -388,9 +406,13 @@ Deno.serve(async (request) => {
     : cleanList(parsed.fields, 4, 900)
   if (fields.length !== 4) return json(request, { ok: false, code: 'invalid_model_output' }, 502)
 
-  const { data:usage, error:usageError } = deviceToken
-    ? { data:{ allowed:true, unlimited:true, remaining:null, access:license }, error:null }
-    : await callerClient.rpc('consume_siap_assistant_feature', { p_feature_key:featureKey })
+  let usage, usageError
+  if (deviceToken) {
+    try { usage=await consumeDeviceFreeUse(admin,userId,featureKey,accessStatusForUser) } catch { usageError=true }
+  } else {
+    const result=await callerClient.rpc('consume_siap_assistant_feature', { p_feature_key:featureKey })
+    usage=result.data; usageError=result.error
+  }
   if (usageError) return json(request, { ok: false, code: 'usage_check_failed' }, 500)
   if (usage?.allowed !== true) return json(request, { ok: false, code: 'free_limit_reached', license:usage?.access ?? license }, 402)
 

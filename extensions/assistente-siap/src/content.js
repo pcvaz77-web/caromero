@@ -420,7 +420,20 @@
       };
     }
     if (model.sessionRequired) {
-      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><p>Se você recebeu acesso pelo Carômetro, entre no Carômetro com sua conta e conecte a extensão na página aberta. Não é necessário confirmar o e-mail novamente. Para compra individual, confirme o e-mail pelo link enviado à sua caixa de entrada.</p><div class="cm-login-actions"><a class="cm-btn cm-primary" href="https://sistemacarometro.com.br/assistente-siap-conta.html?plano=account" target="_blank" rel="noopener noreferrer">Abrir minha conta e conectar</a><a class="cm-btn" href="https://sistemacarometro.com.br/assistente-siap-conta.html?plano=trial" target="_blank" rel="noopener noreferrer">Experimentar grátis</a><a class="cm-btn" href="https://sistemacarometro.com.br/assistente-siap.html#planos" target="_blank" rel="noopener noreferrer">Ver planos e comprar acesso</a></div></section>';
+      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><form class="cm-login-form"><label>E-mail<input class="cm-login-email cm-input" type="email" autocomplete="email" required></label><button class="cm-btn cm-primary cm-full" type="submit">Entrar</button><p class="cm-login-message" role="status"></p></form><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap.html#planos" target="_blank" rel="noopener noreferrer">Conhecer planos</a></section>';
+      const loginEmailInput=panel.querySelector('.cm-login-email');
+      loginEmailInput.oninvalid=()=>loginEmailInput.setCustomValidity(loginEmailInput.validity.valueMissing?'Informe seu e-mail.':'E-mail inválido. Confira o endereço digitado.');
+      loginEmailInput.oninput=()=>loginEmailInput.setCustomValidity('');
+      panel.querySelector('.cm-login-form').onsubmit=async event=>{
+        event.preventDefault();
+        const form=event.currentTarget, button=form.querySelector('button'), status=form.querySelector('.cm-login-message');
+        button.disabled=true;status.textContent='Verificando acesso…';
+        const result=await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:loginEmailInput.value.trim()}).catch(()=>null);
+        if(result?.ok){model.license=result.license;model.accountEmail=result.license.accountEmail;model.sessionRequired=false;render();refreshActivitySiteStatus();return;}
+        button.disabled=false;
+        const messages={invalid_email:'E-mail inválido. Confira o endereço digitado.',no_active_access:'Você não tem permissão para entrar. Conheça os planos abaixo.',forbidden_origin:'Esta instalação do Assistente não está autorizada.',account_check_failed:'Não foi possível consultar seu acesso agora. Tente novamente.',device_session_create_failed:'Não foi possível concluir sua entrada. Tente novamente.'};
+        status.textContent=messages[result?.code]||'Não foi possível verificar o acesso. Tente novamente.';
+      };
       updateOperationStatus();
       return;
     }

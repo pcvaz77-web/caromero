@@ -79,14 +79,21 @@ test('requisicao de conexao em andamento nao desfaz sair', async () => {
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
 });
 
-test('email sem verificacao nao cria sessao nem consulta o servidor', async()=>{
-  let calls=0;
-  const worker=startWorker(null,async()=>{calls++;throw Error('fetch não esperado');});
-  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:'paid@example.com'});
-  assert.equal(result.ok,false);
-  assert.equal(result.code,'email_verification_required');
+test('e-mail com licença ativa entra e persiste a sessão do Assistente', async()=>{
+  const worker=startWorker(null,async(_url,options)=>{
+    assert.deepEqual(JSON.parse(options.body),{action:'email_device_session',email:'paid@example.com'});
+    return {ok:true,status:200,json:async()=>({ok:true,deviceToken:'paid-token',expiresAt:new Date(Date.now()+120000).toISOString(),license:{active:true,mode:'subscription',accountEmail:'paid@example.com'}})};
+  });
+  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:' PAID@example.com '});
+  assert.equal(result.ok,true);
+  assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,true);
+});
+
+test('e-mail sem acesso recebe negativa e não cria sessão',async()=>{
+  const worker=startWorker(null,async()=>({ok:false,status:403,json:async()=>({ok:false,code:'no_active_access'})}));
+  const result=await worker({type:'ASSISTENTE_SIAP_EMAIL_SIGN_IN',email:'unknown@example.com'});
+  assert.equal(result.code,'no_active_access');
   assert.equal((await worker({type:'ASSISTENTE_SIAP_AI_STATUS'})).connected,false);
-  assert.equal(calls,0);
 });
 
 test('sessao expirada nao e renovada apenas com email salvo',async()=>{
