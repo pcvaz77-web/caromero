@@ -76,6 +76,7 @@
             <button type="button" data-platform-page="applications"><span class="platform-nav-icon">✉</span>Novos clientes</button>
             <button type="button" data-platform-page="subscriptions"><span class="platform-nav-icon">▣</span>Assinaturas</button>
             <button type="button" data-platform-page="siap"><span class="platform-nav-icon">✦</span>Assistente SIAP</button>
+            <button type="button" data-platform-page="communications"><span class="platform-nav-icon">✉</span>Comunicações</button>
             <button type="button" data-platform-page="plans"><span class="platform-nav-icon">☆</span>Planos</button>
             <button type="button" data-platform-page="contacts"><span class="platform-nav-icon">♧</span>Responsáveis</button>
             <button type="button" data-platform-page="audit"><span class="platform-nav-icon">◷</span>Auditoria</button>
@@ -149,6 +150,10 @@
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
+            </section>
+            <section class="platform-page" data-platform-section="communications">
+              <div class="platform-page-heading"><div><h3>Comunicações</h3><p>Crie qualquer comunicado do Carômetro, revise o público e acompanhe os envios.</p></div></div>
+              <div id="platformCommunicationsRoot"></div>
             </section>
             <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><div class="platform-sales-actions"><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button><button id="platformCopyPublicPlansLink" class="btn secondary platform-copy-sales-link" type="button"><span aria-hidden="true">⧉</span>Copiar link</button></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
             <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
@@ -270,6 +275,7 @@
     applications: ['Novos clientes', 'Analise solicitações recebidas pela página de planos.'],
     subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
     siap: ['Assistente SIAP', 'Prepare e acompanhe o produto independente.'],
+    communications: ['Comunicações', 'Crie comunicados e envie somente para pessoas que aceitaram recebê-los.'],
     plans: ['Planos', 'Configure o catálogo comercial da plataforma.'],
     contacts: ['Responsáveis pela assinatura', 'Gerencie os contatos comerciais das escolas.'],
     audit: ['Auditoria', 'Consulte as operações administrativas recentes.'],
@@ -302,6 +308,7 @@
     workspace?.classList.remove('menu-open');
     if (!window.matchMedia('(max-width: 800px)').matches) workspace?.classList.add('menu-collapsed');
     modal.querySelector('.platform-content')?.scrollTo({ top:0, behavior:'smooth' });
+    if (page === 'communications') window.openPlatformCommunications?.();
   }
 
   function currency(value) {

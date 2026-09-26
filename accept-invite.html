@@ -27,7 +27,7 @@
   </script>
   <script src="carometro-config.js?v=3"></script>
   <style>
-    :root{--navy:#17233a;--blue:#356ae6;--muted:#667085;--line:#d0d5dd;--danger:#b42318;--success:#08784b}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#eef3ff,#f8faff);color:var(--navy);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.card{width:min(460px,100%);padding:34px;border:1px solid #e4e7ec;border-radius:18px;background:#fff;box-shadow:0 18px 46px #1b31531a}.logo{font-weight:850;font-size:18px;margin-bottom:30px}.mark{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:8px;border-radius:10px;background:#82aeff;color:#14203a}h1{margin:0 0 8px;font-size:24px}p{margin:0 0 16px;color:var(--muted);line-height:1.5}.preview,.note{background:#f4f7ff;border-radius:10px;padding:16px;margin-bottom:18px}.preview b,.preview span{display:block}.field{margin-bottom:15px}label{display:block;margin-bottom:7px;font-size:14px;font-weight:700}input{width:100%;min-height:46px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font:inherit}.btn{width:100%;min-height:46px;border:0;border-radius:9px;background:var(--blue);color:#fff;font:inherit;font-weight:750;cursor:pointer}.btn:disabled{opacity:.65}.btn.secondary{margin-top:10px;background:#fff;border:1px solid var(--line);color:var(--navy)}.error{color:var(--danger);font-size:14px}.success{color:var(--success);font-weight:700}.hidden{display:none!important}
+    :root{--navy:#17233a;--blue:#356ae6;--muted:#667085;--line:#d0d5dd;--danger:#b42318;--success:#08784b}*{box-sizing:border-box}body{min-height:100vh;margin:0;display:grid;place-items:center;padding:24px;background:linear-gradient(145deg,#eef3ff,#f8faff);color:var(--navy);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.card{width:min(460px,100%);padding:34px;border:1px solid #e4e7ec;border-radius:18px;background:#fff;box-shadow:0 18px 46px #1b31531a}.logo{font-weight:850;font-size:18px;margin-bottom:30px}.mark{display:inline-grid;place-items:center;width:32px;height:32px;margin-right:8px;border-radius:10px;background:#82aeff;color:#14203a}h1{margin:0 0 8px;font-size:24px}p{margin:0 0 16px;color:var(--muted);line-height:1.5}.preview,.note{background:#f4f7ff;border-radius:10px;padding:16px;margin-bottom:18px}.preview b,.preview span{display:block}.field{margin-bottom:15px}label{display:block;margin-bottom:7px;font-size:14px;font-weight:700}input{width:100%;min-height:46px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;font:inherit}.choice{display:flex;align-items:flex-start;gap:10px;font-size:14px;line-height:1.4;font-weight:500}.choice input{width:18px;min-height:18px;flex:0 0 18px;margin:2px 0}.communications-consent{padding:15px;border:1px solid var(--line);border-radius:10px;margin-bottom:16px}.communications-consent h2{font-size:16px;margin:0 0 9px}.communications-consent p{font-size:13px;margin:0 0 10px}.btn{width:100%;min-height:46px;border:0;border-radius:9px;background:var(--blue);color:#fff;font:inherit;font-weight:750;cursor:pointer}.btn:disabled{opacity:.65}.btn.secondary{margin-top:10px;background:#fff;border:1px solid var(--line);color:var(--navy)}.error{color:var(--danger);font-size:14px}.success{color:var(--success);font-weight:700}.hidden{display:none!important}
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -53,6 +53,13 @@
             <div class="field" id="onboardingNameField"><label for="onboardingName">Nome completo</label><input id="onboardingName" autocomplete="name"></div>
             <div class="field" id="onboardingPasswordField"><label for="onboardingPassword">Senha</label><input id="onboardingPassword" minlength="8" type="password" autocomplete="new-password"></div>
             <div class="field" id="onboardingPasswordConfirmField"><label for="onboardingPasswordConfirm">Confirmar senha</label><input id="onboardingPasswordConfirm" minlength="8" type="password" autocomplete="new-password"></div>
+            <div class="communications-consent">
+              <h2>Novidades e avisos do Carômetro</h2>
+              <p>Estas opções são facultativas e podem ser alteradas depois. O número não será usado para comunicar dados de alunos.</p>
+              <div class="field"><label for="onboardingWhatsApp">Seu WhatsApp, se desejar informar</label><input id="onboardingWhatsApp" type="tel" inputmode="tel" autocomplete="tel" placeholder="(61) 99999-9999"></div>
+              <label class="choice"><input id="onboardingEmailUpdates" type="checkbox">Aceito receber novidades, avisos e orientações do Carômetro por e-mail.</label>
+              <label class="choice"><input id="onboardingWhatsAppUpdates" type="checkbox">Aceito receber novidades, avisos e orientações do Carômetro pelo WhatsApp informado.</label>
+            </div>
             <button id="onboardingSubmit" class="btn">Concluir cadastro e continuar</button>
           </form>
           <button id="continueBtn" class="btn hidden" type="button">Continuar com esta conta</button>
@@ -78,7 +85,7 @@
   </main>
   <script>
     if (window.CAROMETRO_RUNTIME_CONFIG?.backendConfigured) {
-      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=9"><\/script>');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=10"><\/script>');
     } else {
       document.getElementById('fatal').textContent = 'O ambiente comercial ainda está em preparação.';
       document.getElementById('fatal').classList.remove('hidden');

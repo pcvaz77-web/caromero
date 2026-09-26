@@ -17,6 +17,13 @@ function invitationToken() {
 const token = invitationToken();
 const normalizeEmail = value => String(value || '').trim().toLowerCase();
 const validName = value => String(value || '').trim().length >= 2;
+function normalizeWhatsApp(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, '');
+  const full = (digits.length === 10 || digits.length === 11) ? '55' + digits : digits;
+  return /^\+?[1-9][0-9]{7,14}$/.test('+' + full) ? '+' + full : null;
+}
 
 function showError(id, message) {
   $(id).textContent = message;
@@ -273,8 +280,25 @@ $('onboardingForm').onsubmit = async event => {
   if (needsPassword && $('onboardingPassword').value !== $('onboardingPasswordConfirm').value) {
     showError('sessionError', 'As duas senhas precisam ser iguais.'); return;
   }
+  const phoneInput = $('onboardingWhatsApp').value.trim();
+  const phone = normalizeWhatsApp(phoneInput);
+  const emailUpdates = $('onboardingEmailUpdates').checked;
+  const whatsappUpdates = $('onboardingWhatsAppUpdates').checked;
+  if (phoneInput && !phone) { showError('sessionError', 'Informe um WhatsApp válido com DDD.'); return; }
+  if (whatsappUpdates && !phone) { showError('sessionError', 'Informe seu WhatsApp para receber novidades por esse canal.'); return; }
   busy(true);
   try {
+    if (phone || emailUpdates || whatsappUpdates) {
+      const { data: { user } } = await db.auth.getUser();
+      if (!user) { showError('sessionError', 'Sua sessão expirou. Entre novamente.'); return; }
+      const { error: preferencesError } = await db.from('platform_communication_preferences').upsert({
+        user_id: user.id,
+        whatsapp_e164: phone,
+        email_updates: emailUpdates,
+        whatsapp_updates: whatsappUpdates
+      }, { onConflict: 'user_id' });
+      if (preferencesError) { showError('sessionError', 'Não foi possível salvar suas escolhas de comunicação. Tente novamente.'); return; }
+    }
     const update = {};
     if (needsPassword) update.password = $('onboardingPassword').value;
     if (needsName) update.data = { full_name: name };
