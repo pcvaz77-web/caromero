@@ -78,8 +78,12 @@
       .select('channel,status').eq('campaign_id',id).limit(1000);
     if (error) { box.textContent = 'Histórico de entregas indisponível.'; return; }
     const counts = {submitted:0,failed:0,skipped:0,queued:0,delivered:0};
-    for (const row of data || []) if (row.channel === 'email' && row.status in counts) counts[row.status]++;
-    box.textContent = `E-mail: ${counts.submitted} aceitos pelo provedor, ${counts.failed} falhas, ${counts.skipped} ignorados, ${counts.queued} pendentes. A entrega final ainda não é acompanhada. Abrir uma conversa de WhatsApp não confirma o envio.`;
+    const wa = {submitted:0,failed:0,skipped:0,queued:0,delivered:0};
+    for (const row of data || []) if (row.status in counts) {
+      if (row.channel === 'email') counts[row.status]++;
+      if (row.channel === 'whatsapp') wa[row.status]++;
+    }
+    box.textContent = `E-mail: ${counts.submitted} aceitos pelo provedor, ${counts.failed} falhas. WhatsApp API: ${wa.submitted} aceitos pela Meta, ${wa.delivered} entregues, ${wa.failed} falhas, ${wa.skipped} ignorados. Os estados de entrega dependem do webhook; abrir uma conversa manual não comprova envio.`;
   }
   async function openCampaign(id, preserveFeedback=false) {
     const { data, error } = await db.from('platform_communication_campaigns')
@@ -87,6 +91,7 @@
     if (error || !data) { feedback('Não foi possível abrir a campanha.',true); return; }
     selectedId = data.id;
     selectedStatus = data.status;
+    root().dataset.campaignId = data.id;
     previewedFingerprint = null;
     const form = document.getElementById('platformCampaignForm');
     for (const field of ['title','email_subject','message_body','video_url','cover_url']) {
@@ -124,6 +129,7 @@
     if (error || !data) { feedback('Não foi possível salvar o rascunho.',true); return false; }
     selectedId = data.id;
     selectedStatus = 'draft';
+    root().dataset.campaignId = data.id;
     previewedFingerprint = null;
     feedback('Rascunho salvo.');
     await loadCampaigns();
@@ -215,6 +221,7 @@
   function newDraft() {
     selectedId = null;
     selectedStatus = 'draft';
+    root().dataset.campaignId = '';
     previewedFingerprint = null;
     const form = document.getElementById('platformCampaignForm');
     form.reset();
@@ -246,7 +253,7 @@
       </section>
       <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia do público</h4></div><div id="platformCampaignPreview" class="platform-campaign-preview"></div><p class="meta" style="padding:0 18px 18px">Somente pessoas com aceite para cada canal entram na contagem. Cada campanha por e-mail aceita até 100 destinatários nesta versão. O WhatsApp pelo aplicativo não é disparado pelo painel.</p></section>
       <section class="platform-panel" style="margin-top:16px"><div class="platform-panel-head"><h4>Como ficará o e-mail</h4></div><div id="platformCampaignMessagePreview" class="platform-message-preview"></div></section>
-      <section class="platform-panel" style="margin-top:16px"><div class="platform-panel-head"><h4>WhatsApp Business</h4></div><p class="meta" style="padding:0 18px">Abra cada conversa com o texto pronto e confirme o envio no aplicativo. Somente contatos com aceite aparecem aqui. Botões e disparo automático dependem da API oficial da Meta.</p><div id="platformCampaignWhatsAppList" class="platform-campaign-list"></div></section>
+      <section class="platform-panel" style="margin-top:16px"><div class="platform-panel-head"><h4>WhatsApp Business · envio manual</h4></div><p class="meta" style="padding:0 18px">Abra cada conversa com o texto pronto e confirme o envio no aplicativo. Somente contatos com aceite aparecem aqui. Para enviar com capa e botões aprovados, use a seção da API oficial abaixo após conectar a Meta.</p><div id="platformCampaignWhatsAppList" class="platform-campaign-list"></div></section>
       <section class="platform-panel" style="margin-top:16px"><div class="platform-panel-head"><h4>Histórico de envio</h4></div><p id="platformCampaignDeliverySummary" class="meta" style="padding:0 18px 18px">Abra uma campanha para ver o histórico.</p></section>
       <section class="platform-panel" style="margin-top:16px"><div class="platform-panel-head"><h4>Campanhas</h4></div><div id="platformCampaignList" class="platform-campaign-list"></div></section></div>
     </div>`;
