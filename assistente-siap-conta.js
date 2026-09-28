@@ -256,7 +256,8 @@
   loginForm.onsubmit = async event => {
     event.preventDefault();
     const email = document.getElementById('accountEmail').value.trim();
-    const redirectTo = `${location.origin}${location.pathname}?plano=${encodeURIComponent(planKey)}`;
+    const redirectPath = trialFlow ? location.pathname.replace(/\.html$/, '') : location.pathname;
+    const redirectTo = `${location.origin}${redirectPath}?plano=${encodeURIComponent(planKey)}`;
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
     pendingEmail = error ? '' : email;
     document.getElementById('accountCodeStep').hidden = !!error;

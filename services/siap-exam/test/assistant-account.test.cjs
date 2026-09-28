@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(root,'assistente-siap-conta.html'),'utf8'
 const script = fs.readFileSync(path.join(root,'assistente-siap-conta.js'),'utf8');
 const settle = () => new Promise(resolve => setTimeout(resolve,0));
 
-function accountPage(initialSession=null, accessStatus={active:true,mode:'carometro',daysRemaining:5}, plan='account') {
-  const dom = new JSDOM(html,{url:`https://sistemacarometro.com.br/assistente-siap-conta.html?plano=${plan}`,runScripts:'outside-only'});
+function accountPage(initialSession=null, accessStatus={active:true,mode:'carometro',daysRemaining:5}, plan='account', pagePath='assistente-siap-conta') {
+  const dom = new JSDOM(html,{url:`https://sistemacarometro.com.br/${pagePath}?plano=${plan}`,runScripts:'outside-only'});
   const {window} = dom;
   let session=initialSession;
   const calls=[];
@@ -84,7 +84,7 @@ test('teste grátis solicita seis dígitos e só libera instalação após confi
   doc.getElementById('accountEmail').value='novo@example.com';
   doc.getElementById('loginForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await settle();
-  assert.equal(calls[0].args.options.emailRedirectTo,'https://sistemacarometro.com.br/assistente-siap-conta.html?plano=trial');
+  assert.equal(calls[0].args.options.emailRedirectTo,'https://sistemacarometro.com.br/assistente-siap-conta?plano=trial');
   assert.equal(doc.getElementById('accountCodeStep').hidden,false);
   assert.equal(doc.getElementById('assistantInstallSteps').hidden,true);
   doc.getElementById('accountOtp').value='12345';
@@ -97,5 +97,15 @@ test('teste grátis solicita seis dígitos e só libera instalação após confi
   assert.equal(calls[1].args.token,'123456');
   assert.equal(doc.getElementById('assistantInstallSteps').hidden,false);
   assert.equal(doc.getElementById('installAssistantExtension').href,'https://example.com/extension');
+  dom.window.close();
+});
+
+test('teste grátis usa o mesmo retorno canônico quando a página é aberta com .html',async()=>{
+  const {dom,window,calls}=accountPage(null,{active:false},'trial','assistente-siap-conta.html');
+  await settle();
+  window.document.getElementById('accountEmail').value='novo@example.com';
+  window.document.getElementById('loginForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  assert.equal(calls[0].args.options.emailRedirectTo,'https://sistemacarometro.com.br/assistente-siap-conta?plano=trial');
   dom.window.close();
 });
