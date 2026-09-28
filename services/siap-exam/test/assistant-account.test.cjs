@@ -9,8 +9,8 @@ const html = fs.readFileSync(path.join(root,'assistente-siap-conta.html'),'utf8'
 const script = fs.readFileSync(path.join(root,'assistente-siap-conta.js'),'utf8');
 const settle = () => new Promise(resolve => setTimeout(resolve,0));
 
-function accountPage(initialSession=null, accessStatus={active:true,mode:'carometro',daysRemaining:5}) {
-  const dom = new JSDOM(html,{url:'https://sistemacarometro.com.br/assistente-siap-conta.html?plano=account',runScripts:'outside-only'});
+function accountPage(initialSession=null, accessStatus={active:true,mode:'carometro',daysRemaining:5}, plan='account') {
+  const dom = new JSDOM(html,{url:`https://sistemacarometro.com.br/assistente-siap-conta.html?plano=${plan}`,runScripts:'outside-only'});
   const {window} = dom;
   let session=initialSession;
   const calls=[];
@@ -71,5 +71,31 @@ test('conta externa pode confirmar código recebido antes de conectar',async()=>
   assert.equal(calls[1].args.type,'email');
   assert.equal(form.hidden,true);
   assert.equal(window.document.getElementById('checkoutPanel').hidden,false);
+  dom.window.close();
+});
+
+test('teste grátis solicita seis dígitos e só libera instalação após confirmação',async()=>{
+  const freeStatus={active:true,status:'free',mode:'external',freeUses:{planning:2,content:2,attendance:2,pei:2}};
+  const {dom,window,calls}=accountPage(null,freeStatus,'trial');
+  await settle();
+  const doc=window.document;
+  assert.match(doc.getElementById('loginForm').textContent,/código de 6 dígitos/i);
+  assert.equal(doc.getElementById('assistantInstallSteps').hidden,true);
+  doc.getElementById('accountEmail').value='novo@example.com';
+  doc.getElementById('loginForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  assert.equal(calls[0].args.options.emailRedirectTo,'https://sistemacarometro.com.br/assistente-siap-conta.html?plano=trial');
+  assert.equal(doc.getElementById('accountCodeStep').hidden,false);
+  assert.equal(doc.getElementById('assistantInstallSteps').hidden,true);
+  doc.getElementById('accountOtp').value='12345';
+  doc.getElementById('verifyAccountCode').click();
+  await settle();
+  assert.equal(calls.length,1);
+  doc.getElementById('accountOtp').value='123456';
+  doc.getElementById('verifyAccountCode').click();
+  await settle();
+  assert.equal(calls[1].args.token,'123456');
+  assert.equal(doc.getElementById('assistantInstallSteps').hidden,false);
+  assert.equal(doc.getElementById('installAssistantExtension').href,'https://example.com/extension');
   dom.window.close();
 });

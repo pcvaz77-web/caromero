@@ -7,7 +7,7 @@
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assistente-siap.css">
   <link rel="stylesheet" href="assistente-siap-support.css">
-  <link rel="stylesheet" href="assistente-siap-conta.css?v=4">
+  <link rel="stylesheet" href="assistente-siap-conta.css?v=5">
 </head>
 <body class="account-page">
   <header class="site-header">
@@ -33,7 +33,7 @@
         <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
         <button class="button" type="submit">Enviar link de acesso</button>
         <div id="accountCodeStep" hidden>
-          <label>Código recebido<input id="accountOtp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+          <label>Código recebido<input id="accountOtp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" aria-describedby="loginMessage"></label>
           <button id="verifyAccountCode" class="button button-outline" type="button">Confirmar código</button>
         </div>
         <p id="loginMessage" class="account-message" aria-live="polite"></p>
@@ -60,6 +60,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=18"></script>
+  <script src="assistente-siap-conta.js?v=19"></script>
 </body>
 </html>

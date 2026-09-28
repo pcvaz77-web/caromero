@@ -38,7 +38,12 @@
     document.querySelector('.site-header .brand small').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy .eyebrow').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy h1').textContent = 'Experimente antes de contratar';
-    document.getElementById('accountPageIntro').textContent = 'Entre com seu e-mail, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
+    document.getElementById('accountPageIntro').textContent = 'Confirme seu e-mail com o código de 6 dígitos. Depois, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
+    loginForm.querySelector('h2').textContent = 'Confirme seu e-mail';
+    loginForm.querySelector('p').textContent = 'Enviaremos um código de 6 dígitos para este e-mail. Digite o código nesta página para liberar a instalação.';
+    loginForm.querySelectorAll('p')[1].hidden = true;
+    loginForm.querySelector('button[type="submit"]').textContent = 'Enviar código';
+    document.getElementById('accountCodeStep').querySelector('label').firstChild.textContent = 'Código de 6 dígitos';
   }
 
   if (accountFlow) {
@@ -255,11 +260,11 @@
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
     pendingEmail = error ? '' : email;
     document.getElementById('accountCodeStep').hidden = !!error;
-    message('loginMessage', error ? 'Não foi possível enviar a confirmação. Tente novamente.' : 'Confira seu e-mail. Abra o link recebido ou digite o código, se houver.', !!error);
+    message('loginMessage', error ? 'Não foi possível enviar a confirmação. Tente novamente.' : trialFlow ? 'Código enviado. Confira sua caixa de entrada e o spam; digite os 6 dígitos aqui.' : 'Confira seu e-mail. Abra o link recebido ou digite o código, se houver.', !!error);
   };
   document.getElementById('verifyAccountCode').onclick = async () => {
     const token = document.getElementById('accountOtp').value.trim();
-    if (!pendingEmail || !/^\d{6,8}$/.test(token)) {
+    if (!pendingEmail || !/^\d{6}$/.test(token)) {
       message('loginMessage', 'Confira o código recebido no e-mail.', true);
       return;
     }
