@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function refreshAssignments() {
     const { data: { user: signedInUser } } = await db.auth.getUser();
-    if (!signedInUser || document.getElementById('app').classList.contains('hidden')) return;
+    if (!signedInUser) return;
     const schoolId = window.getActiveSchoolId?.();
     // O nome pode chegar enquanto as demais consultas de permissões e vínculos
     // continuam. A RPC valida a escola ativa no servidor.
@@ -174,6 +174,12 @@ document.addEventListener('DOMContentLoaded', () => {
         return result;
       })
       : Promise.resolve({ data: [], error: null });
+    // A escola já pode estar definida enquanto a cortina de entrada ainda
+    // cobre o app. Inicie a etiqueta agora; o render seguinte usa o resultado.
+    if (document.getElementById('app').classList.contains('hidden')) {
+      await labelsRequest;
+      return;
+    }
     await refreshCounselorMembership();
     syncCounselorNavigation();
     await refreshOwnProfile(signedInUser.id);
@@ -352,6 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (app) new MutationObserver(() => {
     if (!app.classList.contains('hidden')) void refreshAssignments();
   }).observe(app, { attributes:true, attributeFilter:['class'] });
+  document.addEventListener('carometro:school-context-ready', () => { void refreshAssignments(); });
   refreshAssignments();
   setInterval(refreshAssignments, 4000);
 });
