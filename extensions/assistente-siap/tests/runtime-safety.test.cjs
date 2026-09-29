@@ -27,7 +27,7 @@ test('frequencia repete salvamento e pula data sem botao salvar', () => {
   assert.match(source, /o SIAP não apresentou botão de salvar/);
 });
 
-test('planejamento reabre o bloco e repete salvamento com limite seguro', () => {
+test('planejamento retenta salvamento incompleto com limite seguro', () => {
   assert.match(source, /if \(pendingBlock\)/);
   assert.match(source, /attempts >= MAX_SAVE_ATTEMPTS/);
   assert.match(source, /requestSiapPostBack\(pendingBlock\)/);
@@ -48,8 +48,34 @@ test('planejamento individual permite salvar e replicar automaticamente', () => 
   assert.match(source, /if \(!batch && contentFields\.length && autoSaveAndReplicatePlanningIfRequested\(\)\) return/);
   assert.match(source, /targets\.forEach\(\(input\) => \{[\s\S]{0,180}input\.checked = true/);
   assert.match(source, /if \(!inputs\.length\)[\s\S]{0,250}setTimeout\(completeReplicationIfRequested, 200\)/);
-  assert.match(source, /cphFuncionalidade_cphCampos_btnCancelarReplicar/);
   assert.match(source, /Nenhuma turma compatível disponível[\s\S]{0,500}save\.click\(\)/);
+});
+
+test('replicação revisada abre antes de salvar e salva apenas a origem se não houver turmas', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function savePlanning() {'), source.indexOf('  function generatePeiDraft() {'));
+  let saved = 0, opened = 0;
+  const data = new Map();
+  const save = { disabled:false, click(){ saved++; } };
+  const replicate = { disabled:false, click(){ opened++; } };
+  const confirm = { disabled:false, click(){ throw Error('não deveria confirmar sem turma'); } };
+  const dialog = { getClientRects:()=>[{}], querySelectorAll:()=>[{ disabled:true }] };
+  const context = {
+    document:{
+      getElementById(id){ return ({ cphFuncionalidade_btnAlterar:save, cphFuncionalidade_cphCampos_btnReplicar:replicate, divTurmasReplicacao:dialog, cphFuncionalidade_cphCampos_btnConfirmarReplicar:confirm })[id] || null; },
+      querySelector:()=>({})
+    },
+    panel:{ querySelector:()=>({ checked:true }) },
+    sessionStorage:{ getItem:key=>data.get(key) || null, setItem:(key,value)=>data.set(key,value), removeItem:key=>data.delete(key) },
+    planningSignature:()=> 'aula-atual', getPlanningBatch:()=>null, addLog:()=>{}, setTimeout:()=>{}
+  };
+  vm.createContext(context);
+  vm.runInContext(section, context);
+  vm.runInContext('savePlanning()', context);
+  assert.equal(opened, 1);
+  assert.equal(saved, 0, 'a aula não pode ser salva antes de abrir a replicação');
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(saved, 1, 'sem turma compatível, salva somente a aula atual');
 });
 
 test('PEI local usa textos desenvolvidos com aberturas diferentes', () => {

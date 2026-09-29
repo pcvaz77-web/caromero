@@ -824,7 +824,7 @@
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-draft" disabled>Modelo local · preencher campos vazios</button></div>
       <hr>
       <label class="cm-check"><input id="cm-plan-save-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação.</span></label>
-      <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Replicar automaticamente em todas as turmas compatíveis após salvar.</span></label>
+      <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Salvar e replicar nesta ação em todas as turmas compatíveis.</span></label>
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-save" disabled>Salvar planejamento revisado</button></div>
     </section>`;
   }
@@ -1430,32 +1430,12 @@
           setPlanningBatch(batch);
           return setTimeout(resumePlanningBatch, 100);
         }
-        // O SIAP retorna diretamente à quinzena depois de salvar. Reabra o
-        // bloco recém-salvo para usar o botão Replicar da tela de edição.
-        const savedBlock = [...document.querySelectorAll("#cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor .aula.planejada")]
-          .find((block) => {
-            if (block.getAttribute("onclick") === batch.current?.onclick) return true;
-            const item = overviewItem(block);
-            return item.lesson === batch.current?.lesson &&
-              item.classroom === batch.current?.classroom &&
-              item.subject === batch.current?.subject;
-          });
-        if (!savedBlock) {
-          batch.paused = true;
-          batch.phase = "manual";
-          setPlanningBatch(batch);
-          return addLog("O planejamento foi salvo, mas o bloco não foi reencontrado para replicação.");
-        }
         batch.current.saveAttempts = 0;
-        batch.phase = "replicating";
+        batch.completed += 1;
+        batch.phase = "overview";
+        batch.current = null;
         setPlanningBatch(batch);
-        if (!requestSiapPostBack(savedBlock)) {
-          batch.paused = true;
-          batch.phase = "manual";
-          setPlanningBatch(batch);
-          addLog("O planejamento foi salvo, mas não foi possível reabri-lo para replicação.");
-        }
-        return;
+        return setTimeout(resumePlanningBatch, 100);
       }
       if (batch.phase === "return") {
         batch.phase = "overview";
@@ -1524,10 +1504,6 @@
       location.href = "/AcompanhamentoPlanejamentoProfessorListagem.aspx";
       return;
     }
-    if (model.page === "planning-lesson" && batch.phase === "replicating") {
-      resumeReplicateAfterSave();
-      return;
-    }
     if (model.page === "planning-lesson" && batch.phase === "preparing") {
       const groupReviewed = batch.reviewedGroups.includes(batch.current?.group);
       batch.phase = "filling";
@@ -1566,9 +1542,9 @@
       }
       batch.paused = false;
       if (!batch.reviewedGroups.includes(batch.current?.group)) batch.reviewedGroups.push(batch.current.group);
+      if (!Array.isArray(batch.selectedQueue) && openPlanningReplication()) return;
       batch.phase = "saving";
       setPlanningBatch(batch);
-      if (!Array.isArray(batch.selectedQueue)) sessionStorage.setItem("assistenteSiapOpenReplicate", planningSignature());
       document.getElementById("cphFuncionalidade_btnAlterar")?.click();
       return;
     }
@@ -1604,9 +1580,15 @@
         return addLog("Confirme a revisão desta aula no assistente antes de salvar.");
       }
       batch.paused = false;
+      if (!Array.isArray(batch.selectedQueue) && document.getElementById("cphFuncionalidade_cphCampos_btnReplicar")) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (openPlanningReplication()) return;
+        document.getElementById("cphFuncionalidade_btnAlterar")?.click();
+        return;
+      }
       batch.phase = "saving";
       setPlanningBatch(batch);
-      if (!Array.isArray(batch.selectedQueue)) sessionStorage.setItem("assistenteSiapOpenReplicate", planningSignature());
     }, true);
   }
 
@@ -1862,9 +1844,9 @@
         stopPlanningBatch();
         return addLog("Bloqueio de segurança: uma prévia nunca pode salvar uma aula.");
       } else {
+        if (openPlanningReplication()) return;
         batch.phase = "saving";
         setPlanningBatch(batch);
-        sessionStorage.setItem("assistenteSiapOpenReplicate", planningSignature());
         document.getElementById("cphFuncionalidade_btnAlterar")?.click();
       }
     }
@@ -1971,9 +1953,11 @@
           return addLog("Bloqueio de segurança: uma prévia nunca pode salvar uma aula.");
         }
         if (batch.autoSave) {
-          batch.phase = "saving";
-          setPlanningBatch(batch);
-          document.getElementById("cphFuncionalidade_btnAlterar")?.click();
+          if (Array.isArray(batch.selectedQueue) || !openPlanningReplication()) {
+            batch.phase = "saving";
+            setPlanningBatch(batch);
+            document.getElementById("cphFuncionalidade_btnAlterar")?.click();
+          }
         } else {
           batch.paused = true;
           batch.phase = "review";
@@ -1994,7 +1978,10 @@
     if (!save || save.disabled) return addLog("O botão Salvar não está disponível nesta aula.");
     if (!document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) return addLog("O SIAP não apresenta conteúdo selecionado para esta aula. Escolha um conteúdo compatível antes de salvar pelo Assistente.");
     const replicate = panel.querySelector("#cm-plan-replicate")?.checked === true;
-    if (replicate) sessionStorage.setItem("assistenteSiapOpenReplicate", planningSignature());
+    if (replicate) {
+      if (openPlanningReplication()) return;
+      return addLog("O botão Replicar não está disponível nesta aula. Nada foi salvo; confira a aula antes de tentar novamente.");
+    }
     save.click();
   }
 
@@ -2015,6 +2002,11 @@
     const replicate = document.getElementById("cphFuncionalidade_cphCampos_btnReplicar");
     if (!replicate || replicate.disabled) return false;
     const signature = planningSignature();
+    const batch = getPlanningBatch();
+    if (batch?.active) {
+      batch.phase = "replicating";
+      setPlanningBatch(batch);
+    }
     sessionStorage.removeItem("assistenteSiapOpenReplicate");
     sessionStorage.setItem("assistenteSiapConfirmReplicate", signature);
     sessionStorage.setItem("assistenteSiapReplicationOpenedAt", String(Date.now()));
@@ -2038,32 +2030,29 @@
     if (!expected || expected !== planningSignature()) return;
     const dialog = document.getElementById("divTurmasReplicacao") || document.querySelector('[id$="_divTurmasReplicacao"]');
     const confirm = document.getElementById("cphFuncionalidade_cphCampos_btnConfirmarReplicar");
-    if (!dialog || !confirm || confirm.disabled || getComputedStyle(dialog).display === "none") return;
+    const openedAt = Number(sessionStorage.getItem("assistenteSiapReplicationOpenedAt")) || Date.now();
+    if (!dialog || !confirm || confirm.disabled || !dialog.getClientRects().length) {
+      if (Date.now() - openedAt < 8000) return setTimeout(completeReplicationIfRequested, 200);
+      sessionStorage.removeItem("assistenteSiapConfirmReplicate");
+      sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
+      const batch = getPlanningBatch();
+      if (batch) { batch.paused = true; batch.phase = "manual"; setPlanningBatch(batch); }
+      return addLog("O SIAP não abriu a confirmação de replicação. Nada foi confirmado; confira esta aula.");
+    }
     const inputs = [...dialog.querySelectorAll('input[type="checkbox"]')];
     if (!inputs.length) {
-      const openedAt = Number(sessionStorage.getItem("assistenteSiapReplicationOpenedAt")) || Date.now();
       if (Date.now() - openedAt < 3000) return setTimeout(completeReplicationIfRequested, 200);
     }
     const targets = inputs.filter((input) => !input.disabled);
     if (!targets.length) {
       sessionStorage.removeItem("assistenteSiapConfirmReplicate");
       sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
-      const cancel = document.getElementById("cphFuncionalidade_cphCampos_btnCancelarReplicar");
       const batch = getPlanningBatch();
-      if (batch) {
-        batch.completed += 1;
-        batch.phase = "return";
-        setPlanningBatch(batch);
-        setTimeout(resumePlanningBatch, 100);
-      } else {
-        cancel?.click();
-        addLog("Nenhuma turma compatível disponível. Replicação cancelada; salvando somente esta aula.");
-        setTimeout(() => {
-          const save = document.getElementById("cphFuncionalidade_btnAlterar");
-          if (!save || save.disabled) return addLog("A replicação foi cancelada, mas o botão Salvar não está disponível. Salve manualmente.");
-          save.click();
-        }, 100);
-      }
+      if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
+      addLog("Nenhuma turma compatível disponível. Salvando somente esta aula.");
+      const save = document.getElementById("cphFuncionalidade_btnAlterar");
+      if (!save || save.disabled) return addLog("O botão Salvar não está disponível. Salve manualmente.");
+      save.click();
       return;
     }
     targets.forEach((input) => {
@@ -2073,11 +2062,7 @@
     sessionStorage.removeItem("assistenteSiapConfirmReplicate");
     sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
     const batch = getPlanningBatch();
-    if (batch) {
-      batch.completed += 1;
-      batch.phase = "return";
-      setPlanningBatch(batch);
-    }
+    if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
     confirm.click();
   }
 
