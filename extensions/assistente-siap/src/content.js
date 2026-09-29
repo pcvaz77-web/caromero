@@ -580,18 +580,16 @@
       updateOperationStatus();
       return;
     }
-    const planningFirst = ["planning-lesson", "planning-overview"].includes(model.page);
     panel.querySelector(".cm-body").innerHTML = `
-      ${planningFirst ? workCard(pending) : ""}
-      ${licenseCard()}
       ${contextCard()}
       <section class="cm-card"><h3>Diagnóstico</h3>
         ${supported ? `<span class="cm-badge cm-green">Página reconhecida</span>` : `<span class="cm-badge cm-yellow">Somente leitura</span>`}
         <div class="cm-stats"><div class="cm-stat"><strong>${pending.length}</strong><span>Pendentes</span></div><div class="cm-stat"><strong>${saved.length}</strong><span>Salvos</span></div><div class="cm-stat"><strong>${future.length}</strong><span>Futuros</span></div></div>
         <div class="cm-actions"><button class="cm-btn cm-full" data-action="analyze">Analisar novamente</button></div>
       </section>
-      ${planningFirst ? "" : workCard(pending)}
-      ${logCard()}`;
+      ${workCard(pending)}
+      ${logCard()}
+      ${licenseCard()}`;
     updateOperationStatus();
     bindPanelEvents();
   }
