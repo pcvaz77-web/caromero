@@ -174,6 +174,21 @@
     return `<section class="cm-card cm-license cm-license-expired"><h3>Seu acesso ao Assistente SIAP terminou</h3><p>Contrate um plano para continuar utilizando os recursos.</p>${salesButton}</section>`;
   }
 
+  function licenseHeaderLabel() {
+    const license = model.license;
+    if (!license || model.sessionRequired || model.page === "exam") return "";
+    if (license.status === "grant_ended" || license.status === "expired" || license.active === false) return "Acesso expirado";
+    if (license.mode === "carometro") {
+      if (license.permanent === true || license.daysRemaining == null) return "Concessão permanente";
+      return `Concessão · ${Math.max(0, Number(license.daysRemaining) || 0)} dia(s) restante(s)`;
+    }
+    if (license.mode === "external") {
+      return Object.values(license.freeUses || {}).some((uses) => Number(uses) > 0) ? "Teste grátis" : "Teste grátis esgotado";
+    }
+    if (license.mode === "subscription") return `Assinatura · ${Math.max(0, Number(license.daysRemaining) || 0)} dia(s) restante(s)`;
+    return "Acesso ativo";
+  }
+
   function featureHasFreeUse(feature) {
     return model.license?.mode !== "external" || Number(model.license?.freeUses?.[feature] || 0) > 0;
   }
@@ -444,7 +459,7 @@
 
     if (!panel.querySelector(".cm-body")) {
       panel.innerHTML = `<header class="cm-head">
-        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-account-identity" hidden></span></div>
+        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-access-summary" hidden></span><span class="cm-account-identity" hidden></span></div>
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
         <a class="cm-activity-link" href="https://atividades.sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer" aria-label="Atividades para professores (abre em nova guia)" title="Atividades para professores" hidden>Atividades ↗</a>
       </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
@@ -453,6 +468,11 @@
     }
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
+    const accessSummary = panel.querySelector('.cm-access-summary');
+    if (accessSummary) {
+      accessSummary.textContent = licenseHeaderLabel();
+      accessSummary.hidden = !accessSummary.textContent;
+    }
     const activityLink = panel.querySelector('.cm-activity-link');
     if (activityLink) activityLink.hidden = !(model.activitySiteEnabled && (model.license?.active === true || model.license?.examAccess?.active === true) && !model.sessionRequired);
     const identity = panel.querySelector('.cm-account-identity');

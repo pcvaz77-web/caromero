@@ -15,6 +15,21 @@ function card(license) {
   return context.result;
 }
 
+function header(license, page = 'planning-lesson') {
+  const context = { model: { license, page, sessionRequired:false } };
+  vm.runInNewContext(`${source.slice(start, end)}; result = licenseHeaderLabel();`, context);
+  return context.result;
+}
+
+test('tipo de acesso aparece no cabeçalho do planejamento', () => {
+  assert.equal(header({ mode:'carometro', active:true, permanent:true }), 'Concessão permanente');
+  assert.equal(header({ mode:'carometro', active:true, daysRemaining:2 }), 'Concessão · 2 dia(s) restante(s)');
+  assert.equal(header({ mode:'external', active:true, freeUses:{ planning:2 } }), 'Teste grátis');
+  assert.equal(header({ mode:'subscription', active:true, daysRemaining:3 }), 'Assinatura · 3 dia(s) restante(s)');
+  assert.equal(header({ status:'expired', active:false }), 'Acesso expirado');
+  assert.equal(header({ mode:'carometro', active:true, permanent:true }, 'exam'), '');
+});
+
 test('concessão temporária mostra dias e aviso próximo do fim', () => {
   const html = card({ mode:'carometro', active:true, daysRemaining:2 });
   assert.match(html, /Acesso concedido pelo Carômetro/);
