@@ -42,6 +42,10 @@
   let contentResumeTimer;
   let attendanceResumeTimer;
   let panelDialogShift;
+  let planningDockTarget;
+  let planningDockOriginal;
+  let planningDockNaturalWidth = 0;
+  let planningDockDetached = false;
 
   function installNavigationBridge() {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -72,6 +76,7 @@
     // A navegação entre etapas do SIAP não pode alterar a escolha visual do usuário.
     // Na primeira utilização começa minimizado; depois preserva aberto/minimizado.
     createShell(stored.panelOpen === true, false, stored);
+    window.addEventListener("resize", applyPlanningDockLayout);
     refreshLicenseStatus();
     refreshActivitySiteStatus();
     window.addEventListener('focus', () => { if (!document.hidden) refreshActivitySiteStatus(); });
@@ -232,6 +237,53 @@
     element.style.bottom = "auto";
   }
 
+  function restorePlanningDockTarget() {
+    if (!planningDockTarget || !planningDockOriginal) return;
+    for (const [property, previous] of Object.entries(planningDockOriginal)) {
+      if (previous.value) planningDockTarget.style.setProperty(property, previous.value, previous.priority);
+      else planningDockTarget.style.removeProperty(property);
+    }
+    planningDockTarget = null;
+    planningDockOriginal = null;
+    planningDockNaturalWidth = 0;
+  }
+
+  function applyPlanningDockLayout() {
+    if (!panel) return;
+    const planningPage = ["planning-lesson", "planning-overview"].includes(Core.pageType(location.pathname));
+    const dock = planningPage && !panel.hidden && !planningDockDetached && innerWidth >= 1000;
+    panel.classList.toggle("cm-planning-docked", dock);
+    const main = dock ? document.querySelector("#FormularioPrincipal > .sis") : null;
+    if (!main) return restorePlanningDockTarget();
+    if (planningDockTarget !== main) {
+      restorePlanningDockTarget();
+      planningDockTarget = main;
+      planningDockOriginal = Object.fromEntries(["width", "margin-left", "margin-right", "zoom"].map((property) => [property, {
+        value: main.style.getPropertyValue(property), priority: main.style.getPropertyPriority(property)
+      }]));
+      planningDockNaturalWidth = Math.max(1014, main.scrollWidth);
+    }
+    const available = panel.getBoundingClientRect().left - 20;
+    const scale = Math.min(1, Math.max(0.6, available / planningDockNaturalWidth));
+    for (const [property, value] of Object.entries({
+      width:`${Math.round(planningDockNaturalWidth)}px`, "margin-left":"8px", "margin-right":"0", zoom:String(scale)
+    })) {
+      if (main.style.getPropertyValue(property) !== value) main.style.setProperty(property, value);
+    }
+  }
+
+  function detachPlanningDock() {
+    if (!panel?.classList.contains("cm-planning-docked")) return;
+    const rect = panel.getBoundingClientRect();
+    planningDockDetached = true;
+    panel.classList.remove("cm-planning-docked");
+    restorePlanningDockTarget();
+    panel.style.left = `${Math.round(rect.left)}px`;
+    panel.style.top = `${Math.round(rect.top)}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+  }
+
   function installDrag(element, handle, storageKey, activate) {
     let drag = null;
     handle.addEventListener("pointerdown", (event) => {
@@ -247,6 +299,7 @@
       const dy = event.clientY - drag.y;
       if (Math.abs(dx) + Math.abs(dy) > 5) drag.moved = true;
       if (!drag.moved) return;
+      if (storageKey === "panelPosition") detachPlanningDock();
       element.style.left = `${Math.max(8, Math.min(drag.left + dx, innerWidth - element.offsetWidth - 8))}px`;
       element.style.top = `${Math.max(8, Math.min(drag.top + dy, innerHeight - element.offsetHeight - 8))}px`;
       element.style.right = "auto";
@@ -274,6 +327,7 @@
           ? readCalendarDays()
           : [];
     render();
+    applyPlanningDockLayout();
     syncPanelWithSiapDialog();
   }
 
@@ -506,7 +560,9 @@
       updateOperationStatus();
       return;
     }
+    const planningFirst = ["planning-lesson", "planning-overview"].includes(model.page);
     panel.querySelector(".cm-body").innerHTML = `
+      ${planningFirst ? workCard(pending) : ""}
       ${licenseCard()}
       ${contextCard()}
       <section class="cm-card"><h3>Diagnóstico</h3>
@@ -514,7 +570,7 @@
         <div class="cm-stats"><div class="cm-stat"><strong>${pending.length}</strong><span>Pendentes</span></div><div class="cm-stat"><strong>${saved.length}</strong><span>Salvos</span></div><div class="cm-stat"><strong>${future.length}</strong><span>Futuros</span></div></div>
         <div class="cm-actions"><button class="cm-btn cm-full" data-action="analyze">Analisar novamente</button></div>
       </section>
-      ${workCard(pending)}
+      ${planningFirst ? "" : workCard(pending)}
       ${logCard()}`;
     updateOperationStatus();
     bindPanelEvents();
@@ -2277,7 +2333,9 @@
 
   function setOpen(open, closed = false) {
     const launcher = document.getElementById("assistente-siap-launcher");
+    if (!open) planningDockDetached = false;
     panel.hidden = !open;
+    applyPlanningDockLayout();
     if (launcher) launcher.hidden = open || closed;
     chrome.storage.local.set({ panelOpen: open, panelClosed: closed });
   }

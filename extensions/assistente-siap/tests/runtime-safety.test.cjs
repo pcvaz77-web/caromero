@@ -14,6 +14,51 @@ test('estado visual persiste independente da execucao', () => {
   assert.doesNotMatch(source, /function render\(\)[\s\S]{0,2500}panel\.hidden\s*=/);
 });
 
+test('painel lateral libera o SIAP ao minimizar e volta ao reabrir', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function restorePlanningDockTarget() {'), source.indexOf('  function installDrag('));
+  const values = new Map([['margin-left', 'auto'], ['margin-right', 'auto']]);
+  const style = {
+    getPropertyValue: (name) => values.get(name) || '',
+    getPropertyPriority: () => '',
+    setProperty: (name, value) => values.set(name, value),
+    removeProperty: (name) => values.delete(name)
+  };
+  const classes = new Set();
+  const panel = {
+    hidden:false,
+    classList:{
+      toggle(name, enabled){ if (enabled) classes.add(name); else classes.delete(name); },
+      remove(name){ classes.delete(name); },
+      contains(name){ return classes.has(name); }
+    },
+    getBoundingClientRect:()=>({ width:342, left:context.innerWidth - 365 })
+  };
+  const main = { style, scrollWidth:1014 };
+  const context = {
+    panel, document:{ querySelector:()=>main },
+    Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
+    innerWidth:1366
+  };
+  vm.createContext(context);
+  vm.runInContext(`let planningDockTarget = null, planningDockOriginal = null, planningDockNaturalWidth = 0, planningDockDetached = false; ${section}; applyPlanningDockLayout()`, context);
+  assert.equal(classes.has('cm-planning-docked'), true);
+  assert.equal(values.get('width'), '1014px');
+  assert.equal(values.get('margin-left'), '8px');
+  assert.ok(Number(values.get('zoom')) < 1, 'o SIAP deve manter uma folga antes do painel');
+  panel.hidden = true;
+  vm.runInContext('applyPlanningDockLayout()', context);
+  assert.equal(classes.has('cm-planning-docked'), false);
+  assert.equal(values.get('margin-left'), 'auto');
+  assert.equal(values.has('width'), false);
+  assert.equal(values.has('zoom'), false);
+  panel.hidden = false;
+  context.innerWidth = 1080;
+  vm.runInContext('applyPlanningDockLayout()', context);
+  assert.equal(classes.has('cm-planning-docked'), true);
+  assert.ok(Number(values.get('zoom')) < 1, 'em tela menor, o SIAP deve caber ao lado');
+});
+
 test('conteudo repete salvamento com limite seguro', () => {
   assert.match(source, /const MAX_SAVE_ATTEMPTS = 5/);
   assert.match(source, /batch\[retryKey\] >= MAX_SAVE_ATTEMPTS/);
@@ -94,7 +139,7 @@ test('minimização é preservada após sucessivos recarregamentos dos filtros',
   const install = source.slice(source.indexOf('  async function install() {'), source.indexOf('  async function refreshLicenseStatus()'));
   let stored = {}, open;
   const context = {
-    window:{addEventListener(){}},
+    window:{addEventListener(){}}, applyPlanningDockLayout(){},
     initialPageType:'exam',
     chrome:{storage:{local:{get:async()=>({...stored})}}},
     removeCompetitorOverlap(){}, createShell(value){open=value;},
