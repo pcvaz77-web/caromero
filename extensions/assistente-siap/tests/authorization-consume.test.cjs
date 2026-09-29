@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const srcDir = path.join(__dirname, '..', 'src');
 
-function workerFor(license) {
+function workerFor(result) {
   const listeners = [];
   const local = { carometroAiDeviceSession: { deviceToken:'active-device-token', expiresAt:Date.now()+60000 } };
   const storage = data => ({
@@ -22,7 +22,7 @@ function workerFor(license) {
   const requests = [];
   const fetch = async (_url, options) => {
     requests.push(JSON.parse(options.body));
-    return {ok:true,status:200,json:async()=>({ok:true,license})};
+    return {ok:result.ok,status:result.status || (result.ok ? 200 : 402),json:async()=>result};
   };
   const context = vm.createContext({chrome,fetch,URL,Date,JSON,String,Number,Promise,AbortSignal});
   context.importScripts = (...files) => files.forEach(file => vm.runInContext(fs.readFileSync(path.join(srcDir,file),'utf8'),context));
@@ -33,25 +33,30 @@ function workerFor(license) {
   };
 }
 
-test('sessão persistente só consome recurso com concessão ou compra ativa', async () => {
+test('sessão persistente consulta o consumo de concessão e compra ativas', async () => {
   for (const mode of ['carometro','subscription']) {
-    const worker = workerFor({active:true,mode});
+    const worker = workerFor({ok:true,license:{active:true,mode},usage:{allowed:true,unlimited:true}});
     const result = await worker.send({type:'ASSISTENTE_SIAP_CONSUME_FEATURE',feature:'planning'});
     assert.equal(result.ok,true,mode);
-    assert.deepEqual(worker.requests,[{action:'license_status'}]);
+    assert.deepEqual(worker.requests,[{action:'consume_feature',feature:'planning'}]);
   }
 });
 
-test('sessão persistente bloqueia recurso quando licença venceu ou só há correção de provas', async () => {
-  for (const license of [
-    {active:false,mode:'subscription',status:'expired'},
-    {active:false,mode:'external',examAccess:{active:true}},
-    {active:true,mode:'external',status:'free'},
-    null
-  ]) {
-    const worker = workerFor(license);
-    const result = await worker.send({type:'ASSISTENTE_SIAP_CONSUME_FEATURE',feature:'planning'});
-    assert.equal(result.ok,false);
-    assert.equal(result.code,'license_expired');
+test('sessão gratuita por e-mail consome Conteúdo e Frequência conforme o servidor', async () => {
+  for (const feature of ['content','attendance']) {
+    const license={active:true,mode:'external',status:'free',freeUses:{[feature]:1}};
+    const worker=workerFor({ok:true,license,usage:{allowed:true,unlimited:false,remaining:1}});
+    const result=await worker.send({type:'ASSISTENTE_SIAP_CONSUME_FEATURE',feature});
+    assert.equal(result.ok,true,feature);
+    assert.equal(result.usage.remaining,1);
+    assert.deepEqual(worker.requests,[{action:'consume_feature',feature}]);
   }
+});
+
+test('sessão gratuita respeita o limite confirmado pelo servidor', async () => {
+  const worker=workerFor({ok:false,code:'free_limit_reached',license:{active:false,mode:'external',status:'free',freeUses:{content:0}}});
+  const result=await worker.send({type:'ASSISTENTE_SIAP_CONSUME_FEATURE',feature:'content'});
+  assert.equal(result.ok,false);
+  assert.equal(result.code,'free_limit_reached');
+  assert.deepEqual(worker.requests,[{action:'consume_feature',feature:'content'}]);
 });

@@ -188,18 +188,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       const feature = String(message.feature || "");
       if (!["planning", "content", "attendance", "pei"].includes(feature)) return respond({ ok:false, code:"INVALID_FEATURE" });
       try {
-        const payload = session.deviceToken ? { action:"license_status" } : { action:"consume_feature", feature };
-        const { response, data } = await callAssistantApi(session, payload);
+        const { response, data } = await callAssistantApi(session, { action:"consume_feature", feature });
         if (response.status === 401 && session.deviceToken) await chrome.storage.local.remove("carometroAiDeviceSession");
         if (response.ok) await renewLocalDeviceSession(session, data);
         const license = data?.license || null;
         if (license) await broadcastLicense(license);
         if (!response.ok || data?.ok !== true) {
           respond({ ok:false, code:data?.code || "FEATURE_ACCESS_FAILED", license, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : "Não foi possível validar o uso desta função." });
-          return;
-        }
-        if (session.deviceToken && (license?.active !== true || !["carometro", "subscription"].includes(license.mode))) {
-          respond({ ok:false, code:"license_expired", license, message:"Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." });
           return;
         }
         respond({ ok:true, license, usage:data?.usage || { allowed:true, unlimited:true } });

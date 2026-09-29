@@ -30,6 +30,22 @@ test('licença concedida usa sessão do Assistente sem sessão web do Carômetro
   assert.equal(result.license.mode,'carometro');
   assert.equal(call.options.headers['X-Assistant-Session'],'test-device-token');
 });
+test('Planejamento e PEI gratuitos por e-mail usam a sessão e recebem os campos da IA', async () => {
+  for (const kind of ['planning','pei']) {
+    const session = {deviceToken:'free-device-token',expiresAt:Date.now()+60000};
+    let request;
+    const license={active:true,mode:'external',status:'free',freeUses:{[kind]:1}};
+    const worker=startWorker(session,async(_url,options)=>{
+      request=options;
+      return {ok:true,status:200,json:async()=>({ok:true,fields:['a','b','c','d'],license,usage:{allowed:true,remaining:1}})};
+    });
+    const result=await worker({type:'ASSISTENTE_SIAP_AI_DRAFT',payload:{kind}});
+    assert.equal(result.ok,true,kind);
+    assert.equal(result.license.freeUses[kind],1);
+    assert.deepEqual(JSON.parse(request.body),{kind});
+    assert.equal(request.headers['X-Assistant-Session'],'free-device-token');
+  }
+});
 test('sessão local ausente preserva prévias e não chama IA', async () => {
   const worker = startWorker(null, async () => { throw new Error('fetch não esperado'); });
   const result = await worker({type:'ASSISTENTE_SIAP_AI_DRAFT',payload:{kind:'planning'}});

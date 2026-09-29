@@ -6,7 +6,7 @@ const test = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '../src/content.js'), 'utf8')
   .replace('  install();', '  // Instalação omitida no teste de DOM sintético.')
-  .replace(/\}\)\(\);\s*$/, 'globalThis.subject = { resumeContentBatch, readAttendanceStudents, readCalendarDays };\n})();');
+  .replace(/\}\)\(\);\s*$/, 'globalThis.subject = { resumeContentBatch, readAttendanceStudents, readCalendarDays, setLicense(license) { model.license = license; model.page = "content"; }, finishingAuthorizedFreeWork };\n})();');
 const Core = require('../src/core.js');
 
 function makePage() {
@@ -80,6 +80,17 @@ test('a primeira aula confirmada abre a segunda e a data só termina verde', () 
   assert.equal(page.readBatch().phase, 'month');
   assert.equal(page.readBatch().completed, 2);
   assert.deepEqual(page.readBatch().processedDays, ['8|23/09/2026']);
+});
+
+test('último uso gratuito conclui o lote já autorizado sem liberar outro', () => {
+  const page=makePage();
+  page.subject.setLicense({active:false,mode:'external',status:'free',freeUses:{content:0,attendance:0,planning:0,pei:0}});
+  page.writeBatch({authorized:true,active:true,phase:'saving',months:[8],monthIndex:0,currentLabel:'23/09/2026',lessonValues:['1ª Aula','2ª Aula'],lessonIndex:0,completed:0,verifyNotBefore:0});
+  assert.equal(page.subject.finishingAuthorizedFreeWork(),true);
+  page.subject.resumeContentBatch();
+  assert.equal(page.readBatch().lessonIndex,1);
+  page.writeBatch({...page.readBatch(),authorized:false});
+  assert.equal(page.subject.finishingAuthorizedFreeWork(),false);
 });
 
 test('a leitura da frequência soma as duas colunas de aula', () => {

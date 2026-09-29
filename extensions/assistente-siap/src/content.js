@@ -48,6 +48,7 @@
   let planningDockDetached = false;
   let planningResumeTimer;
   let planningAiRun;
+  let consumingFeature = false;
 
   function installNavigationBridge() {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -110,7 +111,7 @@
       if (result?.license) {
         model.license = result.license;
         if ('accountEmail' in result.license) model.accountEmail = result.license.accountEmail;
-        if (model.license.active !== true) lockAssistantAfterExpiry();
+        if (model.license.active !== true && !finishingAuthorizedFreeWork()) lockAssistantAfterExpiry();
         render();
       }
       else if (model.sessionRequired) { model.accountEmail = null; render(); }
@@ -169,7 +170,8 @@
         .map(([label, key]) => `<div class="cm-item"><span><strong>${label}</strong><small>${Math.max(0, Number(uses[key] || 0))} uso(s) restante(s)</small></span></div>`).join("");
       const available = Object.values(uses).some((value) => Number(value) > 0);
       const runningLow = Object.values(uses).some((value) => Number(value) === 1);
-      return `<section class="cm-card cm-license ${available ? "cm-license-warning" : "cm-license-expired"}"><h3>${available ? "Licença de teste" : "Licença expirada"}</h3>${available ? `<p>2 usos de cada recurso para experimentar.</p><div class="cm-list">${rows}</div>${runningLow ? `<p>Seu teste está chegando ao fim. Escolha um plano para continuar usando.</p>${salesButton}` : ""}` : `<p>Seus usos gratuitos terminaram. Clique para continuar usando.</p>${salesButton}`}</section>`;
+      const finishing = !available && finishingAuthorizedFreeWork();
+      return `<section class="cm-card cm-license ${available || finishing ? "cm-license-warning" : "cm-license-expired"}"><h3>${finishing ? "Último uso gratuito em andamento" : available ? "Licença de teste" : "Licença expirada"}</h3>${available ? `<p>2 usos de cada recurso para experimentar.</p><div class="cm-list">${rows}</div>${runningLow ? `<p>Seu teste está chegando ao fim. Escolha um plano para continuar usando.</p>${salesButton}` : ""}` : finishing ? `<p>Esta tarefa já foi autorizada e pode ser concluída. Novos usos exigem um plano.</p>` : `<p>Seus usos gratuitos terminaram. Clique para continuar usando.</p>${salesButton}`}</section>`;
     }
     if (license.mode === "carometro" && license.active === true) return `<section class="cm-card cm-license ${days > 0 && days <= 3 ? "cm-license-warning" : ""}"><h3>Acesso concedido pelo Carômetro</h3><span class="cm-badge cm-green">${license.permanent === true || license.daysRemaining == null ? "Concessão permanente" : `${days} dia(s) restante(s)`}</span>${days > 0 && days <= 3 && license.permanent !== true ? `<p>Sua concessão termina em breve. Peça a renovação ao responsável ou escolha um plano individual.</p>${salesButton}` : ""}</section>`;
     if (license.mode === "subscription" && license.active === true) return `<section class="cm-card cm-license ${days > 0 && days <= 3 ? "cm-license-warning" : ""}"><h3>Licença ativa</h3><span class="cm-badge cm-green">${days} dia(s) restante(s)</span>${days > 0 && days <= 3 ? `<p>Sua licença vence em breve. Confira a renovação para continuar usando.</p>${salesButton}` : ""}</section>`;
@@ -179,6 +181,7 @@
   function licenseHeaderLabel() {
     const license = model.license;
     if (!license || model.sessionRequired || model.page === "exam") return "";
+    if (license.mode === "external" && license.status === "free" && license.active === false) return finishingAuthorizedFreeWork() ? "Teste grátis · último uso em andamento" : "Teste grátis esgotado";
     if (license.status === "grant_ended" || license.status === "expired" || license.active === false) return "Acesso expirado";
     if (license.mode === "carometro") {
       if (license.permanent === true || license.daysRemaining == null) return "Concessão permanente";
@@ -195,6 +198,17 @@
     return model.license?.mode !== "external" || Number(model.license?.freeUses?.[feature] || 0) > 0;
   }
 
+  function finishingAuthorizedFreeWork() {
+    if (model.license?.mode !== "external" || model.license?.status !== "free") return false;
+    if (consumingFeature) return true;
+    if (model.page === "content") return getContentBatch()?.authorized === true;
+    if (model.page === "attendance") return getAttendanceBatch()?.authorized === true;
+    if (["planning-overview", "planning-calendar", "planning-lesson"].includes(model.page)) {
+      return Boolean(planningAiRun || getPlanningBatch()?.active || readStoredJson("assistenteSiapPlanningFlow"));
+    }
+    return false;
+  }
+
   async function consumeFeature(feature) {
     if (model.license?.active === false) {
       addLog("Seu acesso ao Assistente SIAP terminou. Confira sua licença antes de continuar.");
@@ -204,6 +218,7 @@
       addLog("O limite gratuito desta função terminou. Use o botão Assinar o Assistente SIAP.");
       return false;
     }
+    consumingFeature = true;
     try {
       const result = await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_CONSUME_FEATURE", feature });
       if (result?.license) model.license = result.license;
@@ -216,6 +231,8 @@
     } catch {
       addLog("Não foi possível validar o acesso ao Assistente SIAP. Tente novamente.");
       return false;
+    } finally {
+      consumingFeature = false;
     }
   }
 
@@ -580,8 +597,8 @@
       }
       return;
     }
-    if (model.license && model.license.active !== true) {
-      panel.querySelector(".cm-body").innerHTML = licenseCard();
+    if (model.license && model.license.active !== true && !finishingAuthorizedFreeWork()) {
+      panel.querySelector(".cm-body").innerHTML = `${licenseCard()}${logCard()}`;
       updateOperationStatus();
       return;
     }
@@ -1071,7 +1088,7 @@
     if (!months.length) return addLog("Selecione pelo menos um mês.");
     if (!material) return addLog("Selecione um material de apoio.");
     if (!await consumeFeature("content")) return;
-    setContentBatch({ active: true, paused: false, phase: "month", months, monthIndex: 0, materialIndex: Number(material.dataset.materialIndex), completed: 0, saveAttempts: 0 });
+    setContentBatch({ active: true, authorized: true, paused: false, phase: "month", months, monthIndex: 0, materialIndex: Number(material.dataset.materialIndex), completed: 0, saveAttempts: 0 });
     render();
     scheduleContentResume(100);
   }
@@ -1146,7 +1163,7 @@
   }
 
   function resumeContentBatch() {
-    if (model.license?.active === false) return lockAssistantAfterExpiry();
+    if (model.license?.active === false && !finishingAuthorizedFreeWork()) return lockAssistantAfterExpiry();
     const batch = getContentBatch();
     if (!batch || batch.paused || Core.pageType(location.pathname) !== "content") return;
     const monthSelect = document.getElementById(IDS.month);
@@ -1297,7 +1314,7 @@
     const months = [...panel.querySelectorAll("[data-attendance-month]:checked")].map((input) => Number(input.dataset.attendanceMonth)).sort((a, b) => a - b);
     if (!months.length) return addLog("Selecione pelo menos um mês.");
     if (!await consumeFeature("attendance")) return;
-    setAttendanceBatch({ active: true, paused: false, phase: "month", months, monthIndex: 0, completed: 0, attempts: 0, skipped: 0, skippedDays: [] });
+    setAttendanceBatch({ active: true, authorized: true, paused: false, phase: "month", months, monthIndex: 0, completed: 0, attempts: 0, skipped: 0, skippedDays: [] });
     render();
     scheduleAttendanceResume(100);
   }
@@ -1343,7 +1360,7 @@
   }
 
   function resumeAttendanceBatch() {
-    if (model.license?.active === false) return lockAssistantAfterExpiry();
+    if (model.license?.active === false && !finishingAuthorizedFreeWork()) return lockAssistantAfterExpiry();
     const batch = getAttendanceBatch();
     if (!batch || batch.paused || Core.pageType(location.pathname) !== "attendance") return;
     const monthSelect = document.getElementById(IDS.month);
@@ -1484,7 +1501,7 @@
   }
 
   function resumePlanningBatch() {
-    if (model.license?.active === false) return lockAssistantAfterExpiry();
+    if (model.license?.active === false && !finishingAuthorizedFreeWork()) return lockAssistantAfterExpiry();
     const batch = getPlanningBatch();
     if (!batch || batch.paused) return;
     // O SIAP pode trocar de tela por postback antes de o observador atualizar o modelo.
@@ -2882,7 +2899,7 @@
       if (message.license && 'accountEmail' in message.license) model.accountEmail = message.license.accountEmail;
       model.sessionRequired = !message.license;
       if (!message.license) { model.accountEmail = null; window.SiapExamPanel?.resetAccount?.(); }
-      if (model.license?.active !== true) lockAssistantAfterExpiry();
+      if (model.license?.active !== true && !finishingAuthorizedFreeWork()) lockAssistantAfterExpiry();
       render();
       refreshActivitySiteStatus();
       respond({ ok:true });
