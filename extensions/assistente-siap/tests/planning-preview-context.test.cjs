@@ -51,7 +51,7 @@ test('seleciona Matriz SAEB somente quando há opções e nenhuma seleção manu
     planningLinks:(kind)=>kind === 'saeb' ? [{ id:'D6' }] : [],
     selectedPlanningSaeb:()=>selected,
     requestSiapPostBack:()=>{ requested++; return true; },
-    generatePlanningDraft:()=>{ generated++; }, stopPlanningFlow:()=>{},
+    generatePlanningDraft:()=>{ generated++; }, stopPlanningFlow:()=>{}, schedulePlanningResume:()=>{},
   };
   const resume = vm.runInNewContext(`${between('function resumePlanningFlow(', 'function stopPlanningFlow(')}\nresumePlanningFlow`, context);
   resume();
@@ -130,6 +130,22 @@ test('sem escolha manual, o assistente pode procurar uma unidade com opções cu
   assert.equal(axis.value, 'esportes');
 });
 
+test('espera por habilidade termina quando o SIAP não confirma a seleção automática', () => {
+  const state = { signature:'aula-55', stage:'wait-skill', lockedAxis:true, waitStartedAt:Date.now() - 16000 };
+  const storage = new Map([['assistenteSiapPlanningFlow', JSON.stringify(state)]]);
+  let error = '';
+  const context = {
+    Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
+    sessionStorage:{ getItem:(key)=>storage.get(key) || null, setItem:(key,value)=>storage.set(key,value), removeItem:(key)=>storage.delete(key) },
+    planningSignature:()=> 'aula-55', getPlanningBatch:()=>null,
+    document:{ getElementById:()=>({ value:'55' }), querySelectorAll:()=>[] },
+    tryNextPlanningAxis:()=>false, stopPlanningFlow:(message)=>{ error = message; }, schedulePlanningResume:()=>{ throw Error('não deve esperar novamente'); },
+  };
+  const resume = vm.runInNewContext(`${between('function resumePlanningFlow(', 'function stopPlanningFlow(')}\nresumePlanningFlow`, context);
+  resume();
+  assert.match(error, /seleção automática da habilidade/);
+});
+
 test('aula individual e quinzena completam zero, algumas ou todas as escolhas curriculares', () => {
   for (const batchMode of [false, true]) {
     for (const initial of [[], ['skill'], ['content'], ['skill', 'content'], ['skill', 'content', 'saeb']]) {
@@ -154,7 +170,7 @@ test('aula individual e quinzena completam zero, algumas ou todas as escolhas cu
         sessionStorage, document, model:{}, panel:{ querySelector:()=>null }, readContext:()=>({}),
         getPlanningBatch:()=>batch, planningSignature:()=> 'aula-1', readStoredJson:()=>null,
         selectedPlanningSaeb:()=>selected.has('saeb') ? ['D6 - Identificar o tema de um texto.'] : [],
-        planningLinks:(kind)=>[{ kind }], updateOperationStatus:()=>{}, addLog:()=>{},
+        planningLinks:(kind)=>[{ kind }], updateOperationStatus:()=>{}, addLog:()=>{}, schedulePlanningResume:()=>{},
         requestSiapPostBack:(link)=>{ requested.push(link.kind); selected.add(link.kind); return true; },
         generatePlanningAiDraft:()=>{ generated++; }, stopPlanningFlow:(message)=>{ throw Error(message); },
       };
@@ -187,7 +203,7 @@ test('a IA usa Danças e a habilidade presente, e substitui textos anteriores se
     document, HTMLTextAreaElement:TextArea, Event:class {},
     sessionStorage:{ removeItem:()=>{} }, getPlanningBatch:()=>null,
     model:{ context:{ grade:'6º Ano', subject:'EDUCAÇÃO FÍSICA', term:'3º Bimestre' } },
-    planningCurriculumKey:()=> 'dancas', selectedPlanningSaeb:()=>[], planningLinks:()=>[], setOperationStatus:()=>{}, addLog:()=>{},
+    planningCurriculumKey:()=> 'dancas', selectedPlanningSaeb:()=>[], planningLinks:()=>[], setOperationStatus:()=>{}, addLog:()=>{}, setTimeout, clearTimeout,
     autoSaveAndReplicatePlanningIfRequested:()=>{ throw new Error('não deve salvar sem conteúdo selecionado'); },
     chrome:{ runtime:{ sendMessage:async ({ payload }) => {
       captured.push(payload);

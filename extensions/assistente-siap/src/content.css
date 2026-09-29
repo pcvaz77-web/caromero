@@ -28,7 +28,6 @@
 #assistente-siap-panel.cm-planning-docked .cm-head p { font-size: 11px; }
 #assistente-siap-panel.cm-planning-docked .cm-body { padding: 9px; }
 #assistente-siap-panel.cm-planning-docked .cm-card { padding: 11px; margin-bottom: 9px; border-radius: 11px; }
-#assistente-siap-panel.cm-planning-docked .cm-operation-status { top: 53px; }
 #assistente-siap-panel * { box-sizing: border-box; }
 .cm-head { position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; padding: 14px 15px; color: #fff; background: linear-gradient(135deg, #17233a 0%, #263b63 100%); }
 .cm-activity-link { position: absolute; top: 12px; right: 15px; display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border: 1px solid rgba(255,255,255,.35); border-radius: 7px; color: #fff; background: rgba(255,255,255,.12); font-size: 10px; font-weight: 700; line-height: 1.2; white-space: nowrap; text-decoration: none; }
@@ -41,8 +40,11 @@
 .cm-head h2, .cm-head p, .cm-card h3, .cm-card p { margin: 0; }
 .cm-head h2 { font-size: 16px; }
 .cm-head p { opacity: .82; font-size: 12px; }
-.cm-operation-status { position: sticky; top: 68px; z-index: 2; margin: 10px 14px 0; padding: 10px 12px; border: 1px solid #b9cbee; border-radius: 11px; background: #eef4ff; color: #263b63; font-size: 13px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(23,35,58,.08); }
+.cm-operation-status { flex: 1 0 100%; margin: 2px 0 0; padding: 8px 10px; border: 1px solid #b9cbee; border-radius: 11px; background: #eef4ff; color: #263b63; font-size: 12px; font-weight: 700; text-align: center; box-shadow: 0 4px 12px rgba(23,35,58,.08); }
 .cm-operation-status[hidden] { display: none !important; }
+.cm-operation-actions { display: flex; gap: 6px; margin-top: 7px; }
+.cm-operation-actions[hidden] { display: none !important; }
+.cm-operation-actions button { flex: 1; padding: 5px 8px; border: 1px solid #b9cbee; border-radius: 8px; background: white; color: #263b63; font: 700 11px/1.2 system-ui; cursor: pointer; }
 .cm-window-actions { display: flex; gap: 6px; margin-left: auto; }
 .cm-minimize { width: 32px; height: 32px; border: 0; border-radius: 10px; background: rgba(255,255,255,.11); color: white; font: 600 18px/1 system-ui; cursor: pointer; }
 .cm-minimize:hover { background: rgba(130,174,255,.3); transform: translateY(-1px); }

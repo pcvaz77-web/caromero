@@ -46,6 +46,8 @@
   let planningDockOriginal;
   let planningDockNaturalWidth = 0;
   let planningDockDetached = false;
+  let planningResumeTimer;
+  let planningAiRun;
 
   function installNavigationBridge() {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -462,8 +464,11 @@
         <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-access-summary" hidden></span><span class="cm-account-identity" hidden></span></div>
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
         <a class="cm-activity-link" href="https://atividades.sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer" aria-label="Atividades para professores (abre em nova guia)" title="Atividades para professores" hidden>Atividades ↗</a>
-      </header><div class="cm-operation-status" role="status" aria-live="polite" hidden></div><div class="cm-body"></div>`;
+        <div class="cm-operation-status" role="status" aria-live="polite" hidden><span class="cm-operation-text"></span><div class="cm-operation-actions" hidden><button type="button" data-action="planning-pause">Pausar</button><button type="button" data-action="planning-stop">Parar</button></div></div>
+      </header><div class="cm-body"></div>`;
       panel.querySelector('[data-action="minimize"]')?.addEventListener("click", () => setOpen(false, false));
+      panel.querySelector('[data-action="planning-pause"]')?.addEventListener("click", togglePlanningOperation);
+      panel.querySelector('[data-action="planning-stop"]')?.addEventListener("click", stopPlanningOperation);
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
     const pageLabel = panel.querySelector(".cm-title p");
@@ -599,6 +604,11 @@
   }
 
   function operationStatusMessage() {
+    if (planningAiRun?.paused) return "Planejamento pausado.";
+    if (planningAiRun) return "Gerando planejamento...";
+    const planningFlow = readStoredJson("assistenteSiapPlanningFlow");
+    if (planningFlow?.paused) return "Planejamento pausado.";
+    if (planningFlow) return planningFlow.stage === "wait-skill" ? "Aguardando habilidade no SIAP..." : planningFlow.stage === "wait-content" ? "Aguardando conteúdo no SIAP..." : planningFlow.stage === "wait-saeb" ? "Aguardando Matriz SAEB no SIAP..." : "Preparando planejamento...";
     if (model.busyMessage) return model.busyMessage;
     const planningPreview = getPlanningPreview();
     if (planningPreview?.generationActive) {
@@ -609,8 +619,6 @@
       if (planningBatch.previewOnly) return `Gerando prévia ${Math.min((planningBatch.completed || 0) + 1, planningBatch.totalPreviewCount || planningBatch.selectedQueue?.length || 1)} de ${planningBatch.totalPreviewCount || planningBatch.selectedQueue?.length || 1}...`;
       return ["saving", "verify"].includes(planningBatch.phase) ? "Salvando planejamento..." : "Processando planejamentos...";
     }
-    const planningFlow = readStoredJson("assistenteSiapPlanningFlow");
-    if (planningFlow) return sessionStorage.getItem("assistenteSiapPlanningAi") ? "Gerando planejamento..." : "Preparando planejamento...";
     const contentBatch = getContentBatch();
     if (contentBatch?.active && !contentBatch.paused) return ["saving", "verify"].includes(contentBatch.phase) ? "Salvando conteúdos..." : "Processando conteúdos...";
     const attendanceBatch = getAttendanceBatch();
@@ -622,13 +630,59 @@
     const status = panel?.querySelector(".cm-operation-status");
     if (!status) return;
     const message = operationStatusMessage();
-    status.textContent = message;
+    status.querySelector(".cm-operation-text").textContent = message;
     status.hidden = !message;
+    const batch = getPlanningBatch();
+    const flow = readStoredJson("assistenteSiapPlanningFlow");
+    const actions = status.querySelector(".cm-operation-actions");
+    actions.hidden = !(planningAiRun || flow || batch?.active);
+    status.querySelector('[data-action="planning-pause"]').textContent = planningAiRun?.paused || flow?.paused || batch?.paused ? "Continuar" : "Pausar";
   }
 
   function setOperationStatus(message = "") {
     model.busyMessage = message;
     updateOperationStatus();
+  }
+
+  function schedulePlanningResume() {
+    clearTimeout(planningResumeTimer);
+    planningResumeTimer = setTimeout(resumePlanningFlow, 1000);
+  }
+
+  function togglePlanningOperation() {
+    const batch = getPlanningBatch();
+    if (planningAiRun) {
+      planningAiRun.paused = !planningAiRun.paused;
+      if (batch?.active) { batch.paused = planningAiRun.paused; setPlanningBatch(batch); }
+      if (!planningAiRun.paused) {
+        setOperationStatus("Gerando planejamento...");
+        planningAiRun.resume?.();
+      } else setOperationStatus("");
+      updateOperationStatus();
+      return;
+    }
+    const flow = readStoredJson("assistenteSiapPlanningFlow");
+    if (!flow) return togglePlanningBatch();
+    flow.paused = !flow.paused;
+    if (!flow.paused && ["wait-skill", "wait-content"].includes(flow.stage)) flow.waitStartedAt = Date.now();
+    if (!flow.paused && flow.stage === "wait-saeb") flow.saebStartedAt = Date.now();
+    sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+    if (batch?.active) { batch.paused = flow.paused; setPlanningBatch(batch); }
+    if (flow.paused) clearTimeout(planningResumeTimer);
+    updateOperationStatus();
+    if (!flow.paused) resumePlanningFlow();
+  }
+
+  function stopPlanningOperation() {
+    if (planningAiRun) {
+      planningAiRun.cancelled = true;
+      planningAiRun.resume?.();
+      planningAiRun = null;
+    }
+    clearTimeout(planningResumeTimer);
+    setOperationStatus("");
+    if (getPlanningBatch()?.active) return stopPlanningBatch();
+    stopPlanningFlow("Planejamento interrompido. Nenhuma aula foi salva pelo Assistente.");
   }
 
   function contextCard() {
@@ -1667,6 +1721,7 @@
   }
 
   function stopPlanningBatch() {
+    clearTimeout(planningResumeTimer);
     const batch = getPlanningBatch();
     if (batch?.previewOnly && batch.previewMetadata) {
       setPlanningPreview({ ...batch.previewMetadata, drafts:batch.templates || {}, draftsReady:false, signature:batch.previewMetadata.signature || planningOverviewSignature() });
@@ -1752,7 +1807,9 @@
     }
     let flow;
     try { flow = JSON.parse(sessionStorage.getItem("assistenteSiapPlanningFlow") || "null"); } catch { flow = null; }
-    if (!flow || flow.signature !== planningSignature()) return;
+    if (!flow) return;
+    if (flow.signature !== planningSignature()) return stopPlanningFlow("A aula mudou durante o planejamento. Inicie novamente nesta aula.");
+    if (flow.paused) return;
     const batch = getPlanningBatch();
     const lesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value) || 1;
     const selectionIndex = Number.isInteger(batch?.current?.sequenceIndex) ? batch.current.sequenceIndex : lesson - 1;
@@ -1781,14 +1838,24 @@
       }
       if (flow.stage !== "fill") {
         flow.stage = "wait-skill";
+        flow.waitStartedAt = Date.now();
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
         if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar a habilidade no SIAP.");
+        schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-skill") {
       const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
-      if (!skillCount) return;
+      if (!skillCount) {
+        if (Date.now() - (flow.waitStartedAt || 0) >= 15000) {
+          flow.stage = "skill";
+          if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
+          return stopPlanningFlow("O SIAP não confirmou a seleção automática da habilidade nas opções disponíveis. Nenhuma aula foi salva.");
+        }
+        schedulePlanningResume();
+        return;
+      }
       const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
       flow.stage = contentCount ? "fill" : "content";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
@@ -1802,14 +1869,24 @@
         addLog("O SIAP não oferece conteúdo nesta unidade e neste bimestre. A IA usará a unidade temática e a habilidade escolhidas; confira o conteúdo antes de salvar.");
       } else {
         flow.stage = "wait-content";
+        flow.waitStartedAt = Date.now();
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
         if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o conteúdo no SIAP.");
+        schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-content") {
       const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
-      if (!contentCount) return;
+      if (!contentCount) {
+        if (Date.now() - (flow.waitStartedAt || 0) >= 15000) {
+          flow.stage = "skill";
+          if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
+          return stopPlanningFlow("O SIAP não confirmou a seleção automática do conteúdo nas opções disponíveis. Nenhuma aula foi salva.");
+        }
+        schedulePlanningResume();
+        return;
+      }
       flow.stage = "fill";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
     }
@@ -1821,12 +1898,13 @@
         flow.saebStartedAt = Date.now();
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
         if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o descritor da Matriz SAEB no SIAP.");
+        schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-saeb") {
       if (!selectedPlanningSaeb().length) {
-        if (Date.now() - flow.saebStartedAt < 10000) return setTimeout(resumePlanningFlow, 1000);
+        if (Date.now() - flow.saebStartedAt < 10000) return schedulePlanningResume();
         return stopPlanningFlow("O SIAP não confirmou a seleção da Matriz SAEB. Confira o descritor antes de continuar.");
       }
       flow.stage = "fill";
@@ -1840,6 +1918,8 @@
   }
 
   function stopPlanningFlow(message) {
+    clearTimeout(planningResumeTimer);
+    model.busyMessage = "";
     sessionStorage.removeItem("assistenteSiapPlanningFlow");
     sessionStorage.removeItem("assistenteSiapPlanningAi");
     sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
@@ -1850,6 +1930,7 @@
       setPlanningBatch(batch);
     }
     addLog(message);
+    updateOperationStatus();
   }
 
   function generatePlanningDraft() {
@@ -1975,10 +2056,19 @@
       batch.aiRequestedAt = Date.now();
       setPlanningBatch(batch);
     }
+    const run = { cancelled:false, paused:false, resume:null };
+    planningAiRun = run;
+    let aiTimeout;
     setOperationStatus("Gerando planejamento...");
     addLog("Gerando o planejamento com IA…");
     try {
-      const result = template || equivalentDraft ? { ok: true, fields: (template || equivalentDraft).fields } : await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_AI_DRAFT", payload });
+      const result = template || equivalentDraft ? { ok: true, fields: (template || equivalentDraft).fields } : await Promise.race([
+        chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_AI_DRAFT", payload }),
+        new Promise((_, reject) => { aiTimeout = setTimeout(() => reject(new Error("timeout")), 90000); })
+      ]);
+      if (run.cancelled) return;
+      if (run.paused) await new Promise((resolve) => { run.resume = resolve; });
+      if (run.cancelled) return;
       if (batch?.active) {
         const currentBatch = getPlanningBatch();
         if (!currentBatch || currentBatch.runId !== batch.runId || currentBatch.paused || currentBatch.phase !== "filling" || currentBatch.current?.planKey !== batch.current?.planKey) return;
@@ -2040,9 +2130,13 @@
         }
       }
       addLog(template ? "Planejamento equivalente aplicado. Revise esta aula; nada foi salvo." : "Planejamento gerado com IA. Revise habilidade, conteúdo, Matriz SAEB (se houver) e textos; nada foi salvo.");
-    } catch {
-      stopPlanningFlow("Não foi possível acessar a IA do Assistente SIAP. Verifique o acesso à extensão e tente novamente.");
+    } catch (error) {
+      if (!run.cancelled) stopPlanningFlow(error?.message === "timeout"
+        ? "A geração demorou mais de 90 segundos. Tente novamente; nenhuma aula foi salva."
+        : "Não foi possível acessar a IA do Assistente SIAP. Verifique o acesso à extensão e tente novamente.");
     } finally {
+      clearTimeout(aiTimeout);
+      if (planningAiRun === run) planningAiRun = null;
       setOperationStatus("");
     }
   }
