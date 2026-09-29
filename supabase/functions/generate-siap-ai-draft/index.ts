@@ -11,6 +11,7 @@ const baseCorsHeaders = {
 
 const extensionOrigins = [
   'chrome-extension://fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+  'chrome-extension://pofhdifmjeijkfjhnagoggdekdnicjhe',
   'chrome-extension://mohcmojnkjjkphgjaogcbokjmnijmggl',
   'chrome-extension://iobkgohpoeoimlhlgdeiojlghbhcijli',
   'chrome-extension://bfbjocbablljmknahhlkjhllpjmihibe',
