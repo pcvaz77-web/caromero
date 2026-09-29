@@ -16,7 +16,7 @@ test('estado visual persiste independente da execucao', () => {
 
 test('conteudo repete salvamento com limite seguro', () => {
   assert.match(source, /const MAX_SAVE_ATTEMPTS = 5/);
-  assert.match(source, /batch\.saveAttempts >= MAX_SAVE_ATTEMPTS/);
+  assert.match(source, /batch\[retryKey\] >= MAX_SAVE_ATTEMPTS/);
   assert.match(source, /saveWaitStartedAt >= 20000/);
   assert.match(source, /O lote foi pausado/);
 });
@@ -45,7 +45,7 @@ test('planejamento individual permite salvar e replicar automaticamente', () => 
   assert.match(source, /function autoSaveAndReplicatePlanningIfRequested\(\)/);
   assert.match(source, /function openPlanningReplication\(\)/);
   assert.match(source, /sessionStorage\.setItem\("assistenteSiapConfirmReplicate", signature\)/);
-  assert.match(source, /if \(!batch && autoSaveAndReplicatePlanningIfRequested\(\)\) return/);
+  assert.match(source, /if \(!batch && contentFields\.length && autoSaveAndReplicatePlanningIfRequested\(\)\) return/);
   assert.match(source, /targets\.forEach\(\(input\) => \{[\s\S]{0,180}input\.checked = true/);
   assert.match(source, /if \(!inputs\.length\)[\s\S]{0,250}setTimeout\(completeReplicationIfRequested, 200\)/);
   assert.match(source, /cphFuncionalidade_cphCampos_btnCancelarReplicar/);
@@ -73,7 +73,7 @@ test('minimização é preservada após sucessivos recarregamentos dos filtros',
     chrome:{storage:{local:{get:async()=>({...stored})}}},
     removeCompetitorOverlap(){}, createShell(value){open=value;},
     setOpen(value){open=value;stored.panelOpen=value;},
-    refreshLicenseStatus(){},analyze(){},observeSiapUpdates(){},setTimeout(){}
+    refreshLicenseStatus(){},refreshActivitySiteStatus(){},analyze(){},observeSiapUpdates(){},setTimeout(){}
   };
   vm.createContext(context);
   await vm.runInContext(install+';install()',context);

@@ -34,10 +34,13 @@ type DraftPayload = {
   grade: string
   subject: string
   period?: string
+  thematicUnit?: string
+  lessonSequence?: number
   guidance?: string
   educationalContext?: string
   selectedSkills?: string[]
   selectedContents?: string[]
+  selectedSaeb?: string[]
   tense?: 'planned' | 'realized'
 }
 
@@ -81,10 +84,13 @@ const parsePayload = (value: unknown): DraftPayload | null => {
     grade,
     subject,
     period: cleanText(raw.period, 80),
+    thematicUnit: cleanText(raw.thematicUnit, 160),
+    lessonSequence: typeof raw.lessonSequence === 'number' && Number.isInteger(raw.lessonSequence) && raw.lessonSequence >= 1 && raw.lessonSequence <= 1000 ? raw.lessonSequence : undefined,
     guidance: cleanText(raw.guidance, 1200),
     educationalContext: cleanText(raw.educationalContext, 3500),
     selectedSkills: cleanList(raw.selectedSkills, 20, 500),
     selectedContents: cleanList(raw.selectedContents, 20, 500),
+    selectedSaeb: cleanList(raw.selectedSaeb, 20, 500),
     tense: raw.tense === 'realized' ? 'realized' : 'planned',
   }
 }
@@ -96,8 +102,8 @@ const schemaFor = (kind: DraftKind) => kind === 'planning'
     properties: {
       objectives: { type: 'string', minLength: 10, maxLength: 150 },
       description: { type: 'string', minLength: 15, maxLength: 60 },
-      methodology: { type: 'string', minLength: 200 },
-      evaluation: { type: 'string', minLength: 160 },
+      methodology: { type: 'string', minLength: 30, description: 'Descreva no futuro como a aula será realizada, respeitando a orientação do professor e os conteúdos selecionados.' },
+      evaluation: { type: 'string', minLength: 5, description: 'Descreva no futuro como a avaliação será realizada nesta aula: procedimento ou instrumento do professor e aprendizagem a verificar, sem afirmar resultado.' },
     },
     required: ['objectives', 'description', 'methodology', 'evaluation'],
   }
@@ -136,11 +142,23 @@ const promptFor = (payload: DraftPayload) => {
     serie: payload.grade,
     componenteCurricular: payload.subject,
     periodo: payload.period,
-    tempoVerbal: payload.tense === 'realized' ? 'passado, como registro do que foi realizado' : 'futuro, como planejamento',
+    unidadeTematicaSelecionada: payload.thematicUnit,
+    numeroDaAula: payload.lessonSequence,
+    tempoVerbal: payload.kind === 'planning'
+      ? 'futuro na metodologia e na avaliação, explicando como a aula e a verificação da aprendizagem serão realizadas'
+      : payload.tense === 'realized' ? 'passado, como registro do que foi realizado' : 'futuro, como planejamento',
     orientacaoDoProfessor: payload.guidance,
     contextoEducacionalAnonimizado: payload.educationalContext,
     habilidadesSelecionadas: payload.selectedSkills,
     conteudosSelecionados: payload.selectedContents,
+    descritoresMatrizSaebSelecionados: payload.kind === 'planning' ? payload.selectedSaeb : undefined,
+    requisitosDoPlanejamento: payload.kind === 'planning' ? [
+      'Use a unidade temática, as habilidades, os conteúdos e, quando houver, os descritores da Matriz SAEB selecionados como base concreta dos objetivos, da descrição, da metodologia e da avaliação. Não acrescente habilidade, conteúdo ou descritor diferente dos escolhidos no SIAP.',
+      'A unidade temática selecionada delimita o assunto da aula: nunca a troque por outra. Se não houver conteúdo selecionado disponível no SIAP, use somente a unidade temática e as habilidades presentes, sem inventar um conteúdo ou migrar para outro tema.',
+      'A orientação opcional do professor tem prioridade para o campo a que se refere. Escreva metodologia e avaliação como planejamento futuro, mesmo que o professor descreva a aula com palavras no passado. Na avaliação, descreva COMO ela será realizada NESTA aula para verificar a aprendizagem do estudante sobre o assunto trabalhado. Diga o procedimento ou instrumento que o professor utilizará e o que será observado, sem afirmar que o aluno aprendeu. Se pedir avaliação curta ou em poucas palavras, mantenha esses elementos em uma frase breve. Para aula expositiva sobre danças, por exemplo: "A avaliação será realizada por perguntas orais individuais sobre as danças apresentadas, verificando se cada estudante identifica uma característica." Não responda apenas "Identificará características das danças", pois isso é objetivo, não forma de avaliação. Se disser que a aula foi apenas expositiva, planeje somente uma exposição; não acrescente debates, grupos ou práticas que ele não indicou.',
+      'Sem orientação opcional, use o número da aula para variar o ponto de partida e a construção da primeira frase, sempre de acordo com o conteúdo. Evite aberturas padronizadas como Nessa aula iniciarei com uma conversa breve ou Iniciar com uma breve retomada.',
+      'A avaliação deve explicar uma ação prevista do professor para verificar evidências observáveis da habilidade e do conteúdo selecionados, coerente com a aula e com a orientação recebida. Se o professor não informar o procedimento, proponha um procedimento plausível no futuro para ele revisar antes de salvar. Não invente resultado, nota ou desempenho individual.',
+    ] : undefined,
     requisitosDoPei: payload.kind === 'pei' ? [
       'Produza entre 450 e 700 caracteres em cada um dos quatro campos, com dois ou três períodos completos e articulados.',
       'Inicie cada campo de uma maneira própria: as primeiras palavras e a construção inicial não podem se repetir entre os quatro textos.',
@@ -380,7 +398,7 @@ Deno.serve(async (request) => {
       reasoning: { effort: 'low' },
       store: false,
       instructions: payload.kind === 'planning'
-        ? 'Você redige planejamentos pedagógicos diretos em português brasileiro. Use aproximadamente 30 caracteres em description, 300 em methodology e 250 em evaluation, podendo variar o necessário para concluir as frases naturalmente dentro dos limites do formato. A metodologia deve explicar de forma prática como a aula será realizada. Não use títulos dentro dos textos, não repita informações, não diagnostique e não invente fatos. Não inclua nome, matrícula ou identificadores.'
+        ? 'Você redige planejamentos pedagógicos diretos em português brasileiro. Siga primeiro as escolhas curriculares e a orientação do professor. Use aproximadamente 30 caracteres em description e 300 em methodology. Escreva methodology e evaluation no futuro, como ações que serão realizadas, mesmo que a orientação docente esteja no passado. Em evaluation, descreva como a avaliação será realizada NESTA aula: qual procedimento ou instrumento o professor utilizará e qual aprendizagem procurará observar. Se o professor pedir avaliação curta ou em poucas palavras, mantenha esses dois elementos em uma única frase breve; não entregue somente um objetivo futuro do aluno. Se o procedimento não for informado, proponha um procedimento plausível para revisão docente. Não afirme que o estudante alcançou a aprendizagem nem invente nota ou resultado. Caso contrário, use cerca de 250 caracteres. A metodologia deve explicar como a aula será realizada sem inventar atividades incompatíveis com a orientação. Varie naturalmente a abertura entre aulas e evite frases iniciais repetidas. Não use títulos dentro dos textos, não repita informações, não diagnostique e não invente fatos sobre resultados ou desempenho. Não inclua nome, matrícula ou identificadores.'
         : 'Você redige textos pedagógicos individualizados, consistentes e bem desenvolvidos em português brasileiro. Cada campo deve ter de 450 a 700 caracteres, sem ultrapassar 900, e começar com palavras e estruturas diferentes das usadas nos demais campos. Leia obrigatoriamente o componente curricular, a série, o período, a orientação do professor e o contexto educacional fornecidos. Empregue vocabulário, objetos de conhecimento, práticas e instrumentos próprios da disciplina indicada, evitando generalidades intercambiáveis entre Matemática, Língua Portuguesa, Educação Física, Química ou qualquer outro componente. Integre a orientação do professor de forma natural e pertinente. Não use o nome do campo como título dentro do texto, não diagnostique, não invente fatos e não inclua nome, matrícula ou identificadores. Respeite rigorosamente a finalidade específica de cada campo e entregue textos inclusivos, coesos e revisáveis pelo professor.',
       input: promptFor(payload),
       text: { format: { type: 'json_schema', name: 'siap_pedagogical_draft', strict: true, schema: schemaFor(payload.kind) } },

@@ -82,6 +82,11 @@
     setTimeout(analyze, 700);
     setTimeout(analyze, 1600);
     if (initialPageType === "planning-lesson") {
+      document.addEventListener("change", (event) => {
+        if (event.isTrusted && event.target?.id === "ddlEixo") {
+          sessionStorage.setItem("assistenteSiapManualPlanningAxis", JSON.stringify({ signature:planningSignature(), value:event.target.value }));
+        }
+      }, true);
       installManualPlanningSaveTracking();
       setTimeout(resumePlanningFlow, 700);
       setTimeout(resumeReplicateAfterSave, 900);
@@ -329,11 +334,13 @@
     return [...calendar.querySelectorAll("td.letivo")].map((cell) => {
       const day = Number((cell.textContent || "").trim());
       const date = new Date(year, month, day, 12);
+      const color = Core.colorState(getComputedStyle(cell).backgroundColor);
       return {
         day,
         iso: `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
         label: `${String(day).padStart(2, "0")}/${String(month + 1).padStart(2, "0")}/${year}`,
-        state: Core.colorState(getComputedStyle(cell).backgroundColor),
+        state: color === "saved" ? "saved"
+          : cell.getAttribute("data-planejado") === "True" && cell.getAttribute("data-executado") === "False" ? "pending" : color,
         eligible: Core.isEligibleDate(date),
         cell
       };
@@ -609,17 +616,17 @@
     const batch = getContentBatch();
     const selectedMonth = document.getElementById(IDS.month)?.selectedIndex ?? new Date().getMonth();
     if (batch) return `<section class="cm-card"><h3>Executar conteúdos</h3>
-      <div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>${batch.completed || 0} dia(s) concluído(s) · ${escapeHtml(SUPPORT_MATERIALS[batch.materialIndex] || "Material não identificado")}</div>
-      <p class="cm-note">${escapeHtml(batch.currentLabel || "Procurando a próxima data azul nos meses escolhidos.")}</p>
+      <div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>${batch.completed || 0} aula(s) concluída(s) · ${escapeHtml(SUPPORT_MATERIALS[batch.materialIndex] || "Material não identificado")}</div>
+      <p class="cm-note">${escapeHtml(batch.currentLabel || "Procurando a próxima data pendente nos meses escolhidos.")}${batch.lessonValues?.[batch.lessonIndex] ? ` · ${escapeHtml(batch.lessonValues[batch.lessonIndex])}` : ""}</p>
       <div class="cm-actions"><button class="cm-btn" data-action="content-batch-toggle">${batch.paused ? "Continuar" : "Pausar"}</button><button class="cm-btn" data-action="content-batch-stop">Parar</button></div>
     </section>`;
     const monthChecks = MONTHS.map((month, index) => `<label class="cm-check"><input type="checkbox" data-content-month="${index}" ${index === selectedMonth ? "checked" : ""}><span>${month}</span></label>`).join("");
     const materialRadios = SUPPORT_MATERIALS.map((material, index) => `<label class="cm-check"><input type="radio" name="cm-support-material" data-material-index="${index}" ${index === SUPPORT_MATERIALS.length - 1 ? "checked" : ""}><span>${escapeHtml(material)}</span></label>`).join("");
     return `<section class="cm-card"><h3>Executar conteúdos planejados</h3>
-      <p>Escolha os meses e um material de apoio. Somente datas azuis até hoje serão processadas.</p>
+      <p>Escolha os meses e um material de apoio. As aulas pendentes até hoje serão processadas, inclusive em datas com evento.</p>
       <h4>Meses</h4><div class="cm-option-grid">${monthChecks}</div>
       <h4>Material de apoio</h4><div class="cm-option-list">${materialRadios}</div>
-      <label class="cm-check"><input id="cm-content-confirm" type="checkbox"><span>Autorizo executar os conteúdos planejados e salvar cada data selecionada.</span></label>
+      <label class="cm-check"><input id="cm-content-confirm" type="checkbox"><span>Autorizo executar os conteúdos planejados e salvar cada aula das datas selecionadas.</span></label>
       <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="content-batch-start" disabled>Executar conteúdos selecionados</button></div>
     </section>`;
   }
@@ -678,6 +685,16 @@
     return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim().toUpperCase();
   }
 
+  function planningCurriculumKey(payload) {
+    return JSON.stringify([
+      normalizePlanningGroup(payload.thematicUnit),
+      (payload.selectedSkills || []).map(normalizePlanningGroup).sort(),
+      (payload.selectedContents || []).map(normalizePlanningGroup).sort(),
+      Boolean(payload.saebAvailable),
+      (payload.selectedSaeb || []).map(normalizePlanningGroup).sort()
+    ]);
+  }
+
   function planningOverviewOptions() {
     const items = [...document.querySelectorAll("#cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor .aula.naoPlanejada")]
       .map((block, domIndex) => ({ ...overviewItem(block), domIndex, classCode: block.getAttribute("codigoturma") || "" }));
@@ -708,11 +725,14 @@
     const equivalentMax = Math.max(0, ...overview.groups.map((group) => Math.max(0, ...[...group.classes.values()].map((lessons) => lessons.length))));
     const max = preview?.mode === "individual" ? overview.items.length : equivalentMax;
     const value = Math.min(Math.max(Number(preview?.count) || 1, 1), Math.max(max, 1));
-    const draftCards = preview?.drafts ? Object.entries(preview.drafts).map(([key, draft], index) => `<div class="cm-preview-plan"><strong>Planejamento ${index + 1}</strong><small>${escapeHtml(draft.label || key)}</small><label class="cm-field"><span>Metodologia</span><textarea rows="7" maxlength="1200" data-preview-plan="${escapeHtml(encodeURIComponent(key))}" data-preview-field="2">${escapeHtml(draft.fields?.[2] || "")}</textarea></label><label class="cm-field"><span>Avaliação</span><textarea rows="6" maxlength="800" data-preview-plan="${escapeHtml(encodeURIComponent(key))}" data-preview-field="3">${escapeHtml(draft.fields?.[3] || "")}</textarea></label></div>`).join("") : "";
+    const draftCards = preview?.drafts ? Object.entries(preview.drafts).map(([key, draft], index) => {
+      const lessons = (preview.queue || []).filter((item) => item.planKey === key).map((item) => `${item.classroom} · aula ${item.lesson}`);
+      return `<div class="cm-preview-plan"><strong>Planejamento ${index + 1}</strong><small>${escapeHtml(draft.label || key)}</small><small>Quadradinhos: ${escapeHtml(lessons.join("; ") || "aula em leitura")}</small><small>Unidade temática: ${escapeHtml(draft.thematicUnit || "não identificada")}</small><small>Habilidade: ${escapeHtml((draft.selectedSkills || []).join("; ") || "não identificada")}</small><small>Conteúdo: ${escapeHtml((draft.selectedContents || []).join("; ") || "não identificado")}</small>${draft.saebAvailable ? `<small>Matriz SAEB: ${escapeHtml((draft.selectedSaeb || []).join("; ") || "não identificada")}</small>` : ""}<label class="cm-field"><span>Metodologia</span><textarea rows="7" maxlength="1200" data-preview-plan="${escapeHtml(encodeURIComponent(key))}" data-preview-field="2">${escapeHtml(draft.fields?.[2] || "")}</textarea></label><label class="cm-field"><span>Avaliação</span><textarea rows="6" maxlength="800" data-preview-plan="${escapeHtml(encodeURIComponent(key))}" data-preview-field="3">${escapeHtml(draft.fields?.[3] || "")}</textarea></label></div>`;
+    }).join("") : "";
     const previewHtml = preview ? `<div class="cm-alert"><strong>Prévia do lote</strong><br>${preview.uniquePlans} planejamento(s) diferente(s) serão aplicados em ${preview.queue.length} aula(s).</div>
       <div class="cm-list">${preview.summary.map((line) => `<div class="cm-item"><span><strong>${escapeHtml(line)}</strong></span></div>`).join("")}</div>
-      ${!preview.draftsReady ? `${draftCards}<p class="cm-note">A geração foi interrompida. As prévias concluídas acima foram preservadas; continue para gerar as restantes, sem salvar aulas.</p><div class="cm-actions"><button class="cm-btn" data-action="batch-preview-clear">Alterar</button><button class="cm-btn cm-primary" data-action="batch-draft-preview">Continuar geração da prévia</button></div>` : `${draftCards}<p class="cm-note">Você pode editar os textos diretamente acima. As alterações ficam guardadas nesta prévia.</p><label class="cm-check"><input id="cm-batch-confirm" type="checkbox"><span>${preview.mode === "equivalent" ? "Conferi as metodologias e avaliações. Autorizo preencher e salvar automaticamente somente as aulas brancas listadas." : "Conferi as metodologias e avaliações. Autorizo preencher as aulas listadas; cada aula será revisada antes de salvar."}</span></label><div class="cm-actions"><button class="cm-btn" data-action="batch-preview-clear">Alterar</button><button class="cm-btn cm-primary" data-action="batch-start" disabled>${preview.mode === "equivalent" ? "Aplicar automaticamente" : "Começar pelas aulas da prévia"}</button></div>`}` : `<p>Escolha quantos planejamentos a IA deve preparar nesta quinzena.</p>
-      <label class="cm-check"><input type="radio" name="cm-batch-mode" value="equivalent" checked><span><strong>Turmas equivalentes</strong><br><small>O mesmo planejamento é usado na mesma posição de aula das turmas da mesma série e disciplina.</small></span></label>
+      ${!preview.draftsReady ? `${draftCards}<p class="cm-note">O Assistente abrirá cada quadradinho para identificar habilidade, conteúdo e Matriz SAEB, quando houver, antes de gerar a prévia. Nenhuma aula será salva nesta etapa.</p><div class="cm-actions"><button class="cm-btn" data-action="batch-preview-clear">Alterar</button><button class="cm-btn cm-primary" data-action="batch-draft-preview">Ler aulas e gerar prévia</button></div>` : `${draftCards}<p class="cm-note">Você pode editar os textos diretamente acima. As alterações ficam guardadas nesta prévia.</p><label class="cm-check"><input id="cm-batch-confirm" type="checkbox"><span>${preview.mode === "equivalent" ? "Conferi as metodologias e avaliações. Autorizo preencher e salvar automaticamente somente as aulas brancas listadas." : "Conferi as metodologias e avaliações. Autorizo preencher as aulas listadas; cada aula será revisada antes de salvar."}</span></label><div class="cm-actions"><button class="cm-btn" data-action="batch-preview-clear">Alterar</button><button class="cm-btn cm-primary" data-action="batch-start" disabled>${preview.mode === "equivalent" ? "Aplicar automaticamente" : "Começar pelas aulas da prévia"}</button></div>`}` : `<p>Escolha quantos planejamentos a IA deve preparar nesta quinzena.</p>
+      <label class="cm-check"><input type="radio" name="cm-batch-mode" value="equivalent" checked><span><strong>Turmas equivalentes</strong><br><small>Aulas na mesma posição compartilham o texto somente quando habilidade, conteúdo e Matriz SAEB também coincidem.</small></span></label>
       <label class="cm-check"><input type="radio" name="cm-batch-mode" value="individual"><span><strong>Aulas individuais</strong><br><small>Cada quadrado recebe um planejamento diferente.</small></span></label>
       <label class="cm-field"><span>Quantidade de planejamentos</span><input id="cm-batch-count" type="number" min="1" max="${equivalentMax}" value="${Math.min(value, Math.max(equivalentMax, 1))}"><small data-batch-limit>Limite neste modo: ${equivalentMax} planejamento(s), alcançando até ${overview.items.length} aula(s).</small></label>
       <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="batch-preview">Gerar prévia completa</button></div>`;
@@ -720,64 +740,15 @@
   }
 
   async function startPlanningDraftPreview() {
-    let preview = getPlanningPreview();
+    const preview = getPlanningPreview();
     const select = document.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
     if (!preview?.queue?.length || !["equivalent", "individual"].includes(preview.mode) || !select) return addLog("Gere primeiro a prévia dos planejamentos.");
     if (preview.signature !== planningOverviewSignature()) return addLog("A quinzena mudou. Atualize a prévia antes de gerar os textos.");
-    if (preview.generationActive) return;
-
-    const representatives = [...new Map(preview.queue.map((item) => [item.planKey, item])).values()];
-    const drafts = { ...(preview.drafts || {}) };
-    const pending = representatives.filter((item) => !drafts[item.planKey]);
-    if (!pending.length) {
-      setPlanningPreview({ ...preview, drafts, draftsReady:true, generationActive:false });
-      render();
-      return addLog("Todas as prévias já estão prontas para conferência.");
-    }
-
-    const generationId = `${Date.now()}-${Math.random()}`;
-    preview = { ...preview, drafts, draftsReady:false, generationActive:true, generationId, generationCompleted:Object.keys(drafts).length };
-    setPlanningPreview(preview);
+    if (getPlanningBatch()) return addLog("Conclua ou interrompa o lote atual antes de gerar outra prévia.");
+    setPlanningBatch({ active:true, runId:`preview-${Date.now()}-${Math.random()}`, paused:false, autoSave:false, previewOnly:true, phase:"overview", periods:[{ value:select.value, label:select.selectedOptions?.[0]?.textContent?.trim() || "Período atual" }], periodIndex:0, completed:0, totalPreviewCount:preview.queue.length, reviewedGroups:[], current:null, selectedQueue:preview.queue, queueIndex:0, templates:{}, previewMetadata:preview, mode:preview.mode });
     render();
-    addLog("Gerando as prévias no painel. Nenhuma aula do SIAP será aberta ou salva.");
-
-    try {
-      for (const item of pending) {
-        const current = getPlanningPreview();
-        if (!current || current.generationId !== generationId || current.signature !== planningOverviewSignature()) return;
-        const sequence = Number(item.sequenceIndex || 0) + 1;
-        const result = await chrome.runtime.sendMessage({
-          type:"ASSISTENTE_SIAP_AI_DRAFT",
-          payload:{
-            kind:"planning",
-            grade:item.grade || "Turma não identificada",
-            subject:String(item.subject || "Componente curricular").replace(/^\d+\s*-\s*/, ""),
-            period:select.selectedOptions?.[0]?.textContent?.trim() || "",
-            guidance:`Crie uma proposta diferente para a sequência ${sequence}.`,
-            selectedSkills:[],
-            selectedContents:[],
-            tense:"planned"
-          }
-        });
-        if (!result?.ok || !Array.isArray(result.fields) || result.fields.length !== 4) throw new Error(result?.message || "A IA não devolveu os campos esperados.");
-        drafts[item.planKey] = {
-          fields:result.fields.map((field) => String(field || "").trim()),
-          label:`${item.grade} · ${item.subject} · sequência ${sequence}`
-        };
-        preview = { ...getPlanningPreview(), drafts:{ ...drafts }, generationCompleted:Object.keys(drafts).length };
-        setPlanningPreview(preview);
-        render();
-      }
-      preview = { ...getPlanningPreview(), drafts:{ ...drafts }, draftsReady:Object.keys(drafts).length === preview.uniquePlans, generationActive:false };
-      setPlanningPreview(preview);
-      render();
-      addLog("Prévias editáveis prontas. Nenhuma aula foi aberta ou salva.");
-    } catch (error) {
-      preview = { ...getPlanningPreview(), drafts:{ ...drafts }, draftsReady:false, generationActive:false };
-      setPlanningPreview(preview);
-      render();
-      addLog(error?.message || "Não foi possível concluir as prévias.");
-    }
+    addLog("Abrindo cada aula da quinzena para ler habilidade e conteúdo antes da prévia. Nenhuma aula será salva.");
+    setTimeout(resumePlanningBatch, 100);
   }
 
   function buildPlanningPreview() {
@@ -787,7 +758,7 @@
     let queue = [];
     if (mode === "individual") {
       const count = Math.min(Math.max(requested || 1, 1), overview.items.length);
-      queue = overview.items.slice(0, count).map((item, index) => ({ ...item, planKey: `individual-${index + 1}`, sequenceIndex: index }));
+      queue = overview.items.slice(0, count).map((item, index) => ({ ...item, planKey: `individual-${index + 1}`, groupKey:`individual-${index + 1}`, sequenceIndex: index }));
     } else {
       const max = Math.max(0, ...overview.groups.map((group) => Math.max(0, ...[...group.classes.values()].map((lessons) => lessons.length))));
       const count = Math.min(Math.max(requested || 1, 1), max);
@@ -795,7 +766,7 @@
         for (let position = 0; position < count; position += 1) {
           group.classes.forEach((lessons) => {
             const item = lessons[position];
-            if (item) queue.push({ ...item, planKey: `${group.key}|${position + 1}`, sequenceIndex: position });
+            if (item) queue.push({ ...item, planKey: `${group.key}|${position + 1}|${item.classCode || item.domIndex}`, groupKey:`${group.key}|${position + 1}`, sequenceIndex: position });
           });
         }
       });
@@ -835,20 +806,22 @@
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
     const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
     const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
+    const saebCount = selectedPlanningSaeb().length;
+    const saebAvailable = Boolean(saebCount || planningLinks("saeb").length);
     const ready = methodology instanceof HTMLTextAreaElement && evaluation instanceof HTMLTextAreaElement;
     const batch = getPlanningBatch();
     return `<section class="cm-card"><h3>Assistente de planejamento</h3>
       ${batch ? `<div class="cm-alert"><strong>${batch.previewOnly ? "Gerando somente a prévia — nenhuma aula será salva" : (batch.paused ? "Aguardando sua revisão" : "Lote em andamento")}</strong><br>${escapeHtml(batch.current?.grade || "")} · ${escapeHtml(batch.current?.subject || "")} · ${escapeHtml(batch.current?.classroom || "")} · Aula ${escapeHtml(batch.current?.lesson || "")}</div>
       ${batch.paused && batch.phase === "review" ? `<label class="cm-check"><input id="cm-batch-lesson-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação desta aula.</span></label>` : ""}
-      <div class="cm-actions"><button class="cm-btn" data-action="batch-toggle" ${batch.paused && batch.phase === "review" ? "disabled" : ""}>${batch.paused ? "Salvar esta aula e continuar" : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>` : ""}
+      <div class="cm-actions"><button class="cm-btn" data-action="batch-toggle" ${batch.paused && batch.phase === "review" ? "disabled" : ""}>${batch.paused ? (batch.phase === "review" ? "Salvar esta aula e continuar" : "Retomar leitura") : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>` : ""}
       <span class="cm-badge ${ready ? "cm-green" : "cm-red"}">${ready ? "Estrutura reconhecida" : "Estrutura divergente"}</span>
-      <p class="cm-note">Habilidades selecionadas: ${skillCount} · Conteúdos selecionados: ${contentCount}.</p>
-      <div class="cm-alert">A seleção automática alterna itens do bimestre conforme o número da aula. Revise a coerência pedagógica antes de salvar.</div>
-      <label class="cm-field"><span>Orientação opcional para a IA</span><textarea id="cm-plan-guidance" maxlength="1000" rows="3" placeholder="Ex.: atividade prática em grupos, leitura compartilhada ou avaliação por produção textual."></textarea></label>
-      <label class="cm-check"><input id="cm-plan-confirm" type="checkbox"><span>Autorizo selecionar habilidade e conteúdo e preencher os campos vazios.</span></label>
+      <p class="cm-note">Habilidades selecionadas: ${skillCount} · Conteúdos selecionados: ${contentCount}${saebAvailable ? ` · Matriz SAEB: ${saebCount}` : ""}.</p>
+      <div class="cm-alert">Escolha a unidade temática, a habilidade, o conteúdo e, quando houver, a Matriz SAEB no SIAP antes de completar. O Assistente preservará suas escolhas e selecionará o que faltar entre as opções disponíveis.</div>
+      <label class="cm-field"><span>Orientação opcional para a IA</span><textarea id="cm-plan-guidance" maxlength="1000" rows="3" placeholder="Ex.: aula apenas expositiva; avaliação curta, em poucas palavras.">${escapeHtml(readStoredJson("assistenteSiapPlanningGuidanceDraft")?.signature === planningSignature() ? readStoredJson("assistenteSiapPlanningGuidanceDraft")?.value || "" : "")}</textarea></label>
+      <label class="cm-check"><input id="cm-plan-confirm" type="checkbox"><span>Autorizo completar as seleções ausentes e gerar metodologia e avaliação para esta aula. A IA substituirá os textos atuais desses dois campos; revisarei antes de salvar.</span></label>
       <label class="cm-check"><input id="cm-plan-auto-save-replicate" type="checkbox"><span><strong>Salvar e replicar automaticamente, sem revisão.</strong><br><small>Após completar o planejamento, o assistente abrirá a replicação, selecionará todas as turmas compatíveis e confirmará. Se nenhuma estiver disponível, cancelará a replicação e salvará somente esta aula.</small></span></label>
       <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="plan-ai-draft" disabled>Completar com IA</button></div>
-      <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-draft" disabled>Usar modelo local</button></div>
+      <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-draft" disabled>Modelo local · preencher campos vazios</button></div>
       <hr>
       <label class="cm-check"><input id="cm-plan-save-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação.</span></label>
       <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Replicar automaticamente em todas as turmas compatíveis após salvar.</span></label>
@@ -914,6 +887,9 @@
     const planConfirm = panel.querySelector("#cm-plan-confirm");
     const planDraft = panel.querySelector('[data-action="plan-draft"]');
     const planAiDraft = panel.querySelector('[data-action="plan-ai-draft"]');
+    panel.querySelector("#cm-plan-guidance")?.addEventListener("input", (event) => {
+      sessionStorage.setItem("assistenteSiapPlanningGuidanceDraft", JSON.stringify({ signature:planningSignature(), value:event.currentTarget.value }));
+    });
     planConfirm?.addEventListener("change", () => {
       if (planDraft) planDraft.disabled = !planConfirm.checked;
       if (planAiDraft) planAiDraft.disabled = !planConfirm.checked;
@@ -1014,6 +990,33 @@
     addLog(`${message} O lote foi pausado.`);
   }
 
+  function contentLessonValues() {
+    const select = document.getElementById(IDS.lesson);
+    return select ? [...select.options].filter((option) => !option.disabled && option.value).map((option) => option.value) : [];
+  }
+
+  function contentLessonIsSelected(value) {
+    const select = document.getElementById(IDS.lesson);
+    return select?.value === value && select.selectedOptions?.[0]?.hasAttribute("selected");
+  }
+
+  function nextContentLesson(batch) {
+    batch.lessonIndex = (batch.lessonIndex || 0) + 1;
+    batch.contentButtonIds = [];
+    batch.contentIndex = 0;
+    batch.saveAttempts = 0;
+    if (batch.lessonIndex >= batch.lessonValues.length) {
+      batch.completed = (batch.completed || 0) + batch.lessonValues.length;
+      batch.processedDays = [...new Set([...(batch.processedDays || []), `${batch.months[batch.monthIndex]}|${batch.currentLabel}`])];
+      batch.currentLabel = "";
+      batch.lessonValues = [];
+      batch.lessonIndex = 0;
+      batch.phase = "month";
+    } else batch.phase = "day";
+    setContentBatch(batch);
+    scheduleContentResume(100);
+  }
+
   function resumeContentBatch() {
     if (model.license?.active === false) return lockAssistantAfterExpiry();
     const batch = getContentBatch();
@@ -1021,7 +1024,7 @@
     const monthSelect = document.getElementById(IDS.month);
     if (!monthSelect) return stopContentBatchWithError("Seletor de mês não encontrado.");
     const targetMonth = batch.months[batch.monthIndex];
-    if (targetMonth === undefined) { setContentBatch(null); return addLog(`Execução concluída: ${batch.completed || 0} dia(s) salvo(s).`); }
+    if (targetMonth === undefined) { setContentBatch(null); return addLog(`Execução concluída: ${batch.completed || 0} aula(s) salva(s).`); }
 
     if (batch.phase === "switch-month") {
       const elapsed = Date.now() - (batch.switchStartedAt || 0);
@@ -1043,35 +1046,32 @@
     if (batch.phase === "saving") {
       const wait = (batch.verifyNotBefore || 0) - Date.now();
       if (wait > 0) return scheduleContentResume(wait);
-      const day = readCalendarDays().find((item) => item.label === batch.currentLabel);
-      if (day?.state === "pending") {
-        batch.saveAttempts = (batch.saveAttempts || 0) + 1;
-        if (batch.saveAttempts >= MAX_SAVE_ATTEMPTS) {
+      const lesson = batch.lessonValues?.[batch.lessonIndex];
+      const realized = document.querySelector(`#${IDS.realized} input[type="submit"], #${IDS.realized} input[type="button"], #${IDS.realized} button`);
+      const lastLesson = batch.lessonIndex === batch.lessonValues.length - 1;
+      const green = readCalendarDays().find((item) => item.label === batch.currentLabel)?.state === "saved";
+      const confirmed = lastLesson ? green : document.getElementById(IDS.date)?.value === batch.currentLabel && contentLessonIsSelected(lesson) && !!realized;
+      if (!confirmed) {
+        const retryKey = lastLesson && !green ? "dayAttempts" : "saveAttempts";
+        batch[retryKey] = (batch[retryKey] || 0) + 1;
+        if (batch[retryKey] >= MAX_SAVE_ATTEMPTS) {
           batch.paused = true;
           setContentBatch(batch);
-          return addLog(`O SIAP não confirmou o salvamento do conteúdo após ${MAX_SAVE_ATTEMPTS} tentativas. O lote foi pausado.`);
+          return addLog(`O SIAP não confirmou ${lastLesson ? "a data verde" : lesson} após ${MAX_SAVE_ATTEMPTS} tentativas. O lote foi pausado para conferência.`);
         }
+        if (lastLesson && !green) batch.lessonIndex = 0;
         batch.phase = "retry-wait";
-        batch.retryAt = Date.now() + Core.backoff(batch.saveAttempts);
+        batch.retryAt = Date.now() + Core.backoff(batch[retryKey]);
         setContentBatch(batch);
-        return scheduleContentResume(Core.backoff(batch.saveAttempts));
+        return scheduleContentResume(Core.backoff(batch[retryKey]));
       }
-      batch.completed += 1;
-      batch.saveAttempts = 0;
-      batch.phase = "month";
-      batch.currentLabel = "";
-      setContentBatch(batch);
+      return nextContentLesson(batch);
     }
     if (batch.phase === "retry-wait") {
       const wait = (batch.retryAt || 0) - Date.now();
       if (wait > 0) return scheduleContentResume(wait);
-      const day = readCalendarDays().find((item) => item.label === batch.currentLabel && item.state === "pending");
-      if (!day) {
-        batch.phase = "saving";
-        batch.verifyNotBefore = Date.now();
-        setContentBatch(batch);
-        return scheduleContentResume(100);
-      }
+      const day = readCalendarDays().find((item) => item.label === batch.currentLabel);
+      if (!day) return stopContentBatchWithError("A data da aula não foi reencontrada após o salvamento.");
       batch.phase = "day";
       setContentBatch(batch);
       return day.cell.click();
@@ -1118,6 +1118,22 @@
     }
     if (batch.phase === "day") {
       if (document.getElementById(IDS.date)?.value !== batch.currentLabel) return scheduleContentResume(400);
+      if (!batch.lessonValues?.length) {
+        batch.lessonValues = contentLessonValues();
+        batch.lessonIndex = 0;
+        if (!batch.lessonValues.length) return stopContentBatchWithError("O seletor de aulas da data não foi encontrado.");
+        setContentBatch(batch);
+      }
+      const lesson = batch.lessonValues[batch.lessonIndex];
+      const select = document.getElementById(IDS.lesson);
+      if (!contentLessonValues().includes(lesson)) return stopContentBatchWithError("Uma aula deixou de estar disponível nesta data.");
+      if (!contentLessonIsSelected(lesson)) {
+        if (select?.value !== lesson) {
+          select.value = lesson;
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+        return scheduleContentResume(1200);
+      }
       const alreadyExecuted = !!document.querySelector(`#${IDS.realized} input[type="submit"], #${IDS.realized} input[type="button"], #${IDS.realized} button`);
       batch.contentButtonIds = alreadyExecuted ? [] : [...document.querySelectorAll(`#${IDS.planned} input[type="submit"], #${IDS.planned} input[type="button"], #${IDS.planned} button`)]
         .filter((button) => !button.disabled && button.id)
@@ -1129,9 +1145,13 @@
       return resumeContentBatch();
     }
     if (batch.phase === "month") {
-      const pending = readCalendarDays().find((item) => item.state === "pending" && item.eligible);
+      const processed = new Set(batch.processedDays || []);
+      const pending = readCalendarDays().find((item) => item.state === "pending" && item.eligible && !processed.has(`${targetMonth}|${item.label}`));
       if (!pending) { batch.monthIndex += 1; setContentBatch(batch); return scheduleContentResume(100); }
       batch.currentLabel = pending.label;
+      batch.lessonValues = [];
+      batch.lessonIndex = 0;
+      batch.dayAttempts = 0;
       batch.contentButtonIds = [];
       batch.contentIndex = 0;
       batch.phase = "day";
@@ -1301,7 +1321,7 @@
     const period = { value: select.value, label: select.selectedOptions?.[0]?.textContent?.trim() || "Período atual" };
     if (preview.draftsReady !== true) return addLog("Gere e confira metodologia e avaliação antes de iniciar.");
     const automaticEquivalent = preview.mode === "equivalent";
-    setPlanningBatch({ active: true, paused: false, autoSave: automaticEquivalent, phase: "overview", periods: [period], periodIndex: 0, completed: 0, reviewedGroups: [], current: null, selectedQueue: preview.queue, queueIndex: 0, templates: preview.drafts || {}, mode: preview.mode });
+    setPlanningBatch({ active: true, runId:`apply-${Date.now()}-${Math.random()}`, paused: false, autoSave: automaticEquivalent, phase: "overview", periods: [period], periodIndex: 0, completed: 0, reviewedGroups: [], current: null, selectedQueue: preview.queue, queueIndex: 0, templates: preview.drafts || {}, mode: preview.mode });
     setPlanningPreview(null);
     render();
     setTimeout(resumePlanningBatch, 100);
@@ -1457,11 +1477,26 @@
         if (!block && (batch.queueIndex || 0) >= batch.selectedQueue.length) {
           if (batch.previewOnly) {
             const preview = batch.previewMetadata || getPlanningPreview();
-            const drafts = Object.fromEntries(Object.entries(batch.templates || {}).map(([key, value]) => [key, { ...value, label: value.label || key }]));
-            setPlanningPreview({ ...preview, drafts, draftsReady: Object.keys(drafts).length === preview.uniquePlans, signature: planningOverviewSignature() });
+            const aliases = new Map();
+            const drafts = {};
+            const queue = preview.queue.map((item) => {
+              const draft = batch.templates?.[item.planKey];
+              if (!draft) return item;
+              const alias = `${item.groupKey}|${draft.curriculumKey}`;
+              if (!aliases.has(alias)) {
+                aliases.set(alias, item.planKey);
+                drafts[item.planKey] = draft;
+              }
+              return { ...item, planKey:aliases.get(alias) };
+            });
+            const summary = [...new Map(queue.map((item) => [`${item.grade}|${item.subject}`, item])).values()].map((item) => {
+              const matches = queue.filter((entry) => entry.grade === item.grade && entry.subject === item.subject);
+              return `${item.grade} · ${item.subject}: ${new Set(matches.map((entry) => entry.planKey)).size} planejamento(s) em ${matches.length} aula(s)`;
+            });
+            setPlanningPreview({ ...preview, queue, summary, drafts, uniquePlans:Object.keys(drafts).length, draftsReady:queue.every((item) => Boolean(drafts[item.planKey])), signature:planningOverviewSignature() });
             setPlanningBatch(null);
             render();
-            return addLog("Prévia de metodologia e avaliação pronta para conferência. Nenhuma aula foi salva.");
+            return addLog("Prévia baseada nas habilidades e conteúdos de cada aula pronta para conferência. Nenhuma aula foi salva.");
           }
           setPlanningBatch(null);
           return addLog(`Lote concluído: ${batch.completed || 0} aula(s) revisada(s) e salva(s).`);
@@ -1501,6 +1536,7 @@
       if (!groupReviewed) return;
     }
     if (model.page === "planning-lesson" && batch.phase === "filling" && !sessionStorage.getItem("assistenteSiapPlanningFlow")) {
+      if (batch.aiRequestedAt && Date.now() - batch.aiRequestedAt < 300000) return;
       startPlanningFlow(Array.isArray(batch.selectedQueue) ? "ai" : "local");
     }
   }
@@ -1518,8 +1554,9 @@
     if (batch.paused && batch.phase === "manual" && model.page === "planning-lesson") {
       batch.paused = false;
       batch.phase = "filling";
+      delete batch.aiRequestedAt;
       setPlanningBatch(batch);
-      startPlanningFlow();
+      startPlanningFlow(Array.isArray(batch.selectedQueue) ? "ai" : "local");
       return;
     }
     if (batch.paused && model.page === "planning-lesson" && batch.phase === "review") {
@@ -1598,12 +1635,22 @@
   }
 
   function planningLinks(kind) {
-    const fragment = kind === "skill" ? "sHabilidades" : "sObjetivos";
+    const fragment = kind === "skill" ? "sHabilidades" : kind === "saeb" ? "sMatriz SAEB" : "sObjetivos";
     return [...document.querySelectorAll('#cphFuncionalidade_cphCampos_treeView a[href*="__doPostBack"]')]
       .filter((link) => decodeURIComponent(link.getAttribute("href") || "").includes(fragment));
   }
 
+  function selectedPlanningSaeb() {
+    const container = document.querySelector("#conteudomatrizsaebs .itens");
+    if (!container) return [];
+    const rows = [...container.querySelectorAll("tr")];
+    const entries = rows.length ? rows : [container];
+    return entries.map((entry) => String(entry.innerText || entry.textContent || "").replace(/\s+/g, " ").trim())
+      .filter((value) => /\bD\s*\d+\s*[-–:]/i.test(value)).slice(0, 20);
+  }
+
   function tryNextPlanningAxis(flow) {
+    if (flow.lockedAxis) return false;
     const select = document.getElementById("ddlEixo");
     if (!select) return false;
     flow.triedAxes = Core.unique([...(flow.triedAxes || []), select.value]);
@@ -1624,7 +1671,7 @@
       else sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
     }
     if (mode === "ai") {
-      const guidance = panel.querySelector("#cm-plan-guidance")?.value.trim() || "";
+      const guidance = getPlanningBatch()?.previewMetadata?.guidance || panel.querySelector("#cm-plan-guidance")?.value.trim() || "";
       sessionStorage.setItem("assistenteSiapPlanningAi", JSON.stringify({ guidance }));
     } else {
       sessionStorage.removeItem("assistenteSiapPlanningAi");
@@ -1633,7 +1680,10 @@
     const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
     const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
     const stage = skillCount ? (contentCount ? "fill" : "content") : "skill";
-    sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify({ signature, stage }));
+    const axis = document.getElementById("ddlEixo");
+    const manuallyChosenAxis = readStoredJson("assistenteSiapManualPlanningAxis");
+    const lockedAxis = Boolean(skillCount || contentCount || selectedPlanningSaeb().length || (manuallyChosenAxis?.signature === signature && manuallyChosenAxis.value === axis?.value));
+    sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify({ signature, stage, lockedAxis }));
     updateOperationStatus();
     resumePlanningFlow();
   }
@@ -1653,14 +1703,32 @@
     if (flow.stage === "skill") {
       const links = planningLinks("skill");
       const contentLinks = planningLinks("content");
-      if (!links.length || !contentLinks.length) {
+      if (!links.length) {
+        if (flow.lockedAxis && !batch) {
+          flow.stage = "fill";
+          sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+          addLog("O SIAP não oferece habilidade nesta unidade e neste bimestre. A IA usará a unidade temática escolhida; confira as seleções antes de salvar.");
+        } else {
+        if (document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) {
+          return stopPlanningFlow("O conteúdo escolhido foi preservado. Selecione uma habilidade compatível no SIAP e tente novamente.");
+        }
         if (tryNextPlanningAxis(flow)) return;
-        return stopPlanningFlow("Nenhum eixo curricular possui habilidade e conteúdo simultaneamente no bimestre atual.");
+        return stopPlanningFlow(flow.lockedAxis
+          ? "A unidade temática escolhida não oferece habilidade e conteúdo simultaneamente neste bimestre. Sua escolha foi preservada; confira as opções no SIAP."
+          : "Nenhum eixo curricular possui habilidade e conteúdo simultaneamente no bimestre atual.");
+        }
+      } else if (!contentLinks.length && (!flow.lockedAxis || batch?.active)) {
+        if (tryNextPlanningAxis(flow)) return;
+        return stopPlanningFlow(flow.lockedAxis
+          ? "A unidade temática escolhida não oferece conteúdo neste bimestre. O lote foi pausado sem salvar."
+          : "Nenhum eixo curricular possui habilidade e conteúdo simultaneamente no bimestre atual.");
       }
-      flow.stage = "wait-skill";
-      sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
-      if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar a habilidade no SIAP.");
-      return;
+      if (flow.stage !== "fill") {
+        flow.stage = "wait-skill";
+        sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar a habilidade no SIAP.");
+        return;
+      }
     }
     if (flow.stage === "wait-skill") {
       const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
@@ -1670,17 +1738,41 @@
     }
     if (flow.stage === "content") {
       const links = planningLinks("content");
-      if (!links.length) return stopPlanningFlow("Nenhum conteúdo disponível para o bimestre atual.");
-      flow.stage = "wait-content";
-      sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
-      if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o conteúdo no SIAP.");
-      return;
+      if (!links.length) {
+        if (batch?.active) return stopPlanningFlow("A unidade temática e a habilidade foram preservadas, mas o SIAP não oferece conteúdo nesta unidade e neste bimestre. O lote foi pausado sem salvar.");
+        flow.stage = "fill";
+        sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+        addLog("O SIAP não oferece conteúdo nesta unidade e neste bimestre. A IA usará a unidade temática e a habilidade escolhidas; confira o conteúdo antes de salvar.");
+      } else {
+        flow.stage = "wait-content";
+        sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o conteúdo no SIAP.");
+        return;
+      }
     }
     if (flow.stage === "wait-content") {
       const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
       if (!contentCount) return;
       flow.stage = "fill";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+    }
+    if (flow.stage === "fill" && !flow.saebChecked) {
+      flow.saebChecked = true;
+      const links = planningLinks("saeb");
+      if (links.length && !selectedPlanningSaeb().length) {
+        flow.stage = "wait-saeb";
+        flow.saebStartedAt = Date.now();
+        sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o descritor da Matriz SAEB no SIAP.");
+        return;
+      }
+    }
+    if (flow.stage === "wait-saeb") {
+      if (!selectedPlanningSaeb().length) {
+        if (Date.now() - flow.saebStartedAt < 10000) return setTimeout(resumePlanningFlow, 1000);
+        return stopPlanningFlow("O SIAP não confirmou a seleção da Matriz SAEB. Confira o descritor antes de continuar.");
+      }
+      flow.stage = "fill";
     }
     if (flow.stage === "fill") {
       sessionStorage.removeItem("assistenteSiapPlanningFlow");
@@ -1711,10 +1803,14 @@
     const normalizedSubject = subject.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
     const isPhysicalEducation = normalizedSubject.includes("EDUCACAO FISICA");
     const isArt = normalizedSubject === "ARTE" || normalizedSubject.includes("ARTES");
+    const thematicUnit = document.getElementById("ddlEixo")?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const isDance = isPhysicalEducation && normalizePlanningGroup(thematicUnit).includes("DANCA");
     const batchState = getPlanningBatch();
     const approvedTemplate = batchState?.templates?.[batchState.current?.group];
     const contentFields = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')];
-    const contentDescription = isPhysicalEducation
+    const contentDescription = isDance
+      ? "Exploração de movimentos e sequências coreográficas relacionados à dança e à habilidade escolhida."
+      : isPhysicalEducation
       ? "Vivência prática do conteúdo selecionado, com orientação sobre regras, segurança, cooperação e respeito às diferentes possibilidades de participação."
       : isArt
         ? "Apreciação, contextualização e experimentação artística relacionadas ao conteúdo selecionado, com produção e socialização das aprendizagens."
@@ -1727,13 +1823,19 @@
       .filter(Boolean);
     const contents = (selectedContentTitles.length ? selectedContentTitles : contentFields.map((field) => field.value.trim().replace(/[\s:;,.]+$/, "")))
       .filter(Boolean).slice(0, 3);
-    const focus = contents.length ? contents.join(", ") : "os objetivos e conteúdos selecionados";
-    const generatedMethodology = isPhysicalEducation
+    const selectedSkill = document.querySelector("#cphFuncionalidade_cphCampos_gdvExpectativas tr")?.textContent?.trim() || "";
+    const selectedSaeb = selectedPlanningSaeb();
+    const focus = [contents.length ? contents.join(", ") : thematicUnit || selectedSkill || "os objetivos e conteúdos selecionados", ...selectedSaeb].join("; ");
+    const generatedMethodology = isDance
+      ? `Apresentar referências de ${focus} e orientar a exploração de movimentos, ritmos e formas de composição. Propor uma sequência coreográfica coerente com a habilidade escolhida, com tempo para criação, ensaio e apreciação. Encerrar com registro ou comentário sobre as escolhas de movimento e as aprendizagens.`
+      : isPhysicalEducation
       ? `Iniciar com acolhida, apresentação dos objetivos e preparação corporal adequada. Organizar a turma em atividades práticas progressivas sobre ${focus}, com demonstração dos movimentos, estações de experimentação e situações cooperativas. Reforçar regras, segurança, respeito e inclusão durante as vivências. Encerrar com volta à calma e conversa breve sobre estratégias, dificuldades e aprendizagens.`
       : isArt
         ? `Iniciar com apreciação e contextualização de referências relacionadas a ${focus}. Propor experimentação orientada de materiais, técnicas e formas de expressão, seguida de produção individual ou coletiva. Acompanhar o processo criativo com intervenções que valorizem autoria, diversidade cultural e reflexão estética. Finalizar com socialização das produções e síntese das aprendizagens.`
         : `Iniciar com uma breve retomada dos conhecimentos prévios da ${model.context.grade || "turma"} e apresentar o objetivo da aula. Desenvolver atividades participativas sobre ${focus}, com explicação objetiva, leitura ou análise orientada e aplicação prática. Fazer intervenções durante a atividade, respeitando diferentes ritmos de aprendizagem, e encerrar com síntese coletiva do que foi aprendido em ${subject}.`;
-    const generatedEvaluation = isPhysicalEducation
+    const generatedEvaluation = isDance
+      ? "Observar a criação, a participação e a apreciação das sequências coreográficas, conforme a habilidade escolhida."
+      : isPhysicalEducation
       ? `Realizar avaliação contínua e formativa por meio da observação da participação nas práticas, compreensão das regras, execução progressiva dos movimentos, cooperação, respeito e cuidado com a segurança. Registrar avanços e dificuldades para orientar adaptações e retomadas nas aulas seguintes.`
       : isArt
         ? `Avaliar de forma processual a participação, a experimentação de materiais e técnicas, a relação entre a produção e o conteúdo estudado, a autoria e a capacidade de apreciar e comentar as produções próprias e dos colegas. Registrar avanços para orientar novas propostas.`
@@ -1743,7 +1845,8 @@
     [...contentFields, methodology, evaluation].forEach((field) => { field.dispatchEvent(new Event("input", { bubbles: true })); field.dispatchEvent(new Event("change", { bubbles: true })); });
     addLog("Habilidade, conteúdo e campos vazios preparados. Revise tudo antes de salvar.");
     const batch = getPlanningBatch();
-    if (!batch && autoSaveAndReplicatePlanningIfRequested()) return;
+    if (!batch && contentFields.length && autoSaveAndReplicatePlanningIfRequested()) return;
+    if (!batch && !contentFields.length) sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
     if (batch && batch.phase === "filling") {
       const methodologyText = methodology.value;
       const evaluationText = evaluation.value;
@@ -1772,41 +1875,74 @@
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
     const contentFields = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')]
       .filter((field) => field instanceof HTMLTextAreaElement);
-    if (!(methodology instanceof HTMLTextAreaElement) || !(evaluation instanceof HTMLTextAreaElement) || !contentFields.length) {
+    if (!(methodology instanceof HTMLTextAreaElement) || !(evaluation instanceof HTMLTextAreaElement)) {
       return addLog("Planejamento não preenchido: estrutura diferente da esperada.");
     }
     let request = {};
     try { request = JSON.parse(rawRequest) || {}; } catch { request = {}; }
     const batch = getPlanningBatch();
-    const template = batch?.current?.planKey ? batch.templates?.[batch.current.planKey] : null;
     const selectedSkills = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")]
       .map((row) => row.textContent.trim()).filter(Boolean).slice(0, 20);
     const selectedContents = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')]
       .map((span) => (span.getAttribute("title") || span.textContent || "").trim()).filter(Boolean).slice(0, 20);
+    const selectedSaeb = selectedPlanningSaeb();
+    const saebAvailable = Boolean(selectedSaeb.length || planningLinks("saeb").length);
     const payload = {
       kind:"planning",
       grade:model.context.grade || "Turma não identificada",
       subject:(model.context.subject || "Componente curricular").replace(/^\d+\s*-\s*/, ""),
       period:model.context.term || "",
+      thematicUnit:document.getElementById("ddlEixo")?.selectedOptions?.[0]?.textContent?.trim() || "",
+      lessonSequence:Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value) || 0,
       guidance:typeof request.guidance === "string" ? request.guidance : "",
+      educationalContext:selectedSaeb.length ? `Descritor da Matriz SAEB selecionado no SIAP: ${selectedSaeb.join("; ")}` : "",
       selectedSkills,
       selectedContents,
+      selectedSaeb,
+      saebAvailable,
       tense:"planned"
     };
+    if (!selectedSkills.length && !selectedContents.length && !payload.thematicUnit) {
+      return stopPlanningFlow("Não foi possível identificar habilidade ou conteúdo desta aula. Confira as seleções no SIAP antes de gerar a prévia.");
+    }
+    const curriculumKey = planningCurriculumKey(payload);
+    const template = batch?.current?.planKey ? batch.templates?.[batch.current.planKey] : null;
+    if (template && !batch.previewOnly && template.curriculumKey !== curriculumKey) {
+      batch.paused = true;
+      batch.phase = "manual";
+      setPlanningBatch(batch);
+      return addLog("A habilidade, o conteúdo, a Matriz SAEB ou a unidade temática desta aula diferem da prévia. Lote pausado; gere uma nova prévia antes de salvar.");
+    }
+    const equivalentDraft = batch?.previewOnly ? Object.values(batch.templates || {}).find((draft) => draft.groupKey === batch.current?.groupKey && draft.curriculumKey === curriculumKey) : null;
+    if (batch?.active && batch.phase === "filling") {
+      batch.aiRequestedAt = Date.now();
+      setPlanningBatch(batch);
+    }
     setOperationStatus("Gerando planejamento...");
     addLog("Gerando o planejamento com IA…");
     try {
-      const result = template ? { ok: true, fields: template.fields } : await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_AI_DRAFT", payload });
-      if (!result?.ok || !Array.isArray(result.fields) || result.fields.length !== 4) {
-        addLog(result?.message || "A IA não devolveu os quatro campos esperados.");
-        return;
+      const result = template || equivalentDraft ? { ok: true, fields: (template || equivalentDraft).fields } : await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_AI_DRAFT", payload });
+      if (batch?.active) {
+        const currentBatch = getPlanningBatch();
+        if (!currentBatch || currentBatch.runId !== batch.runId || currentBatch.paused || currentBatch.phase !== "filling" || currentBatch.current?.planKey !== batch.current?.planKey) return;
       }
+      if (!result?.ok || !Array.isArray(result.fields) || result.fields.length !== 4) {
+        return stopPlanningFlow(result?.message || "A IA não devolveu os quatro campos esperados.");
+      }
+      if (batch?.active) delete batch.aiRequestedAt;
       if (batch?.active && batch.phase === "filling" && batch.previewOnly) {
         batch.templates = batch.templates || {};
         if (batch.current?.planKey) {
           batch.templates[batch.current.planKey] = {
             fields: result.fields.map((field) => String(field || "").trim()),
-            label: `${batch.current.grade} · ${batch.current.subject} · sequência ${Number(batch.current.sequenceIndex || 0) + 1}`
+            label: `${batch.current.grade} · ${batch.current.subject} · aula ${batch.current.lesson} · ${selectedContents.join(", ").slice(0, 90)}`,
+            groupKey:batch.current.groupKey,
+            curriculumKey,
+            thematicUnit:payload.thematicUnit,
+            selectedSkills,
+            selectedContents,
+            selectedSaeb,
+            saebAvailable
           };
         }
         batch.previewMetadata = { ...(batch.previewMetadata || {}), drafts:batch.templates, draftsReady:false };
@@ -1818,16 +1954,17 @@
         return;
       }
       contentFields.forEach((field) => { if (!field.value.trim()) field.value = String(result.fields[1] || "").trim(); });
-      if (!methodology.value.trim()) methodology.value = String(result.fields[2] || "").trim();
-      if (!evaluation.value.trim()) evaluation.value = String(result.fields[3] || "").trim();
+      if (!batch || !methodology.value.trim()) methodology.value = String(result.fields[2] || "").trim();
+      if (!batch || !evaluation.value.trim()) evaluation.value = String(result.fields[3] || "").trim();
       [...contentFields, methodology, evaluation].forEach((field) => {
         field.dispatchEvent(new Event("input", { bubbles:true }));
         field.dispatchEvent(new Event("change", { bubbles:true }));
       });
-      if (!batch && autoSaveAndReplicatePlanningIfRequested()) return;
+      if (!batch && contentFields.length && autoSaveAndReplicatePlanningIfRequested()) return;
+      if (!batch && !contentFields.length) sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
       if (batch?.active && batch.phase === "filling") {
         batch.templates = batch.templates || {};
-        if (batch.current?.planKey && !batch.templates[batch.current.planKey]) batch.templates[batch.current.planKey] = { fields: result.fields.map((field) => String(field || "").trim()), label: `${batch.current.grade} · ${batch.current.subject} · sequência ${Number(batch.current.sequenceIndex || 0) + 1}` };
+        if (batch.current?.planKey && !batch.templates[batch.current.planKey]) batch.templates[batch.current.planKey] = { fields: result.fields.map((field) => String(field || "").trim()), label: `${batch.current.grade} · ${batch.current.subject} · aula ${batch.current.lesson}`, groupKey:batch.current.groupKey, curriculumKey };
         if (batch.previewOnly) {
           stopPlanningBatch();
           return addLog("Bloqueio de segurança: uma prévia nunca pode salvar uma aula.");
@@ -1843,9 +1980,9 @@
           render();
         }
       }
-      addLog(template ? "Planejamento equivalente aplicado. Revise esta aula; nada foi salvo." : "Planejamento gerado com IA. Revise habilidade, conteúdo e textos; nada foi salvo.");
+      addLog(template ? "Planejamento equivalente aplicado. Revise esta aula; nada foi salvo." : "Planejamento gerado com IA. Revise habilidade, conteúdo, Matriz SAEB (se houver) e textos; nada foi salvo.");
     } catch {
-      addLog("Não foi possível acessar a IA do Assistente SIAP. Verifique o acesso à extensão e tente novamente.");
+      stopPlanningFlow("Não foi possível acessar a IA do Assistente SIAP. Verifique o acesso à extensão e tente novamente.");
     } finally {
       setOperationStatus("");
     }
@@ -1854,6 +1991,7 @@
   function savePlanning() {
     const save = document.getElementById("cphFuncionalidade_btnAlterar");
     if (!save || save.disabled) return addLog("O botão Salvar não está disponível nesta aula.");
+    if (!document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) return addLog("O SIAP não apresenta conteúdo selecionado para esta aula. Escolha um conteúdo compatível antes de salvar pelo Assistente.");
     const replicate = panel.querySelector("#cm-plan-replicate")?.checked === true;
     if (replicate) sessionStorage.setItem("assistenteSiapOpenReplicate", planningSignature());
     save.click();
@@ -2173,21 +2311,20 @@
   function readAttendanceStudents() {
     const names = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_ControleFrequenciaAluno .listaDeAlunos .itens > .item")];
     const frequencyLists = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_ControleFrequenciaAluno .listaDeFrequencias")];
-    const frequencies = frequencyLists.at(-1);
-    const marks = frequencies ? [...frequencies.querySelectorAll(":scope .itens > .item")] : [];
-    if (!names.length || marks.length !== names.length) return [];
+    const marksByLesson = frequencyLists.map((list) => [...list.querySelectorAll(":scope .itens > .item")]);
+    if (!names.length || !marksByLesson.length || marksByLesson.some((marks) => marks.length !== names.length)) return [];
     return names.map((item, index) => {
       const rawName = String(item.querySelector(".aluno")?.textContent || "").replace(/^\s*\d+[.)-]?\s*/, "").trim();
       const situationElement = item.querySelector(".situacao");
       const situation = `${situationElement?.getAttribute("title") || ""} ${situationElement?.textContent || ""}`.trim();
       const transferred = /transferid/i.test(situation) || /^T$/i.test(situation);
-      const mark = normalizedLabel(marks[index]?.textContent);
+      const marks = marksByLesson.map((lesson) => normalizedLabel(lesson[index]?.textContent));
       return {
         name:rawName,
         transferred,
-        present:mark === "•" || mark === "." || mark === "P" ? 1 : 0,
-        absent:mark === "F" ? 1 : 0,
-        total:/^(F|P|\.|•)$/.test(mark) ? 1 : 0
+        present:marks.filter((mark) => mark === "•" || mark === "." || mark === "P").length,
+        absent:marks.filter((mark) => mark === "F").length,
+        total:marks.filter((mark) => /^(F|P|\.|•)$/.test(mark)).length
       };
     }).filter(item => item.name);
   }

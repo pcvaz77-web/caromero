@@ -62,6 +62,7 @@
       // student and call. Existing SIAP values are deliberately replaced by
       // the reviewed batch; unavailable or ambiguous controls still block.
       if (entry.present && (!Number.isInteger(entry.correct) || entry.correct < 0 || entry.correct > snapshot.context.total)) throw new Error('Total de acertos inválido.');
+      if (entry.present && c.otherPresent.checked) throw new Error('Aluno já presente na outra chamada. Confira as duas chamadas antes de continuar.');
     }
   }
   return Object.freeze({ route, selectionRoute, snapshot, controls, preflight });

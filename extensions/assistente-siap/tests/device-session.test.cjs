@@ -49,6 +49,20 @@ test('outra conta gratuita nao substitui o cartao da licenca concedida', async (
   assert.equal(result.temporary,true);
   assert.equal(broadcasts.length,0);
 });
+test('link de atividades depende de sessão e da liberação global confirmada', async () => {
+  const session = {deviceToken:'test-device-token',expiresAt:Date.now()+60000};
+  const enabled = startWorker(session, async url => {
+    assert.match(url, /platform_settings\?select=show_activity_site/);
+    return {ok:true,json:async()=>[{show_activity_site:true}]};
+  });
+  assert.equal((await enabled({type:'ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS'})).visible,true);
+  const disabled = startWorker(session, async()=>({ok:true,json:async()=>[{show_activity_site:false}]}));
+  assert.equal((await disabled({type:'ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS'})).visible,false);
+  const noSession = startWorker(null, async()=>{throw Error('não deve consultar');});
+  assert.equal((await noSession({type:'ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS'})).visible,false);
+  const offline = startWorker(session, async()=>{throw Error('offline');});
+  assert.equal((await offline({type:'ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS'})).visible,false);
+});
 
 
 test('sair remove as duas sessoes e exige reconexao explicita validada', async () => {

@@ -66,7 +66,7 @@
       <button class="cm-btn" type="button" data-exam="close">Encerrar e apagar capturas</button>
       ${blocked && !changed ? '<button class="cm-btn" type="button" data-exam="reconnect">Verificar conexão e acesso</button>' : ''}
       ${remote?.accessMode==='block' ? '<details><summary>Concluir crédito avulso</summary><p>Use somente depois de terminar este bloco em todas as turmas, incluindo segundas chamadas. Encerrar as capturas acima não encerra seu crédito.</p><label><input type="checkbox" data-finish-block-confirm> Terminei este bloco em todas as turmas.</label><button class="cm-btn" type="button" data-exam="finishBlock">Finalizar bloco em todas as turmas</button></details>' : ''}
-      ${state.queue && state.queue.phase !== 'done' ? `<button class="cm-btn" type="button" data-exam="${state.queue.paused ? 'resume' : 'pauseBatch'}">${state.queue.paused ? 'Retomar lote após conferência' : 'Pausar preenchimento'}</button><button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
+      ${state.queue && state.queue.phase !== 'done' && (changed || blocked) ? `<p>Há um lote pausado. Reabra a mesma avaliação no SIAP e verifique a conexão para continuar.</p><button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
       ${!changed && !blocked ? `<p>${remote?.key ? 'Gabarito confirmado. Fotografe os cartões dos alunos.' : 'Faça a leitura e confira o gabarito no celular. Os resultados aparecerão aqui para o lançamento final.'}</p>
       ${official ? `<details><summary>Gabarito e ajustes pelo computador</summary>${keyForm(official)}</details>` : ''}
       ${selecting && remote?.key ? selectionForm() : ''}
@@ -76,6 +76,7 @@
       <details><summary>Possíveis faltas — confirme somente quem realmente faltou</summary><p>Esta lista mostra apenas alunos sem prova identificada e sem acerto, presença ou falta já registrados nesta chamada. Marcar a caixa lança falta. Sem foto não significa falta.</p>${pendingStudents(rows).map(r => `<label class="cm-exam-absence"><input type="checkbox" data-exam-absent="${escape(r.id)}"> ${escape(r.name)}</label>`).join('') || '<p>Nenhum aluno sem prova e sem lançamento nesta chamada.</p>'}</details>
       <p data-exam-summary role="status"></p>
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
+      ${state.queue && state.queue.phase !== 'done' ? `<p role="status">Lote ${state.queue.paused ? 'pausado' : 'em preenchimento'}: ${state.queue.index} de ${state.queue.entries.length} aluno(s) conferido(s). ${state.queue.paused ? 'Após o aviso do SIAP, confira os campos e clique em Enviar abaixo para reaplicar os resultados deste lote.' : ''}</p>${state.queue.paused ? '' : '<button class="cm-btn" type="button" data-exam="pauseBatch">Pausar preenchimento</button>'}<button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
       <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
       <p>Ao enviar, os resultados conferidos no Assistente substituem acertos e presença/falta já marcados para estes alunos nesta chamada. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
     if(selecting && !state){const start=host.querySelector('[data-exam=start]');if(start){start.disabled=true;start.textContent='Abra a avaliação com os alunos para conectar';}}
@@ -195,7 +196,7 @@
     if (!range) return `O gabarito não contém ${snapshot.context.subject}. Confira as disciplinas.`;
     const total = range.to-range.from+1;
     if (total !== snapshot.context.total) return `O gabarito tem ${total} questões, mas o SIAP tem ${snapshot.context.total}. Confira a avaliação e os intervalos.`;
-    if (state.queue && state.queue.phase !== 'done') return 'Lançamento em andamento. Aguarde ou retome o lote pausado.';
+    if (state.queue && state.queue.phase !== 'done') return state.queue.paused ? 'Lote pausado. Confira os acertos no SIAP e clique em Enviar para continuar.' : 'Lançamento em andamento. O botão Enviar continua disponível até o lote terminar.';
     const batch = batchState();
     if (!batch.ready.length && !host.querySelector('[data-exam-absent]:checked')) return batch.preserved.length ? `Há ${batch.preserved.length} aluno(s) já marcado(s) como presente na outra chamada. Esses resultados foram preservados.` : batch.pending.length ? 'Há somente exceções. Confira nomes e marcações duvidosas; os campos ficam para preenchimento manual.' : 'Aguardando provas dos alunos. Até agora há apenas o gabarito ou resultados já preenchidos.';
     return '';
@@ -204,7 +205,9 @@
     const button=host?.querySelector('[data-exam=prepare]'), hint=host?.querySelector('[data-exam-ready]');
     if(!button||!hint)return;
     const batch=batchState(), reason=readiness();
-    button.disabled=!!reason; button.textContent=`Enviar ${batch.ready.length} identificado(s) para o SIAP`;
+    const queue = state?.queue && state.queue.phase !== 'done' ? state.queue : null;
+    button.disabled=queue ? connectionLost || blocked || snapshot.mode !== 'entry' || queue.signature !== snapshot.signature : !!reason;
+    button.textContent=queue ? queue.paused ? `Enviar novamente ${queue.entries.length} aluno(s) ao SIAP` : `Enviando ${queue.entries.length - queue.index} restante(s) ao SIAP` : `Enviar ${batch.ready.length} identificado(s) para o SIAP`;
     host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${batch.preserved.length} preservada(s) de outra chamada · ${appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)).length} aluno(s) preenchido(s).`;
     hint.textContent=reason || (batch.pending.length ? 'Os identificados substituirão os valores já marcados nesta chamada. As exceções permanecem pendentes. Confira e salve no SIAP.' : batch.preserved.length ? 'Os resultados da outra chamada permanecerão intactos. Envie somente os alunos prontos desta chamada.' : 'Confira os resultados acima e envie em um clique. Eles substituirão os valores desta chamada.');
   }
@@ -255,7 +258,18 @@
     },
     async cancelBatch() { if(state?.queue) {state.queue=null;await save();message='Restante do lote cancelado. Confira os campos já preenchidos no SIAP.';} },
     async pauseBatch() { if (state.queue) { state.queue.paused = true; await save(); message = 'Lote pausado. Confira os campos já preenchidos antes de retomar.'; } },
-    async resume() { assertContext(); await api('heartbeat'); if (state.queue) { state.queue.paused = false; state.queue.attempts = 0; await save(); await advance(); } },
+    async resume() {
+      const now = assertContext(), q = state.queue;
+      if (!q || q.phase === 'done' || !q.paused) return;
+      if (now.mode !== 'entry' || q.signature !== now.signature) throw new Error('Abra a mesma avaliação no SIAP antes de retomar.');
+      await api('heartbeat'); await refresh(); assertContext();
+      if (!q.revision || q.revision !== revision(remote)) throw new Error('O gabarito ou as capturas mudaram. Cancele o lote e confira os resultados antes de enviar novamente.');
+      Dom.preflight(now, q.entries, q.call);
+      // SIAP may have saved or reset fields during its idle reload. Replay only
+      // after the teacher requests it, using the same reviewed batch and call.
+      q.index = 0; q.phase = 'presence'; q.attempts = 0; q.paused = false;
+      await save(); message = 'Reaplicando o lote revisado. Confira os campos e salve no SIAP ao terminar.'; await advance();
+    },
     async adopt() {
       const now = current(); if (!canAdopt(now)) throw new Error('Outra turma ou avaliação. Inicie uma nova sessão.');
       if (!remote?.key?.ranges.some(r => Core.normalize(r.subject) === Core.normalize(now.context.subject) && r.to - r.from + 1 === now.context.total)) throw new Error(`Esta avaliação exige ${now.context.total} questões de ${now.context.subject}. Gabarito: ${(remote?.key?.ranges || []).map(r => `${r.subject}: ${r.to-r.from+1} questões`).join('; ') || 'ainda não confirmado'}. Confira o gabarito abaixo ou abra a avaliação correspondente.`);
@@ -277,6 +291,11 @@
       window.open('https://wa.me/?text='+encodeURIComponent(summary),'_blank','noopener,noreferrer');
     },
     async prepare() {
+      if (state?.queue && state.queue.phase !== 'done') {
+        if (state.queue.paused) await operations.resume();
+        else message = 'O envio já está em andamento. Aguarde a conclusão do lote.';
+        return;
+      }
       const now = assertContext();
       if (now.mode !== 'entry') throw new Error('Abra a avaliação antes de preencher.');
       const reason = readiness(); if (reason) throw new Error(reason);
@@ -347,6 +366,7 @@
         return;
       }
       const c = Dom.controls(now, entry.id, q.call);
+      if (entry.present && c.otherPresent.checked) throw new Error('Aluno já presente na outra chamada. Confira as duas chamadas antes de continuar.');
       const wanted = entry.present ? c.present : c.absent, other = entry.present ? c.absent : c.present;
       if (q.phase === 'presence') {
         q.phase = 'wait'; q.attempts = 0; await save();
@@ -376,6 +396,7 @@
       state.appliedKeySignature ||= JSON.stringify(remote.key);
       state.applied ||= {}; state.applied[now.signature] ||= []; if (!state.applied[now.signature].includes(entry.id)) state.applied[now.signature].push(entry.id);
       q.index++; q.phase = 'presence'; q.attempts = 0; await save();
+      updateReadiness();
       notify(`Preenchidos ${q.index} de ${q.entries.length}. Aguarde antes de salvar.`);
     } catch (e) { q.paused = true; await save(); notify(e.message + ' O lote foi pausado; confira os campos já alterados antes de salvar no SIAP.');draw(); }
     finally { applying = false; }
@@ -429,7 +450,7 @@
         state = result?.value || null;
         if (state?.room.expires <= Date.now()) { state = null; save(); }
         if (state) {
-          if(state.queue && state.queue.phase!=='done'){state.queue.paused=true;await save();message='Lote pausado após recarregar. Confira os campos antes de retomar.';}
+          if(state.queue && state.queue.phase!=='done'){state.queue.paused=true;await save();message='O SIAP recarregou. Confira os campos e clique em Enviar para continuar o lote revisado.';}
           try { await refresh(); if (matches(current())) await api('pause', { paused: false }); }
           catch(e) { message = e.message; }
         }
