@@ -251,6 +251,13 @@ function chooseSchoolDailyTab(tabs) {
   )[0];
 }
 
+function chooseGradesTab(tabs) {
+  return tabs.filter(tab => /\/NotasModeloEdicao\.aspx(?:[?#]|$)/i.test(tab.url || '')).sort((left, right) =>
+    Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
+    Number(right.lastAccessed || 0) - Number(left.lastAccessed || 0)
+  )[0];
+}
+
 const isSchoolDailySnapshot = state => Boolean(
   typeof state?.pageToken === 'string' &&
   typeof state.selectedDate === 'string' &&
@@ -453,13 +460,22 @@ async function collectAttendance(tabId, request) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
+  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT', 'CM_GRADES_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
   chrome.tabs.query({ url:'https://siap.educacao.go.gov.br/*' }, tabs => {
-    const siapTab = message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : chooseSiapTab(tabs);
+    const siapTab = message.type === 'CM_GRADES_CAPTURE' ? chooseGradesTab(tabs) : message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : chooseSiapTab(tabs);
     if (!siapTab?.id) {
-      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:message.type === 'CM_SCHOOL_DAILY_COLLECT'
+      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:message.type === 'CM_GRADES_CAPTURE'
+        ? 'Abra no SIAP a tela Notas da turma e disciplina desejadas.'
+        : message.type === 'CM_SCHOOL_DAILY_COLLECT'
         ? 'Abra no SIAP a página Frequência diária, escolha uma turma verde ou vermelha e tente novamente.'
         : 'Abra o SIAP, entre no Diário do Professor e tente novamente.' });
+      return;
+    }
+    if (message.type === 'CM_GRADES_CAPTURE') {
+      assertSiapSession(siapTab.id)
+        .then(() => callReader(siapTab.id, '__carometroGradesSnapshot'))
+        .then(result => sendResponse({ ok:true, result }))
+        .catch(error => sendResponse({ ok:false, code:'SIAP_GRADES_FAILED', message:`Não foi possível ler as notas finais: ${error?.message || 'erro desconhecido'}` }));
       return;
     }
     if (message.type === 'CM_SCHOOL_DAILY_COLLECT') {

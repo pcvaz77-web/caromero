@@ -10,6 +10,7 @@
   const FREQUENCY_PATH = '/FrequenciaAlunoEdicao.aspx';
   const DIARY_PATH = '/DiarioEscolarListagem.aspx';
   const SCHOOL_DAILY_PATH = '/FrequenciaDiaria.aspx';
+  const GRADES_PATH = '/NotasModeloEdicao.aspx';
   const MONTHS = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -21,6 +22,7 @@
   const isFrequencyPage = () => location.pathname.toLowerCase() === FREQUENCY_PATH.toLowerCase();
   const isDiaryPage = () => location.pathname.toLowerCase() === DIARY_PATH.toLowerCase();
   const isSchoolDailyPage = () => location.pathname.toLowerCase() === SCHOOL_DAILY_PATH.toLowerCase();
+  const isGradesPage = () => location.pathname.toLowerCase() === GRADES_PATH.toLowerCase();
 
   function readContext() {
     return {
@@ -367,5 +369,39 @@
     if (!['filled_on_time', 'filled_late'].includes(status)) throw new Error('A frequência desta turma não está preenchida nesta data.');
     card.click();
     return true;
+  };
+
+  // Somente a última coluna, identificada pelo título. Nenhuma avaliação,
+  // recuperação, falta ou botão de salvamento é lido ou acionado aqui.
+  globalThis.__carometroGradesSnapshot = () => {
+    if (!isGradesPage()) throw new Error('Abra no SIAP a tela Notas da turma e disciplina desejadas.');
+    const context = readContext();
+    const required = ['year', 'className', 'shift', 'subject', 'term'];
+    if (required.some(key => !context[key])) throw new Error('O contexto das notas ainda não terminou de carregar.');
+    const students = [...document.querySelectorAll('.listaDeAlunos .itens > .item[data-matricula]')];
+    const finalList = [...document.querySelectorAll('.listaDeTotais.totalDeNotas')]
+      .find(list => normalize(list.querySelector('.cabecalho .titulo')?.textContent) === 'Média Bimestral Final');
+    const cells = [...(finalList?.querySelectorAll('.itens > .item[data-matricula]') || [])];
+    if (!students.length || students.length !== cells.length) throw new Error('A lista de alunos e a coluna final não estão completas.');
+    const seen = new Set();
+    const entries = students.map((student, index) => {
+      const cell = cells[index];
+      const registration = normalize(student.dataset.matricula);
+      if (!registration || seen.has(registration) || registration !== normalize(cell.dataset.matricula))
+        throw new Error('A ordem das notas não corresponde à lista de alunos.');
+      seen.add(registration);
+      const raw = normalize(cell.textContent);
+      if (raw && !/^\d{1,2}[,.]\d$/.test(raw)) throw new Error('O SIAP exibiu uma nota final em formato desconhecido.');
+      const score = raw ? Number(raw.replace(',', '.')) : null;
+      if (score !== null && (score < 0 || score > 10)) throw new Error('O SIAP exibiu uma nota fora da escala de 0 a 10.');
+      return {
+        registration,
+        name:normalize(student.dataset.nome || student.textContent).replace(/^\d+\.\s*/, ''),
+        score,
+        blocked:String(cell.dataset.bloqueado).toLowerCase() === 'true',
+        situation:normalize(student.dataset.descricaosituacao)
+      };
+    });
+    return { pageToken:PAGE_TOKEN, schoolName:normalize(byId('lblNomeEntidade')?.textContent), context, entries };
   };
 })();

@@ -1,20 +1,21 @@
 # Carômetro Frequência — Leitura
 
-Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporária das chamadas já salvas no SIAP.
+Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporária das chamadas e das notas finais bimestrais já exibidas no SIAP.
 
 ## Limites desta versão
 
 - Não marca presença ou falta.
 - Não aciona `Salvar`, `Confirmar`, exclusão ou cancelamento de registros.
 - Não lê login, senha, cookies ou tokens.
-- Não persiste nomes ou frequência de estudantes.
+- Não persiste nomes, frequência ou notas de estudantes na extensão.
 - Transfere a prévia apenas entre as abas abertas do SIAP e do Carômetro, na memória do navegador.
 
 ## Funções
 
 - Oferece o modo **Frequência Assistida**: o professor abre uma chamada verde e a extensão captura somente a data visível.
 - Oferece o modo **Frequência Diária da Escola**: a Secretaria abre uma turma verde ou vermelha e a extensão percorre os meses escolhidos.
-- Identifica estudantes pelo nome completo; número de chamada e ordem das listas não são usados pelo Carômetro.
+- Lê **Média Bimestral Final** da tela Notas aberta pelo professor; não lê avaliações parciais e não altera o SIAP.
+- Confere a matrícula e a ordem das linhas dentro do SIAP; vincula ao cadastro do Carômetro pelo nome completo, sem incluir nomes duplicados automaticamente.
 - Não injeta mais o painel antigo no Carômetro e não exibe controles dentro do SIAP.
 - Funciona silenciosamente como ponte do botão nativo **Frequência Assistida**.
 - Trabalha silenciosamente na aba do SIAP usando a seleção feita no Carômetro.

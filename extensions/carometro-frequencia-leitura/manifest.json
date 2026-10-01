@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Carômetro Frequência — Leitura",
-  "version": "0.7.1",
-  "description": "Consulta frequências já salvas no Diário do Professor e na Frequência Diária do SIAP.",
+  "version": "0.7.2",
+  "description": "Consulta frequências salvas e notas finais bimestrais no SIAP, mediante ação do professor.",
   "homepage_url": "https://sistemacarometro.com.br/",
   "background": { "service_worker": "background.js" },
   "permissions": ["tabs", "scripting"],

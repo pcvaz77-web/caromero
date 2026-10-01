@@ -439,10 +439,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionContext = { classId:activeClassId, className:selected?.name || 'Turma' };
     const siapActions = window.getSiapPanelActions?.({ permission, canManageClass:activeCanEdit }) || '';
     const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
-    const panelActions = `${siapActions}${attendanceAction}`;
+    const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
+    const panelActions = `${siapActions}${attendanceAction}${gradeAction}`;
     const bindPanelActions = () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
+      window.bindSiapGradePanelAction?.(actionContext);
+      window.mountSiapGradePanel?.(actionContext);
     };
     if (activeCanEdit) {
       content.innerHTML = `<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${panelActions}</div>`;

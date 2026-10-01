@@ -7,24 +7,27 @@
     const message = event.data;
     const assistedRequest = message?.type === 'CAROMETRO_ASSISTED_CAPTURE_REQUEST';
     const schoolDailyRequest = message?.type === 'CAROMETRO_SCHOOL_DAILY_REQUEST';
+    const gradesRequest = message?.type === 'CAROMETRO_GRADES_CAPTURE_REQUEST';
     if (
       event.source !== window ||
       event.origin !== location.origin ||
       message?.source !== 'CAROMETRO_WEB' ||
-      (!assistedRequest && !schoolDailyRequest)
+      (!assistedRequest && !schoolDailyRequest && !gradesRequest)
     ) return;
 
     const sendResult = response => {
       window.postMessage({
-        source:schoolDailyRequest ? 'CAROMETRO_SCHOOL_DAILY_EXTENSION' : 'CAROMETRO_FREQUENCY_EXTENSION',
-        type:schoolDailyRequest ? 'CAROMETRO_SCHOOL_DAILY_RESULT' : 'CAROMETRO_ASSISTED_CAPTURE_RESULT',
+        source:gradesRequest ? 'CAROMETRO_GRADES_EXTENSION' : schoolDailyRequest ? 'CAROMETRO_SCHOOL_DAILY_EXTENSION' : 'CAROMETRO_FREQUENCY_EXTENSION',
+        type:gradesRequest ? 'CAROMETRO_GRADES_CAPTURE_RESULT' : schoolDailyRequest ? 'CAROMETRO_SCHOOL_DAILY_RESULT' : 'CAROMETRO_ASSISTED_CAPTURE_RESULT',
         requestId:message.requestId,
         response
       }, location.origin);
     };
     try {
       if (!chrome.runtime?.id) throw new Error('Extension context invalidated');
-      chrome.runtime.sendMessage(schoolDailyRequest
+      chrome.runtime.sendMessage(gradesRequest
+        ? { type:'CM_GRADES_CAPTURE' }
+        : schoolDailyRequest
         ? { type:'CM_SCHOOL_DAILY_COLLECT', request:{ months:Array.isArray(message.months) ? message.months : [] } }
         : { type:'CM_ASSISTED_CAPTURE' }, response => {
         sendResult(chrome.runtime.lastError

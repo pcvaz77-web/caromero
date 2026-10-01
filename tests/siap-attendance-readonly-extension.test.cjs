@@ -18,7 +18,7 @@ function pngSize(filePath) {
 }
 
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.7.1');
+assert.equal(manifest.version, '0.7.2');
 assert.deepEqual(manifest.host_permissions, ['https://siap.educacao.go.gov.br/*', 'https://sistemacarometro.com.br/*']);
 assert.deepEqual(manifest.permissions, ['tabs', 'scripting']);
 assert.equal(manifest.action.default_popup, 'popup.html');

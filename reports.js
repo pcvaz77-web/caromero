@@ -43,6 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
             <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none"> Não incluir</label>
           </div>
         </fieldset>
+        <fieldset class="reports-option-card">
+          <legend>Notas finais do SIAP</legend>
+          <div class="reports-choice-list">
+            <label class="check reports-choice"><input type="checkbox" id="reportContentGrades"> Incluir notas por bimestre</label>
+          </div>
+          <div id="reportGradesPeriod" class="reports-grid hidden" style="grid-template-columns:1fr 1fr;margin-top:9px">
+            <div class="field"><label for="reportGradesYear">Ano letivo</label><input id="reportGradesYear" type="number" min="2000" max="2100" step="1"></div>
+            <div class="field"><label for="reportGradesBimester">Bimestre</label><select id="reportGradesBimester"><option value="1">1º</option><option value="2">2º</option><option value="3">3º</option><option value="4">4º</option></select></div>
+          </div>
+        </fieldset>
         <fieldset class="reports-option-card reports-option-card-wide">
           <legend>Recebimentos</legend>
           <div class="reports-choice-list reports-choice-list-receipts">
@@ -149,6 +159,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let attendanceCurrentByStudent = new Map();
   let attendanceEventsSignature = '';
   let attendanceEventsError = false;
+  let gradesByStudent = new Map();
+  let gradesSignature = '';
+  let gradesError = false;
   let schoolDailyCurrentByStudent = new Map();
   let schoolDailyHistoryByStudent = new Map();
   let schoolDailyAttendanceSignature = '';
@@ -235,6 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
       attendanceSource,
       withAttendanceHistory: attendanceSource === 'teacher',
       withSchoolDailyAttendance: attendanceSource === 'secretary',
+      withGrades: get('reportContentGrades').checked,
+      gradesYear: Number(get('reportGradesYear').value) || new Date().getFullYear(),
+      gradesBimester: Number(get('reportGradesBimester').value),
       withPhoto: get('reportContentPhoto').checked,
       withLivroRevisa: get('reportContentLivroRevisa').checked,
       // Ano letivo do Livro/Revisa — independente do período de Ocorrências
@@ -252,6 +268,31 @@ document.addEventListener('DOMContentLoaded', () => {
     field.classList.toggle('hidden', !checked);
     const yearInput = get('reportLivroRevisaYear');
     if (checked && !yearInput.value) yearInput.value = new Date().getFullYear();
+  }
+
+  function syncGradesPeriod() {
+    const checked = get('reportContentGrades').checked;
+    get('reportGradesPeriod').classList.toggle('hidden', !checked);
+    if (checked && !get('reportGradesYear').value) get('reportGradesYear').value = new Date().getFullYear();
+  }
+
+  async function fetchGradesDataset(filters) {
+    if (!filters.withGrades) { gradesByStudent = new Map();gradesSignature = '';gradesError = false;return; }
+    const signature = JSON.stringify([filters.schoolId,filters.gradesYear,filters.gradesBimester]);
+    if (signature === gradesSignature) return;
+    if (!filters.schoolId || !Number.isInteger(filters.gradesBimester) || filters.gradesBimester < 1 || filters.gradesBimester > 4) {
+      gradesError = true;return;
+    }
+    const result = await fetchAllPages('report_siap_bimester_grades', {
+      p_school_id:filters.schoolId,p_year:filters.gradesYear,p_bimester:filters.gradesBimester
+    }, fetchToken);
+    if (result.stale) return;
+    if (result.error) { gradesByStudent = new Map();gradesSignature = '';gradesError = true;return; }
+    const grouped = new Map();
+    (result.data || []).forEach(item => grouped.set(item.student_id,[...(grouped.get(item.student_id) || []),item]));
+    gradesByStudent = grouped;
+    gradesSignature = signature;
+    gradesError = false;
   }
 
   async function fetchStudentsDataset(filters) {
@@ -528,6 +569,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
     if (filters.withAttendanceHistory) matched = matched || (attendanceCurrentByStudent.get(student.student_id)?.length > 0) || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
     if (filters.withSchoolDailyAttendance) matched = matched || (schoolDailyCurrentByStudent.get(student.student_id)?.length > 0) || (schoolDailyHistoryByStudent.get(student.student_id)?.length > 0);
+    if (filters.withGrades) matched = matched || (gradesByStudent.get(student.student_id)?.length > 0);
     // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
     // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
     // histórico. livroRevisaByStudent já está em memória (populado sempre
@@ -591,6 +633,11 @@ document.addEventListener('DOMContentLoaded', () => {
     await fetchSchoolDailyAttendance(filters);
     if (schoolDailyAttendanceError) {
       previewEl.textContent = 'Não foi possível carregar a Frequência da Secretaria. Tente novamente.';
+      return;
+    }
+    await fetchGradesDataset(filters);
+    if (gradesError) {
+      previewEl.textContent = 'Não foi possível carregar as notas finais do SIAP. Tente novamente.';
       return;
     }
     const total = datasetStudents.length;
@@ -818,6 +865,29 @@ document.addEventListener('DOMContentLoaded', () => {
         y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
       });
       y+=4;
+    }
+
+    if (filters.withGrades) {
+      y = ensureSpace(doc, y, 15, `Continuação — ${student.full_name}`);
+      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
+      doc.text(`NOTAS FINAIS DO SIAP — ${filters.gradesBimester}º BIMESTRE/${filters.gradesYear}`, MARGIN_X, y);y += 8;
+      const gradeRows = gradesByStudent.get(student.student_id) || [];
+      if (!gradeRows.length) {
+        doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);
+        doc.text('Nenhuma nota final importada para este bimestre.',MARGIN_X,y);y += 9;
+      } else gradeRows.forEach(item => {
+        y = ensureSpace(doc,y,12,`Continuação — ${student.full_name}`);
+        const score = Number(item.score);
+        const percentage = Math.round(score * 10);
+        const label = String(item.subject || '').replace(/^\d+\s*-\s*/, '');
+        const source = item.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina';
+        doc.setFont('helvetica','bold');doc.setFontSize(10);
+        doc.setTextColor(...(percentage < 60 ? [180,35,24] : percentage < 70 ? [166,107,0] : [8,120,75]));
+        y = printLines(doc,doc.splitTextToSize(`${label}: ${score.toFixed(1).replace('.', ',')} (${percentage}%)`,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
+        doc.text(`Fonte: SIAP · ${source} · Atualizado em ${formatDateTime(item.imported_at)}`,MARGIN_X,y);y += 7;
+      });
+      y += 4;
     }
 
     if (filters.withOccurrences) {
@@ -1059,6 +1129,9 @@ document.addEventListener('DOMContentLoaded', () => {
     schoolDailyAttendanceSignature = '';
     await fetchSchoolDailyAttendance(filters);
     if (schoolDailyAttendanceError) { toast('Não foi possível carregar a Frequência da Secretaria. Tente novamente.'); return; }
+    gradesSignature = '';
+    await fetchGradesDataset(filters);
+    if (gradesError) { toast('Não foi possível carregar as notas finais do SIAP. Tente novamente.'); return; }
     const reportTargets = selectedStudents(filters);
     if (!reportTargets.length) { toast('Nenhum aluno encontrado para os filtros selecionados.'); return; }
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
@@ -1116,7 +1189,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_source:filters.attendanceSource, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_source:filters.attendanceSource, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, grades:filters.withGrades, grades_year:filters.withGrades ? filters.gradesYear : null, grades_bimester:filters.withGrades ? filters.gradesBimester : null, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,
@@ -1169,10 +1242,11 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) closeReports(); };
   get('reportShift').onchange = () => { fillShiftClasses(); fillClassStudents(); scheduleRefresh(); };
   get('reportClass').onchange = () => { fillClassStudents(); scheduleRefresh(); };
-  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportAttendanceTeacher', 'reportAttendanceSecretary', 'reportAttendanceNone', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
+  ['reportStudent', 'reportStart', 'reportEnd', 'reportContentOccurrences', 'reportContentObservations', 'reportAttendanceTeacher', 'reportAttendanceSecretary', 'reportAttendanceNone', 'reportContentGrades', 'reportGradesYear', 'reportGradesBimester', 'reportContentPhoto', 'reportContentLivroRevisa', 'reportLivroRevisaYear', 'reportContentUniformItems', 'reportIncludeAll', 'reportIncludeWithRecords'].forEach(id => {
     get(id).addEventListener('change', scheduleRefresh);
   });
   get('reportContentLivroRevisa').addEventListener('change', syncLivroRevisaYearField);
+  get('reportContentGrades').addEventListener('change', syncGradesPeriod);
   get('generateReport').onclick = generateReport;
 
   document.addEventListener('carometro:permission-refresh', syncReportsNavigation);

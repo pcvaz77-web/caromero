@@ -70,9 +70,10 @@ function classOptions(value = '') {
 function renderStudentDetails() {
   const detail = students.find(student => student.id === detailStudentId);
   const detailAttendance = detail ? attendanceDetails(detail.id) : '';
+  const detailGrades = detail ? window.getStudentGradeDetails?.(detail.id) || '' : '';
   $('studentDetails').classList.toggle('hidden', !detail);
   $('studentDetails').innerHTML = detail
-    ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}${detailAttendance ? `<div class="detail-row detail-attendance-row"><b>Frequência</b><div class="detail-observation-tags">${detailAttendance}</div></div>` : ''}`
+    ? `<div class="detail-head"><div class="avatar">${detail.photoUrl ? `<img src="${detail.photoUrl}" alt="">` : ini(detail.name)}</div><div><h3>${esc(detail.name)}</h3><div class="meta">Perfil do aluno</div></div></div><div class="detail-row"><b>Turma</b>${esc(detail.className)}</div>${detail.report ? `<div class="detail-row"><b>Informação</b>${esc(detail.report)}</div>` : ''}${detailAttendance ? `<div class="detail-row detail-attendance-row"><b>Frequência</b><div class="detail-observation-tags">${detailAttendance}</div></div>` : ''}${detailGrades ? `<div class="detail-row detail-grade-row"><b>Notas bimestrais</b>${detailGrades}</div>` : ''}`
     : '<div class="empty">👈<br><br>Selecione um aluno para ver os detalhes.</div>';
 }
 
