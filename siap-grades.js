@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .map(({ score, batch, imported_at }) => {
         const percentage = Math.round(Number(score) * 10);
         const display = scoreText(score);
-        return `<div class="grade-card-row"><div><strong>${escape(subjectLabel(batch.subject))}</strong><small>Nota final: ${escape(display)} · ${batch.bimester}º bimestre/${batch.academic_year}</small><small><b>Fonte:</b> SIAP · ${batch.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina'}</small><small><b>Atualizado em:</b> ${escape(dateText(imported_at))}</small></div><span class="grade-ring grade-${tone(percentage)}" style="--grade-value:${percentage}" role="img" aria-label="Nota ${escape(display)}, ${percentage}%"><span>${percentage}%</span></span></div>`;
+        return `<div class="grade-card-row"><div><strong>${escape(subjectLabel(batch.subject))}</strong><small class="grade-card-score">Nota final: <b>${escape(display)}</b> · ${batch.bimester}º bimestre/${batch.academic_year}</small><small><b>Fonte:</b> SIAP · ${batch.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina'}</small><small><b>Atualizado em:</b> ${escape(dateText(imported_at))}</small></div><span class="grade-ring grade-${tone(percentage)}" style="--grade-value:${percentage}" role="img" aria-label="Nota ${escape(display)}, ${percentage}%"><span>${percentage}%</span></span></div>`;
       }).join('');
   };
 

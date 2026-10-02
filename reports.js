@@ -889,11 +889,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const percentage = Math.round(score * 10);
         const label = String(item.subject || '').replace(/^\d+\s*-\s*/, '');
         const source = item.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina';
-        doc.setFont('helvetica','bold');doc.setFontSize(10);
-        doc.setTextColor(...(percentage < 60 ? [180,35,24] : percentage < 70 ? [166,107,0] : [8,120,75]));
+        doc.setFont('helvetica','bold');doc.setFontSize(11);
+        doc.setTextColor(...(percentage < 60 ? [145,28,23] : percentage < 70 ? [121,75,0] : [4,92,58]));
         y = printLines(doc,doc.splitTextToSize(`${label}: ${score.toFixed(1).replace('.', ',')} (${percentage}%)`,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        doc.text(`Fonte: SIAP · ${source} · Atualizado em ${formatDateTime(item.imported_at)}`,MARGIN_X,y);y += 7;
+        doc.setFont('helvetica','bold');doc.setFontSize(9.5);doc.setTextColor(32,45,68);
+        y = printLines(doc,doc.splitTextToSize(`Fonte: SIAP · ${source} · Atualizado em ${formatDateTime(item.imported_at)}`,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);y += 3;
       });
       y += 4;
     }
