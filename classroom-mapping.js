@@ -17,11 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .classroom-map-modal { z-index:135; }
     .classroom-map-modal .modal { width:min(1080px,100%); }
-    .classroom-map-modal.classroom-panel-mode .modal { width:min(460px,100%); }
-    .classroom-map-modal.classroom-panel-mode .modal-head { padding:15px 18px 12px; }
-    .classroom-map-modal.classroom-panel-mode .modal-head h3 { font-size:18px; }
-    .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:14px 18px 18px; }
-    .classroom-map-modal.classroom-panel-mode .classroom-panel-actions .btn { min-width:0; }
+    .classroom-map-modal.classroom-panel-mode { grid-template-columns:minmax(0,1fr); }
+    .classroom-map-modal.classroom-panel-mode .modal { width:min(940px,100%); max-width:100%; min-width:0; max-height:90dvh; }
+    .classroom-map-modal.classroom-panel-mode .modal-head { padding:21px 26px 18px; }
+    .classroom-map-modal.classroom-panel-mode .modal-head h3 { font-size:22px; }
+    .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:22px 26px 26px; }
+    .classroom-map-modal.classroom-panel-mode .classroom-panel-actions { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; }
+    .classroom-map-modal.classroom-panel-mode .classroom-panel-actions .btn { min-width:0; min-height:50px; justify-content:center; text-align:center; }
     .classroom-map-shell { padding:20px 24px 26px; }
     .classroom-map-toolbar { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
     .classroom-map-toolbar-group { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
@@ -69,6 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
     @media(max-width:800px) {
       .classroom-map-modal { padding:8px; align-items:start; overflow:auto; }
       .classroom-map-modal .modal { max-height:calc(100dvh - 16px); }
+      .classroom-map-modal.classroom-panel-mode .modal { max-height:calc(100dvh - 16px); }
+      .classroom-map-modal.classroom-panel-mode .modal-head { padding:18px 20px 15px; }
+      .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:18px 20px 22px; }
       .classroom-map-shell { padding:15px; }
       .classroom-map-stage { padding:12px; }
       .classroom-seat { min-height:102px; }
@@ -79,6 +84,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .classroom-unassigned .classroom-student-avatar { width:38px; height:38px; font-size:11px; }
       .classroom-unassigned .classroom-student-name { max-width:100%; font-size:10px; overflow-wrap:anywhere; }
       #classPanelButton, #classroomMapButton { flex:1 1 auto; }
+    }
+    @media(max-width:520px) {
+      .classroom-map-modal.classroom-panel-mode .modal-head { padding:16px; }
+      .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:16px; }
+      .classroom-map-modal.classroom-panel-mode .classroom-panel-actions { grid-template-columns:1fr; }
     }
     @media print {
       @page { size:landscape; margin:8mm; }

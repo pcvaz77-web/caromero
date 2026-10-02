@@ -249,19 +249,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const rows = gradeRowsForClass(classId, year, bimester);
     const allScores = rows.flatMap(row => row.scores);
     const overall = allScores.length ? Math.round(allScores.reduce((sum, score) => sum + score, 0) / allScores.length * 10) : null;
-    section.innerHTML = `<div class="siap-grade-panel-head"><div><h4>Notas por disciplina</h4><p>Média simples das notas finais disponíveis · SIAP</p></div>
+    section.innerHTML = `<div class="siap-grade-panel-head"><div><h4>Desempenho da turma</h4><p>Notas finais disponíveis · Fonte: SIAP</p></div>
       <select data-grade-period aria-label="Ano e bimestre">${periods.map(value => {
         const [y,b] = value.split('|');
         return `<option value="${value}" ${value === chosen ? 'selected' : ''}>${b}º bimestre/${y}</option>`;
       }).join('')}</select></div>
-      <div class="siap-grade-overall ${overall === null ? '' : `grade-text-${tone(overall)}`}">${overall === null ? 'Sem notas' : `${overall}%`}<small>Média geral da turma no período</small></div>
-      <div class="siap-grade-legend">Vermelho: abaixo de 60% · Amarelo: 60% a 69% · Verde: 70% ou mais</div>
+      <div class="siap-grade-dashboard"><div class="siap-grade-summary"><span class="siap-grade-eyebrow">Média geral</span>
+        <div class="siap-grade-overall ${overall === null ? '' : `grade-text-${tone(overall)}`}">${overall === null ? 'Sem notas' : `${overall}%`}</div>
+        <p>Média simples das notas finais disponíveis no período.</p></div>
+      <div class="siap-grade-chart"><div class="siap-grade-chart-head"><h5>Média por disciplina</h5><span>${rows.length} disciplina${rows.length === 1 ? '' : 's'}</span></div>
       <div class="siap-grade-bars">${rows.sort((a,b) => a.batch.subject.localeCompare(b.batch.subject)).map(({ batch, scores }) => {
         const percent = scores.length ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length * 10) : null;
         return `<div class="siap-grade-bar-row"><strong>${escape(subjectLabel(batch.subject))}</strong><span class="siap-grade-bar">${percent === null ? '' : `<i class="grade-${tone(percent)}" style="width:${percent}%"></i>`}</span>
           <b>${percent === null ? 'Sem notas' : `${percent}%`}</b><small>${scores.length} aluno${scores.length === 1 ? '' : 's'}</small>
           ${canCapture(classId) ? `<label><input type="checkbox" data-grade-toggle="${batch.id}" ${batch.show_on_card ? 'checked' : ''}> No card</label>` : ''}</div>`;
-      }).join('')}</div>`;
+      }).join('')}</div><div class="siap-grade-legend">Vermelho: abaixo de 60% · Amarelo: 60% a 69% · Verde: 70% ou mais</div></div></div>`;
     section.querySelector('[data-grade-period]').onchange = () => mountPanel(classId);
     section.querySelectorAll('[data-grade-toggle]').forEach(input => {
       input.onchange = () => setVisibility(input.dataset.gradeToggle, input.checked);
