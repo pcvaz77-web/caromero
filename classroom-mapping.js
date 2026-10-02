@@ -68,6 +68,9 @@ document.addEventListener('DOMContentLoaded', () => {
     .classroom-panel-card p { margin:0 0 15px; color:var(--muted); font-size:13px; }
     .classroom-panel-actions { display:flex; gap:9px; flex-wrap:wrap; }
     .classroom-panel-actions .btn { min-width:150px; }
+    .classroom-panel-header-actions { display:flex; align-items:center; gap:10px; flex:none; }
+    .classroom-map-modal:not(.classroom-panel-mode) #classroomInstallAction { display:none; }
+    .classroom-panel-install-link { min-height:34px; padding:7px 11px; border-color:#d9d0f6; color:#5832b8; font-size:12px; white-space:nowrap; text-decoration:none; }
     @media(max-width:800px) {
       .classroom-map-modal { padding:8px; align-items:start; overflow:auto; }
       .classroom-map-modal .modal { max-height:calc(100dvh - 16px); }
@@ -89,6 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
       .classroom-map-modal.classroom-panel-mode .modal-head { padding:16px; }
       .classroom-map-modal.classroom-panel-mode .classroom-map-shell { padding:16px; }
       .classroom-map-modal.classroom-panel-mode .classroom-panel-actions { grid-template-columns:1fr; }
+      .classroom-panel-header-actions { gap:6px; }
+      .classroom-panel-install-link { min-height:32px; padding:6px 8px; font-size:11px; }
     }
     @media print {
       @page { size:landscape; margin:8mm; }
@@ -124,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'classroomMapModal';
   modal.className = 'modal-bg classroom-map-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3 id="classroomMapTitle">Mapeamento da sala</h3><div id="classroomMapMeta" class="meta"></div></div><button class="close" type="button" data-map-close>×</button></div><div id="classroomMapContent" class="classroom-map-shell"></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3 id="classroomMapTitle">Mapeamento da sala</h3><div id="classroomMapMeta" class="meta"></div></div><div class="classroom-panel-header-actions"><span id="classroomInstallAction"></span><button class="close" type="button" data-map-close>×</button></div></div><div id="classroomMapContent" class="classroom-map-shell"></div></div>`;
   document.body.appendChild(modal);
 
   const fileRowOptions = Array.from({ length:20 }, (_, index) => index + 1);
@@ -451,6 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
     const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
     const panelActions = `${siapActions}${attendanceAction}${gradeAction}`;
+    document.getElementById('classroomInstallAction').innerHTML = window.getAttendanceCaptureInstallPanelAction?.(actionContext) || '';
     const bindPanelActions = () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
