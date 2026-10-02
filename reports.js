@@ -30,17 +30,17 @@ document.addEventListener('DOMContentLoaded', () => {
         <fieldset class="reports-option-card">
           <legend>Informações gerais</legend>
           <div class="reports-choice-list">
-            <label class="check reports-choice"><input type="checkbox" id="reportContentOccurrences" checked> Ocorrências</label>
-            <label class="check reports-choice"><input type="checkbox" id="reportContentObservations" checked> Observações</label>
-            <label class="check reports-choice"><input type="checkbox" id="reportContentPhoto" checked> Foto do aluno</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentOccurrences"> Ocorrências</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentObservations"> Observações</label>
+            <label class="check reports-choice"><input type="checkbox" id="reportContentPhoto"> Foto do aluno</label>
           </div>
         </fieldset>
         <fieldset class="reports-option-card">
           <legend>Frequência</legend>
           <div class="reports-choice-list">
-            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher" checked> Professor/disciplina</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher"> Professor/disciplina</label>
             <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Secretaria</label>
-            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none"> Não incluir</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none" checked> Não incluir</label>
           </div>
         </fieldset>
         <fieldset class="reports-option-card">
@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function currentFilters() {
-    const attendanceSource = document.querySelector('input[name="reportAttendanceSource"]:checked')?.value || 'teacher';
+    const attendanceSource = document.querySelector('input[name="reportAttendanceSource"]:checked')?.value || 'none';
     return {
       schoolId: window.getActiveSchoolId?.() || null,
       shift: get('reportShift').value || null,
@@ -261,6 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
       onlyWithRecords: get('reportIncludeWithRecords').checked
     };
   }
+
+  const hasSelectedContent = filters => filters.withOccurrences || filters.withObservations ||
+    filters.withAttendanceHistory || filters.withSchoolDailyAttendance || filters.withGrades ||
+    filters.withPhoto || filters.withLivroRevisa || filters.withUniformItems;
 
   function syncLivroRevisaYearField() {
     const checked = get('reportContentLivroRevisa').checked;
@@ -604,6 +608,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canAccessReports()) return;
     const filters = currentFilters();
     const previewEl = get('reportsPreview');
+    if (!hasSelectedContent(filters)) {
+      previewEl.textContent = 'Selecione pelo menos um conteúdo para o relatório.';
+      return;
+    }
     previewEl.textContent = 'Carregando prévia...';
     await fetchStudentsDataset(filters);
     if (datasetError) {
@@ -1095,6 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canAccessReports()) { toast('Você não tem acesso a Relatórios.'); return; }
     if (!window.jspdf?.jsPDF) { toast('Não foi possível carregar o gerador de PDF. Verifique sua conexão.'); return; }
     const filters = currentFilters();
+    if (!hasSelectedContent(filters)) { toast('Selecione pelo menos um conteúdo para o relatório.'); return; }
     // O PDF nunca pode sair com dados desatualizados do aluno (ex.: uma
     // observação removida segundos antes deste clique). Mesmo racional do
     // reset de occurrenceSignature logo abaixo: zerar a assinatura aqui,
