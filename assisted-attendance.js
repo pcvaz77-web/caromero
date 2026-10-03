@@ -25,12 +25,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
   const isGeneralTeacher = () => window.getActiveSchoolRole?.() === 'teacher';
-  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && !!classId && !!window.counselorRightsForClass?.(classId);
+  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && !!classId && !!window.getActiveSchoolId?.();
 
   const modal = document.createElement('div');
   modal.id = 'assistedAttendanceModal';
   modal.className = 'modal-bg assisted-attendance-modal hidden';
-  modal.innerHTML = `<section class="modal assisted-attendance-dialog"><div class="modal-head"><div><h3>Frequência Assistida</h3><div class="meta" data-aa-context>Escolha os meses e abra as chamadas verdes no SIAP.</div></div><button class="close" type="button" data-aa-close>×</button></div><div class="assisted-attendance-body"><div class="assisted-attendance-guide"><b>Captura do professor conselheiro</b><span>Esta captura fica vinculada à turma em que você é conselheiro. Escolha os meses, abra cada chamada verde no SIAP e clique em capturar.</span></div><section class="aa-thresholds"><div><b>Classificação por frequência</b><span data-aa-threshold-source></span></div><div class="aa-threshold-fields"><label>Mínimo para Frequente <input type="number" min="2" max="100" step="1" data-aa-frequent-minimum></label><label>Mínimo para Faltoso <input type="number" min="1" max="99" step="1" data-aa-absent-minimum></label><button class="btn primary" type="button" data-aa-save-thresholds>Salvar percentuais</button><button class="btn secondary" type="button" data-aa-default-thresholds>Usar cálculo padrão</button></div><p data-aa-threshold-explanation></p></section><fieldset class="aa-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-aa-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="assisted-attendance-actions"><button class="btn primary" type="button" data-aa-capture>Capturar chamada aberta</button><button class="btn secondary hidden" type="button" data-aa-import>Importar para os cards</button><button class="btn secondary" type="button" data-aa-clear>Limpar coleta</button></div><div class="meta" data-aa-status>Escolha pelo menos um mês para iniciar.</div><div data-aa-summary></div><div data-aa-students></div></div></section>`;
+  modal.innerHTML = `<section class="modal assisted-attendance-dialog"><div class="modal-head"><div><h3>Frequência Assistida</h3><div class="meta" data-aa-context>Escolha os meses e abra as chamadas verdes no SIAP.</div></div><button class="close" type="button" data-aa-close>×</button></div><div class="assisted-attendance-body"><div class="assisted-attendance-guide"><b>Captura do professor</b><span>Esta captura fica vinculada à turma selecionada. Escolha os meses, abra cada chamada verde no SIAP e clique em capturar.</span></div><section class="aa-thresholds"><div><b>Classificação por frequência</b><span data-aa-threshold-source></span></div><div class="aa-threshold-fields"><label>Mínimo para Frequente <input type="number" min="2" max="100" step="1" data-aa-frequent-minimum></label><label>Mínimo para Faltoso <input type="number" min="1" max="99" step="1" data-aa-absent-minimum></label><button class="btn primary" type="button" data-aa-save-thresholds>Salvar percentuais</button><button class="btn secondary" type="button" data-aa-default-thresholds>Usar cálculo padrão</button></div><p data-aa-threshold-explanation></p></section><fieldset class="aa-months"><legend>Meses do relatório</legend>${MONTHS.map((month,index)=>`<label><input type="checkbox" data-aa-month="${escapeHtml(month)}"><span>${String(index+1).padStart(2,'0')} · ${escapeHtml(month)}</span></label>`).join('')}</fieldset><div class="assisted-attendance-actions"><button class="btn primary" type="button" data-aa-capture>Capturar chamada aberta</button><button class="btn secondary hidden" type="button" data-aa-import>Importar para os cards</button><button class="btn secondary" type="button" data-aa-clear>Limpar coleta</button></div><div class="meta" data-aa-status>Escolha pelo menos um mês para iniciar.</div><div data-aa-summary></div><div data-aa-students></div></div></section>`;
   document.body.appendChild(modal);
   modal.querySelectorAll('[data-aa-frequent-minimum],[data-aa-absent-minimum]').forEach(input => {
     const field = document.createElement('span');
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.onclick = event => { if (event.target === modal) close(); };
   async function openForCounselorClass({ classId, className }) {
     if (!canCaptureClass(classId)) {
-      toast('Somente o professor conselheiro desta turma pode capturar a Frequência Assistida.');
+      toast('Somente professores da escola ativa podem capturar a Frequência Assistida.');
       return;
     }
     if (captureClassId && captureClassId !== classId) {
@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   by('[data-aa-capture]').onclick=async()=>{
-    if(!canCaptureClass(captureClassId)){by('[data-aa-status]').textContent='Somente o professor conselheiro desta turma pode realizar a captura.';return;}
+    if(!canCaptureClass(captureClassId)){by('[data-aa-status]').textContent='Somente professores da escola ativa podem realizar a captura.';return;}
     if(!selectedMonths.size){by('[data-aa-status]').textContent='Escolha pelo menos um mês antes de capturar.';return;}
     const control=by('[data-aa-capture]'); control.disabled=true; by('[data-aa-status]').textContent='Lendo a chamada aberta no SIAP…';
     try{
@@ -262,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function persistCompleteCollection(){
     if(saving)return; saving=true;
     try{
-      if(!canCaptureClass(captureClassId))throw new Error('Somente o professor conselheiro desta turma pode importar a frequência.');
+      if(!canCaptureClass(captureClassId))throw new Error('Somente professores da escola ativa podem importar a frequência.');
       const schoolId=window.getActiveSchoolId?.();
       if(!schoolId)throw new Error('Selecione uma escola no Carômetro.');
       const state=collectionState();

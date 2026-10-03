@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data:canEdit, error:permissionError } = await db.rpc('can_edit_classroom_map', { target_school_id:schoolId, target_class_id:classId });
     if (generation !== availabilityGeneration || classId !== selectedClassId) return;
     activeCanEdit = !permissionError && !!canEdit;
-    const canViewPanel = permission?.role === 'admin' || !!permission?.can_view_class_summary || activeCanEdit;
+    const canViewPanel = permission?.role === 'admin' || window.getActiveSchoolRole?.() === 'teacher' || !!permission?.can_view_class_summary || activeCanEdit;
     if (!canViewPanel) return;
     panelButton.classList.remove('hidden');
     try {

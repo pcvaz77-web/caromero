@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(date);
   };
-  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && !!window.counselorRightsForClass?.(classId);
+  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && !!classId && !!window.getActiveSchoolId?.();
   const schoolId = () => window.getActiveSchoolId?.() || null;
   let batches = [];
   let entries = [];
@@ -96,13 +96,20 @@ document.addEventListener('DOMContentLoaded', () => {
   function previewRows(snapshot, classId) {
     const candidates = students.filter(student => student.classId === classId);
     const byName = new Map();
+    const sourceCounts = new Map();
     candidates.forEach(student => {
       const key = normalizeStudentName(student.name);
       byName.set(key, [...(byName.get(key) || []), student]);
     });
+    snapshot.entries.forEach(entry => {
+      const key = normalizeStudentName(entry.name);
+      sourceCounts.set(key, (sourceCounts.get(key) || 0) + 1);
+    });
     return snapshot.entries.map(entry => {
-      const matches = byName.get(normalizeStudentName(entry.name)) || [];
-      return { ...entry, studentId:matches.length === 1 ? matches[0].id : null, matchCount:matches.length };
+      const key = normalizeStudentName(entry.name);
+      const matches = byName.get(key) || [];
+      const sourceDuplicate = sourceCounts.get(key) > 1;
+      return { ...entry, studentId:!sourceDuplicate && matches.length === 1 ? matches[0].id : null, matchCount:matches.length, sourceDuplicate };
     });
   }
 
@@ -118,7 +125,7 @@ document.addEventListener('DOMContentLoaded', () => {
     host.innerHTML = `<p class="meta">${eligible.length} notas identificadas · ${missing} sem nota · ${unmatched} sem vínculo único. Nota 0,0 exige seleção manual.</p>
       <div class="siap-grade-preview-list">${rows.map((row, index) => {
         const valid = row.studentId && !row.blocked && row.score !== null;
-        const reason = row.score === null ? 'Sem nota' : row.blocked ? 'Matrícula bloqueada no SIAP' :
+        const reason = row.score === null ? 'Sem nota' : row.blocked ? 'Matrícula bloqueada no SIAP' : row.sourceDuplicate ? 'Nome duplicado no SIAP' :
           !row.studentId ? row.matchCount ? 'Nome duplicado no Carômetro' : 'Não identificado no Carômetro' : '';
         return `<label class="siap-grade-preview-row"><input type="checkbox" data-grade-row="${index}" ${valid && row.score > 0 ? 'checked' : ''} ${valid ? '' : 'disabled'}>
           <span>${escape(row.name)}<small>${escape(reason)}</small></span><b>${row.score === null ? '—' : escape(scoreText(row.score))}</b></label>`;
@@ -127,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function openCapture(classId, className) {
-    if (!canCapture(classId)) { toast('Somente o conselheiro desta turma pode importar notas.'); return; }
+    if (!canCapture(classId)) { toast('Somente professores da escola ativa podem importar notas.'); return; }
     capture = null;
     selectedClassId = classId;
     dialog.dataset.classId = classId;
@@ -238,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const classBatches = batches.filter(batch => batch.class_id === classId);
     if (!classBatches.length) {
-      section.innerHTML = '<h4>Notas por disciplina</h4><p>O conselheiro ainda não importou notas finais desta turma.</p>';
+      section.innerHTML = '<h4>Notas por disciplina</h4><p>Ainda não há notas finais importadas para esta turma.</p>';
       return;
     }
     const periods = [...new Set(classBatches.map(batch => `${batch.academic_year}|${batch.bimester}`))]
