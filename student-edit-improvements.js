@@ -1258,8 +1258,13 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!schoolId) { toast('Selecione uma escola antes de excluir o aluno.'); return; }
       deleteQuery = deleteQuery.eq('school_id', schoolId);
       const { data, error } = await deleteQuery.select('id');
-      if (error) { toast(error.message); return; }
-      if (!data?.length) { toast('A exclusão não foi confirmada pelo banco de dados.'); return; }
+      if (error) {
+        toast(error.code === '23503'
+          ? 'Este aluno possui registros vinculados que impedem a exclusão.'
+          : error.message);
+        return;
+      }
+      if (!data?.length) { toast('Aluno não encontrado nesta escola ou exclusão não autorizada. Confira sua permissão.'); return; }
 
       let photoCleanupFailed = false;
       if (student.photoPath) {
