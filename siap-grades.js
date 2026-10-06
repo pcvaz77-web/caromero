@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dialog.id = 'siapGradesModal';
   dialog.className = 'modal-bg hidden';
   dialog.innerHTML = `<section class="modal siap-grades-dialog"><div class="modal-head"><h3>Notas finais do SIAP</h3><button type="button" class="close" data-grade-close aria-label="Fechar">×</button></div>
-    <div class="form"><p class="sub">Abra no SIAP a página Notas da turma, disciplina e bimestre desejados. A leitura usa somente “Média Bimestral Final”.</p>
+    <div class="form"><p class="sub">Abra no SIAP a página Notas da turma, disciplina e bimestre desejados. A leitura usa somente a nota final do bimestre.</p>
     <div data-grade-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-grade-capture>Capturar tela aberta</button></div>
     <p data-grade-status class="meta" role="status"></p><div data-grade-preview></div>
     <label class="check grade-card-choice"><input type="checkbox" data-grade-visible> Mostrar estas notas no card dos alunos</label>
@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
   dialog.querySelector('[data-grade-capture]').onclick = async () => {
     const button = dialog.querySelector('[data-grade-capture]');
     button.disabled = true;
-    status('Lendo somente as médias bimestrais finais da tela aberta…');
+    status('Lendo somente as notas finais da tela aberta…');
     try {
       const response = await requestCapture();
       if (!response.ok) throw new Error(response.message || 'A leitura falhou.');

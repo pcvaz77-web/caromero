@@ -10,7 +10,7 @@
   const FREQUENCY_PATH = '/FrequenciaAlunoEdicao.aspx';
   const DIARY_PATH = '/DiarioEscolarListagem.aspx';
   const SCHOOL_DAILY_PATH = '/FrequenciaDiaria.aspx';
-  const GRADES_PATH = '/NotasModeloEdicao.aspx';
+  const GRADES_PATHS = ['/NotasModeloEdicao.aspx', '/NotasEdicao.aspx'];
   const MONTHS = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -22,7 +22,7 @@
   const isFrequencyPage = () => location.pathname.toLowerCase() === FREQUENCY_PATH.toLowerCase();
   const isDiaryPage = () => location.pathname.toLowerCase() === DIARY_PATH.toLowerCase();
   const isSchoolDailyPage = () => location.pathname.toLowerCase() === SCHOOL_DAILY_PATH.toLowerCase();
-  const isGradesPage = () => location.pathname.toLowerCase() === GRADES_PATH.toLowerCase();
+  const isGradesPage = () => GRADES_PATHS.some(path => location.pathname.toLowerCase() === path.toLowerCase());
 
   function readContext() {
     return {
@@ -371,13 +371,49 @@
     return true;
   };
 
-  // Somente a última coluna, identificada pelo título. Nenhuma avaliação,
-  // recuperação, falta ou botão de salvamento é lido ou acionado aqui.
+  function readClassicGradeEntries() {
+    const tables = [...document.querySelectorAll('table')];
+    const candidates = tables.map(table => {
+      const rows = [...table.rows];
+      const headerIndex = rows.findIndex(row => {
+        const labels = [...row.cells].map(cell => normalizedComparable(cell.textContent));
+        return labels.includes('alunos') && labels.includes('notas finais');
+      });
+      if (headerIndex < 0) return null;
+      const header = rows[headerIndex];
+      const labels = [...header.cells].map(cell => normalizedComparable(cell.textContent));
+      return { rows, headerIndex, studentIndex:labels.indexOf('alunos'), finalIndex:labels.indexOf('notas finais') };
+    }).filter(Boolean);
+    if (candidates.length !== 1) throw new Error('A tabela de Notas Finais do SIAP não foi identificada com segurança.');
+    const { rows, headerIndex, studentIndex, finalIndex } = candidates[0];
+    const entries = [];
+    for (const row of rows.slice(headerIndex + 1)) {
+      const cells = [...row.cells];
+      const nameText = normalize(cells[studentIndex]?.textContent);
+      if (!/^\d+\.\s*\S/.test(nameText)) continue;
+      if (cells.length <= finalIndex) throw new Error('A linha do aluno não contém a coluna Notas Finais.');
+      const name = nameText.replace(/^\d+\.\s*/, '').trim();
+      if (normalizedStudentName(name).split(' ').length < 2) throw new Error('O SIAP exibiu um nome de aluno em formato desconhecido.');
+      const raw = normalize(cells[finalIndex].textContent);
+      if (raw && raw !== '--' && !/^\d{1,2}(?:[,.]\d)?$/.test(raw))
+        throw new Error('O SIAP exibiu uma nota final em formato desconhecido.');
+      const score = !raw || raw === '--' ? null : Number(raw.replace(',', '.'));
+      if (score !== null && (score < 0 || score > 10)) throw new Error('O SIAP exibiu uma nota fora da escala de 0 a 10.');
+      entries.push({ registration:'', name, score, blocked:false, situation:'' });
+    }
+    if (!entries.length) throw new Error('A tabela de Notas Finais ainda não contém alunos legíveis.');
+    return entries;
+  }
+
+  // Somente a coluna final, identificada pelo título da respectiva tela.
+  // Nenhuma avaliação, recuperação, falta ou botão de salvamento é lido ou acionado aqui.
   globalThis.__carometroGradesSnapshot = () => {
     if (!isGradesPage()) throw new Error('Abra no SIAP a tela Notas da turma e disciplina desejadas.');
     const context = readContext();
     const required = ['year', 'className', 'shift', 'subject', 'term'];
     if (required.some(key => !context[key])) throw new Error('O contexto das notas ainda não terminou de carregar.');
+    if (location.pathname.toLowerCase() === '/notasedicao.aspx')
+      return { pageToken:PAGE_TOKEN, schoolName:normalize(byId('lblNomeEntidade')?.textContent), context, entries:readClassicGradeEntries() };
     const students = [...document.querySelectorAll('.listaDeAlunos .itens > .item[data-matricula]')];
     const finalList = [...document.querySelectorAll('.listaDeTotais.totalDeNotas')]
       .find(list => normalize(list.querySelector('.cabecalho .titulo')?.textContent) === 'Média Bimestral Final');

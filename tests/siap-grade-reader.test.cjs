@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const reader = fs.readFileSync(path.join(__dirname, '..', 'extensions', 'carometro-frequencia-leitura', 'content.js'), 'utf8');
 
-function snapshot({ mismatch = false, malformed = false } = {}) {
+function snapshot({ mismatch = false, malformed = false, classic = false, duplicateTable = false, missingFinalCell = false } = {}) {
   const names = ['1. ANA EXEMPLO', '2. BRUNO EXEMPLO', '3. CARLA EXEMPLO'];
   const students = names.map((textContent, index) => ({
     dataset:{ matricula:String(index + 1), bloqueado:'False' }, textContent
@@ -19,6 +19,14 @@ function snapshot({ mismatch = false, malformed = false } = {}) {
     querySelector:() => ({ textContent:' Média Bimestral Final ' }),
     querySelectorAll:() => cells
   };
+  const classicRows = [
+    { cells:['Alunos', 'trabalho avaliativo', 'seminário', 'Nota Extra', 'Faltas', 'Notas Finais'].map(textContent => ({ textContent })) },
+    { cells:['1. ANA EXEMPLO', '10', '10', '9', '0', '8,1'].map(textContent => ({ textContent })) },
+    { cells:['2. BRUNO EXEMPLO', '9', '9', '9', '0', malformed ? '0/0' : '0,0'].map(textContent => ({ textContent })) },
+    { cells:['3. CARLA EXEMPLO', '', '', '', '0', '--'].map(textContent => ({ textContent })) }
+  ];
+  if (missingFinalCell) classicRows[2].cells.pop();
+  const classicTable = { rows:classicRows };
   const fields = {
     cphFuncionalidade_cphCampos_txtAnoLetivo:'2026',
     cphFuncionalidade_cphCampos_txtComposicao:'199 - Ensino Fundamental',
@@ -32,10 +40,11 @@ function snapshot({ mismatch = false, malformed = false } = {}) {
   const context = {
     performance:{ timeOrigin:1 },
     crypto:{ randomUUID:() => 'test' },
-    location:{ pathname:'/NotasModeloEdicao.aspx' },
+    location:{ pathname:classic ? '/NotasEdicao.aspx' : '/NotasModeloEdicao.aspx' },
     document:{
       getElementById:id => fields[id] ? { value:fields[id], textContent:fields[id] } : null,
-      querySelectorAll:selector => selector.includes('listaDeAlunos') ? students : selector.includes('listaDeTotais') ? [finalList] : []
+      querySelectorAll:selector => selector === 'table' ? classic ? duplicateTable ? [classicTable, classicTable] : [classicTable] : [] :
+        selector.includes('listaDeAlunos') ? students : selector.includes('listaDeTotais') ? [finalList] : []
     }
   };
   vm.runInNewContext(reader, context);
@@ -57,4 +66,17 @@ test('interrompe se matrícula e nota não estiverem alinhadas', () => {
 
 test('interrompe se o formato da nota mudar', () => {
   assert.throws(() => snapshot({ malformed:true })(), /formato desconhecido/);
+});
+
+test('lê somente Notas Finais na tela clássica, sem confundir avaliações e faltas', () => {
+  const result = snapshot({ classic:true })();
+  assert.equal(result.context.className, '8E');
+  assert.deepEqual(Array.from(result.entries, item => item.name), ['ANA EXEMPLO', 'BRUNO EXEMPLO', 'CARLA EXEMPLO']);
+  assert.deepEqual(Array.from(result.entries, item => item.score), [8.1, 0, null]);
+});
+
+test('interrompe se a nota final clássica for desconhecida ou a tabela ambígua', () => {
+  assert.throws(() => snapshot({ classic:true, malformed:true })(), /formato desconhecido/);
+  assert.throws(() => snapshot({ classic:true, duplicateTable:true })(), /com segurança/);
+  assert.throws(() => snapshot({ classic:true, missingFinalCell:true })(), /não contém a coluna Notas Finais/);
 });

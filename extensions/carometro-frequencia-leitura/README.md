@@ -14,8 +14,8 @@ Extensão Chrome Manifest V3 para solicitar no Carômetro uma prévia temporári
 
 - Oferece o modo **Frequência Assistida**: o professor abre uma chamada verde e a extensão captura somente a data visível.
 - Oferece o modo **Frequência Diária da Escola**: a Secretaria abre uma turma verde ou vermelha e a extensão percorre os meses escolhidos.
-- Lê **Média Bimestral Final** da tela Notas aberta pelo professor; não lê avaliações parciais e não altera o SIAP.
-- Confere a matrícula e a ordem das linhas dentro do SIAP; vincula ao cadastro do Carômetro pelo nome completo, sem incluir nomes duplicados automaticamente.
+- Lê **Média Bimestral Final** em `NotasModeloEdicao.aspx` e **Notas Finais** em `NotasEdicao.aspx`; não lê avaliações parciais e não altera o SIAP.
+- Na tela de modelo, confere a matrícula e a ordem das linhas dentro do SIAP; em ambas as telas, vincula ao cadastro do Carômetro pelo nome completo, sem incluir nomes duplicados automaticamente.
 - Não injeta mais o painel antigo no Carômetro e não exibe controles dentro do SIAP.
 - Funciona silenciosamente como ponte do botão nativo **Frequência Assistida**.
 - Trabalha silenciosamente na aba do SIAP usando a seleção feita no Carômetro.

@@ -252,7 +252,7 @@ function chooseSchoolDailyTab(tabs) {
 }
 
 function chooseGradesTab(tabs) {
-  return tabs.filter(tab => /\/NotasModeloEdicao\.aspx(?:[?#]|$)/i.test(tab.url || '')).sort((left, right) =>
+  return tabs.filter(tab => /\/Notas(?:Modelo)?Edicao\.aspx(?:[?#]|$)/i.test(tab.url || '')).sort((left, right) =>
     Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
     Number(right.lastAccessed || 0) - Number(left.lastAccessed || 0)
   )[0];

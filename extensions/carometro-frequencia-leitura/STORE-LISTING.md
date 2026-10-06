@@ -20,9 +20,9 @@ A extensão oferece três fluxos de leitura:
 
 - Frequência Assistida, para consultar chamadas já salvas no Diário do Professor.
 - Frequência da Secretaria, para consultar turmas preenchidas na Frequência Diária.
-- Notas finais bimestrais, para ler a coluna “Média Bimestral Final” da tela de Notas aberta pelo professor.
+- Notas finais bimestrais, para ler a coluna “Média Bimestral Final” ou “Notas Finais” da tela de Notas aberta pelo professor.
 
-Na frequência, o usuário escolhe os meses e inicia a leitura. Nas notas, o professor conselheiro abre a turma, disciplina e bimestre no SIAP e solicita uma prévia no Carômetro. A extensão confere o alinhamento da matrícula entre cada aluno e a coluna final, e o Carômetro mostra as notas para revisão antes de qualquer importação.
+Na frequência, o usuário escolhe os meses e inicia a leitura. Nas notas, o professor conselheiro abre a turma, disciplina e bimestre no SIAP e solicita uma prévia no Carômetro. Na tela de modelo, a extensão confere o alinhamento das matrículas com a coluna final. Na tela clássica, lê o nome e a nota final da mesma linha. O Carômetro mostra as notas para revisão antes de qualquer importação.
 
 Segurança e privacidade:
 
@@ -58,6 +58,6 @@ Política de privacidade: `https://sistemacarometro.com.br/frequencia-extensao-p
 2. Abra `https://sistemacarometro.com.br/` e uma sessão autorizada em `https://siap.educacao.go.gov.br/`.
 3. No Carômetro, abra Frequência Assistida, Frequência da Secretaria ou o Painel da turma de um professor conselheiro.
 4. Para notas, abra a tela Notas do SIAP com turma, disciplina e bimestre selecionados e clique em “Extrair notas do SIAP” no Carômetro.
-5. Confirme que a prévia da coluna “Média Bimestral Final” aparece e que nenhum controle de salvar, confirmar ou excluir no SIAP é acionado.
+5. Confirme que a prévia da coluna final da tela de Notas aparece e que nenhum controle de salvar, confirmar ou excluir no SIAP é acionado.
 
 O acesso aos dados reais depende de credenciais institucionais do SIAP e do Carômetro. A revisão de código demonstra que a extensão não coleta credenciais e não altera frequências.

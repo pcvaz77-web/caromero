@@ -18,7 +18,7 @@ function pngSize(filePath) {
 }
 
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.7.2');
+assert.equal(manifest.version, '0.7.3');
 assert.deepEqual(manifest.host_permissions, ['https://siap.educacao.go.gov.br/*', 'https://sistemacarometro.com.br/*']);
 assert.deepEqual(manifest.permissions, ['tabs', 'scripting']);
 assert.equal(manifest.action.default_popup, 'popup.html');
@@ -34,7 +34,7 @@ assert.match(popup, /Extensão instalada e pronta/);
 assert.match(popup, /Somente leitura/);
 assert.match(popup, /frequencia-extensao-privacidade\.html/);
 assert.doesNotMatch(popup, /<script/i);
-assert.match(privacy, /não grava nomes ou frequências no armazenamento do navegador/i);
+assert.match(privacy, /não grava nomes, frequências ou notas no armazenamento do navegador/i);
 assert.match(privacy, /não altera dados no SIAP/i);
 assert.doesNotMatch(content, /chrome\.(cookies|history|storage)|fetch\s*\(|XMLHttpRequest|sendBeacon/);
 assert.doesNotMatch(content, /btnAlterar.*click|btnExcluirFrequencia.*click/);
@@ -73,12 +73,17 @@ const sandbox = {
   setTimeout,
   chrome:{ runtime:{ onMessage:{ addListener() {} } } }
 };
-vm.runInNewContext(`${background}\nglobalThis.chooseSiapTabForTest = chooseSiapTab;`, sandbox);
+vm.runInNewContext(`${background}\nglobalThis.chooseSiapTabForTest = chooseSiapTab; globalThis.chooseGradesTabForTest = chooseGradesTab;`, sandbox);
 const chosen = sandbox.chooseSiapTabForTest([
   { id:1, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:false, lastAccessed:100 },
   { id:2, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:false, lastAccessed:300 },
   { id:3, url:'https://siap.educacao.go.gov.br/OutraPagina.aspx', active:true, lastAccessed:400 }
 ]);
 assert.equal(chosen.id, 2, 'deve escolher a aba de frequência acessada mais recentemente');
+const gradesTab = sandbox.chooseGradesTabForTest([
+  { id:4, url:'https://siap.educacao.go.gov.br/NotasEdicao.aspx', active:true },
+  { id:5, url:'https://siap.educacao.go.gov.br/default.aspx', active:false }
+]);
+assert.equal(gradesTab.id, 4, 'deve reconhecer a tela clássica de Notas');
 
 console.log('Extensão de frequência somente leitura: contrato estrutural aprovado.');
