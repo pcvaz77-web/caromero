@@ -281,7 +281,12 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
-    const { data, error } = await db.rpc('get_effective_siap_attendance_labels_v2',{p_school_id:schoolId});
+    let { data, error } = await db.rpc('get_effective_siap_attendance_labels_v3',{p_school_id:schoolId});
+    if (error?.code === 'PGRST202') {
+      // Enquanto a migration não estiver aplicada, preserva a frequência
+      // publicada sem afirmar que o professor é conselheiro.
+      ({ data, error } = await db.rpc('get_effective_siap_attendance_labels_v2',{p_school_id:schoolId}));
+    }
     effectiveBadges.clear();
     if (!error) {
       (data || []).forEach(item => {
@@ -297,7 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       students.forEach(student=>{
         const status=teacherStatus?.(student.id);
-        if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:'Professor conselheiro',updated_at:null});
+        if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:null,teacher_is_counselor:false,updated_at:null});
       });
     }
     await loadAttendanceTerms(schoolId);
@@ -311,7 +316,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const item=effectiveBadges.get(studentId);
     if(!item||!STATUS[item.status])return [];
     const source=item.source_key==='teacher'
-      ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`
+      ? item.teacher_is_counselor === true
+        ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`
+        : item.teacher_name || 'Professor não identificado'
       : 'Secretaria';
     return [{
       source,

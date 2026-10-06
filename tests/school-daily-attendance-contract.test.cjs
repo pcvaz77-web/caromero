@@ -18,7 +18,7 @@ assert.match(source, /globalMatches\.length === 1/);
 assert.match(source, /row\.sourceDuplicate/);
 assert.match(source, /siap_school_daily_attendance_current/);
 assert.match(source, /order\('updated_at',\{ascending:false\}\)/);
-assert.match(source, /get_effective_siap_attendance_labels_v2/);
+assert.match(source, /get_effective_siap_attendance_labels_v3/);
 assert.match(source, /effectiveBadges\.set\(item\.student_id/);
 assert.match(source, /months,source_dates,updated_at/);
 assert.match(partialPeriodMigration, /add column if not exists source_dates text\[\]/);
@@ -65,7 +65,7 @@ assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
 assert.match(source, /carometro:school-context-ready', reloadActiveSchoolAttendance/);
 assert.match(source, /carometro:data-loaded', loadEffectiveBadges/);
-assert.match(index, /school-daily-attendance\.js\?v=18/);
+assert.match(index, /school-daily-attendance\.js\?v=19/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];

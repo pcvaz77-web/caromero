@@ -2,10 +2,12 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 
 const root = path.resolve(__dirname, '..');
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/130_counselor_attendance_priority.sql'), 'utf8');
 const partialPeriodMigration = fs.readFileSync(path.join(root, 'supabase/migrations/135_attendance_partial_period_labels.sql'), 'utf8');
+const sourceRoleMigration = fs.readFileSync(path.join(root, 'supabase/migrations/158_attendance_source_counselor_role.sql'), 'utf8');
 const daily = fs.readFileSync(path.join(root, 'school-daily-attendance.js'), 'utf8');
 const core = fs.readFileSync(path.join(root, 'app-core.js'), 'utf8');
 
@@ -23,8 +25,24 @@ test('etiqueta efetiva v2 entrega as datas exatas da origem vencedora', () => {
   assert.match(partialPeriodMigration, /get_effective_siap_attendance_labels_v2/);
   assert.match(partialPeriodMigration, /a\.source_dates as row_source_dates/);
   assert.match(partialPeriodMigration, /coalesce\(teacher\.row_source_dates,secretary\.row_source_dates/);
-  assert.match(daily, /get_effective_siap_attendance_labels_v2/);
+  assert.match(daily, /get_effective_siap_attendance_labels_v3/);
   assert.match(daily, /período parcial/);
+});
+
+test('fonte só identifica conselheiro quando o autor tem vínculo com a turma', () => {
+  assert.match(sourceRoleMigration, /cc\.school_id = a\.school_id/);
+  assert.match(sourceRoleMigration, /cc\.class_id = a\.class_id/);
+  assert.match(sourceRoleMigration, /cc\.counselor_user_id = a\.updated_by/);
+  const start = daily.indexOf('window.getStudentAttendanceDetails =');
+  const end = daily.indexOf('window.getSiapAttendanceStatus =', start);
+  assert.ok(start >= 0 && end > start);
+  const sandbox = { effectiveBadges:new Map(), STATUS:{ frequent:{label:'Frequente',className:'attendance-frequent'} }, effectivePeriod:()=>'Agosto e Setembro' };
+  vm.runInNewContext(`const window = {}; ${daily.slice(start,end)} globalThis.details = window.getStudentAttendanceDetails;`, sandbox);
+  const sourceFor = item => { sandbox.effectiveBadges.set('student', {status:'frequent',...item}); return sandbox.details('student')[0].source; };
+  assert.equal(sourceFor({source_key:'teacher',teacher_name:'Prof. Paulo Passos',teacher_is_counselor:false}), 'Prof. Paulo Passos');
+  assert.equal(sourceFor({source_key:'teacher',teacher_name:'Prof. Paulo Passos'}), 'Prof. Paulo Passos');
+  assert.equal(sourceFor({source_key:'teacher',teacher_name:'Prof. Paulo Passos',teacher_is_counselor:true}), 'Professor conselheiro — Prof. Paulo Passos');
+  assert.equal(sourceFor({source_key:'secretary'}), 'Secretaria');
 });
 
 test('card fechado mostra somente a etiqueta e perfil aberto informa origem, período e atualização', () => {
