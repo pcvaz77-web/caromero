@@ -244,6 +244,17 @@ function chooseSiapTab(tabs) {
   )[0];
 }
 
+function chooseAssistedTab(tabs, pinnedTabId) {
+  const frequencyTabs = tabs.filter(tab => /\/FrequenciaAlunoEdicao\.aspx(?:[?#]|$)/i.test(tab.url || ''));
+  if (pinnedTabId !== undefined && pinnedTabId !== null) {
+    return frequencyTabs.find(tab => tab.id === pinnedTabId);
+  }
+  return frequencyTabs.sort((left, right) =>
+    Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
+    Number(right.lastAccessed || 0) - Number(left.lastAccessed || 0)
+  )[0];
+}
+
 function chooseSchoolDailyTab(tabs) {
   return tabs.filter(tab => /FrequenciaDiaria\.aspx/i.test(tab.url || '')).sort((left, right) =>
     Number(Boolean(right.active)) - Number(Boolean(left.active)) ||
@@ -462,8 +473,12 @@ async function collectAttendance(tabId, request) {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT', 'CM_GRADES_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
   chrome.tabs.query({ url:'https://siap.educacao.go.gov.br/*' }, tabs => {
-    const siapTab = message.type === 'CM_GRADES_CAPTURE' ? chooseGradesTab(tabs) : message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : chooseSiapTab(tabs);
+    const siapTab = message.type === 'CM_GRADES_CAPTURE' ? chooseGradesTab(tabs) : message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : message.type === 'CM_ASSISTED_CAPTURE' ? chooseAssistedTab(tabs, message.request?.tabId) : chooseSiapTab(tabs);
     if (!siapTab?.id) {
+      if (message.type === 'CM_ASSISTED_CAPTURE' && message.request?.tabId != null) {
+        sendResponse({ ok:false, code:'SIAP_TAB_CHANGED', message:'A aba do SIAP usada nesta coleta foi fechada ou saiu da tela de frequência. Reabra a mesma chamada antes de continuar; as capturas anteriores permanecem no Carômetro.' });
+        return;
+      }
       sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:message.type === 'CM_GRADES_CAPTURE'
         ? 'Abra no SIAP a tela Notas da turma e disciplina desejadas.'
         : message.type === 'CM_SCHOOL_DAILY_COLLECT'
@@ -492,10 +507,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       assertSiapSession(siapTab.id)
         .then(() => readAttendanceSnapshot(siapTab.id, {}, 'a chamada atualmente aberta'))
         .then(snapshot => {
+          if (['year','className','shift','subject','term'].some(key => !String(snapshot.context?.[key] || '').trim())) {
+            throw new Error('O contexto da chamada ainda não terminou de carregar. Aguarde o SIAP e tente novamente.');
+          }
           const day = Number.parseInt(String(snapshot.selectedDate || '').slice(0, 2), 10);
           if (!snapshot.selectedDate || !snapshot.registeredDays.includes(day)) throw new Error('Abra no SIAP uma data verde com frequência já salva.');
           if (!snapshot.entries.length) throw new Error('A chamada abriu, mas a lista de frequência ainda não terminou de carregar. Tente capturar novamente.');
-          sendResponse({ ok:true, result:snapshot });
+          sendResponse({ ok:true, result:snapshot, sourceTabId:siapTab.id });
         })
         .catch(error => {
           if (error?.code === 'SIAP_LOGIN_REQUIRED') sendResponse({ ok:false, code:error.code, message:error.message });

@@ -36,10 +36,8 @@ assert.match(source, /class="meta sda-context"/);
 assert.match(source, /\.sda-context\{[^}]*font-size:15px!important;[^}]*font-weight:850!important/);
 assert.match(source, /collectionPeriodLabel/);
 assert.match(source, /collection\.datesRead/);
-assert.match(source, /monthNames\.length<=1/);
-assert.match(source, /TERM_BOUNDARY_TOLERANCE_DAYS/);
-assert.match(source, /período parcial/);
-assert.match(source, /from\('school_terms'\)\.select\('bimester,starts_on,ends_on'\)/);
+assert.match(source, /return monthNames\.length \? formatMonthList\(monthNames\) : fallback/);
+assert.doesNotMatch(source, /formatBimesterList|TERM_BOUNDARY_TOLERANCE_DAYS/);
 assert.match(source, /Intl\.ListFormat\('pt-BR'/);
 assert.doesNotMatch(source, /\$\{collection\.context\.term\}.*data-sda-context/);
 assert.match(source, /attendanceCaptureStoreUrl/);
@@ -52,7 +50,6 @@ assert.match(source, /getStudentAttendanceDetails/);
 assert.match(source, /source_key==='teacher'/);
 assert.match(source, /Professor conselheiro/);
 assert.match(source, /effectivePeriod\(item\)/);
-assert.match(source, /select\('school_year,bimester,starts_on,ends_on'\)/);
 assert.match(source, /percentage:item\.percentage/);
 assert.match(source, /\.attendance-percentage-ring\{/);
 assert.match(source, /conic-gradient\(var\(--attendance-color\)/);
@@ -65,7 +62,7 @@ assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
 assert.match(source, /carometro:school-context-ready', reloadActiveSchoolAttendance/);
 assert.match(source, /carometro:data-loaded', loadEffectiveBadges/);
-assert.match(index, /school-daily-attendance\.js\?v=19/);
+assert.match(index, /school-daily-attendance\.js\?v=20/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];
@@ -79,7 +76,7 @@ assert.equal(sandbox.normalizeNameForTest('João 2 Santos'), 'joao santos');
 const sharedPeriodUtilitiesStart = source.indexOf('function parseReadDate');
 const collectionPeriodStart = source.indexOf('function collectionPeriodLabel');
 const sharedPeriodUtilitiesEnd = collectionPeriodStart;
-const collectionPeriodEnd = source.indexOf('async function loadSchoolTerms', collectionPeriodStart);
+const collectionPeriodEnd = source.indexOf('const nav =', collectionPeriodStart);
 assert.ok(sharedPeriodUtilitiesStart >= 0 && sharedPeriodUtilitiesEnd > sharedPeriodUtilitiesStart);
 assert.ok(collectionPeriodStart >= 0 && collectionPeriodEnd > collectionPeriodStart);
 const sharedPeriodUtilities = source.slice(sharedPeriodUtilitiesStart, sharedPeriodUtilitiesEnd);
@@ -104,26 +101,26 @@ assert.equal(periodSandbox.describePeriod({ datesRead:['02/09/2026','18/09/2026'
 assert.equal(periodSandbox.describePeriod(
   { datesRead:['10/08/2026','15/09/2026'], months:['Agosto','Setembro'] },
   [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }]
-), 'Agosto e Setembro — período parcial');
+), 'Agosto e Setembro');
 assert.equal(periodSandbox.describePeriod(
   { datesRead:['03/08/2026','29/09/2026'], months:['Agosto','Setembro'] },
   [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }]
-), '3º bimestre');
+), 'Agosto e Setembro');
 assert.equal(periodSandbox.describePeriod(
   { datesRead:['10/08/2026','15/10/2026'], months:['Agosto','Outubro'] },
   [{ bimester:3, starts_on:'2026-08-01', ends_on:'2026-09-30' }, { bimester:4, starts_on:'2026-10-01', ends_on:'2026-12-20' }]
-), 'Agosto e Outubro — período parcial');
+), 'Agosto e Outubro');
 assert.equal(periodSandbox.describePeriod(
   { datesRead:['21/02/2026','15/03/2026','04/04/2026'], months:['Fevereiro','Março','Abril'] },
   [{ bimester:1, starts_on:'2026-02-20', ends_on:'2026-04-05' }]
-), '1º bimestre');
+), 'Fevereiro, Março e Abril');
 assert.equal(periodSandbox.describePeriod(
   { datesRead:['21/02/2026','04/04/2026'], months:['Fevereiro','Abril'] },
   [{ bimester:1, starts_on:'2026-02-20', ends_on:'2026-04-05' }]
-), 'Fevereiro e Abril — período parcial');
+), 'Fevereiro e Abril');
 
 const effectivePeriodStart = source.indexOf('const orderedMonths');
-const effectivePeriodEnd = source.indexOf('async function loadAttendanceTerms', effectivePeriodStart);
+const effectivePeriodEnd = source.indexOf('async function loadEffectiveBadges', effectivePeriodStart);
 assert.ok(effectivePeriodStart >= 0 && effectivePeriodEnd > effectivePeriodStart);
 const effectivePeriodUtilities = source.slice(effectivePeriodStart,effectivePeriodEnd);
 const effectivePeriodSandbox = {};
@@ -143,11 +140,11 @@ vm.runInNewContext(`
 const thirdTerm={bimester:3,starts_on:'2026-08-01',ends_on:'2026-09-30'};
 const fourthTerm={bimester:4,starts_on:'2026-10-01',ends_on:'2026-12-20'};
 assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Setembro'],source_dates:['02/09/2026','18/09/2026']},[thirdTerm]),'Setembro');
-assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro'],source_dates:['03/08/2026','29/09/2026']},[thirdTerm]),'3º bimestre');
-assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro'],source_dates:['10/08/2026','15/09/2026']},[thirdTerm]),'Agosto e Setembro — período parcial');
-assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Outubro'],source_dates:['10/08/2026','15/10/2026']},[thirdTerm,fourthTerm]),'Agosto e Outubro — período parcial');
-assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Fevereiro','Março','Abril'],source_dates:['21/02/2026','15/03/2026','04/04/2026']},[{bimester:1,starts_on:'2026-02-20',ends_on:'2026-04-05'}]),'1º bimestre');
-assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Fevereiro','Abril'],source_dates:['21/02/2026','04/04/2026']},[{bimester:1,starts_on:'2026-02-20',ends_on:'2026-04-05'}]),'Fevereiro e Abril — período parcial');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro'],source_dates:['03/08/2026','29/09/2026']},[thirdTerm]),'Agosto e Setembro');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro'],source_dates:['10/08/2026','15/09/2026']},[thirdTerm]),'Agosto e Setembro');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Outubro'],source_dates:['10/08/2026','15/10/2026']},[thirdTerm,fourthTerm]),'Agosto e Outubro');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Fevereiro','Março','Abril'],source_dates:['21/02/2026','15/03/2026','04/04/2026']},[{bimester:1,starts_on:'2026-02-20',ends_on:'2026-04-05'}]),'Fevereiro, Março e Abril');
+assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Fevereiro','Abril'],source_dates:['21/02/2026','04/04/2026']},[{bimester:1,starts_on:'2026-02-20',ends_on:'2026-04-05'}]),'Fevereiro e Abril');
 assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Agosto','Setembro']}),'Agosto e Setembro');
 assert.equal(effectivePeriodSandbox.describeEffectivePeriod({academic_year:2026,months:['Setembro','Dezembro']},[thirdTerm]),'Setembro e Dezembro');
 

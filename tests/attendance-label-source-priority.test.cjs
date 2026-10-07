@@ -26,7 +26,7 @@ test('etiqueta efetiva v2 entrega as datas exatas da origem vencedora', () => {
   assert.match(partialPeriodMigration, /a\.source_dates as row_source_dates/);
   assert.match(partialPeriodMigration, /coalesce\(teacher\.row_source_dates,secretary\.row_source_dates/);
   assert.match(daily, /get_effective_siap_attendance_labels_v3/);
-  assert.match(daily, /período parcial/);
+  assert.match(daily, /return monthNames\.length \? formatMonthList\(monthNames\) : fallback/);
 });
 
 test('fonte só identifica conselheiro quando o autor tem vínculo com a turma', () => {

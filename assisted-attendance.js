@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   'use strict';
   const normalizeName = value => String(value || '').replace(/^\s*\d+\s*[.\-)–—:]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
   const normalizeClass = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const capturedTerms = snapshots => [...new Set(snapshots.map(item=>String(item.context?.term||'').trim()))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
   const escapeHtml = value => { const node=document.createElement('span'); node.textContent=String(value || ''); return node.innerHTML; };
   const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/carometro-frequencia-leitura/knidplehphfpgaeeogjpfldhgbfkogbc';
   const initials = value => String(value || '').trim().split(/\s+/).filter(Boolean).slice(0,2).map(part=>part[0]).join('').toUpperCase();
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const SHIFT_END_HOUR = { matutino:12, vespertino:18, noturno:23, integral:18 };
   const selectedMonths = new Set();
   let activeContext = null;
+  let captureTabId = null;
   let captureClassId = null;
   let captureClassName = '';
   let saving = false;
@@ -73,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (captureClassId && captureClassId !== classId) {
-      captures.clear();activeContext=null;selectedMonths.clear();
+      captures.clear();activeContext=null;captureTabId=null;selectedMonths.clear();
       modal.querySelectorAll('[data-aa-month]').forEach(input=>{input.checked=false;});
     }
     captureClassId=classId;
@@ -207,7 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderThresholdSettings();
     importControl.classList.toggle('hidden',!state.ready);
     importControl.disabled=!state.ready||saving;
-    by('[data-aa-context]').textContent=activeContext ? `${activeContext.shift} · ${activeContext.className} · ${activeContext.subject} · ${activeContext.term}` : 'Escolha os meses e abra as chamadas verdes no SIAP.';
+    by('[data-aa-context]').textContent=activeContext ? `${activeContext.shift} · ${activeContext.className} · ${activeContext.subject}` : 'Escolha os meses e abra as chamadas verdes no SIAP.';
     by('[data-aa-summary]').innerHTML=state.ready&&rows.length?`<div class="aa-summary"><div><b>${captures.size}</b><span>chamadas capturadas</span></div><div><b>${rows.length}</b><span>alunos</span></div><div><b>${rows.filter(x=>x.status==='absent').length}</b><span>faltosos</span></div><div><b>${rows.filter(x=>x.status==='active_search').length}</b><span>busca ativa</span></div></div>`:'';
     const progressHtml=selectedMonths.size?`<div class="aa-progress">${progress.map(item=>{if(!item.expected.length)return `<div><b>${escapeHtml(item.month)}</b><span>Aguardando abrir e capturar a primeira chamada deste mês no SIAP.</span></div>`;const done=item.captured.length===item.expected.length;return `<div class="${done?'complete':'pending'}"><b>${escapeHtml(item.month)}: ${item.captured.length} de ${item.expected.length}</b><span>${done?'Todas as chamadas verdes foram capturadas.':`Faltam: ${item.missing.map(day=>String(day).padStart(2,'0')).join(', ')}.`}</span><small>Capturadas: ${item.captured.map(day=>String(day).padStart(2,'0')).join(', ')||'nenhuma'}.</small></div>`}).join('')}</div>`:'';
     by('[data-aa-students]').innerHTML=progressHtml+(state.ready&&rows.length?`<div class="aa-table">${rows.map(row=>{const status=STATUS[row.status];const match=row.matches.length===1;const photoUrl=match?row.matches[0].photoUrl:'';const photo=photoUrl?`<img src="${escapeHtml(photoUrl)}" alt="">`:escapeHtml(initials(row.name));return `<div class="aa-row"><div class="aa-student"><span class="aa-student-photo">${photo}</span><div class="aa-student-name"><b>${escapeHtml(row.name)}</b>${match?'':`<div class="aa-unmatched">${row.matches.length?'Nome duplicado no Carômetro':'Não identificado no Carômetro'}</div>`}</div></div><b>${row.percentage}%</b><div class="aa-bar"><i class="aa-bar-${row.status}" style="width:${row.percentage}%"></i></div><span class="attendance-badge ${status.className}">${status.label}</span></div>`}).join('')}</div>`:`<div class="empty">${selectedMonths.size?'O relatório será liberado quando todas as datas indicadas acima forem capturadas.':'Escolha os meses que deseja incluir no relatório.'}</div>`);
@@ -223,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const timer=setTimeout(()=>{window.removeEventListener('message',receive);resolve({ok:false,message:'A extensão demorou para responder. Confirme se o SIAP terminou de carregar e tente novamente.'});},25000);
       function receive(event){const data=event.data;if(event.source!==window||event.origin!==location.origin||data?.source!=='CAROMETRO_FREQUENCY_EXTENSION'||data?.type!=='CAROMETRO_ASSISTED_CAPTURE_RESULT'||data.requestId!==requestId)return;clearTimeout(timer);window.removeEventListener('message',receive);resolve(data.response||{ok:false,message:'Resposta vazia da extensão.'});}
       window.addEventListener('message',receive);
-      window.postMessage({source:'CAROMETRO_WEB',type:'CAROMETRO_ASSISTED_CAPTURE_REQUEST',requestId},location.origin);
+      window.postMessage({source:'CAROMETRO_WEB',type:'CAROMETRO_ASSISTED_CAPTURE_REQUEST',requestId,tabId:captureTabId},location.origin);
     });
   }
 
@@ -239,7 +241,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!selectedMonths.has(snapshot.month)){by('[data-aa-status]').textContent=`O mês aberto no SIAP é ${snapshot.month}. Ele não foi escolhido no Carômetro.`;return;}
     const openedDay=Number.parseInt(snapshot.selectedDate.slice(0,2),10);
     if(!eligibleRegisteredDays(snapshot).includes(openedDay)){by('[data-aa-status]').textContent=`A chamada de ${snapshot.selectedDate} ainda não pode entrar no relatório. Somente datas verdes já vencidas e, no dia atual, turnos encerrados são considerados.`;return;}
-    if(activeContext && ['year','className','shift','subject','term'].some(key=>normalizeName(activeContext[key])!==normalizeName(snapshot.context[key]))){by('[data-aa-status]').textContent='Esta chamada pertence a outra turma, disciplina ou período. Limpe a coleta antes de continuar.';return;}
+    const changedField=activeContext&&[
+      ['year','ano letivo'],['className','turma'],['shift','turno'],['subject','disciplina']
+    ].find(([key])=>normalizeName(activeContext[key])!==normalizeName(snapshot.context[key]));
+    if(changedField){
+      const [key,label]=changedField;
+      by('[data-aa-status]').textContent=`A chamada de ${snapshot.selectedDate} mostra ${label} diferente: coleta iniciada com "${activeContext[key]||'não informado'}"; SIAP aberto agora mostra "${snapshot.context[key]||'não informado'}". As chamadas já capturadas foram preservadas. Confira a aba aberta no SIAP.`;
+      return;
+    }
+    captureTabId=response.sourceTabId;
     activeContext ||= snapshot.context;
     if(captures.has(snapshot.selectedDate)){render(`A chamada de ${snapshot.selectedDate} já foi capturada. O SIAP pode não ter mudado de data; confira o campo Data Selecionada.`);return;}
     captures.set(snapshot.selectedDate,snapshot);
@@ -257,7 +267,7 @@ document.addEventListener('DOMContentLoaded', () => {
     await persistCompleteCollection();
     control.disabled=false;
   };
-  by('[data-aa-clear]').onclick=()=>{captures.clear();activeContext=null;selectedMonths.clear();modal.querySelectorAll('[data-aa-month]').forEach(input=>{input.checked=false;});render();};
+  by('[data-aa-clear]').onclick=()=>{captures.clear();activeContext=null;captureTabId=null;selectedMonths.clear();modal.querySelectorAll('[data-aa-month]').forEach(input=>{input.checked=false;});render();};
 
   async function persistCompleteCollection(){
     if(saving)return; saving=true;
@@ -270,11 +280,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const complete=new Set(state.completed);
       const validCaptures=[...captures.values()].filter(item=>complete.has(item.month));
       const validDates=new Set(validCaptures.map(item=>item.selectedDate));
+      const terms=capturedTerms(validCaptures);
+      if(!terms.length||terms.some(term=>!term))throw new Error('O SIAP não informou o período de uma das chamadas.');
+      const term=terms.join(' / ');
       const rows=matchStudents(aggregate()).filter(row=>row.matches.length===1);
       if(!rows.length)throw new Error('Nenhum aluno foi identificado com segurança pelo nome completo.');
       const orderedMonths=[...complete].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
-      const periodKey=[activeContext.year,activeContext.term,activeContext.subject,orderedMonths.join(',')].join('|');
-      const payload=rows.map(row=>({school_id:schoolId,student_id:row.matches[0].id,class_id:captureClassId,academic_year:Number(activeContext.year),term:activeContext.term,subject:activeContext.subject,months:orderedMonths,lesson_count:row.lessons,presences:row.presences,absences:row.absences,percentage:row.percentage,status:row.status,period_key:periodKey,source_dates:[...validDates]}));
+      const periodKey=[activeContext.year,term,activeContext.subject,orderedMonths.join(',')].join('|');
+      const payload=rows.map(row=>({school_id:schoolId,student_id:row.matches[0].id,class_id:captureClassId,academic_year:Number(activeContext.year),term,subject:activeContext.subject,months:orderedMonths,lesson_count:row.lessons,presences:row.presences,absences:row.absences,percentage:row.percentage,status:row.status,period_key:periodKey,source_dates:[...validDates]}));
       const imported=await db.rpc('import_siap_attendance_results',{p_rows:payload});
       if(imported.error)throw imported.error;
       payload.forEach(row=>currentBadges.set(row.student_id,row.status));

@@ -809,7 +809,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else currentAttendance.forEach(item=>{
         y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        const heading=`${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
         y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
         const totals=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
@@ -827,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else history.forEach(item=>{
         y=ensureSpace(doc,y,14,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${formatDateTime(item.imported_at)} — ${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        const heading=`${formatDateTime(item.imported_at)} — ${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
         y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
         const detail=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences} · Meses: ${(item.months||[]).join(', ')}`;
@@ -846,7 +846,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else currentAttendance.forEach(item=>{
         y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${item.subject} · ${item.term} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        const heading=`${item.subject} · ${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
         y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
         const teacher=`Professor: ${item.teacher_name} · Aulas: ${item.lesson_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
@@ -869,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
         doc.text(`${formatDateTime(event.changed_at)} — ${description} (${event.percentage}%)`,MARGIN_X,y);y+=5;
         doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        const detail=`Importação por ${event.teacher_name} · ${event.subject} · ${event.term} · meses: ${(event.months||[]).join(', ')}`;
+        const detail=`Importação por ${event.teacher_name} · ${event.subject} · meses: ${(event.months||[]).join(', ')}`;
         y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
       });
       y+=4;

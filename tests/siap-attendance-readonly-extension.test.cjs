@@ -18,7 +18,7 @@ function pngSize(filePath) {
 }
 
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.7.3');
+assert.equal(manifest.version, '0.7.4');
 assert.deepEqual(manifest.host_permissions, ['https://siap.educacao.go.gov.br/*', 'https://sistemacarometro.com.br/*']);
 assert.deepEqual(manifest.permissions, ['tabs', 'scripting']);
 assert.equal(manifest.action.default_popup, 'popup.html');
@@ -73,13 +73,23 @@ const sandbox = {
   setTimeout,
   chrome:{ runtime:{ onMessage:{ addListener() {} } } }
 };
-vm.runInNewContext(`${background}\nglobalThis.chooseSiapTabForTest = chooseSiapTab; globalThis.chooseGradesTabForTest = chooseGradesTab;`, sandbox);
+vm.runInNewContext(`${background}\nglobalThis.chooseSiapTabForTest = chooseSiapTab; globalThis.chooseAssistedTabForTest = chooseAssistedTab; globalThis.chooseGradesTabForTest = chooseGradesTab;`, sandbox);
 const chosen = sandbox.chooseSiapTabForTest([
   { id:1, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:false, lastAccessed:100 },
   { id:2, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:false, lastAccessed:300 },
   { id:3, url:'https://siap.educacao.go.gov.br/OutraPagina.aspx', active:true, lastAccessed:400 }
 ]);
 assert.equal(chosen.id, 2, 'deve escolher a aba de frequência acessada mais recentemente');
+const attendanceTabs = [
+  { id:10, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:false, lastAccessed:100 },
+  { id:11, url:'https://siap.educacao.go.gov.br/FrequenciaAlunoEdicao.aspx', active:true, lastAccessed:200 }
+];
+assert.equal(sandbox.chooseAssistedTabForTest(attendanceTabs).id, 11);
+assert.equal(sandbox.chooseAssistedTabForTest(attendanceTabs, 10).id, 10, 'a coleta deve permanecer na primeira aba');
+assert.equal(sandbox.chooseAssistedTabForTest(attendanceTabs, 12), undefined, 'não deve trocar para outra aba se a primeira desapareceu');
+assert.match(bridge, /tabId:Number\.isInteger\(message\.tabId\)/);
+assert.match(background, /sourceTabId:siapTab\.id/);
+assert.match(background, /\['year','className','shift','subject','term'\]\.some\(key => !String\(snapshot\.context/);
 const gradesTab = sandbox.chooseGradesTabForTest([
   { id:4, url:'https://siap.educacao.go.gov.br/NotasEdicao.aspx', active:true },
   { id:5, url:'https://siap.educacao.go.gov.br/default.aspx', active:false }

@@ -8,14 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
     active_search:{ label:'Necessita de Busca Ativa', className:'attendance-active-search' }
   };
   const DEFAULT_THRESHOLDS = Object.freeze({ frequentMinimum:75, absentMinimum:60 });
-  const TERM_BOUNDARY_TOLERANCE_DAYS = 7;
-  const DAY_IN_MS = 24 * 60 * 60 * 1000;
   const selectedMonths = new Set();
   const effectiveBadges = new Map();
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
   let collection = null;
-  let schoolTerms = [];
-  let attendanceTermsByYear = new Map();
   let reading = false;
   let saving = false;
 
@@ -39,68 +35,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const date = new Date(Date.UTC(year,month - 1,day));
     if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
     return {
-      iso:`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,
-      monthKey:`${year}-${String(month).padStart(2,'0')}`,
-      monthIndex:month - 1,
-      time:date.getTime()
+      monthIndex:month - 1
     };
   }
 
-  const formatBimesterList = values => {
-    const ordered=[...new Set(values)].filter(Number.isInteger).sort((left,right)=>left-right);
-    if(ordered.length===1)return `${ordered[0]}º bimestre`;
-    return `${new Intl.ListFormat('pt-BR',{style:'long',type:'conjunction'}).format(ordered.map(value=>`${value}º`))} bimestres`;
-  };
-
-  function capturedPeriodLabel({ dateValues=[], monthValues=[], terms=[], fallback='Período lido' }={}) {
-    const readDates=dateValues.map(parseReadDate).filter(Boolean).sort((left,right)=>left.time-right.time);
+  function capturedPeriodLabel({ dateValues=[], monthValues=[], fallback='Período lido' }={}) {
+    const readDates=dateValues.map(parseReadDate).filter(Boolean);
     const readMonthIndexes=[...new Set(readDates.map(item=>item.monthIndex))].sort((left,right)=>left-right);
     const fallbackMonthIndexes=[...new Set(monthValues.map(month=>MONTHS.indexOf(month)).filter(index=>index>=0))].sort((left,right)=>left-right);
     const monthIndexes=readMonthIndexes.length ? readMonthIndexes : fallbackMonthIndexes;
     const monthNames=monthIndexes.map(index=>MONTHS[index]);
-    const monthLabel=monthNames.length ? formatMonthList(monthNames) : fallback;
-
-    // Um mês isolado sempre conserva o nome do mês, ainda que pertença a um
-    // bimestre já cadastrado pela escola.
-    if(monthNames.length<=1)return monthLabel;
-    if(!readDates.length||!terms.length)return monthLabel;
-
-    const validTerms=terms.map(term=>{
-      const start=parseReadDate(term.starts_on);
-      const end=parseReadDate(term.ends_on);
-      return start&&end ? {...term,start,end} : null;
-    }).filter(Boolean);
-    const matchingTerms=validTerms.filter(term=>readDates.some(date=>date.time>=term.start.time&&date.time<=term.end.time));
-    const everyDateBelongsToCalendar=readDates.every(date=>matchingTerms.some(term=>date.time>=term.start.time&&date.time<=term.end.time));
-    if(!matchingTerms.length||!everyDateBelongsToCalendar)return `${monthLabel} — período parcial`;
-
-    const complete=matchingTerms.every(term=>{
-      const termDates=readDates.filter(date=>date.time>=term.start.time&&date.time<=term.end.time);
-      if(!termDates.length)return false;
-      const first=termDates[0];
-      const last=termDates[termDates.length-1];
-      const capturedMonthKeys=new Set(termDates.map(date=>date.monthKey));
-      const requiredMonthKeys=[];
-      const cursor=new Date(Date.UTC(
-        Number(term.start.iso.slice(0,4)),
-        Number(term.start.iso.slice(5,7))-1,
-        1
-      ));
-      const finalMonthKey=term.end.monthKey;
-      while(true){
-        const key=`${cursor.getUTCFullYear()}-${String(cursor.getUTCMonth()+1).padStart(2,'0')}`;
-        requiredMonthKeys.push(key);
-        if(key===finalMonthKey)break;
-        cursor.setUTCMonth(cursor.getUTCMonth()+1);
-      }
-      const coversEveryCalendarMonth=requiredMonthKeys.every(key=>capturedMonthKeys.has(key));
-      return coversEveryCalendarMonth
-        && first.time<=term.start.time+(TERM_BOUNDARY_TOLERANCE_DAYS*DAY_IN_MS)
-        && last.time>=term.end.time-(TERM_BOUNDARY_TOLERANCE_DAYS*DAY_IN_MS);
-    });
-    return complete
-      ? formatBimesterList(matchingTerms.map(term=>Number(term.bimester)))
-      : `${monthLabel} — período parcial`;
+    return monthNames.length ? formatMonthList(monthNames) : fallback;
   }
 
   function collectionPeriodLabel() {
@@ -108,21 +53,8 @@ document.addEventListener('DOMContentLoaded', () => {
     return capturedPeriodLabel({
       dateValues:collection.datesRead || [],
       monthValues:collection.months || [],
-      terms:schoolTerms,
       fallback:'Período lido'
     });
-  }
-
-  async function loadSchoolTerms(year) {
-    schoolTerms = [];
-    const schoolId = window.getActiveSchoolId?.();
-    if (!schoolId || !Number.isInteger(Number(year))) return;
-    try {
-      const { data, error } = await db.from('school_terms').select('bimester,starts_on,ends_on').eq('school_id',schoolId).eq('school_year',Number(year));
-      if (!error) schoolTerms = data || [];
-    } catch (_) {
-      schoolTerms = [];
-    }
   }
 
   const nav = document.querySelector('.nav');
@@ -252,31 +184,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const teacherStatus = window.getSiapAttendanceStatus;
   const orderedMonths = values => [...new Set(values || [])].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
-  const effectivePeriod = item => {
-    const year=Number(item?.academic_year);
-    const terms=attendanceTermsByYear.get(year) || [];
-    return capturedPeriodLabel({
-      dateValues:item?.source_dates || [],
-      monthValues:orderedMonths(item?.months),
-      terms:Number.isInteger(year) ? terms : [],
-      fallback:item?.term || 'Período não informado'
-    });
-  };
-
-  async function loadAttendanceTerms(schoolId) {
-    attendanceTermsByYear=new Map();
-    if(!schoolId)return;
-    try {
-      const {data,error}=await db.from('school_terms').select('school_year,bimester,starts_on,ends_on').eq('school_id',schoolId);
-      if(error)return;
-      (data||[]).forEach(term=>{
-        const year=Number(term.school_year);
-        attendanceTermsByYear.set(year,[...(attendanceTermsByYear.get(year)||[]),term]);
-      });
-    } catch (_) {
-      attendanceTermsByYear=new Map();
-    }
-  }
+  const effectivePeriod = item => capturedPeriodLabel({
+    dateValues:item?.source_dates || [],
+    monthValues:orderedMonths(item?.months),
+    fallback:'Período não informado'
+  });
 
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
@@ -305,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:null,teacher_is_counselor:false,updated_at:null});
       });
     }
-    await loadAttendanceTerms(schoolId);
     window.render?.();
     document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
   }
@@ -388,7 +299,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await requestCollection();
       if (!response?.ok) { render(response?.message || 'Não foi possível concluir a leitura.');return; }
       collection = response.result;
-      await loadSchoolTerms(collection.context.year);
       render(`Leitura concluída: ${collection.datesRead.length} dia(s) preenchido(s).${collection.restoreWarning || ''}`);
     } catch (error) {
       render(`A leitura foi interrompida com segurança: ${error.message}`);
@@ -401,9 +311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const reloadActiveSchoolAttendance = async () => {
     effectiveBadges.clear();
-    attendanceTermsByYear.clear();
     collection=null;
-    schoolTerms=[];
     await loadThresholds();
     await loadEffectiveBadges();
     render();

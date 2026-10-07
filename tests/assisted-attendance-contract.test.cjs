@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 
 const root=path.join(__dirname,'..');
 const source=fs.readFileSync(path.join(root,'assisted-attendance.js'),'utf8');
@@ -39,6 +40,19 @@ assert.match(source,/flatMap\(item=>eligibleRegisteredDays\(item\)\)/);
 assert.doesNotMatch(source,/flatMap\(eligibleRegisteredDays\)/);
 assert.match(source,/},25000\)/);
 assert.match(source,/finally\{\s*control\.disabled=false/);
+assert.match(source,/tabId:captureTabId/);
+assert.match(source,/captureTabId=response\.sourceTabId/);
+assert.match(source,/captureTabId=null;selectedMonths\.clear\(\)/);
+assert.match(source,/mostra \$\{label\} diferente/);
+const capturedTermsExpression=source.match(/const capturedTerms = ([^;]+);/)?.[1];
+assert.ok(capturedTermsExpression);
+const termsSandbox={};
+vm.runInNewContext(`const capturedTerms = ${capturedTermsExpression}; globalThis.readTerms = capturedTerms;`,termsSandbox);
+assert.deepEqual(Array.from(termsSandbox.readTerms([
+  {context:{term:'2º Bimestre'}},{context:{term:'1º Bimestre'}},{context:{term:'2º Bimestre'}}
+])),['1º Bimestre','2º Bimestre']);
+assert.match(source,/const term=terms\.join\(' \/ '\)/);
+assert.match(source,/months:orderedMonths/);
 assert.match(source,/A leitura foi interrompida com segurança/);
 assert.match(source,/data-aa-import>Importar para os cards/);
 assert.match(source,/importControl\.classList\.toggle\('hidden',!state\.ready\)/);

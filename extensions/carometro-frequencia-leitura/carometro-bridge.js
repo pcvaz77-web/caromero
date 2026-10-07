@@ -29,7 +29,7 @@
         ? { type:'CM_GRADES_CAPTURE' }
         : schoolDailyRequest
         ? { type:'CM_SCHOOL_DAILY_COLLECT', request:{ months:Array.isArray(message.months) ? message.months : [] } }
-        : { type:'CM_ASSISTED_CAPTURE' }, response => {
+        : { type:'CM_ASSISTED_CAPTURE', request:{ tabId:Number.isInteger(message.tabId) ? message.tabId : null } }, response => {
         sendResult(chrome.runtime.lastError
           ? { ok:false, message:'A extensão não respondeu. Recarregue-a e atualize esta página.' }
           : response);
