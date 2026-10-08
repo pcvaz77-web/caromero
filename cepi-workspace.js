@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `.cepi-ranking-scroll{max-width:100%;overflow:auto;margin-top:14px}.cepi-ranking-table{width:100%;border-collapse:collapse;font-size:13px}.cepi-ranking-table th,.cepi-ranking-table td{padding:9px;border-bottom:1px solid #dce4f0;text-align:left;white-space:nowrap}.cepi-ranking-table th{background:#eef3ff;position:sticky;top:0}.cepi-ranking-table td small{color:var(--muted)}`;
   style.textContent += `.cepi-rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:8px;border:1px solid #cbd5e1;border-bottom:0;border-radius:10px 10px 0 0;background:#f8faff}.cepi-rich-toolbar button{min-width:34px;padding:6px 9px;border:1px solid #d7dfec;border-radius:6px;background:#fff;color:#26385d;cursor:pointer}.cepi-rich-toolbar button:hover{background:#eaf0ff}.cepi-rich-editor{min-height:300px;padding:18px;border:1px solid #cbd5e1;border-radius:0 0 10px 10px;background:#fff;color:#17223d;line-height:1.55;outline:none;overflow:auto}.cepi-rich-editor:focus{border-color:#6255db;box-shadow:0 0 0 2px #6255db22}.cepi-rich-editor:empty:before{content:attr(data-placeholder);color:#7c89a3}.cepi-rich-content{line-height:1.55;overflow-wrap:anywhere}.cepi-rich-plain{white-space:pre-wrap}.cepi-rich-content img,.cepi-rich-editor img{display:block;max-width:100%;max-height:540px;object-fit:contain;margin:12px auto}.cepi-rich-content table,.cepi-rich-editor table{border-collapse:collapse;max-width:100%}.cepi-rich-content td,.cepi-rich-content th,.cepi-rich-editor td,.cepi-rich-editor th{border:1px solid #b8c3d6;padding:5px}.cepi-rich-content p{margin:7px 0}.cepi-question-editor-label{font-weight:700}.cepi-question-card .cepi-rich-content{margin:10px 0}.cepi-workspace-form .cepi-rich-hint{margin:0;color:#53627e;font-weight:400}`;
   style.textContent += `.cepi-rich-editor img{cursor:move}.cepi-rich-editor img.cepi-image-selected{outline:3px solid #6255db;outline-offset:3px}.cepi-image-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;width:100%;padding-top:8px;border-top:1px solid #d7dfec}.cepi-image-tools[hidden]{display:none}.cepi-image-tools label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}.cepi-image-tools input[type=range]{width:130px;min-height:auto}.cepi-image-tools output{min-width:38px;font-size:13px}.cepi-image-tools button[aria-pressed=true]{background:#dedaff;border-color:#6255db}.cepi-rich-toolbar .cepi-image-tools button{font-size:12px}.cepi-image-tools [data-image-remove]{color:#9f1d32;border-color:#e7b8c0}`;
+  style.textContent += `#cepiTestForm{gap:18px}#cepiTestForm .cepi-test-heading{padding:19px 21px;border:1px solid #dbe5f6;border-radius:16px;background:linear-gradient(120deg,#f1f5ff,#fff);box-shadow:0 5px 18px #152b5410}#cepiTestForm .cepi-test-heading h4{margin:0 0 5px;color:var(--navy);font-size:24px;font-weight:850;letter-spacing:-.5px}#cepiTestForm .cepi-test-heading p{margin:0;color:#53627e;line-height:1.5}#cepiTestForm #cepiTestIdentity{margin:0;border-left:4px solid var(--blue);font-weight:750}#cepiTestForm .cepi-workspace-grid{gap:18px 20px;align-items:start}#cepiTestForm label{display:flex;flex-direction:column;align-items:stretch;align-self:start;gap:8px;margin:0;color:var(--navy);font-size:15px;font-weight:800}#cepiTestForm label[hidden]{display:none}#cepiTestForm label>select,#cepiTestForm label>input,#cepiTestForm label>textarea{min-height:48px;border-color:#cbd6e8;border-radius:10px;background:#fff;font-size:15px;font-weight:600;color:#17233a}#cepiTestForm label>select:focus,#cepiTestForm label>input:focus,#cepiTestForm label>textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dfe8ff}#cepiTestForm .cepi-test-classes{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiTestForm .cepi-test-classes legend{padding:0 4px;color:var(--navy);font-size:15px;font-weight:800}#cepiTestForm .cepi-class-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;max-height:160px;overflow:auto}#cepiTestForm .cepi-class-options label{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:40px;padding:7px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;font-size:14px;cursor:pointer}#cepiTestForm .cepi-class-options label:has(input:checked){border-color:#9cb8f6;background:#edf3ff;color:#173e87}#cepiTestForm .cepi-class-options input{width:17px;min-height:0;height:17px;margin:0;accent-color:var(--blue)}#cepiTestForm .cepi-test-classes small{display:block;margin-top:9px;color:#53627e;font-size:12px}#cepiTestForm .cepi-test-empty{color:#667085;font-size:14px;line-height:1.4}#cepiTestForm .cepi-workspace-grid>.cepi-test-classes{align-self:start}#cepiTestForm .actions{padding-top:8px;border-top:1px solid #e4eaf4}#cepiTestForm .actions .btn{min-height:46px;border-radius:10px}@media(max-width:700px){#cepiTestForm .cepi-test-heading{padding:16px}#cepiTestForm .cepi-test-heading h4{font-size:21px}#cepiTestForm .cepi-workspace-grid{gap:16px}}`;
   document.head.appendChild(style);
 
   let section = 'provas';
@@ -122,7 +123,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchAll(()=>db.from('cepi_group_classes').select('*').eq('school_id',requestedSchool).order('group_id').order('class_id')),
       fetchAll(()=>db.from('cepi_group_students').select('*').eq('school_id',requestedSchool).is('ended_at',null).order('id')),
       db.from('observation_options').select('label,is_pinned,is_top_priority').eq('school_id',requestedSchool),
-      db.from('classes').select('id,name').eq('school_id',requestedSchool).order('name'),
+      db.from('classes').select('id,name,archived_at').eq('school_id',requestedSchool).order('name'),
       fetchAll(()=>db.from('students').select('id,full_name,class_id,enrollment_status,has_report').eq('school_id',requestedSchool).order('full_name').order('id'))
     ]);
     const firstError = [roleResult,testResult,questionResult,bankResult,headerResult,groupResult,groupClassResult,groupStudentResult,observationResult,classResult,studentResult].find(result => result.error)?.error;
@@ -174,14 +175,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (test && !canEditTest(test)) return;
     const values = test || {kind:'bloco',academic_year:year,bimester:1,stage:'fundamental_ii',question_count:15,answer_format:'ABCD',status:'draft',subjects:[]};
     const option = (value,label,selected) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
-    $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiTestForm"><h4>${test?'Editar prova':'Cadastrar prova'}</h4><p class="cepi-workspace-hint">Escolha o bimestre, a etapa e o bloco. A identificação do teste será preenchida automaticamente. Após salvar uma prova nova, você já poderá criar a primeira questão.</p><p id="cepiTestIdentity" class="cepi-workspace-hint" aria-live="polite"></p><div class="cepi-workspace-grid"><label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',bimestral:'Prova Bimestral',simulado:'Simulado'}).map(([key,label]) => option(key,label,values.kind)).join('')}</select></label><label>Etapa<select name="stage">${option('fundamental_ii','Fundamental II',values.stage)}${option('medio','Ensino Médio',values.stage)}</select></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${values.academic_year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>option(n,`${n}º bimestre`,Number(values.bimester))).join('')}</select></label><label>Data de aplicação<input name="scheduled_on" type="date" value="${esc(values.scheduled_on || '')}"></label><label>Quantidade de questões<input name="question_count" type="number" min="1" max="99" required value="${values.question_count}"></label><label>Alternativas<select name="answer_format">${['ABCD','ABCDE','VF'].map(v=>option(v,v,values.answer_format)).join('')}</select></label><label>Situação<select name="status">${Object.entries({draft:'Em produção',ready:'Pronta',applied:'Aplicada',archived:'Arquivada'}).map(([v,label])=>option(v,label,values.status)).join('')}</select></label></div><label>Componentes curriculares, separados por vírgula<input name="subjects" value="${esc((values.subjects||[]).join(', '))}"></label><label>Observações<textarea name="notes">${esc(values.notes || '')}</textarea></label><div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">${test?'Salvar alterações':'Salvar e adicionar questão'}</button></div></form>`;
+    $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiTestForm">
+      <div class="cepi-test-heading"><h4>${test?'Editar prova':'Cadastrar prova'}</h4><p>Defina a etapa, o bloco e as turmas. O nome da prova será preenchido automaticamente.</p></div>
+      <p id="cepiTestIdentity" class="cepi-workspace-hint" aria-live="polite"></p>
+      <div class="cepi-workspace-grid">
+        <label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',bimestral:'Prova Bimestral',simulado:'Simulado'}).map(([key,label]) => option(key,label,values.kind)).join('')}</select></label>
+        <label id="cepiBlockField">Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>option(n,`Bloco ${n}`,Number(values.block_number)||1)).join('')}</select><small id="cepiBlockPlan" class="meta"></small></label>
+        <label>Etapa<select name="stage">${option('fundamental_ii','Ensino Fundamental Anos Finais',values.stage)}${option('medio','Ensino Médio',values.stage)}</select></label>
+        <fieldset class="cepi-test-classes"><legend>Turmas que farão esta prova</legend><div id="cepiClassOptions" class="cepi-class-options"></div><small id="cepiClassHelp"></small></fieldset>
+        <label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${values.academic_year}"></label>
+        <label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>option(n,`${n}º bimestre`,Number(values.bimester))).join('')}</select></label>
+        <label>Data de aplicação<input name="scheduled_on" type="date" value="${esc(values.scheduled_on || '')}"></label>
+        <label>Quantidade de questões<input name="question_count" type="number" min="1" max="99" required value="${values.question_count}"></label>
+        <label>Alternativas<select name="answer_format">${['ABCD','ABCDE','VF'].map(v=>option(v,v,values.answer_format)).join('')}</select></label>
+        <label>Situação<select name="status">${Object.entries({draft:'Em produção',ready:'Pronta',applied:'Aplicada',archived:'Arquivada'}).map(([v,label])=>option(v,label,values.status)).join('')}</select></label>
+      </div>
+      <label>Componentes curriculares, separados por vírgula<input name="subjects" value="${esc((values.subjects||[]).join(', '))}"></label>
+      <label>Observações<textarea name="notes">${esc(values.notes || '')}</textarea></label>
+      <div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">${test?'Salvar alterações':'Salvar e adicionar questão'}</button></div>
+    </form>`;
     const testFormElement = $('cepiTestForm');
-    const blockField = document.createElement('label');
-    blockField.innerHTML = `Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===values.block_number?'selected':''}>Bloco ${n}</option>`).join('')}</select><small id="cepiBlockPlan" class="meta"></small>`;
-    testFormElement.elements.kind.closest('label').after(blockField);
-    const classField=document.createElement('label');
-    classField.innerHTML=`Turmas que farão esta prova<select name="classes" multiple size="${Math.min(7,Math.max(2,classes.length))}" required>${classes.map(c=>`<option value="${esc(c.id)}" ${(values.class_ids||[]).includes(c.id)?'selected':''}>${esc(c.name)}</option>`).join('')}</select>`;
-    blockField.after(classField);
+    const blockField = $('cepiBlockField');
+    const syncClasses = (preserveSelection = false) => {
+      const selected = preserveSelection ? new Set(values.class_ids || []) : new Set();
+      const eligible = classes.filter(item => !item.archived_at && window.CepiBlocks.stageForClassName(item.name) === testFormElement.elements.stage.value);
+      $('cepiClassOptions').innerHTML = eligible.length
+        ? eligible.map(item => `<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${(!test || !preserveSelection || selected.has(item.id))?'checked':''}>${esc(item.name)}</label>`).join('')
+        : '<span class="cepi-test-empty">Nenhuma turma desta etapa foi encontrada na escola.</span>';
+      $('cepiClassHelp').textContent = eligible.length
+        ? `${eligible.length} turma${eligible.length===1?'':'s'} da etapa. Desmarque as que não farão a prova.`
+        : 'Confira se o nome da turma começa pelo ano ou série (ex.: 6A ou 1A).';
+    };
+    syncClasses(true);
     const syncBlock = () => {
       const isBlock = testFormElement.elements.kind.value === 'bloco';
       blockField.hidden = !isBlock;
@@ -200,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if(testFormElement.elements.kind.value!=='bloco')testFormElement.elements.subjects.value='';
       syncBlock();
     };
-    testFormElement.elements.stage.onchange=syncBlock;
+    testFormElement.elements.stage.onchange=()=>{syncClasses();syncBlock();};
     testFormElement.elements.block_number.onchange=syncBlock;
     testFormElement.elements.bimester.onchange=syncBlock;
     testFormElement.elements.subjects.oninput=syncBlock;
@@ -210,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault(); if (!ensureContext()) return;
       const data = Object.fromEntries(new FormData(event.currentTarget));
       const plan = data.kind === 'bloco' ? window.CepiBlocks.plan(data.stage,Number(data.block_number)) : [];
-      const classIds=[...testFormElement.elements.classes.selectedOptions].map(option=>option.value);
+      const classIds=[...testFormElement.querySelectorAll('input[name="classes"]:checked')].map(input=>input.value);
       if(!classIds.length){message('Selecione ao menos uma turma para a prova.');return;}
       const title=window.CepiBlocks.title({kind:data.kind,stage:data.stage,bimester:data.bimester,blockNumber:data.block_number,subjects:data.subjects.split(',')});
       if(!title){message('Selecione um teste válido.');return;}

@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <title>Prévia local · Editor de questões CEPI</title>
 <style>
-  body{font:15px Arial;background:#17213b;margin:0;color:#17213b}.hidden{display:none!important}.modal-bg{position:fixed;inset:0;display:grid;place-items:center;background:#152143aa}.modal{width:min(1050px,95vw);max-height:95vh;overflow:auto;background:white;border-radius:16px}.modal-head{padding:20px 24px;border-bottom:1px solid #ddd}.cepi-workspace-body{padding:20px}.btn{border:0;border-radius:8px;padding:10px 16px;cursor:pointer}.primary{background:#634ddc;color:white}.secondary{background:#f3f6ff;color:#17213b}.cepi-feature-card{padding:20px;background:white;border:1px solid #ddd}.actions{display:flex;justify-content:flex-end;gap:10px}.meta{color:#63708e}.cepi-kicker{font-size:11px;color:#526ae5;font-weight:bold}.close{float:right;border:0;background:white;font-size:26px;cursor:pointer}input,select{padding:8px;border:1px solid #cbd5e1;border-radius:7px}#cepiWorkspaceMessage{color:#a00}
+  :root{--navy:#17233a;--blue:#356ae6;--muted:#667085;--line:#e4e7ec}*{box-sizing:border-box}body{font:15px Inter,system-ui,sans-serif;background:#17213b;margin:0;color:var(--navy)}.hidden{display:none!important}.modal-bg{position:fixed;inset:0;display:grid;place-items:center;background:#152143aa;padding:16px}.modal{width:min(1050px,100%);max-height:94vh;overflow:auto;background:white;border-radius:16px}.modal-head{padding:20px 24px;border-bottom:1px solid #ddd}.cepi-workspace-body{padding:20px}.btn{border:0;border-radius:9px;padding:10px 16px;font-weight:750;cursor:pointer}.primary{background:var(--blue);color:white}.secondary{background:white;border:1px solid #d0d5dd;color:#344054}.cepi-feature-card{padding:20px;background:white;border:1px solid #ddd}.actions{display:flex;justify-content:flex-end;gap:10px}.meta{color:#63708e}.cepi-kicker{font-size:11px;color:#526ae5;font-weight:bold}.close{float:right;border:0;background:white;font-size:26px;cursor:pointer}input,select{padding:8px;border:1px solid #cbd5e1;border-radius:7px}#cepiWorkspaceMessage{color:#a00}
 </style>
 <div id="cepiModal"><div id="cepiHome"></div></div>
 <button id="signOut" hidden>Sair</button>
@@ -13,12 +13,23 @@
   const rows={school_members:[{role:'teacher',school_id:school,user_id:user,status:'active'}],cepi_tests:[{id:testId,school_id:school,title:'BLOCO 1 - PORTUGUÊS - FUNDAMENTAL - 3º BIM',kind:'bloco',status:'draft',answer_format:'ABCD',question_count:2,subject_plan:[{subject:'Língua Portuguesa',count:2}],subjects:['Língua Portuguesa'],class_ids:['44444444-4444-4444-8444-444444444444'],academic_year:2026,bimester:3,stage:'fundamental_ii',created_by:user}],cepi_test_questions:[],cepi_question_bank:[],cepi_exam_headers:[],cepi_groups:[],cepi_group_classes:[],cepi_group_students:[],observation_options:[],classes:[{id:'44444444-4444-4444-8444-444444444444',school_id:school,name:'6A'}],students:[]};
   if(imageExample)rows.cepi_test_questions.push({id:'55555555-5555-4555-8555-555555555555',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:`<!--cepi-rich-v1--><p>Leia o texto e observe a imagem.</p><img data-cepi-path="${school}/${user}/66666666-6666-4666-8666-666666666666.png" data-cepi-width="60" data-cepi-align="center"><p>A) Primeira resposta<br>B) Segunda resposta</p>`,alternatives:{},correct_answer:'B'});
   window.getActiveSchoolId=()=>school;
-  class Query {constructor(name){this.name=name;this.filters=[]}select(){return this}eq(key,value){this.filters.push([key,value]);return this}is(){return this}order(){return this}in(){return this}range(){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));return Promise.resolve({data,error:null})}maybeSingle(){return Promise.resolve({data:(rows[this.name]||[])[0]||null,error:null})}insert(value){const row={id:crypto.randomUUID(),...value};rows[this.name].push(row);return Promise.resolve({data:row,error:null})}update(value){this.patch=value;return this}then(resolve){for(const row of rows[this.name]||[])if(this.filters.every(([key,value])=>row[key]===value))Object.assign(row,this.patch);resolve({data:null,error:null})}}
+  class Query {constructor(name){this.name=name;this.filters=[]}select(){return this}eq(key,value){this.filters.push([key,value]);return this}is(){return this}order(){return this}in(){return this}range(){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));return Promise.resolve({data,error:null})}maybeSingle(){return Promise.resolve({data:(rows[this.name]||[])[0]||null,error:null})}insert(value){const row={id:crypto.randomUUID(),...value};rows[this.name].push(row);return Promise.resolve({data:row,error:null})}update(value){this.patch=value;return this}then(resolve){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));if(this.patch)for(const row of data)Object.assign(row,this.patch);resolve({data,error:null})}}
   window.db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async()=>({data:{enabled:true},error:null}),from:name=>new Query(name),storage:{from:()=>({upload:async()=>({error:null}),remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='},error:null})})}};
 </script>
 <script src="../cepi-blocks.js"></script>
 <script src="../cepi-rich-text.js"></script>
 <script src="../cepi-workspace.js"></script>
 <script>
-  document.addEventListener('DOMContentLoaded',()=>document.querySelector('[data-cepi-workspace="provas"]').click());
+  document.addEventListener('DOMContentLoaded',async()=>{
+    if(location.search.includes('form=1')){
+      document.title='Prévia local · Cadastrar prova CEPI (dados fictícios)';
+      rows.classes = ['6A','7B','8C','9D','1A','2B','3C','5A'].map((name,index)=>({id:`44444444-4444-4444-8444-${String(index+1).padStart(12,'0')}`,school_id:school,name}));
+    }
+    document.querySelector('[data-cepi-workspace="provas"]').click();
+    if(location.search.includes('form=1')){
+      const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
+      for(let i=0;i<40 && document.getElementById('cepiWorkspaceNew').classList.contains('hidden');i++)await wait();
+      document.getElementById('cepiWorkspaceNew').click();
+    }
+  });
 </script>

@@ -25,6 +25,16 @@
     return entries ? entries.map(([subject, count]) => ({subject, count})) : null;
   }
 
+  function stageForClassName(name) {
+    const normalized = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+    const grade = normalized.match(/^(?:ENSINO\s+MEDIO\s+)?([1-9])(?=\D|$)/);
+    if (!grade) return null;
+    const number = Number(grade[1]);
+    if (number >= 6 && number <= 9) return 'fundamental_ii';
+    if (number <= 3 && !/FUNDAMENTAL/.test(normalized) && (!/\bANO\b/.test(normalized) || /MEDIO/.test(normalized))) return 'medio';
+    return null;
+  }
+
   const blockNames = {
     fundamental_ii: ['PORTUGUÊS','CIÊNCIAS','MATEMÁTICA','ING ART EFI','HISTÓRIA','GEOGRAFIA'],
     medio: ['PORTUGUÊS','GEO HIS','MATEMÁTICA','ING ART EFI','FIS QUI','BIO SOC FIL']
@@ -81,5 +91,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,title,summarize,ranking};
+  window.CepiBlocks = {plan,title,summarize,ranking,stageForClassName};
 })();

@@ -6,7 +6,13 @@ const {test} = require('node:test');
 
 const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
-const {plan,title,summarize,ranking} = context.window.CepiBlocks;
+const {plan,title,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+
+test('turmas são identificadas pela série da etapa escolhida', () => {
+  for (const name of ['6A','7º B','8º Ano C','9D']) assert.equal(stageForClassName(name),'fundamental_ii',name);
+  for (const name of ['1A','2B','3ª Série C','Ensino Médio 1D']) assert.equal(stageForClassName(name),'medio',name);
+  for (const name of ['1º ano fundamental A','2º Ano B','4A','5B','Sem série']) assert.equal(stageForClassName(name),null,name);
+});
 
 test('o teste recebe o nome do bloco sem campo livre', () => {
   assert.equal(title({kind:'bloco',stage:'fundamental_ii',bimester:3,blockNumber:2}),
