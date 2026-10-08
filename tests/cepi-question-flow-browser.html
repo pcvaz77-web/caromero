@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Prévia local · Editor de questões CEPI</title>
+<style>
+  body{font:15px Arial;background:#17213b;margin:0;color:#17213b}.hidden{display:none!important}.modal-bg{position:fixed;inset:0;display:grid;place-items:center;background:#152143aa}.modal{width:min(1050px,95vw);max-height:95vh;overflow:auto;background:white;border-radius:16px}.modal-head{padding:20px 24px;border-bottom:1px solid #ddd}.cepi-workspace-body{padding:20px}.btn{border:0;border-radius:8px;padding:10px 16px;cursor:pointer}.primary{background:#634ddc;color:white}.secondary{background:#f3f6ff;color:#17213b}.cepi-feature-card{padding:20px;background:white;border:1px solid #ddd}.actions{display:flex;justify-content:flex-end;gap:10px}.meta{color:#63708e}.cepi-kicker{font-size:11px;color:#526ae5;font-weight:bold}.close{float:right;border:0;background:white;font-size:26px;cursor:pointer}input,select{padding:8px;border:1px solid #cbd5e1;border-radius:7px}#cepiWorkspaceMessage{color:#a00}
+</style>
+<div id="cepiModal"><div id="cepiHome"></div></div>
+<button id="signOut" hidden>Sair</button>
+<script>
+  const school='11111111-1111-4111-8111-111111111111',user='22222222-2222-4222-8222-222222222222',testId='33333333-3333-4333-8333-333333333333';
+  const rows={school_members:[{role:'teacher',school_id:school,user_id:user,status:'active'}],cepi_tests:[{id:testId,school_id:school,title:'BLOCO 1 - PORTUGUÊS - FUNDAMENTAL - 3º BIM',kind:'bloco',status:'draft',answer_format:'ABCD',question_count:2,subject_plan:[{subject:'Língua Portuguesa',count:2}],subjects:['Língua Portuguesa'],class_ids:['44444444-4444-4444-8444-444444444444'],academic_year:2026,bimester:3,stage:'fundamental_ii',created_by:user}],cepi_test_questions:[],cepi_question_bank:[],cepi_exam_headers:[],cepi_groups:[],cepi_group_classes:[],cepi_group_students:[],observation_options:[],classes:[{id:'44444444-4444-4444-8444-444444444444',school_id:school,name:'6A'}],students:[]};
+  window.getActiveSchoolId=()=>school;
+  class Query {constructor(name){this.name=name;this.filters=[]}select(){return this}eq(key,value){this.filters.push([key,value]);return this}is(){return this}order(){return this}in(){return this}range(){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));return Promise.resolve({data,error:null})}maybeSingle(){return Promise.resolve({data:(rows[this.name]||[])[0]||null,error:null})}insert(value){const row={id:crypto.randomUUID(),...value};rows[this.name].push(row);return Promise.resolve({data:row,error:null})}}
+  window.db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async()=>({data:{enabled:true},error:null}),from:name=>new Query(name),storage:{from:()=>({upload:async()=>({error:null}),remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:''},error:null})})}};
+</script>
+<script src="../cepi-blocks.js"></script>
+<script src="../cepi-rich-text.js"></script>
+<script src="../cepi-workspace.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded',()=>document.querySelector('[data-cepi-workspace="provas"]').click());
+</script>

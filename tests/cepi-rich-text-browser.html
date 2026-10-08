@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR">
+<meta charset="utf-8">
+<title>Teste local do editor CEPI</title>
+<style>body{font:16px Arial;margin:32px;max-width:900px}#editor{border:1px solid #bbb;min-height:160px;padding:16px}#results p{margin:6px 0}.pass{color:#087448}.fail{color:#b10024}</style>
+<h1>Teste local do editor de questões CEPI</h1>
+<div id="editor" contenteditable="true"></div>
+<div id="results"></div>
+<script src="../cepi-rich-text.js"></script>
+<script>
+  (async () => {
+    const results=document.getElementById('results');
+    const check=(name,value)=>{const p=document.createElement('p');p.className=value?'pass':'fail';p.textContent=`${value?'PASS':'FAIL'} · ${name}`;results.appendChild(p);};
+    const school='11111111-1111-4111-8111-111111111111',user='22222222-2222-4222-8222-222222222222';
+    const uploaded=[];
+    const db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},storage:{from:()=>({upload:async(path,blob)=>{uploaded.push({path,blob});return {error:null};},remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:'data:image/png;base64,iVBORw0KGgo='},error:null})})}};
+    const rich=window.CepiRichText,editor=document.getElementById('editor');
+    const unsafe=rich.sanitize('<p style="text-align:center;position:absolute" onclick="alert(1)"><strong>Olá</strong><script>alert(2)<\/script><img src="https://other.example/a.png"></p>',{schoolId:school});
+    check('Colagem mantém texto e negrito',unsafe.includes('<strong>Olá</strong>'));
+    check('HTML perigoso e imagem remota são removidos',!unsafe.includes('script')&&!unsafe.includes('onclick')&&!unsafe.includes('https://')&&!unsafe.includes('position:'));
+    check('Questão antiga não executa HTML',rich.render('<b>Texto antigo</b>',school).includes('&lt;b&gt;Texto antigo&lt;/b&gt;'));
+    const control=rich.mount(editor,{db,schoolId:school,onError:error=>check(`Erro: ${error}`,false)});
+    const paste=new Event('paste',{bubbles:true,cancelable:true});
+    Object.defineProperty(paste,'clipboardData',{value:{items:[],getData:type=>type==='text/html'?'<p>Leia o <strong>texto</strong>.</p><p>A) Casa<br>B) Escola</p>':''}});
+    editor.dispatchEvent(paste);
+    await new Promise(resolve=>setTimeout(resolve,0));
+    check('Colagem do Word conserva parágrafos e alternativas',editor.innerHTML.includes('<strong>texto</strong>')&&editor.textContent.includes('B) Escola'));
+    await control.insertImage(new File(['fake-image'],'figura.png',{type:'image/png'}));
+    const saved=await control.serialize();
+    check('Imagem fica no armazenamento da escola',uploaded.length===1&&uploaded[0].path.startsWith(`${school}/${user}/`));
+    check('Questão salva sem imagem incorporada no campo de texto',saved.value.includes('data-cepi-path=')&&!saved.value.includes('blob:')&&!saved.value.includes('data-cepi-temp'));
+    const shown=rich.render(saved.value,school);
+    check('Questão salva pode ser exibida',shown.includes('<strong>texto</strong>')&&shown.includes('data-cepi-path='));
+    const display=document.createElement('div');display.innerHTML=shown;
+    await rich.hydrate(display,db,school);
+    check('Imagem privada recebe endereço temporário para visualização e impressão',display.querySelector('img')?.src.startsWith('data:image/png'));
+    check('Imagem de outra escola não aparece',!rich.render('<!--cepi-rich-v1--><img data-cepi-path="99999999-9999-4999-8999-999999999999/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png">',school).includes('<img'));
+    control.dispose();
+    document.title=`${results.querySelectorAll('.fail').length?'FALHOU':'PASSOU'} · Teste do editor CEPI`;
+  })().catch(error=>{const p=document.createElement('p');p.className='fail';p.textContent=`FAIL · ${error.stack}`;document.getElementById('results').appendChild(p);document.title='FALHOU · Teste do editor CEPI';});
+</script>
