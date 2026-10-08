@@ -144,6 +144,14 @@
       selection.removeAllRanges(); selection.addRange(range);
       lastRange=range.cloneRange();
     };
+    const placeImageAtTop = image => {
+      if(!imageWidth(image.dataset.cepiWidth))image.dataset.cepiWidth='60';
+      image.dataset.cepiAlign=imageAlign(image.dataset.cepiAlign);
+      styleImage(image);image.draggable=true;
+      editor.insertBefore(image,editor.firstChild);
+      selectImage(image);
+      image.scrollIntoView({block:'nearest'});
+    };
     const optimize = async file => {
       if(file.size<=2000000)return file;
       const url=URL.createObjectURL(file);
@@ -166,8 +174,7 @@
       const id = crypto.randomUUID(), url = URL.createObjectURL(file);
       pending.set(id,{file,url});
       const image = document.createElement('img'); image.dataset.cepiTemp = id; image.src = url; image.alt = 'Imagem da questão';
-      image.dataset.cepiWidth='60';image.dataset.cepiAlign='center';styleImage(image);image.draggable=true;
-      insert(image);selectImage(image);
+      placeImageAtTop(image);
     };
     const insertText = text => {
       const parts = String(text || '').split(/\r?\n/), fragment = document.createDocumentFragment();
@@ -198,8 +205,13 @@
             pending.set(id,{file,url}); image.removeAttribute('src'); image.dataset.cepiTemp = id;
           }
           const wrapper = document.createElement('div'); wrapper.innerHTML = sanitize(source.body.innerHTML,{schoolId,pending});
+          const pastedImages=[...wrapper.querySelectorAll('img')];
+          pastedImages.forEach(image=>{
+            const parent=image.parentElement;image.remove();
+            if(['P','DIV'].includes(parent?.tagName) && !parent.textContent.trim() && !parent.querySelector('img'))parent.remove();
+          });
           if (wrapper.childNodes.length) { const fragment=document.createDocumentFragment(); while(wrapper.firstChild)fragment.appendChild(wrapper.firstChild); insert(fragment); }
-          editor.querySelectorAll('img').forEach(image=>{image.draggable=true;styleImage(image);});
+          pastedImages.reverse().forEach(placeImageAtTop);
         } else if (clipboard.getData('text/plain')) insertText(clipboard.getData('text/plain'));
         for (const file of files) await addImage(file);
       } catch(error) { notify(error); }
@@ -214,8 +226,11 @@
         if(!selectedImage || ![-1,1].includes(direction))return;
         const image=selectedImage;
         let block=image;while(block.parentElement && block.parentElement!==editor)block=block.parentElement;
-        const neighbour=direction<0 ? block.previousElementSibling : block.nextElementSibling;
+        let neighbour=direction<0 ? block.previousSibling : block.nextSibling;
         if(!neighbour)return;
+        const inline=node=>node.nodeType===Node.TEXT_NODE || ['BR','SPAN','B','STRONG','I','EM','U','S'].includes(node.nodeName);
+        if(direction<0 && inline(neighbour))while(neighbour.previousSibling && inline(neighbour.previousSibling) && neighbour.previousSibling.nodeName!=='BR')neighbour=neighbour.previousSibling;
+        if(direction>0 && inline(neighbour))while(neighbour.nodeName!=='BR' && neighbour.nextSibling && inline(neighbour.nextSibling))neighbour=neighbour.nextSibling;
         const originalParent=image.parentElement;
         const wrapper=document.createElement('div');wrapper.appendChild(image);
         if(direction<0)editor.insertBefore(wrapper,neighbour);
