@@ -25,6 +25,25 @@
     return entries ? entries.map(([subject, count]) => ({subject, count})) : null;
   }
 
+  const blockNames = {
+    fundamental_ii: ['PORTUGUÊS','CIÊNCIAS','MATEMÁTICA','ING ART EFI','HISTÓRIA','GEOGRAFIA'],
+    medio: ['PORTUGUÊS','GEO HIS','MATEMÁTICA','ING ART EFI','FIS QUI','BIO SOC FIL']
+  };
+
+  function title({kind,stage,bimester,blockNumber,subjects=[]}) {
+    const stageName = {fundamental_ii:'FUNDAMENTAL',medio:'MÉDIO'}[stage];
+    const period = Number(bimester);
+    if (!stageName || ![1,2,3,4].includes(period)) return null;
+    const suffix = `${stageName} - ${period}º BIM`;
+    if (kind === 'bloco') {
+      const name = blockNames[stage]?.[Number(blockNumber)-1];
+      return name ? `BLOCO ${Number(blockNumber)} - ${name} - ${suffix}` : null;
+    }
+    if (!['bimestral','simulado'].includes(kind)) return null;
+    const subject = subjects.map(value => String(value).trim()).filter(Boolean).join(' / ').toLocaleUpperCase('pt-BR');
+    return `${kind === 'bimestral' ? 'PROVA BIMESTRAL' : 'SIMULADO'}${subject ? ` - ${subject}` : ''} - ${suffix}`.slice(0,200);
+  }
+
   function summarize(test, questions, answers) {
     const rows = questions.filter(q => q.test_id === test.id).sort((a,b) => a.number - b.number);
     if (rows.length !== test.question_count || !Array.isArray(answers) || answers.length !== rows.length || rows.some((q,i) => q.number !== i + 1)) return null;
@@ -62,5 +81,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,summarize,ranking};
+  window.CepiBlocks = {plan,title,summarize,ranking};
 })();

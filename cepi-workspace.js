@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiModal').classList.add('hidden');
     workspace.classList.remove('hidden');
     $('cepiWorkspaceTitle').textContent = ({provas:'Provas',ranking:'Ranking de médias',banco:'Banco de questões',cabecalho:'Cabeçalho das provas',lideres:'Líderes'})[key] || groupLabel(key);
-    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Mantenha o nome original de cada prova.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : 'Registros específicos do CEPI, ligados à escola ativa.';
+    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Escolha o teste pelo bimestre, etapa e bloco.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : 'Registros específicos do CEPI, ligados à escola ativa.';
     $('cepiWorkspaceNew').classList.add('hidden');
     message('Carregando…');
     $('cepiWorkspaceContent').replaceChildren();
@@ -139,7 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (test && !canEditTest(test)) return;
     const values = test || {kind:'bloco',academic_year:year,bimester:1,stage:'fundamental_ii',question_count:15,answer_format:'ABCD',status:'draft',subjects:[]};
     const option = (value,label,selected) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
-    $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiTestForm"><h4>${test?'Editar prova':'Cadastrar prova'}</h4><p class="cepi-workspace-hint">Escreva o título exatamente como a escola usa. Os nomes das provas existentes não serão renomeados.</p><label>Nome da prova<input name="title" maxlength="200" required value="${esc(values.title || '')}"></label><div class="cepi-workspace-grid"><label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',bimestral:'Prova Bimestral',simulado:'Simulado'}).map(([key,label]) => option(key,label,values.kind)).join('')}</select></label><label>Etapa<select name="stage">${option('fundamental_ii','Fundamental II',values.stage)}${option('medio','Ensino Médio',values.stage)}</select></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${values.academic_year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>option(n,`${n}º bimestre`,Number(values.bimester))).join('')}</select></label><label>Data de aplicação<input name="scheduled_on" type="date" value="${esc(values.scheduled_on || '')}"></label><label>Quantidade de questões<input name="question_count" type="number" min="1" max="99" required value="${values.question_count}"></label><label>Alternativas<select name="answer_format">${['ABCD','ABCDE','VF'].map(v=>option(v,v,values.answer_format)).join('')}</select></label><label>Situação<select name="status">${Object.entries({draft:'Em produção',ready:'Pronta',applied:'Aplicada',archived:'Arquivada'}).map(([v,label])=>option(v,label,values.status)).join('')}</select></label></div><label>Componentes curriculares, separados por vírgula<input name="subjects" value="${esc((values.subjects||[]).join(', '))}"></label><label>Observações<textarea name="notes">${esc(values.notes || '')}</textarea></label><div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">Salvar prova</button></div></form>`;
+    $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiTestForm"><h4>${test?'Editar prova':'Cadastrar prova'}</h4><p class="cepi-workspace-hint">Escolha o bimestre, a etapa e o bloco. A identificação do teste será preenchida automaticamente. Após salvar uma prova nova, você já poderá criar a primeira questão.</p><p id="cepiTestIdentity" class="cepi-workspace-hint" aria-live="polite"></p><div class="cepi-workspace-grid"><label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',bimestral:'Prova Bimestral',simulado:'Simulado'}).map(([key,label]) => option(key,label,values.kind)).join('')}</select></label><label>Etapa<select name="stage">${option('fundamental_ii','Fundamental II',values.stage)}${option('medio','Ensino Médio',values.stage)}</select></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${values.academic_year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>option(n,`${n}º bimestre`,Number(values.bimester))).join('')}</select></label><label>Data de aplicação<input name="scheduled_on" type="date" value="${esc(values.scheduled_on || '')}"></label><label>Quantidade de questões<input name="question_count" type="number" min="1" max="99" required value="${values.question_count}"></label><label>Alternativas<select name="answer_format">${['ABCD','ABCDE','VF'].map(v=>option(v,v,values.answer_format)).join('')}</select></label><label>Situação<select name="status">${Object.entries({draft:'Em produção',ready:'Pronta',applied:'Aplicada',archived:'Arquivada'}).map(([v,label])=>option(v,label,values.status)).join('')}</select></label></div><label>Componentes curriculares, separados por vírgula<input name="subjects" value="${esc((values.subjects||[]).join(', '))}"></label><label>Observações<textarea name="notes">${esc(values.notes || '')}</textarea></label><div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">${test?'Salvar alterações':'Salvar e adicionar questão'}</button></div></form>`;
     const testFormElement = $('cepiTestForm');
     const blockField = document.createElement('label');
     blockField.innerHTML = `Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===values.block_number?'selected':''}>Bloco ${n}</option>`).join('')}</select><small id="cepiBlockPlan" class="meta"></small>`;
@@ -158,10 +158,17 @@ document.addEventListener('DOMContentLoaded', () => {
         testFormElement.elements.subjects.value = plan.map(item=>item.subject).join(', ');
         $('cepiBlockPlan').textContent = plan.map(item=>`${item.subject}: ${item.count} questões`).join(' · ');
       }
+      const generatedTitle=window.CepiBlocks.title({kind:testFormElement.elements.kind.value,stage:testFormElement.elements.stage.value,bimester:testFormElement.elements.bimester.value,blockNumber:testFormElement.elements.block_number.value,subjects:testFormElement.elements.subjects.value.split(',')});
+      $('cepiTestIdentity').textContent=generatedTitle?`Teste: ${generatedTitle}`:'Escolha um teste válido.';
     };
-    testFormElement.elements.kind.onchange=syncBlock;
+    testFormElement.elements.kind.onchange=()=>{
+      if(testFormElement.elements.kind.value!=='bloco')testFormElement.elements.subjects.value='';
+      syncBlock();
+    };
     testFormElement.elements.stage.onchange=syncBlock;
     testFormElement.elements.block_number.onchange=syncBlock;
+    testFormElement.elements.bimester.onchange=syncBlock;
+    testFormElement.elements.subjects.oninput=syncBlock;
     syncBlock();
     $('cepiCancelForm').onclick = render;
     $('cepiTestForm').onsubmit = async event => {
@@ -170,13 +177,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const plan = data.kind === 'bloco' ? window.CepiBlocks.plan(data.stage,Number(data.block_number)) : [];
       const classIds=[...testFormElement.elements.classes.selectedOptions].map(option=>option.value);
       if(!classIds.length){message('Selecione ao menos uma turma para a prova.');return;}
-      const payload = {school_id:schoolId,title:data.title.trim(),kind:data.kind,class_ids:classIds,block_number:data.kind==='bloco'?Number(data.block_number):null,subject_plan:plan,stage:data.stage,academic_year:Number(data.academic_year),bimester:Number(data.bimester),scheduled_on:data.scheduled_on || null,question_count:Number(data.question_count),answer_format:data.answer_format,status:data.status,subjects:data.subjects.split(',').map(s=>s.trim()).filter(Boolean),notes:data.notes.trim() || null};
+      const title=window.CepiBlocks.title({kind:data.kind,stage:data.stage,bimester:data.bimester,blockNumber:data.block_number,subjects:data.subjects.split(',')});
+      if(!title){message('Selecione um teste válido.');return;}
+      const payload = {school_id:schoolId,title,kind:data.kind,class_ids:classIds,block_number:data.kind==='bloco'?Number(data.block_number):null,subject_plan:plan,stage:data.stage,academic_year:Number(data.academic_year),bimester:Number(data.bimester),scheduled_on:data.scheduled_on || null,question_count:Number(data.question_count),answer_format:data.answer_format,status:data.status,subjects:data.subjects.split(',').map(s=>s.trim()).filter(Boolean),notes:data.notes.trim() || null};
       if (!test && payload.status !== 'draft') { message('Cadastre a prova em produção. Depois de preencher todas as questões, altere a situação.'); return; }
       if (test && questions.some(q => q.test_id === test.id && (q.number > payload.question_count || !(payload.answer_format === 'VF' ? ['V','F'] : [...payload.answer_format]).includes(q.correct_answer)))) { message('A nova configuração conflita com questões já cadastradas. Ajuste as questões antes.'); return; }
       if (test && payload.status !== 'draft' && questions.filter(q => q.test_id === test.id).length !== payload.question_count) { message('Complete a quantidade prevista de questões antes de mudar a situação da prova.'); return; }
-      const result = test ? await db.from('cepi_tests').update(payload).eq('school_id',schoolId).eq('id',test.id) : await db.from('cepi_tests').insert({...payload,created_by:userId});
+      const result = test ? await db.from('cepi_tests').update(payload).eq('school_id',schoolId).eq('id',test.id) : await db.from('cepi_tests').insert({...payload,created_by:userId}).select('id').single();
       if (result.error) return fail(result.error);
-      await load().then(render).catch(fail);
+      await load().then(()=>{
+        if(test)return renderTests();
+        const created=tests.find(item=>item.id===result.data?.id);
+        if(created)return questionForm(created);
+        renderTests();
+      }).catch(fail);
     };
   }
   function resultForm(test) {
