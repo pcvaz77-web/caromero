@@ -60,9 +60,11 @@ document.addEventListener('DOMContentLoaded', () => {
   assignmentModal.className = 'modal-bg cepi-modal hidden';
   assignmentModal.innerHTML = `<section class="modal"><div class="modal-head"><div><h3>Distribuir alunos</h3><div class="meta">Selecione um tutor e alunos de quaisquer turmas.</div></div><button class="close" type="button" data-cepi-close="cepiAssignmentModal">×</button></div><form id="cepiAssignmentForm" class="form">
     <div class="field"><label for="cepiAssignmentTutor">Tutor</label><select id="cepiAssignmentTutor" required></select></div>
-    <div class="cepi-filter-grid"><div class="field"><label for="cepiAssignmentClass">Turma</label><select id="cepiAssignmentClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="cepiAssignmentName">Nome do aluno</label><input id="cepiAssignmentName" placeholder="Buscar por nome"></div></div>
-    <div class="field"><label for="cepiAssignmentStudents">Alunos tutorandos</label><select id="cepiAssignmentStudents" class="cepi-student-select" multiple size="10" required></select><div class="meta">No computador, use Ctrl para selecionar vários alunos.</div></div>
-    <div class="actions"><button class="btn secondary" type="button" data-cepi-close="cepiAssignmentModal">Cancelar</button><button class="btn primary" type="submit">Confirmar distribuição</button></div>
+    <div class="cepi-filter-grid"><div class="field"><label for="cepiAssignmentClass">Turma</label><select id="cepiAssignmentClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="cepiAssignmentName">Nome do aluno</label><input id="cepiAssignmentName" placeholder="Buscar em todas as turmas"></div></div>
+    <div class="meta cepi-assignment-help">Você pode mudar de turma ou pesquisar sem perder os alunos selecionados.</div>
+    <div class="cepi-selected-panel"><strong id="cepiSelectedCount" aria-live="polite">0 alunos selecionados</strong><div id="cepiSelectedStudents" class="cepi-selected-students"></div></div>
+    <div class="field"><div class="cepi-picker-head"><strong>Alunos disponíveis</strong><span id="cepiAvailableCount" class="meta"></span></div><div id="cepiAssignmentStudents" class="cepi-student-picker" role="group" aria-label="Alunos disponíveis"></div><button id="cepiAssignmentMore" class="btn secondary cepi-picker-more hidden" type="button">Mostrar mais alunos</button></div>
+    <div class="actions"><button class="btn secondary" type="button" data-cepi-close="cepiAssignmentModal">Cancelar</button><button id="cepiAssignmentSubmit" class="btn primary" type="submit" disabled>Distribuir alunos</button></div>
   </form></section>`;
   document.body.appendChild(assignmentModal);
 
@@ -121,6 +123,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .cepi-student-expanded section>b{display:block;margin-bottom:10px;color:var(--navy);font-size:15px;font-weight:800}
     .cepi-student-expanded ul{display:grid;gap:7px;margin:0;padding:0;list-style:none;color:#344054;font-size:12px;line-height:1.5;font-weight:700}
     .cepi-student-expanded li{padding:8px 10px;border-radius:7px;background:#f4f7ff;overflow-wrap:anywhere}
+    .cepi-assignment-help{margin:-3px 0 12px}.cepi-selected-panel{padding:12px;border:1px solid #c4d5ff;border-radius:10px;background:#f4f7ff;margin-bottom:16px}.cepi-selected-panel>strong{display:block;color:var(--navy);font-size:14px}.cepi-selected-students{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px;max-height:120px;overflow:auto}.cepi-selected-students:empty{display:none}.cepi-selected-students .meta{margin:0}.cepi-selected-students button{padding:6px 9px;border:1px solid #c4d5ff;border-radius:8px;background:#fff;color:#234a9b;font-size:12px;font-weight:700;text-align:left}.cepi-selected-students button:hover{background:#e8efff}
+    .cepi-picker-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}.cepi-picker-head strong{font-size:14px}.cepi-student-picker{max-height:310px;overflow:auto;border:1px solid #d0d5dd;border-radius:9px;background:#fff}.cepi-student-picker .cepi-picker-option{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:10px;margin:0;padding:9px 11px;border-bottom:1px solid #edf0f4;cursor:pointer;font-weight:650}.cepi-picker-option:last-child{border-bottom:0}.cepi-picker-option:hover,.cepi-picker-option.is-selected{background:#f4f7ff}.cepi-picker-option input{width:18px;height:18px;min-height:0;margin:0;accent-color:var(--blue)}.cepi-picker-option span{min-width:0;overflow-wrap:anywhere}.cepi-picker-option small{color:var(--muted);font-size:12px;white-space:nowrap}.cepi-picker-empty{padding:18px;color:var(--muted);font-size:13px}.cepi-picker-more{margin-top:8px;width:100%}#cepiAssignmentSubmit:disabled{opacity:.55;cursor:not-allowed}
     @media(max-width:800px){.cepi-modal{padding:8px;align-items:start;overflow:auto}.cepi-dialog{max-height:calc(100dvh - 16px)}.cepi-home,.cepi-filters,.cepi-filter-grid,.cepi-competencies,.cepi-project-terms{grid-template-columns:1fr}.cepi-toolbar{align-items:stretch;flex-direction:column}.cepi-actions{display:grid;grid-template-columns:1fr 1fr}.cepi-summary{grid-template-columns:1fr}.cepi-student-row{grid-template-columns:76px 1fr}.cepi-student-photo{width:68px;height:68px;font-size:17px}.cepi-row-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.cepi-row-actions .btn{width:100%}.cepi-tutor-head{align-items:flex-start;flex-direction:column}.cepi-tutor-actions{width:100%;flex-wrap:wrap}.cepi-student-expanded{grid-template-columns:1fr}.cepi-history-body dl{grid-template-columns:1fr}.cepi-history-body dd{margin-bottom:8px}}
   `;
   document.head.appendChild(style);
@@ -397,32 +401,100 @@ document.addEventListener('DOMContentLoaded', () => {
     closeModal('cepiTutorModal'); toast(tutorId ? 'Tutor atualizado.' : 'Tutor cadastrado.'); await loadTutoring();
   };
 
+  const selectedAssignmentStudentIds = new Set();
+  let availableAssignmentStudents = [];
+  let assignmentVisibleLimit = 100;
+  let assignmentSubmitting = false;
+
+  function updateAssignmentSelection() {
+    const selected = [...selectedAssignmentStudentIds].map(id => availableAssignmentStudents.find(item => item.id === id)).filter(Boolean);
+    document.getElementById('cepiSelectedCount').textContent = `${selected.length} aluno${selected.length === 1 ? '' : 's'} selecionado${selected.length === 1 ? '' : 's'}`;
+    document.getElementById('cepiSelectedStudents').innerHTML = selected.length
+      ? selected.map(item => `<button type="button" data-cepi-remove-student="${escapeHtml(item.id)}">${escapeHtml(item.name)} · ${escapeHtml(item.className || 'Sem turma')} ×</button>`).join('')
+      : '<span class="meta">Clique nos alunos abaixo para adicioná-los.</span>';
+    const submit = document.getElementById('cepiAssignmentSubmit');
+    submit.disabled = assignmentSubmitting || !document.getElementById('cepiAssignmentTutor').value || !selected.length;
+    submit.textContent = selected.length ? `Distribuir ${selected.length} aluno${selected.length === 1 ? '' : 's'}` : 'Distribuir alunos';
+  }
+
+  function renderAvailableAssignmentStudents() {
+    const classId = document.getElementById('cepiAssignmentClass').value;
+    const name = normalizeSearch(document.getElementById('cepiAssignmentName').value);
+    const filtered = availableAssignmentStudents.filter(item => (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name)));
+    const visible = filtered.slice(0, assignmentVisibleLimit);
+    document.getElementById('cepiAvailableCount').textContent = `${filtered.length} aluno${filtered.length === 1 ? '' : 's'} encontrado${filtered.length === 1 ? '' : 's'}`;
+    document.getElementById('cepiAssignmentStudents').innerHTML = visible.length
+      ? visible.map(item => `<label class="cepi-picker-option${selectedAssignmentStudentIds.has(item.id) ? ' is-selected' : ''}"><input type="checkbox" data-cepi-pick-student value="${escapeHtml(item.id)}" ${selectedAssignmentStudentIds.has(item.id) ? 'checked' : ''}><span>${escapeHtml(item.name)}</span><small>${escapeHtml(item.className || 'Sem turma')}</small></label>`).join('')
+      : '<div class="cepi-picker-empty">Nenhum aluno disponível para este filtro.</div>';
+    const more = document.getElementById('cepiAssignmentMore');
+    more.classList.toggle('hidden', filtered.length <= visible.length);
+    more.textContent = `Mostrar mais alunos (${filtered.length - visible.length} restantes)`;
+    updateAssignmentSelection();
+  }
+
   function openAssignmentForm() {
     const alreadyAssigned = new Set(assignments.map(item => item.student_id));
+    availableAssignmentStudents = students.filter(item => !alreadyAssigned.has(item.id)).sort((a,b) => window.compareStudentsForList?.(a,b) ?? compareStudentNames(a.name, b.name));
+    selectedAssignmentStudentIds.clear();
+    assignmentVisibleLimit = 100;
+    assignmentSubmitting = false;
     document.getElementById('cepiAssignmentTutor').innerHTML = '<option value="">Selecione</option>' + tutors.map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.display_name)}</option>`).join('');
-    document.getElementById('cepiAssignmentClass').innerHTML = '<option value="">Todas as turmas</option>' + [...new Map(students.map(item => [item.classId, item.className]).filter(([id]) => id)).entries()].sort((a,b) => String(a[1]).localeCompare(String(b[1]), 'pt-BR', { numeric:true })).map(([id,name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name || 'Sem turma')}</option>`).join('');
+    document.getElementById('cepiAssignmentClass').innerHTML = '<option value="">Todas as turmas</option>' + [...new Map(availableAssignmentStudents.map(item => [item.classId, item.className]).filter(([id]) => id)).entries()].sort((a,b) => String(a[1]).localeCompare(String(b[1]), 'pt-BR', { numeric:true })).map(([id,name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name || 'Sem turma')}</option>`).join('');
     document.getElementById('cepiAssignmentName').value = '';
-    const renderAvailableStudents = () => {
-      const classId = document.getElementById('cepiAssignmentClass').value;
-      const name = normalizeSearch(document.getElementById('cepiAssignmentName').value);
-      document.getElementById('cepiAssignmentStudents').innerHTML = students.filter(item => !alreadyAssigned.has(item.id) && (!classId || item.classId === classId) && (!name || normalizeSearch(item.name).includes(name))).sort((a,b) => window.compareStudentsForList?.(a,b) ?? compareStudentNames(a.name, b.name)).map(item => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name)} — ${escapeHtml(item.className || 'Sem turma')}</option>`).join('');
+    document.getElementById('cepiAssignmentTutor').onchange = updateAssignmentSelection;
+    document.getElementById('cepiAssignmentClass').onchange = () => {
+      document.getElementById('cepiAssignmentName').value = '';
+      assignmentVisibleLimit = 100;
+      renderAvailableAssignmentStudents();
+      document.getElementById('cepiAssignmentStudents').scrollTop = 0;
     };
-    document.getElementById('cepiAssignmentClass').onchange = renderAvailableStudents;
-    document.getElementById('cepiAssignmentName').oninput = renderAvailableStudents;
-    renderAvailableStudents();
+    document.getElementById('cepiAssignmentName').oninput = () => {
+      if (document.getElementById('cepiAssignmentName').value.trim()) document.getElementById('cepiAssignmentClass').value = '';
+      assignmentVisibleLimit = 100;
+      renderAvailableAssignmentStudents();
+      document.getElementById('cepiAssignmentStudents').scrollTop = 0;
+    };
+    document.getElementById('cepiAssignmentName').onkeydown = event => { if (event.key === 'Enter') event.preventDefault(); };
+    document.getElementById('cepiAssignmentStudents').onchange = event => {
+      const input = event.target;
+      if (!input.matches('input[data-cepi-pick-student]') || !availableAssignmentStudents.some(item => item.id === input.value)) return;
+      if (input.checked) selectedAssignmentStudentIds.add(input.value);
+      else selectedAssignmentStudentIds.delete(input.value);
+      input.closest('.cepi-picker-option').classList.toggle('is-selected', input.checked);
+      updateAssignmentSelection();
+    };
+    document.getElementById('cepiSelectedStudents').onclick = event => {
+      const button = event.target.closest('button[data-cepi-remove-student]');
+      if (!button) return;
+      selectedAssignmentStudentIds.delete(button.dataset.cepiRemoveStudent);
+      const visibleInput = [...document.querySelectorAll('#cepiAssignmentStudents input[data-cepi-pick-student]')].find(input => input.value === button.dataset.cepiRemoveStudent);
+      if (visibleInput) { visibleInput.checked = false; visibleInput.closest('.cepi-picker-option').classList.remove('is-selected'); }
+      updateAssignmentSelection();
+    };
+    document.getElementById('cepiAssignmentMore').onclick = () => {
+      const picker = document.getElementById('cepiAssignmentStudents');
+      const scrollTop = picker.scrollTop;
+      assignmentVisibleLimit += 100;
+      renderAvailableAssignmentStudents();
+      picker.scrollTop = scrollTop;
+    };
+    renderAvailableAssignmentStudents();
     assignmentModal.classList.remove('hidden');
   }
 
   document.getElementById('cepiAssignmentForm').onsubmit = async event => {
     event.preventDefault();
+    if (assignmentSubmitting) return;
+    const tutorId = document.getElementById('cepiAssignmentTutor').value;
+    const studentIds = [...selectedAssignmentStudentIds].filter(id => availableAssignmentStudents.some(item => item.id === id));
+    if (!tutorId || !studentIds.length) { toast('Selecione o tutor e ao menos um aluno.'); return; }
+    assignmentSubmitting = true;
+    updateAssignmentSelection();
     const schoolId = window.getActiveSchoolId?.();
     const { data:{ user:signedInUser } } = await db.auth.getUser();
-    const tutorId = document.getElementById('cepiAssignmentTutor').value;
-    const studentIds = [...document.getElementById('cepiAssignmentStudents').selectedOptions].map(option => option.value);
-    if (!tutorId || !studentIds.length) { toast('Selecione o tutor e ao menos um aluno.'); return; }
     const rows = studentIds.map(studentId => ({ school_id:schoolId, tutor_id:tutorId, student_id:studentId, assigned_by:signedInUser?.id }));
     const { error } = await db.from('cepi_tutor_students').insert(rows);
-    if (error) { toast(error.code === '23505' ? 'Um dos alunos já possui tutor ativo.' : error.message); return; }
+    if (error) { toast(error.code === '23505' ? 'Um dos alunos já possui tutor ativo.' : error.message); assignmentSubmitting = false; updateAssignmentSelection(); return; }
     closeModal('cepiAssignmentModal'); toast(`${studentIds.length} aluno(s) distribuído(s).`); await loadTutoring();
   };
 
