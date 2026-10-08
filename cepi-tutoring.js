@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="field"><label for="cepiReportTutor">Tutor</label><select id="cepiReportTutor"><option value="">Todos os tutores</option></select></div>
     <div class="cepi-filter-grid"><div class="field"><label for="cepiReportName">Nome do aluno</label><input id="cepiReportName" placeholder="Buscar por nome"></div><div class="field"><label for="cepiReportClass">Turma</label><select id="cepiReportClass"><option value="">Todas as turmas</option></select></div></div>
     <div class="field"><label for="cepiReportStudent">Aluno tutorando</label><select id="cepiReportStudent" required></select></div>
-    <div class="hint">O PDF contém somente foto, nome, turma, datas dos atendimentos e as perguntas e respostas das fichas.</div>
+    <div class="hint">O PDF contém o nome da escola, foto, nome, turma, o tutor responsável, datas dos atendimentos e as perguntas e respostas das fichas.</div>
     <div class="actions"><button class="btn secondary" type="button" data-cepi-close="cepiReportModal">Cancelar</button><button class="btn primary" type="submit">Gerar PDF</button></div>
   </form></section>`;
   document.body.appendChild(reportModal);
@@ -727,46 +727,175 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('cepiReportForm').onsubmit = async event => {
     event.preventDefault();
     if (!window.jspdf?.jsPDF) { toast('Não foi possível carregar o gerador de PDF.'); return; }
+    const schoolId = window.getActiveSchoolId?.();
+    const membership = window.getActiveSchoolMembership?.();
+    const schoolName = membership?.school_id === schoolId ? String(membership.schools?.name || membership.name || '').trim() : '';
+    if (!schoolId || !schoolName) { toast('Não foi possível identificar o nome da escola ativa.'); return; }
     const studentId = document.getElementById('cepiReportStudent').value;
     const assignment = assignments.find(item => item.student_id === studentId);
     const student = students.find(item => item.id === studentId);
     if (!assignment || !student) { toast('Selecione um aluno tutorando válido.'); return; }
-    const { data:forms, error } = await db.from('cepi_tutoring_forms').select('reference_date,form_schema,answers,status').eq('school_id', window.getActiveSchoolId?.()).eq('student_id', studentId).order('reference_date');
+    const { data:forms, error } = await db.from('cepi_tutoring_forms').select('reference_date,tutor_id,form_schema,answers,status').eq('school_id', schoolId).eq('student_id', studentId).order('reference_date');
     if (error) { toast('Não foi possível carregar as fichas deste aluno.'); return; }
+    if (window.getActiveSchoolId?.() !== schoolId) { toast('A escola ativa mudou. Abra o relatório novamente.'); return; }
     if (!forms?.length) { toast('Este aluno ainda não possui ficha de atendimento preenchida.'); return; }
+    const tutorIds = [...new Set(forms.map(form => form.tutor_id).filter(Boolean))];
+    if (forms.some(form => !form.tutor_id)) { toast('Uma ficha não tem tutor responsável identificado.'); return; }
+    const { data:reportTutors, error:tutorError } = await db.from('cepi_tutors').select('id,display_name').eq('school_id', schoolId).in('id', tutorIds);
+    if (tutorError || window.getActiveSchoolId?.() !== schoolId) { toast('Não foi possível identificar os tutores destes atendimentos.'); return; }
+    const tutorNameById = new Map((reportTutors || []).map(tutor => [tutor.id, String(tutor.display_name || '').trim()]));
+    if (forms.some(form => !tutorNameById.get(form.tutor_id))) { toast('Não foi possível identificar o tutor de uma das fichas.'); return; }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit:'mm', format:'a4' });
-    const margin = 18;
+    const margin = 17;
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    let y = 18;
-    const ensureSpace = height => { if (y + height <= pageHeight - 16) return; doc.addPage(); y = 18; };
-    const write = (text, { size=10, bold=false, gap=5 } = {}) => {
-      doc.setFont('helvetica', bold ? 'bold' : 'normal'); doc.setFontSize(size);
-      const lines = doc.splitTextToSize(String(text ?? ''), pageWidth - margin * 2);
-      ensureSpace(lines.length * gap + 2); doc.text(lines, margin, y); y += lines.length * gap + 2;
+    const contentWidth = pageWidth - margin * 2;
+    const navy = [24, 43, 78];
+    const muted = [86, 101, 125];
+    const line = [222, 229, 240];
+    const accent = [76, 79, 220];
+    const bottom = pageHeight - 14;
+    let y = 0;
+    let pageNumber = 0;
+    let currentDate = '';
+    let currentTutorName = '';
+    const setColor = color => doc.setTextColor(...color);
+    const addPage = () => {
+      if (pageNumber) doc.addPage();
+      pageNumber += 1;
+      doc.setFillColor(...accent); doc.rect(0, 0, pageWidth, 3, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(16); setColor(navy);
+      doc.text('Relatório da Tutoria', pageWidth / 2, 16, { align:'center' });
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); setColor(muted);
+      const schoolLines = doc.splitTextToSize(schoolName, contentWidth - 10);
+      schoolLines.forEach((schoolLine, index) => doc.text(schoolLine, pageWidth / 2, 23 + index * 4.2, { align:'center' }));
+      const ruleY = 27 + (schoolLines.length - 1) * 4.2;
+      doc.setDrawColor(...line); doc.line(margin, ruleY, pageWidth - margin, ruleY);
+      y = ruleY + 6;
+      if (pageNumber > 1) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); setColor(muted);
+        const context = [student.name, currentDate ? `Atendimento em ${currentDate}` : '', currentTutorName ? `Tutor(a): ${currentTutorName}` : ''].filter(Boolean).join('  •  ');
+        const contextLines = doc.splitTextToSize(context, contentWidth);
+        doc.text(contextLines, margin, y - 1);
+        y += 2 + contextLines.length * 4;
+      }
     };
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text('Relatório da Tutoria', margin, y); y += 10;
+    const ensureSpace = height => { if (y + height > bottom) addPage(); };
+    const card = (x, top, width, height) => {
+      doc.setFillColor(248, 250, 254); doc.setDrawColor(...line);
+      doc.roundedRect(x, top, width, height, 1.6, 1.6, 'FD');
+    };
+    const field = (label, answer, x, width) => {
+      const value = Array.isArray(answer) ? answer.join(', ') : String(answer ?? '').trim();
+      const displayValue = value || 'Não informado';
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9.3);
+      const lines = doc.splitTextToSize(displayValue, width - 9);
+      const maxLines = Math.max(1, Math.floor((bottom - 65) / 4.1));
+      let offset = 0;
+      do {
+        const chunk = lines.slice(offset, offset + maxLines);
+        const height = Math.max(14.5, 10 + chunk.length * 4.1);
+        ensureSpace(height + 1.5);
+        card(x, y, width, height);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.3); setColor(muted);
+        doc.text(offset ? `${label} (continuação)` : label, x + 4.5, y + 5.1);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.3); setColor(navy);
+        doc.text(chunk, x + 4.5, y + 10.3);
+        y += height + 1.5;
+        offset += chunk.length;
+      } while (offset < lines.length);
+    };
+    const pair = (first, second) => {
+      const gap = 3;
+      const width = (contentWidth - gap) / 2;
+      const heightFor = item => {
+        if (!item) return 0;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.3);
+        const value = Array.isArray(item.answer) ? item.answer.join(', ') : String(item.answer ?? '').trim();
+        return Math.max(14.5, 10 + doc.splitTextToSize(value || 'Não informado', width - 9).length * 4.1);
+      };
+      const height = Math.max(heightFor(first), heightFor(second));
+      if (height > bottom - 40) { field(first.label, first.answer, margin, contentWidth); if (second) field(second.label, second.answer, margin, contentWidth); return; }
+      ensureSpace(height + 1.5);
+      [first, second].forEach((item, index) => {
+        if (!item) return;
+        const x = margin + index * (width + gap);
+        card(x, y, width, height);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.3); setColor(muted);
+        doc.text(item.label, x + 4.5, y + 5.1);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9.3); setColor(navy);
+        const value = Array.isArray(item.answer) ? item.answer.join(', ') : String(item.answer ?? '').trim();
+        doc.text(doc.splitTextToSize(value || 'Não informado', width - 9), x + 4.5, y + 10.3);
+      });
+      y += height + 1.5;
+    };
+    const section = title => {
+      ensureSpace(25);
+      y += 1.5;
+      doc.setFillColor(...accent); doc.roundedRect(margin, y - 2.2, 1.5, 6, 0.7, 0.7, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); setColor(navy);
+      doc.text(title, margin + 4.5, y + 2.1);
+      y += 7;
+    };
+    addPage();
     const photoData = await imageAsDataUrl(student.photoUrl);
-    if (photoData) { try { doc.addImage(photoData, String(photoData).startsWith('data:image/png') ? 'PNG' : 'JPEG', margin, y, 28, 28); } catch {} }
-    const textX = photoData ? margin + 34 : margin;
-    doc.setFontSize(12); doc.text(String(student.name || ''), textX, y + 8);
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.text(`Turma: ${student.className || 'Não informada'}`, textX, y + 16); y += 36;
+    const studentCardHeight = photoData ? 26 : 20;
+    card(margin, y, contentWidth, studentCardHeight);
+    if (photoData) { try { doc.addImage(photoData, String(photoData).startsWith('data:image/png') ? 'PNG' : 'JPEG', margin + 2, y + 2, 22, 22); } catch {} }
+    const textX = photoData ? margin + 28 : margin + 5;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); setColor(navy);
+    const studentLines = doc.splitTextToSize(String(student.name || 'Aluno'), pageWidth - margin - textX - 6);
+    doc.text(studentLines.slice(0, 2), textX, y + (photoData ? 8 : 6.5));
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.3); setColor(muted);
+    doc.text(`Turma: ${student.className || 'Não informada'}`, textX, y + (photoData ? 20 : 16));
+    y += studentCardHeight + 5;
 
-    forms.forEach((form, formIndex) => {
-      const date = new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${form.reference_date}T00:00:00Z`));
-      write(`Atendimento ${formIndex + 1} — ${date}`, { size:12, bold:true, gap:5.5 });
+    const groups = [
+      { title:'Identificação e projetos', ids:['scientific_initiation','life_project','elective_1','elective_2','pj_1','pj_2'], pairedFields:6 },
+      { title:'Desenvolvimento do estudante', ids:['competencies','narrative','agreements'] },
+      { title:'Dificuldades no desenvolvimento acadêmico', ids:['subject','term','difficulty','directions'], pairedFields:2 },
+      { title:'Ciência do tutorando', ids:['acknowledged','acknowledged_name'], pairedFields:2 }
+    ];
+    forms.forEach(form => {
+      const date = form.reference_date ? new Intl.DateTimeFormat('pt-BR', { timeZone:'UTC' }).format(new Date(`${form.reference_date}T00:00:00Z`)) : 'Data não informada';
+      currentDate = date;
+      currentTutorName = tutorNameById.get(form.tutor_id);
+      const dateLabel = `Atendimento em ${date}`;
+      const tutorLabel = `Tutor(a) responsável: ${currentTutorName}`;
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+      const dateWidth = doc.getTextWidth(dateLabel);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.7);
+      const tutorOnSameLine = dateWidth + doc.getTextWidth(tutorLabel) <= contentWidth - 14;
+      const tutorLines = tutorOnSameLine ? [tutorLabel] : doc.splitTextToSize(tutorLabel, contentWidth - 9);
+      const attendanceHeight = tutorOnSameLine ? 9 : 9 + tutorLines.length * 4.2;
+      ensureSpace(attendanceHeight + 3);
+      doc.setFillColor(237, 241, 255); doc.roundedRect(margin, y, contentWidth, attendanceHeight, 1.6, 1.6, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); setColor(navy);
+      doc.text(dateLabel, margin + 4.5, y + 5.7);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.7); setColor(muted);
+      if (tutorOnSameLine) doc.text(tutorLabel, pageWidth - margin - 4.5, y + 5.7, { align:'right' });
+      else doc.text(tutorLines, margin + 4.5, y + 10.2);
+      y += attendanceHeight + 3;
       const schema = Array.isArray(form.form_schema) ? form.form_schema : [];
       const answers = form.answers && typeof form.answers === 'object' ? form.answers : {};
-      const questions = (schema.length ? schema : Object.keys(answers).map(key => ({ id:key, label:key }))).filter(question => question.include_in_report !== false);
-      if (!questions.length) write('Ficha sem perguntas registradas.', { size:10 });
-      questions.forEach((question, questionIndex) => {
-        const key = String(question.id ?? question.key ?? questionIndex);
-        const answer = answers[key];
-        write(`${questionIndex + 1}. ${question.label || question.question || key}`, { size:10, bold:true });
-        write(Array.isArray(answer) ? answer.join(', ') : (answer ?? 'Sem resposta'), { size:10, gap:4.5 });
+      const questions = (schema.length ? schema : Object.keys(answers).map(key => ({ id:key, label:key })))
+        .filter(question => question.include_in_report !== false && question.id !== 'internal_notes')
+        .map((question, index) => ({ id:String(question.id ?? question.key ?? index), label:String(question.label || question.question || question.id || question.key || ''), answer:answers[String(question.id ?? question.key ?? index)] }));
+      const used = new Set();
+      groups.forEach(group => {
+        const items = group.ids.map(id => questions.find(question => question.id === id)).filter(Boolean);
+        if (!items.length) return;
+        section(group.title);
+        items.forEach(item => used.add(item.id));
+        const paired = items.slice(0, group.pairedFields || 0);
+        for (let index = 0; index < paired.length; index += 2) pair(paired[index], paired[index + 1]);
+        items.slice(paired.length).forEach(item => field(item.label, item.answer, margin, contentWidth));
       });
+      const other = questions.filter(question => !used.has(question.id));
+      if (other.length) { section('Outras informações'); other.forEach(item => field(item.label, item.answer, margin, contentWidth)); }
+      if (!questions.length) { section('Atendimento'); field('Ficha', 'Sem perguntas registradas.', margin, contentWidth); }
       y += 3;
     });
     const safeName = String(student.name || 'aluno').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase();
