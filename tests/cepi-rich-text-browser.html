@@ -26,9 +26,16 @@
     await new Promise(resolve=>setTimeout(resolve,0));
     check('Colagem do Word conserva parágrafos e alternativas',editor.innerHTML.includes('<strong>texto</strong>')&&editor.textContent.includes('B) Escola'));
     await control.insertImage(new File(['fake-image'],'figura.png',{type:'image/png'}));
+    control.setImageWidth(35);
+    control.setImageAlign('left');
+    check('Tamanho e alinhamento alteram a imagem selecionada',editor.querySelector('img')?.dataset.cepiWidth==='35'&&editor.querySelector('img')?.dataset.cepiAlign==='left');
+    control.moveImage(-1);
+    check('Imagem pode subir no texto sem mover os parágrafos',editor.innerHTML.indexOf('<img')<editor.innerHTML.indexOf('B) Escola')&&editor.textContent.includes('Leia o texto.'));
     const saved=await control.serialize();
     check('Imagem fica no armazenamento da escola',uploaded.length===1&&uploaded[0].path.startsWith(`${school}/${user}/`));
     check('Questão salva sem imagem incorporada no campo de texto',saved.value.includes('data-cepi-path=')&&!saved.value.includes('blob:')&&!saved.value.includes('data-cepi-temp'));
+    check('Posição, tamanho e alinhamento persistem ao salvar',saved.value.includes('data-cepi-width="35"')&&saved.value.includes('data-cepi-align="left"')&&saved.value.indexOf('<img')<saved.value.indexOf('B) Escola'));
+    check('Tamanho e alinhamento inválidos são descartados',!rich.sanitize(`<img data-cepi-path="${school}/${user}/33333333-3333-4333-8333-333333333333.png" data-cepi-width="999" data-cepi-align="evil">`,{schoolId:school}).includes('999'));
     const shown=rich.render(saved.value,school);
     check('Questão salva pode ser exibida',shown.includes('<strong>texto</strong>')&&shown.includes('data-cepi-path='));
     const display=document.createElement('div');display.innerHTML=shown;

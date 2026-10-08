@@ -6,6 +6,15 @@
   const tags = new Set(['DIV','P','BR','B','STRONG','I','EM','U','S','UL','OL','LI','BLOCKQUOTE','H2','H3','TABLE','THEAD','TBODY','TR','TH','TD','SPAN','IMG']);
   const imageTypes = new Set(['image/png','image/jpeg','image/webp']);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
+  const imageWidth = value => { const width=Number(value); return Number.isInteger(width) && width>=10 && width<=100 ? width : null; };
+  const imageAlign = value => ['left','center','right'].includes(value) ? value : 'center';
+  const styleImage = image => {
+    const width=imageWidth(image.dataset.cepiWidth);
+    const align=imageAlign(image.dataset.cepiAlign);
+    image.style.width=width ? `${width}%` : '';
+    image.style.marginLeft=align==='right' ? 'auto' : align==='center' ? 'auto' : '0';
+    image.style.marginRight=align==='left' ? 'auto' : align==='center' ? 'auto' : '0';
+  };
 
   function safeStyle(value) {
     const allowed = [];
@@ -34,6 +43,10 @@
       else if (temp && options.pending?.has(temp)) { image.dataset.cepiTemp = temp; image.src = options.pending.get(temp).url; }
       else return;
       image.alt = (node.getAttribute('alt') || 'Imagem da questão').slice(0,160);
+      const width=imageWidth(node.getAttribute('data-cepi-width'));
+      if(width)image.dataset.cepiWidth=String(width);
+      image.dataset.cepiAlign=imageAlign(node.getAttribute('data-cepi-align'));
+      styleImage(image);
       destination.appendChild(image);
       return;
     }
@@ -82,10 +95,35 @@
     }));
   }
 
-  function mount(editor, {db,schoolId,onError}) {
+  function mount(editor, {db,schoolId,onError,onImageSelection}) {
     const pending = new Map();
     const notify = error => onError?.(error.message || String(error));
     let lastRange = null;
+    let selectedImage = null, draggedImage = null;
+    const selectImage = image => {
+      if(selectedImage)selectedImage.classList.remove('cepi-image-selected');
+      selectedImage=image && editor.contains(image) ? image : null;
+      if(selectedImage)selectedImage.classList.add('cepi-image-selected');
+      onImageSelection?.(selectedImage ? {width:imageWidth(selectedImage.dataset.cepiWidth)||100,align:imageAlign(selectedImage.dataset.cepiAlign)} : null);
+    };
+    editor.addEventListener('click',event=>selectImage(event.target.closest?.('img')));
+    editor.addEventListener('dragstart',event=>{
+      const image=event.target.closest?.('img');
+      if(!image || !editor.contains(image))return;
+      selectImage(image);draggedImage=image;
+      event.dataTransfer.effectAllowed='move';
+      event.dataTransfer.setData('text/plain','');
+    });
+    editor.addEventListener('dragover',event=>{if(draggedImage){event.preventDefault();event.dataTransfer.dropEffect='move';}});
+    editor.addEventListener('dragend',()=>{draggedImage=null;});
+    editor.addEventListener('drop',event=>{
+      event.preventDefault();
+      if(!draggedImage || !editor.contains(draggedImage))return;
+      const range=document.caretRangeFromPoint?.(event.clientX,event.clientY);
+      if(!range || !editor.contains(range.commonAncestorContainer) || range.commonAncestorContainer===draggedImage){draggedImage=null;return;}
+      const image=draggedImage;draggedImage=null;
+      range.insertNode(image);selectImage(image);
+    });
     const rememberSelection = () => { const selection=window.getSelection(); if(selection.rangeCount && editor.contains(selection.getRangeAt(0).commonAncestorContainer)) lastRange=selection.getRangeAt(0).cloneRange(); };
     editor.addEventListener('keyup',rememberSelection);
     editor.addEventListener('mouseup',rememberSelection);
@@ -128,7 +166,8 @@
       const id = crypto.randomUUID(), url = URL.createObjectURL(file);
       pending.set(id,{file,url});
       const image = document.createElement('img'); image.dataset.cepiTemp = id; image.src = url; image.alt = 'Imagem da questão';
-      insert(image);
+      image.dataset.cepiWidth='60';image.dataset.cepiAlign='center';styleImage(image);image.draggable=true;
+      insert(image);selectImage(image);
     };
     const insertText = text => {
       const parts = String(text || '').split(/\r?\n/), fragment = document.createDocumentFragment();
@@ -160,14 +199,30 @@
           }
           const wrapper = document.createElement('div'); wrapper.innerHTML = sanitize(source.body.innerHTML,{schoolId,pending});
           if (wrapper.childNodes.length) { const fragment=document.createDocumentFragment(); while(wrapper.firstChild)fragment.appendChild(wrapper.firstChild); insert(fragment); }
+          editor.querySelectorAll('img').forEach(image=>{image.draggable=true;styleImage(image);});
         } else if (clipboard.getData('text/plain')) insertText(clipboard.getData('text/plain'));
         for (const file of files) await addImage(file);
       } catch(error) { notify(error); }
     };
     editor.addEventListener('paste',onPaste);
-    editor.addEventListener('drop',event=>event.preventDefault());
+    editor.querySelectorAll('img').forEach(image=>{image.draggable=true;styleImage(image);});
     return {
       insertImage:file=>addImage(file).catch(notify),
+      setImageWidth(value) { if(!selectedImage)return;const width=imageWidth(value);if(!width)return;selectedImage.dataset.cepiWidth=String(width);styleImage(selectedImage);selectImage(selectedImage); },
+      setImageAlign(value) { if(!selectedImage)return;selectedImage.dataset.cepiAlign=imageAlign(value);styleImage(selectedImage);selectImage(selectedImage); },
+      moveImage(direction) {
+        if(!selectedImage || ![-1,1].includes(direction))return;
+        const image=selectedImage;
+        let block=image;while(block.parentElement && block.parentElement!==editor)block=block.parentElement;
+        const neighbour=direction<0 ? block.previousElementSibling : block.nextElementSibling;
+        if(!neighbour)return;
+        const originalParent=image.parentElement;
+        const wrapper=document.createElement('div');wrapper.appendChild(image);
+        if(direction<0)editor.insertBefore(wrapper,neighbour);
+        else editor.insertBefore(wrapper,neighbour.nextSibling);
+        if(originalParent!==editor && originalParent!==wrapper && !originalParent.textContent.trim() && !originalParent.querySelector('img'))originalParent.remove();
+        selectImage(image);
+      },
       async serialize() {
         const html = sanitize(editor.innerHTML,{schoolId,pending});
         const holder = document.createElement('div'); holder.innerHTML = html;
