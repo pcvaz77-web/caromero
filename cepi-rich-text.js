@@ -223,6 +223,18 @@
         if(originalParent!==editor && originalParent!==wrapper && !originalParent.textContent.trim() && !originalParent.querySelector('img'))originalParent.remove();
         selectImage(image);
       },
+      removeImage() {
+        if(!selectedImage)return;
+        const image=selectedImage, parent=image.parentElement, temp=image.dataset.cepiTemp;
+        image.remove();
+        if(parent!==editor && ['DIV','P'].includes(parent?.tagName) && !parent.textContent.trim() && !parent.querySelector('img'))parent.remove();
+        if(temp && ![...editor.querySelectorAll('img[data-cepi-temp]')].some(item=>item.dataset.cepiTemp===temp)) {
+          const entry=pending.get(temp);if(entry)URL.revokeObjectURL(entry.url);
+          pending.delete(temp);
+        }
+        selectImage(null);
+        editor.focus();
+      },
       async serialize() {
         const html = sanitize(editor.innerHTML,{schoolId,pending});
         const holder = document.createElement('div'); holder.innerHTML = html;

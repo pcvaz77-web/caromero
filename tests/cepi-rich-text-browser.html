@@ -42,6 +42,9 @@
     await rich.hydrate(display,db,school);
     check('Imagem privada recebe endereço temporário para visualização e impressão',display.querySelector('img')?.src.startsWith('data:image/png'));
     check('Imagem de outra escola não aparece',!rich.render('<!--cepi-rich-v1--><img data-cepi-path="99999999-9999-4999-8999-999999999999/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png">',school).includes('<img'));
+    control.removeImage();
+    const withoutImage=await control.serialize();
+    check('Excluir imagem preserva o texto e retira a imagem da questão',!editor.querySelector('img')&&withoutImage.value.includes('B) Escola')&&!withoutImage.value.includes('data-cepi-path'));
     control.dispose();
     document.title=`${results.querySelectorAll('.fail').length?'FALHOU':'PASSOU'} · Teste do editor CEPI`;
   })().catch(error=>{const p=document.createElement('p');p.className='fail';p.textContent=`FAIL · ${error.stack}`;document.getElementById('results').appendChild(p);document.title='FALHOU · Teste do editor CEPI';});
