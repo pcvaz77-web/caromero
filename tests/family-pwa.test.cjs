@@ -6,6 +6,15 @@ const vm = require('node:vm');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'familia.js'), 'utf8');
 
+test('manifesto inicia dentro da rota canônica do Portal da Família', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'familia.webmanifest'), 'utf8'));
+  const html = fs.readFileSync(path.join(__dirname, '..', 'familia.html'), 'utf8');
+  assert.equal(manifest.start_url, '/familia');
+  assert.equal(manifest.scope, '/familia');
+  assert.equal(manifest.id, '/familia.html');
+  assert.match(html, /rel="manifest" href="familia\.webmanifest\?v=2"/);
+});
+
 async function run({ ios = false, permission = 'default', standalone = false, permissionRequest } = {}) {
   const elements = new Map();
   const events = new Map();
