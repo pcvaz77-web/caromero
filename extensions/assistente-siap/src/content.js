@@ -490,6 +490,8 @@
       panel.querySelector('[data-action="planning-stop"]')?.addEventListener("click", stopPlanningOperation);
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
+    const productTitle = panel.querySelector('.cm-title h2');
+    if (productTitle) productTitle.textContent = model.page === 'exam' ? 'Carômetro' : 'Assistente SIAP';
     const pageLabel = panel.querySelector(".cm-title p");
     if (pageLabel) pageLabel.textContent = model.page === "exam" ? "Correção de Provas" : `Professor · ${pageNames[model.page]}`;
     const accessSummary = panel.querySelector('.cm-access-summary');

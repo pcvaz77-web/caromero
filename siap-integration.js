@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const bridgedResult = await connectThroughPageBridge(payload);
     return bridgedResult?.ok ? bridgedResult : null;
   };
-  const connectAssistantAi = async (statusElement, silent = false) => {
+  const connectAssistantAi = async (statusElement, silent = false, explicit = false) => {
     if (statusElement && !silent) {
       statusElement.classList.remove('license-validated');
       statusElement.textContent = 'Validando licença com segurança…';
@@ -88,7 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const payload = {
       type:'CAROMETRO_SIAP_CONNECT',
       accessToken:session.access_token,
-      expiresAt:Number(session.expires_at) * 1000
+      expiresAt:Number(session.expires_at) * 1000,
+      explicit
     };
     const result = await deliverSessionToAssistant(payload);
     if (result) {
@@ -196,6 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.syncMainSiapAssistantButton = syncMainAssistantButton;
   window.refreshSiapAssistantButtonAccess = refreshAssistantButtonAccess;
+  window.connectCarometroCorrectionExtension = () => connectAssistantAi(null, true, true);
   window.getSiapAttendanceBadge ||= () => '';
   window.getSiapPanelActions = () => '';
   window.bindSiapPanelActions = () => {};

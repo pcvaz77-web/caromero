@@ -78,7 +78,7 @@
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
       ${state.queue && state.queue.phase !== 'done' ? `<p role="status">Lote ${state.queue.paused ? 'pausado' : 'em preenchimento'}: ${state.queue.index} de ${state.queue.entries.length} aluno(s) conferido(s). ${state.queue.paused ? 'Após o aviso do SIAP, confira os campos e clique em Enviar abaixo para reaplicar os resultados deste lote.' : ''}</p>${state.queue.paused ? '' : '<button class="cm-btn" type="button" data-exam="pauseBatch">Pausar preenchimento</button>'}<button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
       <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
-      <p>Ao enviar, os resultados conferidos no Assistente substituem acertos e presença/falta já marcados para estes alunos nesta chamada. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
+      <p>Ao enviar, os resultados conferidos no Carômetro substituem acertos e presença/falta já marcados para estes alunos nesta chamada. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
     if(selecting && !state){const start=host.querySelector('[data-exam=start]');if(start){start.disabled=true;start.textContent='Abra a avaliação com os alunos para conectar';}}
     host.querySelectorAll('[data-exam]').forEach(button => button.onclick = () => action(() => operations[button.dataset.exam]()));
     host.querySelectorAll('[data-exam-subject]').forEach(button => button.onclick = () => action(() => chooseSubject(button.dataset.examSubject)));
@@ -114,7 +114,7 @@
   }
   function selectionForm() {
     const ranges = remote.key.ranges;
-    return `<p>${ranges.length === 1 ? 'Disciplina identificada. Confira a seleção no SIAP.' : 'Este gabarito tem várias disciplinas. Escolha qual lançar primeiro; as fotos servirão para todas.'}</p>${ranges.map(r => `<button class="cm-btn" type="button" data-exam-subject="${escape(r.subject)}">${escape(r.subject)} · questões ${r.from}–${r.to}</button>`).join('')}<p>Depois selecione o bimestre e abra a avaliação correspondente no SIAP. O Assistente conferirá a disciplina e a quantidade de questões antes do preenchimento.</p>`;
+    return `<p>${ranges.length === 1 ? 'Disciplina identificada. Confira a seleção no SIAP.' : 'Este gabarito tem várias disciplinas. Escolha qual lançar primeiro; as fotos servirão para todas.'}</p>${ranges.map(r => `<button class="cm-btn" type="button" data-exam-subject="${escape(r.subject)}">${escape(r.subject)} · questões ${r.from}–${r.to}</button>`).join('')}<p>Depois selecione o bimestre e abra a avaliação correspondente no SIAP. O Carômetro conferirá a disciplina e a quantidade de questões antes do preenchimento.</p>`;
   }
   async function chooseSubject(subject) {
     const now = assertContext();
