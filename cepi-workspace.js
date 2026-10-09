@@ -376,8 +376,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!classId){message('Selecione a turma antes de conectar.');return;}
       if(!extensionReady && !await connectExtension()){message(extensionStatus.textContent);return;}
       if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){message('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
-      if(correction){renderCorrectionLive(test);return;}
-      const button=$('cepiCorrectionStart');button.disabled=true;
+      if(correction){renderCorrectionLive(test,true);return;}
+      const button=$('cepiCorrectionStart');button.disabled=true;button.textContent='Gerando QR Code…';
       let room=null;
       try{
         const prepared=window.CepiAnswerSheets.prepare(test,questions);
@@ -390,19 +390,27 @@ document.addEventListener('DOMContentLoaded', () => {
         await correctionApi('key',{key:window.CepiCorrection.key(prepared)},session);
         await correctionApi('roster',{roster,binding:`${schoolId}:${id}:${classId}`},session);
         correction=session;
-        renderCorrectionLive(test);
-      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});message(error.message);}
+        renderCorrectionLive(test,true);
+      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});button.textContent='Conectar celular por QR Code';message(error.message);}
       finally{button.disabled=false;}
     };
-    if(correction?.schoolId===schoolId&&correction.testId===id){$('cepiCorrectionClass').value=correction.classId;renderCorrectionLive(test);}
+    if(correction?.schoolId===schoolId&&correction.testId===id){$('cepiCorrectionClass').value=correction.classId;renderCorrectionLive(test,true);}
   }
-  function renderCorrectionLive(test) {
+  function renderCorrectionLive(test,reveal=false) {
     if(!correction || correction.testId!==test.id)return;
     const target=$('cepiCorrectionLive');if(!target)return;
     const qr=window.qrcode(0,'M');
     qr.addData(`https://correcao.sistemacarometro.com.br/#session=${correction.room.id}&token=${correction.room.mobile}`);qr.make();
     target.innerHTML=`<div class="cepi-workspace-item"><h4>Celular conectado à turma ${esc(labelClass(correction.classId))}</h4><p>Leia este QR Code com o celular do professor. Ele expira às ${new Date(correction.room.expires).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Não compartilhe a imagem do QR Code.</p><div id="cepiCorrectionQr" style="width:min(260px,100%);margin:auto"></div><div id="cepiCorrectionResults">Aguardando cartões…</div><div class="cepi-workspace-actions"><button type="button" class="btn primary" id="cepiCorrectionSave">Registrar correções conferidas</button><button type="button" class="btn secondary" id="cepiCorrectionClose">Encerrar leitura</button></div></div>`;
     $('cepiCorrectionQr').innerHTML=qr.createSvgTag({cellSize:4,margin:8,scalable:true});
+    const start=$('cepiCorrectionStart');
+    if(start)start.textContent='Mostrar QR Code da sessão';
+    if(reveal){
+      const heading=target.querySelector('h4');
+      heading.tabIndex=-1;
+      target.scrollIntoView({block:'start',inline:'nearest'});
+      heading.focus({preventScroll:true});
+    }
     $('cepiCorrectionSave').onclick=()=>saveCorrectionResults(test);
     $('cepiCorrectionClose').onclick=async()=>{try{await correctionApi('close');correction=null;if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}correctionForm(test.id);message('Leitura encerrada.');}catch(error){message(error.message);}};
     if(!correctionPoll)correctionPoll=setInterval(()=>pollCorrection(test),3500);
