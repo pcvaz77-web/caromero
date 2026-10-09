@@ -314,13 +314,25 @@ document.addEventListener('DOMContentLoaded', () => {
     if (authenticated && !accessToken) throw new Error('Entre novamente no Carômetro para conectar a correção.');
     return window.CepiCorrection.request(action,{room:session?.room?.id,token:session?.room?.desktop,body,accessToken});
   }
+  function expireCorrectionSession(session=correction) {
+    if(!session||correction!==session||Number(session.room?.expires)>Date.now())return false;
+    correction=null;
+    if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}
+    const live=$('cepiCorrectionLive');
+    if(live)live.innerHTML='<div class="cepi-workspace-hint">A sessão de leitura expirou. Para lançar no SIAP, gere outro QR Code e leia os cartões novamente. Os resultados já registrados no Carômetro continuam salvos.</div>';
+    const start=$('cepiCorrectionStart');
+    if(start)start.textContent='Conectar celular por QR Code';
+    return true;
+  }
   function correctionForm(id) {
     const test=tests.find(item=>item.id===id);
     if(!test||test.status!=='applied'||!editor()||!ensureContext())return;
     try { window.CepiAnswerSheets.prepare(test,questions); }
     catch(error){message(error.message);return;}
+    const expired=expireCorrectionSession();
     const relevant=classes.filter(item=>test.class_ids?.includes(item.id));
     $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Escolha a turma, leia o QR Code da tela com o celular e selecione cada aluno antes da foto. Confira as marcações no celular. O gabarito oficial já vem das questões salvas.</p><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart">Conectar celular por QR Code</button></div><div id="cepiCorrectionLive" role="status"></div></div>`;
+    if(expired)$('cepiCorrectionLive').innerHTML='<div class="cepi-workspace-hint">A sessão de leitura expirou. Gere outro QR Code e leia os cartões novamente para lançar no SIAP. Os resultados já registrados no Carômetro continuam salvos.</div>';
     const setup=document.createElement('div');
     setup.className='cepi-workspace-hint';
     setup.innerHTML='<strong>Extensão de correção</strong><p id="cepiCorrectionExtensionStatus" role="status">Verificando a extensão neste navegador…</p><div class="cepi-workspace-actions"><a id="cepiCorrectionInstall" class="btn secondary" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button id="cepiCorrectionConnect" class="btn secondary" type="button">Verificar e conectar</button></div>';
@@ -375,6 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const classId=$('cepiCorrectionClass').value;
       if(!classId){message('Selecione a turma antes de conectar.');return;}
       if(!extensionReady && !await connectExtension()){message(extensionStatus.textContent);return;}
+      expireCorrectionSession();
       if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){message('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
       if(correction){renderCorrectionLive(test,true);return;}
       const button=$('cepiCorrectionStart');button.disabled=true;button.textContent='Gerando QR Code…';
@@ -398,6 +411,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function renderCorrectionLive(test,reveal=false) {
     if(!correction || correction.testId!==test.id)return;
+    if(expireCorrectionSession())return;
     const target=$('cepiCorrectionLive');if(!target)return;
     const qr=window.qrcode(0,'M');
     qr.addData(`https://correcao.sistemacarometro.com.br/#session=${correction.room.id}&token=${correction.room.mobile}`);qr.make();
@@ -412,13 +426,14 @@ document.addEventListener('DOMContentLoaded', () => {
       heading.focus({preventScroll:true});
     }
     $('cepiCorrectionSave').onclick=()=>saveCorrectionResults(test);
-    $('cepiCorrectionClose').onclick=async()=>{try{await correctionApi('close');correction=null;if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}correctionForm(test.id);message('Leitura encerrada.');}catch(error){message(error.message);}};
+    $('cepiCorrectionClose').onclick=async()=>{try{await correctionApi('close');correction=null;if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}correctionForm(test.id);message('Leitura encerrada.');}catch(error){if(!expireCorrectionSession())message(error.message);}};
     if(!correctionPoll)correctionPoll=setInterval(()=>pollCorrection(test),3500);
     pollCorrection(test);
   }
   async function pollCorrection(test) {
     const session=correction;
     if(!session||session.testId!==test.id||session.polling||!ensureContext()||workspace.classList.contains('hidden'))return;
+    if(expireCorrectionSession(session))return;
     session.polling=true;
     try{
       if(Date.now()-session.heartbeatAt>30000){await correctionApi('heartbeat',{});session.heartbeatAt=Date.now();}
@@ -429,11 +444,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const names=new Map(students.map(student=>[student.id,student.full_name]));
       const cards=(status.items||[]).filter(item=>item.kind==='student'&&!item.discarded);
       target.innerHTML=cards.length?`<p>${cards.length} cartão(ões) recebido(s). Revise cada leitura no celular antes de registrar.</p><div class="cepi-workspace-list">${cards.map(item=>{const studentId=item.review?.studentId||item.selectedStudentId;const answers=item.review?.answers||item.result?.answers;const score=Array.isArray(answers)?window.CepiBlocks.summarize(test,questions,answers):null;return `<div class="cepi-workspace-item"><strong>${esc(names.get(studentId)||'Aluno não identificado')}</strong> · ${esc(item.status)} · ${item.review?.reviewed?'Conferido no celular':'Aguardando conferência'}${score?` · ${score.correct}/${score.total} acertos`:''}${session.saved.has(item.id)?' · Registrado no Carômetro':''}</div>`;}).join('')}</div>`:'Aguardando cartões…';
-    }catch(error){message(error.message);}
+    }catch(error){if(!expireCorrectionSession(session))message(error.message);}
     finally{session.polling=false;}
   }
   async function saveCorrectionResults(test) {
     const session=correction;if(!session||!ensureContext())return;
+    if(expireCorrectionSession(session))return;
     const button=$('cepiCorrectionSave');if(button)button.disabled=true;
     try{
       const status=await correctionApi('status');session.lastStatus=status;
@@ -450,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       message(count?`${count} correção(ões) registrada(s). O ranking considera esses resultados.`:'Todos os cartões conferidos já estavam registrados.');
       pollCorrection(test);
-    }catch(error){message(error.message);}
+    }catch(error){if(!expireCorrectionSession(session))message(error.message);}
     finally{if(button)button.disabled=false;}
   }
   function resultForm(test) {
