@@ -327,24 +327,45 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiCorrectionStart').closest('.actions').before(setup);
     const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus');
     install.href=window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl||'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
-    start.disabled=true;
-    const connectExtension=async()=>{
-      connect.disabled=true;
-      extensionStatus.textContent='Conectando à sua conta do Carômetro…';
-      const result=typeof window.connectCarometroCorrectionExtension==='function'
-        ? await window.connectCarometroCorrectionExtension().catch(()=>null) : null;
-      if(!start.isConnected||!ensureContext())return;
-      const compatible=window.CepiCorrection.supportsExtension(result?.extensionVersion);
-      const active=result?.ok===true&&result.license?.examAccess?.active===true;
-      start.disabled=!active||!compatible;
-      install.hidden=active&&compatible;
-      install.style.display=install.hidden?'none':'';
-      install.textContent=active&&!compatible?'Atualizar extensão':'Instalar extensão';
-      extensionStatus.textContent=active&&compatible
-        ? 'Extensão conectada. Escolha a turma e conecte o celular.'
-        : active ? 'Esta prova exige a extensão 0.28.34 ou mais recente. Atualize pela Chrome Web Store e recarregue o Carômetro.'
-          : 'Instale a extensão ou clique em “Verificar e conectar” após a instalação. A conta do Carômetro será usada sem digitar e-mail novamente.';
-      connect.disabled=false;
+    start.setAttribute('aria-describedby','cepiCorrectionExtensionStatus');
+    let extensionReady=false,connectionTask=null;
+    const connectExtension=()=>{
+      if(connectionTask)return connectionTask;
+      connectionTask=(async()=>{
+        connect.disabled=true;
+        start.disabled=true;
+        start.textContent='Verificando extensão…';
+        extensionStatus.textContent='Conectando à sua conta do Carômetro…';
+        let result=null;
+        try{
+          result=typeof window.connectCarometroCorrectionExtension==='function'
+            ? await window.connectCarometroCorrectionExtension() : null;
+        }catch(error){result={ok:false,code:'CONNECTION_FAILED'};}
+        if(!start.isConnected||!ensureContext())return false;
+        const compatible=window.CepiCorrection.supportsExtension(result?.extensionVersion);
+        const active=result?.ok===true&&result.license?.examAccess?.active===true;
+        extensionReady=active&&compatible;
+        install.hidden=extensionReady;
+        install.style.display=install.hidden?'none':'';
+        install.textContent=active&&!compatible?'Atualizar extensão':'Instalar extensão';
+        const reason=result?.code==='SESSION_EXPIRED'
+          ? 'Sua sessão do Carômetro expirou. Entre novamente para conectar a extensão.'
+          : result?.code==='INVALID_SESSION'
+            ? 'A sessão do Carômetro precisa ser renovada. Recarregue a página e tente novamente.'
+            : result?.code==='LICENSE_CONNECTION_FAILED'||result?.code==='LICENSE_REQUEST_FAILED'
+              ? 'Não foi possível validar o acesso à correção. Tente novamente em instantes.'
+              : result?.ok===true
+                ? 'A extensão respondeu, mas o acesso à correção não foi confirmado para esta conta.'
+                : 'A extensão não respondeu neste navegador. Confira se está instalada e ativada, recarregue o Carômetro e tente novamente.';
+        extensionStatus.textContent=extensionReady
+          ? 'Extensão conectada. Escolha a turma e conecte o celular.'
+          : active ? 'Esta prova exige a extensão 0.28.34 ou mais recente. Atualize pela Chrome Web Store e recarregue o Carômetro.' : reason;
+        connect.disabled=false;
+        start.disabled=false;
+        start.textContent='Conectar celular por QR Code';
+        return extensionReady;
+      })().finally(()=>{connectionTask=null;});
+      return connectionTask;
     };
     connect.onclick=connectExtension;
     connectExtension();
@@ -353,6 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!ensureContext())return;
       const classId=$('cepiCorrectionClass').value;
       if(!classId){message('Selecione a turma antes de conectar.');return;}
+      if(!extensionReady && !await connectExtension()){message(extensionStatus.textContent);return;}
       if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){message('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
       if(correction){renderCorrectionLive(test);return;}
       const button=$('cepiCorrectionStart');button.disabled=true;

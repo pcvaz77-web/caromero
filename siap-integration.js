@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const safe = value => esc(String(value || ''));
   const assistantExtensionIds = [
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    'bgmidfdibjbhldockojlfeeablgbldnp',
     'mohcmojnkjjkphgjaogcbokjmnijmggl',
     'iobkgohpoeoimlhlgdeiojlghbhcijli'
   ];
@@ -48,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const assistantPresentationUrl = () => new URL('assistente-siap.html?origem=carometro', window.location.href).href;
   const connectThroughPageBridge = payload => new Promise(resolve => {
     const requestId = crypto.randomUUID();
-    const timeout = setTimeout(() => { window.removeEventListener('message', receive); resolve(null); }, 2500);
+    const timeout = setTimeout(() => { window.removeEventListener('message', receive); resolve(null); }, 15000);
     function receive(event) {
       const result = event.data;
       if (event.source !== window || event.origin !== location.origin || result?.source !== 'CAROMETRO_EXTENSION' || result?.type !== 'CAROMETRO_SIAP_CONNECT_RESULT' || result?.requestId !== requestId) return;
@@ -59,22 +60,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('message', receive);
     window.postMessage({ source:'CAROMETRO_WEB', type:'CAROMETRO_SIAP_CONNECT_BRIDGE', requestId, ...payload }, location.origin);
   });
-  const deliverSessionToAssistant = async payload => {
+  const deliverSessionToAssistant = async (payload, detailed = false) => {
+    let failure = null;
     if (globalThis.chrome?.runtime?.sendMessage) {
       for (const extensionId of assistantExtensionIds) {
         const result = await new Promise(resolve => {
           chrome.runtime.sendMessage(extensionId, payload, response => {
-            const failed = Boolean(chrome.runtime.lastError) || response?.ok !== true;
-            resolve(failed ? null : response);
+            resolve(chrome.runtime.lastError ? null : response || null);
           });
         });
-        if (result) return result;
+        if (result?.ok) return result;
+        if (result?.code) failure = result;
       }
     }
     const bridgedResult = await connectThroughPageBridge(payload);
-    return bridgedResult?.ok ? bridgedResult : null;
+    return bridgedResult?.ok ? bridgedResult : detailed ? bridgedResult || failure : null;
   };
-  const connectAssistantAi = async (statusElement, silent = false, explicit = false) => {
+  const connectAssistantAi = async (statusElement, silent = false, explicit = false, detailed = false) => {
     if (statusElement && !silent) {
       statusElement.classList.remove('license-validated');
       statusElement.textContent = 'Validando licença com segurança…';
@@ -83,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const session = data?.session;
     if (error || !session?.access_token || !session?.expires_at) {
       if (statusElement && !silent) statusElement.textContent = 'Sua sessão do Carômetro expirou. Entre novamente.';
-      return null;
+      return detailed ? {ok:false,code:'SESSION_EXPIRED'} : null;
     }
     const payload = {
       type:'CAROMETRO_SIAP_CONNECT',
@@ -91,13 +93,13 @@ document.addEventListener('DOMContentLoaded', () => {
       expiresAt:Number(session.expires_at) * 1000,
       explicit
     };
-    const result = await deliverSessionToAssistant(payload);
-    if (result) {
+    const result = await deliverSessionToAssistant(payload,detailed);
+    if (result?.ok) {
       if (statusElement) showConnectedStatus(statusElement, result);
       return result;
     }
     if (statusElement && !silent) statusElement.textContent = 'A extensão não respondeu. Atualize-a e recarregue o Carômetro.';
-    return null;
+    return detailed ? result || {ok:false,code:'EXTENSION_NOT_FOUND'} : null;
   };
   const showConnectedStatus = (statusElement, result) => {
     statusElement.classList.add('license-validated');
@@ -197,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.syncMainSiapAssistantButton = syncMainAssistantButton;
   window.refreshSiapAssistantButtonAccess = refreshAssistantButtonAccess;
-  window.connectCarometroCorrectionExtension = () => connectAssistantAi(null, true, true);
+  window.connectCarometroCorrectionExtension = () => connectAssistantAi(null, true, true, true);
   window.getSiapAttendanceBadge ||= () => '';
   window.getSiapPanelActions = () => '';
   window.bindSiapPanelActions = () => {};
