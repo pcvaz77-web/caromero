@@ -9,7 +9,7 @@
       <section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video><p>Aponte a câmera para o QR Code da carteirinha.</p></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
     inviteResult.insertAdjacentElement('afterend', area);
     const css = document.createElement('style');
-    css.textContent = `.family-gate-area{display:grid;gap:20px}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px}.family-gate-message.error{color:#b42318}.family-scan-stage{margin-top:14px;max-width:460px}.family-scan-stage video{display:block;width:100%;max-height:300px;object-fit:cover;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px}.family-recent-entries small{color:#65728a}@media(max-width:600px){.family-scan-student{align-items:flex-start}.family-gate-row .btn{width:100%}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
+    css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-scan-stage{margin-top:14px;max-width:460px}.family-scan-stage video{display:block;width:100%;aspect-ratio:4/3;max-height:min(55dvh,440px);object-fit:contain;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}@media(max-width:600px){.family-gate-panel{padding:15px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const escape = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -45,6 +45,7 @@
       get('familyScanVideo').srcObject = null;
       get('familyScanStage').classList.add('hidden');
       get('familyStopScan').classList.add('hidden');
+      get('familyStartScan').classList.remove('hidden');
       get('familyStartScan').disabled = false;
     }
     document.addEventListener('carometro:family-school-closed', stopScan);
@@ -159,6 +160,7 @@
       get('familyScanStudent').classList.remove('hidden');
       setMessage('familyScanMessage','Confira a foto e o nome antes de registrar.');
       get('familyConfirmEntry').onclick = confirmEntry;
+      get('familyScanStudent').scrollIntoView({ block:'nearest' });
     }
     async function confirmEntry() {
       if (!detectedToken || !currentStudent || !schoolId) return;
@@ -215,8 +217,9 @@
         await video.play();
         get('familyScanStage').classList.remove('hidden');
         get('familyStopScan').classList.remove('hidden');
-        get('familyStartScan').disabled = true;
+        get('familyStartScan').classList.add('hidden');
         setMessage('familyScanMessage','Aponte a câmera para o QR Code da carteirinha.');
+        get('familyScanStage').scrollIntoView({ block:'nearest' });
         scanFrame();
       } catch (caught) { stopScan(); setMessage('familyScanMessage',caught.message || 'Não foi possível abrir a câmera. Confira a permissão no navegador.',true); }
     };

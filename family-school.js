@@ -14,14 +14,14 @@
     dialog.innerHTML = `<section class="modal family-school-dialog" role="dialog" aria-modal="true" aria-labelledby="familySchoolTitle">
       <div class="modal-head"><div><h3 id="familySchoolTitle">Portal da Família</h3><p class="meta">Autorize responsáveis e publique apenas o conteúdo escolhido para a família.</p></div><button class="close" type="button" id="familySchoolClose" aria-label="Fechar">×</button></div>
       <div class="form family-school-content"><p id="familySchoolError" class="error hidden" role="alert"></p>
-        <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Confirme a identidade do responsável antes de mostrar o QR Code. Marque apenas os filhos autorizados pela escola.</p><div class="family-grid"><label>Nome do responsável<input id="familyGuardianName" maxlength="160" required></label><label>Celular com DDI<input id="familyPhone" type="tel" placeholder="+5562999999999" pattern="\\+[1-9][0-9]{7,14}" required></label></div><label for="familyStudentSearch">Filhos autorizados</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno pelo nome"><div id="familyStudentChoices" class="family-student-choices"></div><button class="btn primary" type="submit">Gerar convite por QR Code</button></form>
+        <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Confirme a identidade do responsável antes de mostrar o QR Code. Selecione até 10 filhos, inclusive de turmas diferentes, para um único convite.</p><div class="family-grid"><label>Nome do responsável<input id="familyGuardianName" maxlength="160" required></label><label>Celular com DDI<input id="familyPhone" type="tel" placeholder="+5562999999999" pattern="\\+[1-9][0-9]{7,14}" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" type="submit">Gerar convite por QR Code</button></form>
         <div id="familyInviteResult" class="family-invite-result hidden"><strong>Convite individual criado</strong><p>Mostre este QR Code ao responsável na escola. Ele vale por 15 minutos e só pode ser usado uma vez. Não o coloque na carteirinha do aluno.</p><div id="familyInviteQr" class="family-invite-qr" aria-label="QR Code do convite"></div><input id="familyInviteUrl" readonly aria-label="Link do convite"><button class="btn secondary" type="button" id="familyCopyInvite">Copiar link</button></div>
         <form id="familyPublishForm"><h4>Compartilhar ocorrência</h4><p class="meta">A descrição interna não é copiada. Escreva o texto que a família poderá ler.</p><div class="family-grid"><label>Ocorrência<select id="familyOccurrence" required></select></label><label>Título<input id="familyMessageTitle" maxlength="160" required></label></div><label>Mensagem para a família<textarea id="familyMessageBody" maxlength="2000" required></textarea></label><button class="btn primary" type="submit">Publicar para a família</button></form>
         <section><h4>Vínculos e ciência</h4><div id="familySchoolOverview" class="family-overview" aria-live="polite"></div></section>
       </div></section>`;
     document.body.append(dialog);
     const css = document.createElement('style');
-    css.textContent = `.family-school-dialog{width:min(900px,100%)}.family-school-content{display:grid;gap:26px}.family-school-content form{padding-bottom:20px;border-bottom:1px solid #e4e7ec}.family-school-content h4{margin:0 0 13px;font-size:16px}.family-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.family-school-content label{display:block}.family-school-content label input,.family-school-content label select,.family-school-content textarea{margin-top:7px}.family-student-choices{max-height:220px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0 16px}.family-student-choices label{display:flex;align-items:center;gap:9px;margin:0;padding:9px;border:1px solid #dce5f1;border-radius:9px;font-size:13px;font-weight:650}.family-student-choices label:has(input:checked){border-color:#4569da;background:#eef3ff}.family-student-choices input{width:18px!important;height:18px;min-height:0;margin:0!important;flex:none}.family-student-choices small{display:block;color:#667085}.family-invite-result{padding:16px;border-radius:10px;background:#f1f6ff}.family-invite-result p{font-size:13px}.family-invite-result input{margin-bottom:10px}.family-invite-qr svg{display:block;width:200px;height:200px;max-width:100%;margin:14px auto;background:#fff}.family-overview{display:grid;gap:9px}.family-link-row{padding:12px;border:1px solid #dce5f1;border-radius:9px}.family-link-row p{margin:4px 0;font-size:13px}.family-link-row button{margin-top:8px}.family-school-dialog .meta{margin:5px 0 0}@media(max-width:650px){.family-grid,.family-student-choices{grid-template-columns:1fr}}`;
+    css.textContent = `#familySchoolModal{z-index:230}.family-school-dialog{width:min(900px,100%)}.family-school-content{display:grid;gap:26px;min-width:0}.family-school-content form{padding-bottom:20px;border-bottom:1px solid #e4e7ec;min-width:0}.family-school-content h4{margin:0 0 13px;font-size:16px}.family-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.family-school-content label{display:block;min-width:0}.family-school-content label input,.family-school-content label select,.family-school-content textarea{margin-top:7px}.family-student-choices{max-height:220px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0 16px}.family-student-choices label{display:flex;align-items:center;gap:9px;margin:0;padding:9px;border:1px solid #dce5f1;border-radius:9px;font-size:13px;font-weight:650;min-width:0;overflow-wrap:anywhere}.family-student-choices label:has(input:checked){border-color:#4569da;background:#eef3ff}.family-student-choices input{width:18px!important;height:18px;min-height:0;margin:0!important;flex:none}.family-student-choices small{display:block;color:#667085}.family-selected-students{margin:-4px 0 16px;min-width:0}.family-selected-students strong{display:block;font-size:13px;margin-bottom:8px}.family-selected-students button{background:#eef3ff;color:#264aac;border-radius:99px;padding:7px 10px;margin:0 6px 6px 0;font-size:12px;font-weight:700;max-width:100%;overflow-wrap:anywhere}.family-invite-result{padding:16px;border-radius:10px;background:#f1f6ff;min-width:0}.family-invite-result p{font-size:13px}.family-invite-result input{margin-bottom:10px}.family-invite-qr svg{display:block;width:200px;height:200px;max-width:100%;margin:14px auto;background:#fff}.family-overview{display:grid;gap:9px}.family-link-row{padding:12px;border:1px solid #dce5f1;border-radius:9px;overflow-wrap:anywhere}.family-link-row p{margin:4px 0;font-size:13px}.family-link-row button{margin-top:8px}.family-school-dialog .meta{margin:5px 0 0}@media(max-width:650px){#familySchoolModal{padding:0;place-items:stretch}.family-school-dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0;box-shadow:none;overscroll-behavior:contain}.family-school-dialog .modal-head{padding:16px;gap:8px}.family-school-dialog .form{padding:18px 16px 40px}.family-grid,.family-student-choices{grid-template-columns:1fr}.family-school-content{gap:20px}.family-school-content .btn{max-width:100%}.family-invite-result input{min-width:0}.family-school-dialog .close{flex:none;min-width:42px;min-height:42px}}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -29,6 +29,8 @@
     const schoolId = () => window.getActiveSchoolId?.();
     let currentSchool = null;
     let inviteRows = [];
+    let inviteClasses = [];
+    const knownStudents = new Map();
     let occurrenceRows = [];
     const selectedStudentIds = new Set();
     const close = () => { dialog.classList.add('hidden'); document.dispatchEvent(new Event('carometro:family-school-closed')); };
@@ -41,16 +43,81 @@
     document.addEventListener('carometro:school-context-ready', refreshNav);
     refreshNav();
     function renderStudentChoices() {
+      if (!get('familyInviteClass').value) {
+        get('familyStudentChoices').innerHTML = '<p class="meta">Selecione o turno e a turma para ver os alunos.</p>';
+        return;
+      }
       const search = get('familyStudentSearch').value.trim().toLocaleLowerCase('pt-BR');
-      const matches = inviteRows.filter(row => row.full_name.toLocaleLowerCase('pt-BR').includes(search)).slice(0,100);
-      get('familyStudentChoices').innerHTML = matches.length ? matches.map(row => `<label><input type="checkbox" value="${row.id}" ${selectedStudentIds.has(row.id) ? 'checked' : ''}><span>${esc(row.full_name)}<small>${esc(row.class_name || '')}</small></span></label>`).join('') : '<p class="meta">Nenhum aluno encontrado.</p>';
+      const matches = inviteRows.filter(row => row.full_name.toLocaleLowerCase('pt-BR').includes(search));
+      get('familyStudentChoices').innerHTML = matches.length ? matches.map(row => `<label><input type="checkbox" value="${row.id}" ${selectedStudentIds.has(row.id) ? 'checked' : ''}><span>${esc(row.full_name)}<small>${esc(row.class_name || '')}</small></span></label>`).join('') : '<p class="meta">Nenhum aluno encontrado nesta turma.</p>';
+    }
+    function renderSelectedStudents() {
+      const selected = [...selectedStudentIds].map(id => knownStudents.get(id)).filter(Boolean);
+      get('familySelectedStudents').innerHTML = selected.length
+        ? `<strong>${selected.length} ${selected.length === 1 ? 'filho selecionado' : 'filhos selecionados'} para este convite</strong>${selected.map(row => `<button type="button" data-remove-student="${row.id}" aria-label="Retirar ${esc(row.full_name)}">${esc(row.full_name)} · ${esc(row.class_name || '')} ×</button>`).join('')}`
+        : '<p class="meta">Nenhum filho selecionado. Você pode escolher alunos de outras turmas sem perder os anteriores.</p>';
     }
     get('familyStudentSearch').oninput = renderStudentChoices;
+    get('familySelectedStudents').onclick = event => {
+      const remove = event.target.closest('[data-remove-student]');
+      if (!remove) return;
+      selectedStudentIds.delete(remove.dataset.removeStudent);
+      renderStudentChoices(); renderSelectedStudents();
+    };
     get('familyStudentChoices').onchange = event => {
       const input = event.target.closest('input[type="checkbox"]');
       if (!input) return;
+      if (input.checked && selectedStudentIds.size >= 10) {
+        input.checked = false;
+        error('Um convite pode incluir até 10 filhos.');
+        return;
+      }
       if (input.checked) selectedStudentIds.add(input.value);
       else selectedStudentIds.delete(input.value);
+      error(''); renderSelectedStudents();
+    };
+    get('familyInviteShift').onchange = () => {
+      classLoadId++;
+      const shift = get('familyInviteShift').value;
+      const classSelect = get('familyInviteClass');
+      classSelect.disabled = !shift;
+      classSelect.innerHTML = `<option value="">${shift ? 'Selecione a turma' : 'Selecione o turno primeiro'}</option>`
+        + inviteClasses.filter(row => row.shift === shift).map(row => `<option value="${row.id}">${esc(row.name)}</option>`).join('');
+      inviteRows = [];
+      get('familyStudentSearch').value = '';
+      get('familyStudentSearch').disabled = true;
+      renderStudentChoices();
+    };
+    let classLoadId = 0;
+    get('familyInviteClass').onchange = async () => {
+      const loadId = ++classLoadId;
+      const activeSchool = currentSchool;
+      const classId = get('familyInviteClass').value;
+      inviteRows = [];
+      get('familyStudentSearch').value = '';
+      get('familyStudentSearch').disabled = !classId;
+      if (!classId) return renderStudentChoices();
+      get('familyStudentChoices').innerHTML = '<p class="meta">Carregando alunos da turma…</p>';
+      try {
+        const rows = [];
+        for (let start = 0; ; start += 500) {
+          const { data, error: requestError } = await db.from('students').select('id,full_name,class_id,class_name')
+            .eq('school_id',activeSchool).eq('class_id',classId).eq('enrollment_status','active')
+            .order('full_name').range(start,start+499);
+          if (requestError) throw requestError;
+          if (loadId !== classLoadId || activeSchool !== currentSchool || classId !== get('familyInviteClass').value) return;
+          rows.push(...(data || []));
+          if (!data || data.length < 500) break;
+        }
+        const className = inviteClasses.find(row => row.id === classId)?.name || '';
+        inviteRows = rows.map(row => ({ ...row, class_name:className }));
+        inviteRows.forEach(row => knownStudents.set(row.id,row));
+        renderStudentChoices();
+      } catch (caught) {
+        if (loadId !== classLoadId || activeSchool !== currentSchool) return;
+        get('familyStudentChoices').innerHTML = '<p class="meta">Não foi possível carregar os alunos desta turma.</p>';
+        error(caught.message || 'Não foi possível carregar os alunos desta turma.');
+      }
     };
     async function loadOverview() {
       const { data, error: requestError } = await db.rpc('family_school_overview', { p_school_id:currentSchool });
@@ -72,24 +139,39 @@
       error('');
       currentSchool = schoolId();
       if (!currentSchool) return;
+      classLoadId++;
       selectedStudentIds.clear();
+      knownStudents.clear();
+      inviteRows = [];
+      inviteClasses = [];
+      get('familyInviteShift').innerHTML = '<option value="">Selecione o turno</option>';
+      get('familyInviteClass').innerHTML = '<option value="">Selecione o turno primeiro</option>';
+      get('familyInviteClass').disabled = true;
       get('familyStudentSearch').value = '';
+      get('familyStudentSearch').disabled = true;
+      renderStudentChoices(); renderSelectedStudents();
       get('familyInviteResult').classList.add('hidden');
       get('familyInviteUrl').value = '';
       const check = await db.rpc('family_school_manager', { p_school_id:currentSchool });
       if (check.error || check.data !== true) { error('Apenas a administração desta escola pode gerenciar o portal.'); return; }
       dialog.classList.remove('hidden');
       try {
-        const [studentResult, occurrenceResult] = await Promise.all([
-          db.from('students').select('id,full_name,class_name').eq('school_id',currentSchool).eq('enrollment_status','active').order('full_name'),
+        const [classResult, occurrenceResult] = await Promise.all([
+          db.from('classes').select('id,name,shift').eq('school_id',currentSchool).is('archived_at',null).order('name'),
           db.from('student_occurrences').select('id,student_id,occurred_on,occurrence_text').eq('school_id',currentSchool).order('created_at',{ ascending:false }).limit(100)
         ]);
-        if (studentResult.error) throw studentResult.error;
+        if (classResult.error) throw classResult.error;
         if (occurrenceResult.error) throw occurrenceResult.error;
-        inviteRows = studentResult.data || [];
+        inviteClasses = classResult.data || [];
+        const shifts = [...new Set(inviteClasses.map(row => row.shift).filter(Boolean))].sort((a,b) => a.localeCompare(b,'pt-BR'));
+        get('familyInviteShift').innerHTML = '<option value="">Selecione o turno</option>' + shifts.map(shift => `<option value="${esc(shift)}">${esc(shift)}</option>`).join('');
         occurrenceRows = occurrenceResult.data || [];
-        const names = new Map(inviteRows.map(s => [s.id,s.full_name]));
-        renderStudentChoices();
+        const occurrenceIds = [...new Set(occurrenceRows.map(row => row.student_id).filter(Boolean))];
+        const occurrenceStudents = occurrenceIds.length
+          ? await db.from('students').select('id,full_name').eq('school_id',currentSchool).in('id',occurrenceIds)
+          : { data:[], error:null };
+        if (occurrenceStudents.error) throw occurrenceStudents.error;
+        const names = new Map((occurrenceStudents.data || []).map(s => [s.id,s.full_name]));
         get('familyOccurrence').innerHTML = '<option value="">Selecione</option>' + occurrenceRows.map(o => `<option value="${o.id}">${esc(names.get(o.student_id) || 'Aluno')} · ${esc(o.occurred_on)} · ${esc(o.occurrence_text.slice(0,50))}</option>`).join('');
         await loadOverview();
         document.dispatchEvent(new CustomEvent('carometro:family-school-opened', { detail:{ schoolId:currentSchool } }));
@@ -100,7 +182,7 @@
       const students = [...selectedStudentIds];
       const phone = get('familyPhone').value.trim();
       const name = get('familyGuardianName').value.trim();
-      if (!students.length || students.some(id => !inviteRows.some(row => row.id === id))) return error('Selecione os filhos autorizados nesta escola.');
+      if (!students.length || students.length > 10 || students.some(id => !knownStudents.has(id))) return error('Selecione de 1 a 10 filhos autorizados nesta escola.');
       const submit = event.submitter; submit.disabled = true;
       try {
         const { data, error: requestError } = await db.rpc('family_create_invitation_bundle', { p_school_id:currentSchool,p_student_ids:students,p_name:name,p_phone:phone });
@@ -115,7 +197,7 @@
           get('familyInviteQr').innerHTML = qr.createSvgTag({ cellSize:4, margin:8, scalable:true });
         } else get('familyInviteQr').textContent = 'QR Code indisponível. Copie o link do convite.';
         get('familyInviteResult').classList.remove('hidden');
-        selectedStudentIds.clear(); renderStudentChoices();
+        selectedStudentIds.clear(); renderStudentChoices(); renderSelectedStudents();
         await loadOverview();
       } catch (caught) { error(caught.message || 'Não foi possível criar o convite.'); }
       finally { submit.disabled = false; }
