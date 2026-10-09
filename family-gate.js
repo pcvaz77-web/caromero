@@ -11,10 +11,10 @@
     cardsMount.append(cardsArea);
     const entryArea = document.createElement('div');
     entryArea.className = 'family-gate-area';
-    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video><p>Aponte a câmera para o QR Code da carteirinha.</p></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
+    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
     entryMount.append(entryArea);
     const css = document.createElement('style');
-    css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-scan-stage{margin-top:14px;max-width:460px}.family-scan-stage video{display:block;width:100%;aspect-ratio:4/3;max-height:min(55dvh,440px);object-fit:contain;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}@media(max-width:600px){.family-gate-panel{padding:15px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
+    css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-scan-stage{margin-top:14px;width:100%}.family-scan-stage video{display:block;width:100%;aspect-ratio:1/1;max-height:min(65dvh,640px);object-fit:cover;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}.family-recent-entries button{border:1px solid #ccd9f2;border-radius:7px;background:#eef3ff;color:#29468a;padding:6px 9px;font-weight:700;cursor:pointer}@media(max-width:600px){.family-gate-panel{padding:12px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-stage{margin-inline:-6px;width:calc(100% + 12px)}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const escape = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -24,6 +24,16 @@
     let schoolName = '';
     let stream = null;
     let scanTimer = null;
+    let scanGeneration = 0;
+    let scanPaused = true;
+    let nativeDetector = null;
+    let nativeMisses = 0;
+    let blockedToken = null;
+    let blockedTokenMisses = 0;
+    const scanCanvas = document.createElement('canvas');
+    scanCanvas.width = 768;
+    scanCanvas.height = 768;
+    const scanContext = scanCanvas.getContext('2d', { willReadFrequently:true });
     let detectedToken = null;
     let currentStudent = null;
     let currentEntry = null;
@@ -42,11 +52,19 @@
     const setMessage = (id, message, isError = false) => {
       const node = get(id); node.textContent = message; node.classList.toggle('error', isError);
     };
-    function stopScan() {
+    function pauseScan() {
       if (scanTimer) clearTimeout(scanTimer);
       scanTimer = null;
+      scanPaused = true;
+    }
+    function stopScan() {
+      scanGeneration++;
+      pauseScan();
       stream?.getTracks().forEach(track => track.stop());
       stream = null;
+      nativeDetector = null;
+      nativeMisses = 0;
+      blockedToken = null;
       get('familyScanVideo').srcObject = null;
       get('familyScanStage').classList.add('hidden');
       get('familyStopScan').classList.add('hidden');
@@ -61,8 +79,12 @@
       const { data, error } = await db.rpc('family_recent_entries', { p_school_id:activeSchool, p_limit:20 });
       if (activeSchool !== schoolId) return;
       if (error) { get('familyRecentEntries').textContent = 'Não foi possível consultar as entradas.'; return; }
-      get('familyRecentEntries').innerHTML = data?.length ? data.map(row => `<div><span><b>${escape(row.student_name)}</b> · ${escape(formatTime(row.arrived_at))}</span><small>${row.published_at ? 'Aviso no Portal da Família' : 'Aguardando aviso'}</small></div>`).join('') : '<p>Nenhuma entrada registrada.</p>';
+      get('familyRecentEntries').innerHTML = data?.length ? data.map(row => `<div><span><b>${escape(row.student_name)}</b> · ${escape(formatTime(row.arrived_at))}</span>${row.published_at ? '<small>Aviso no Portal da Família</small>' : `<button type="button" data-publish-entry="${escape(row.entry_id)}">Publicar aviso</button>`}</div>`).join('') : '<p>Nenhuma entrada registrada.</p>';
     }
+    get('familyRecentEntries').onclick = event => {
+      const button = event.target.closest('[data-publish-entry]');
+      if (button) publishEntry(button.dataset.publishEntry, button);
+    };
     document.addEventListener('carometro:family-school-opened', async event => {
       stopScan();
       schoolId = event.detail.schoolId;
@@ -187,27 +209,40 @@
     get('familyPrintStudent').onclick = () => printCards('student');
     async function displayStudent(rawValue) {
       const match = tokenPattern.exec(String(rawValue || '').trim());
-      if (!match) { setMessage('familyScanMessage','Este QR Code não é uma carteirinha do Carômetro.',true); return; }
-      stopScan();
+      if (!match) {
+        setMessage('familyScanMessage','Este QR Code não é uma carteirinha do Carômetro. Aponte para o próximo cartão.',true);
+        setTimeout(resumeScan, 700);
+        return;
+      }
       detectedToken = match[1];
       currentStudent = null; currentEntry = null;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','Conferindo carteirinha...');
       const activeSchool = schoolId;
+      const detectedGeneration = scanGeneration;
       const { data, error } = await db.rpc('family_lookup_card', { p_school_id:activeSchool, p_qr_token:detectedToken });
-      if (activeSchool !== schoolId) return;
-      if (error || !data?.[0]) return setMessage('familyScanMessage',error?.message || 'Carteirinha inválida para esta escola.',true);
-      currentStudent = data[0];
-      let photoUrl = '';
-      if (currentStudent.photo_path) {
-        const result = await db.storage.from('student-photos').createSignedUrl(currentStudent.photo_path, 900);
-        photoUrl = result.data?.signedUrl || '';
+      if (activeSchool !== schoolId || detectedGeneration !== scanGeneration || !stream) return;
+      if (error || !data?.[0]) {
+        setMessage('familyScanMessage',error?.message || 'Carteirinha inválida para esta escola.',true);
+        setTimeout(resumeScan, 900);
+        return;
       }
-      get('familyScanStudent').innerHTML = `${photoUrl ? `<img src="${escape(photoUrl)}" alt="Foto do aluno">` : '<span class="family-photo-fallback" aria-hidden="true">Aluno</span>'}<div><strong>${escape(currentStudent.student_name)}</strong><small>Turma ${escape(currentStudent.class_name)} · Responsável: ${escape(currentStudent.guardian_name || 'não informado')}</small><button type="button" class="btn primary family-student-action" id="familyConfirmEntry">Confirmar entrada</button></div>`;
+      currentStudent = data[0];
+      const selectedToken = detectedToken;
+      get('familyScanStudent').innerHTML = `<span class="family-photo-fallback" aria-hidden="true">Aluno</span><div><strong>${escape(currentStudent.student_name)}</strong><small>Turma ${escape(currentStudent.class_name)} · Responsável: ${escape(currentStudent.guardian_name || 'não informado')}</small><button type="button" class="btn primary family-student-action" id="familyConfirmEntry">Confirmar entrada</button></div>`;
       get('familyScanStudent').classList.remove('hidden');
-      setMessage('familyScanMessage','Confira a foto e o nome antes de registrar.');
+      setMessage('familyScanMessage','Confira o nome e a foto, quando disponível, antes de registrar.');
       get('familyConfirmEntry').onclick = confirmEntry;
       get('familyScanStudent').scrollIntoView({ block:'nearest' });
+      if (currentStudent.photo_path) {
+        db.storage.from('student-photos').createSignedUrl(currentStudent.photo_path, 900).then(result => {
+          if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration || !result.data?.signedUrl) return;
+          const photo = document.createElement('img');
+          photo.src = result.data.signedUrl;
+          photo.alt = 'Foto do aluno';
+          get('familyScanStudent').querySelector('.family-photo-fallback')?.replaceWith(photo);
+        }).catch(() => {});
+      }
     }
     async function confirmEntry() {
       if (!detectedToken || !currentStudent || !schoolId) return;
@@ -217,57 +252,110 @@
       if (activeSchool !== schoolId) return;
       if (error || !data?.[0]) { button.disabled = false; return setMessage('familyScanMessage',error?.message || 'Não foi possível registrar a entrada.',true); }
       currentEntry = data[0];
-      setMessage('familyScanMessage',`${currentEntry.duplicate ? 'Entrada já registrada' : 'Entrada registrada'} às ${formatTime(currentEntry.arrived_at)}.`);
+      setMessage('familyScanMessage',`${currentEntry.duplicate ? 'Entrada já registrada' : 'Entrada registrada'} às ${formatTime(currentEntry.arrived_at)}. Aponte a próxima carteirinha.`);
       button.textContent = 'Publicar aviso no Portal da Família';
       button.disabled = false;
-      button.onclick = publishEntry;
-      await loadRecent();
+      button.onclick = () => publishEntry(currentEntry.entry_id, button);
+      blockedToken = detectedToken;
+      blockedTokenMisses = 0;
+      resumeScan();
+      loadRecent();
     }
-    async function publishEntry() {
-      if (!currentEntry || !schoolId) return;
-      const button = get('familyConfirmEntry'); button.disabled = true;
+    async function publishEntry(entryId, button) {
+      if (!entryId || !schoolId) return;
+      button.disabled = true;
       const activeSchool = schoolId;
-      const { error } = await db.rpc('family_publish_entry', { p_school_id:activeSchool, p_entry_id:currentEntry.entry_id });
+      const { error } = await db.rpc('family_publish_entry', { p_school_id:activeSchool, p_entry_id:entryId });
       if (activeSchool !== schoolId) return;
       if (error) { button.disabled = false; return setMessage('familyScanMessage',error.message || 'Não foi possível publicar o aviso.',true); }
       button.textContent = 'Aviso publicado';
       setMessage('familyScanMessage','O registro está disponível no Portal da Família dos responsáveis autorizados.');
-      await loadRecent();
+      loadRecent();
     }
-    async function scanFrame() {
-      if (!stream || dialog.classList.contains('hidden')) return stopScan();
+    function resumeScan() {
+      if (!stream || dialog.classList.contains('hidden')) return;
+      scanPaused = false;
+      scanGeneration++;
+      scanFrame(scanGeneration);
+    }
+    async function scanFrame(generation) {
+      if (!stream || scanPaused || generation !== scanGeneration) return;
+      if (dialog.classList.contains('hidden')) return stopScan();
       const video = get('familyScanVideo');
-      if (video.readyState >= 2 && typeof window.jsQR === 'function') {
-        const canvas = document.createElement('canvas');
-        const width = Math.min(video.videoWidth, 640);
-        if (width > 0 && video.videoHeight > 0) {
-          canvas.width = width; canvas.height = Math.round(width * video.videoHeight / video.videoWidth);
-          const context = canvas.getContext('2d', { willReadFrequently:true });
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
-          const frame = context.getImageData(0,0,canvas.width,canvas.height);
-          const found = window.jsQR(frame.data,frame.width,frame.height,{ inversionAttempts:'dontInvert' });
-          if (found?.data) return displayStudent(found.data);
+      let value = '';
+      try {
+        if (video.readyState >= 2 && video.videoWidth && video.videoHeight && scanContext) {
+          const side = Math.min(video.videoWidth, video.videoHeight);
+          scanContext.drawImage(video, (video.videoWidth-side)/2, (video.videoHeight-side)/2, side, side, 0, 0, 768, 768);
+          if (nativeDetector) {
+            try { value = (await nativeDetector.detect(scanCanvas))[0]?.rawValue || ''; }
+            catch { nativeDetector = null; await ensureQrReader(); }
+          }
+          nativeMisses = value ? 0 : nativeMisses + 1;
+          if (!value && typeof window.jsQR === 'function' && (!nativeDetector || nativeMisses % 3 === 0)) {
+            const frame = scanContext.getImageData(0,0,768,768);
+            value = window.jsQR(frame.data,768,768,{ inversionAttempts:'dontInvert' })?.data || '';
+          }
         }
+      } catch (caught) {
+        setMessage('familyScanMessage',caught.message || 'Não foi possível ler a imagem da câmera.',true);
       }
-      scanTimer = setTimeout(scanFrame, 170);
+      if (!stream || scanPaused || generation !== scanGeneration) return;
+      if (value) {
+        const token = tokenPattern.exec(String(value).trim())?.[1];
+        if (token && token === blockedToken) blockedTokenMisses = 0;
+        else {
+          blockedToken = null;
+          pauseScan();
+          displayStudent(value);
+          return;
+        }
+      } else if (blockedToken && ++blockedTokenMisses >= 8) blockedToken = null;
+      scanTimer = setTimeout(() => scanFrame(generation), 90);
     }
     get('familyStartScan').onclick = async () => {
       if (!schoolId) return setMessage('familyScanMessage','Abra o Portal da Família e escolha uma escola.',true);
       if (!navigator.mediaDevices?.getUserMedia) return setMessage('familyScanMessage','Este navegador não disponibilizou a leitura por câmera. Atualize o navegador ou use outro dispositivo.',true);
       stopScan(); currentStudent = null; currentEntry = null; detectedToken = null;
+      const requestGeneration = scanGeneration;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','Solicitando acesso à câmera...');
       try {
-        await ensureQrReader();
-        stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' } }, audio:false });
+        nativeDetector = null;
+        if (typeof window.BarcodeDetector === 'function') {
+          try { nativeDetector = new window.BarcodeDetector({ formats:['qr_code'] }); } catch { /* O leitor jsQR atende aos demais aparelhos. */ }
+        }
+        if (nativeDetector) ensureQrReader().catch(() => {});
+        else await ensureQrReader();
+        if (requestGeneration !== scanGeneration || dialog.classList.contains('hidden') || get('familyEntryView').classList.contains('hidden')) return;
+        const openedStream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:{ ideal:'environment' }, width:{ ideal:1280 }, height:{ ideal:720 } }, audio:false });
+        if (requestGeneration !== scanGeneration || dialog.classList.contains('hidden') || get('familyEntryView').classList.contains('hidden')) {
+          openedStream.getTracks().forEach(track => track.stop());
+          return;
+        }
+        stream = openedStream;
+        const track = stream.getVideoTracks()[0];
+        try {
+          const zoom = track?.getCapabilities?.()?.zoom;
+          if (zoom && Number.isFinite(zoom.min) && Number.isFinite(zoom.max)) {
+            const target = Math.min(zoom.max, Math.max(zoom.min, 1.5));
+            if (target > (track.getSettings?.()?.zoom || 1)) {
+              await track.applyConstraints({ advanced:[{ zoom:target }] });
+            }
+          }
+        } catch { /* Alguns aparelhos não permitem zoom; a câmera continua funcionando. */ }
         const video = get('familyScanVideo'); video.srcObject = stream;
         await video.play();
+        if (requestGeneration !== scanGeneration || stream !== openedStream || dialog.classList.contains('hidden') || get('familyEntryView').classList.contains('hidden')) {
+          if (stream === openedStream) stopScan();
+          return;
+        }
         get('familyScanStage').classList.remove('hidden');
         get('familyStopScan').classList.remove('hidden');
         get('familyStartScan').classList.add('hidden');
         setMessage('familyScanMessage','Aponte a câmera para o QR Code da carteirinha.');
         get('familyScanStage').scrollIntoView({ block:'nearest' });
-        scanFrame();
+        resumeScan();
       } catch (caught) { stopScan(); setMessage('familyScanMessage',caught.message || 'Não foi possível abrir a câmera. Confira a permissão no navegador.',true); }
     };
     get('familyStopScan').onclick = stopScan;
