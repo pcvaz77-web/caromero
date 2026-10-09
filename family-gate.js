@@ -3,12 +3,16 @@
     const dialog = document.getElementById('familySchoolModal');
     if (!dialog || typeof db === 'undefined') return;
     const entryMount = document.getElementById('familyEntryMount');
-    if (!entryMount) return;
-    const area = document.createElement('div');
-    area.className = 'family-gate-area';
-    area.innerHTML = `<section class="family-gate-panel" id="familyCardsPanel"><h4>Carteirinhas dos alunos</h4><p>Selecione a turma. O Carômetro usará os nomes, fotos, turmas e contatos já cadastrados.</p><div class="family-gate-row"><label for="familyCardClass">Turma<select id="familyCardClass"><option value="">Selecione a turma</option></select></label><button id="familyPrintCards" type="button" class="btn primary">Gerar e imprimir carteirinhas</button></div><div class="family-gate-row"><label for="familyReissueStudent">Carteirinha perdida ou danificada<select id="familyReissueStudent"><option value="">Selecione a turma acima</option></select></label><button id="familyReissueCard" type="button" class="btn secondary">Substituir QR da carteirinha</button></div><p id="familyCardsMessage" class="family-gate-message" role="status"></p></section>
-      <section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video><p>Aponte a câmera para o QR Code da carteirinha.</p></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
-    entryMount.append(area);
+    const cardsMount = document.getElementById('familyCardsMount');
+    if (!entryMount || !cardsMount) return;
+    const cardsArea = document.createElement('div');
+    cardsArea.className = 'family-gate-area';
+    cardsArea.innerHTML = `<section class="family-gate-panel" id="familyCardsPanel"><h4>Gerenciar carteirinhas</h4><p>Selecione a turma para imprimir todos os cartões ou escolha um aluno para imprimir somente o dele. Os dados vêm do cadastro do Carômetro.</p><div class="family-gate-row"><label for="familyCardClass">Turma<select id="familyCardClass"><option value="">Selecione a turma</option></select></label><button id="familyPrintCards" type="button" class="btn primary">Imprimir turma</button></div><div class="family-gate-row"><label for="familyReissueStudent">Aluno<select id="familyReissueStudent"><option value="">Selecione a turma acima</option></select></label><button id="familyPrintStudent" type="button" class="btn primary">Imprimir aluno</button><button id="familyReissueCard" type="button" class="btn secondary">Substituir carteirinha perdida</button></div><p id="familyCardsMessage" class="family-gate-message" role="status"></p></section>`;
+    cardsMount.append(cardsArea);
+    const entryArea = document.createElement('div');
+    entryArea.className = 'family-gate-area';
+    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video><p>Aponte a câmera para o QR Code da carteirinha.</p></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
+    entryMount.append(entryArea);
     const css = document.createElement('style');
     css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-scan-stage{margin-top:14px;max-width:460px}.family-scan-stage video{display:block;width:100%;aspect-ratio:4/3;max-height:min(55dvh,440px);object-fit:contain;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}@media(max-width:600px){.family-gate-panel{padding:15px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
     document.head.append(css);
@@ -64,7 +68,14 @@
       schoolId = event.detail.schoolId;
       currentStudent = null; currentEntry = null; detectedToken = null;
       get('familyScanStudent').classList.add('hidden');
-      setMessage('familyCardsMessage',''); setMessage('familyScanMessage','');
+      setMessage('familyScanMessage','');
+      await loadRecent();
+    });
+    document.addEventListener('carometro:family-cards-opened', async event => {
+      schoolId = event.detail.schoolId;
+      setMessage('familyCardsMessage','');
+      get('familyCardClass').innerHTML = '<option value="">Selecione a turma</option>';
+      get('familyReissueStudent').innerHTML = '<option value="">Selecione a turma acima</option>';
       const activeSchool = schoolId;
       const [classesResult, schoolResult] = await Promise.all([
         db.from('classes').select('id,name').eq('school_id',activeSchool).is('archived_at',null).order('name'),
@@ -76,8 +87,6 @@
       }
       schoolName = schoolResult.data?.name || 'Escola';
       get('familyCardClass').innerHTML = '<option value="">Selecione a turma</option>' + (classesResult.data || []).map(row => `<option value="${row.id}">${escape(row.name)}</option>`).join('');
-      get('familyReissueStudent').innerHTML = '<option value="">Selecione a turma acima</option>';
-      await loadRecent();
     });
     get('familyCardClass').onchange = async () => {
       const activeSchool = schoolId;
@@ -100,18 +109,20 @@
       const { error } = await db.rpc('family_reissue_card', { p_school_id:activeSchool, p_student_id:studentId });
       button.disabled = false;
       if (activeSchool !== schoolId) return;
-      setMessage('familyCardsMessage', error?.message || 'QR substituído. Clique em “Gerar e imprimir carteirinhas” para imprimir a nova versão.',!!error);
+      setMessage('familyCardsMessage', error?.message || 'QR substituído. Clique em “Imprimir aluno” para imprimir a nova versão. O cartão antigo não funciona mais.',!!error);
     };
-    get('familyPrintCards').onclick = async () => {
+    async function printCards(mode) {
       const classId = get('familyCardClass').value;
+      const studentId = get('familyReissueStudent').value;
       if (!schoolId || !classId) return setMessage('familyCardsMessage','Selecione uma turma.',true);
+      if (mode === 'student' && !studentId) return setMessage('familyCardsMessage','Selecione um aluno.',true);
       // Abrir a prévia durante o clique evita que o navegador bloqueie a janela após o RPC.
       const popup = window.open('', '_blank');
       if (!popup) return setMessage('familyCardsMessage','Permita a janela de impressão no navegador.',true);
-      popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando carteirinhas</title><style>body{font:16px system-ui,sans-serif;color:#17233a;background:#f5f7fb;margin:0;padding:32px}main{max-width:560px;margin:10vh auto;background:white;border:1px solid #dce5f5;border-radius:14px;padding:28px}h1{font-size:22px}p{line-height:1.5}</style><main><h1>Carteirinhas da turma</h1><p id="familyPreparationStatus" role="status">Consultando os alunos e as carteirinhas...</p></main></html>');
+      popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando carteirinhas</title><style>body{font:16px system-ui,sans-serif;color:#17233a;background:#f5f7fb;margin:0;padding:32px}main{max-width:560px;margin:10vh auto;background:white;border:1px solid #dce5f5;border-radius:14px;padding:28px}h1{font-size:22px}p{line-height:1.5}</style><main><h1>Preparando impressão</h1><p id="familyPreparationStatus" role="status">Consultando a carteirinha...</p></main></html>');
       popup.document.close();
-      const button = get('familyPrintCards'); button.disabled = true;
-      setMessage('familyCardsMessage','Gerando carteirinhas da turma...');
+      const button = get(mode === 'student' ? 'familyPrintStudent' : 'familyPrintCards'); button.disabled = true;
+      setMessage('familyCardsMessage',mode === 'student' ? 'Preparando a carteirinha do aluno...' : 'Gerando carteirinhas da turma...');
       const showProgress = message => {
         if (!popup.closed) {
           const status = popup.document.getElementById('familyPreparationStatus');
@@ -126,11 +137,14 @@
       try {
         const activeSchool = schoolId;
         const { data, error } = await withTimeout(
-          db.rpc('family_issue_cards', { p_school_id:activeSchool, p_class_id:classId }),
+          mode === 'student'
+            ? db.rpc('family_issue_card', { p_school_id:activeSchool, p_student_id:studentId })
+            : db.rpc('family_issue_cards', { p_school_id:activeSchool, p_class_id:classId }),
           60000, 'A consulta das carteirinhas demorou demais. Confira a conexão e tente novamente.'
         );
         if (error) throw error;
         if (activeSchool !== schoolId) throw new Error('A escola ativa mudou. Abra a tela novamente.');
+        if (mode === 'student' && (classId !== get('familyCardClass').value || studentId !== get('familyReissueStudent').value)) throw new Error('A seleção mudou. Tente novamente.');
         if (!data?.length) throw new Error('Não há alunos ativos nesta turma.');
         if (typeof window.qrcode !== 'function' || !window.FamilyCardPrint) throw new Error('Gerador de carteirinhas indisponível.');
         showProgress(`Carregando fotos de ${data.length} aluno(s)...`);
@@ -168,7 +182,9 @@
         }
         setMessage('familyCardsMessage',message,true);
       } finally { button.disabled = false; }
-    };
+    }
+    get('familyPrintCards').onclick = () => printCards('class');
+    get('familyPrintStudent').onclick = () => printCards('student');
     async function displayStudent(rawValue) {
       const match = tokenPattern.exec(String(rawValue || '').trim());
       if (!match) { setMessage('familyScanMessage','Este QR Code não é uma carteirinha do Carômetro.',true); return; }
