@@ -27,7 +27,7 @@ function setup({coordinator = true, complete = true, header = true} = {}) {
   };
   const context = {
     manager:()=>coordinator,ensureContext:()=>true,tests:[exam],questions:complete?rows:rows.slice(0,1),
-    examHeader:header?{school_name:'Escola Exemplo',state_name:'Estado Exemplo'}:null,schoolId:'escola-1',
+    examHeader:header?{school_name:'Escola Exemplo',state_name:'Estado Exemplo',school_logo_data:'data:image/png;base64,ESCOLA',state_logo_data:'data:image/png;base64,ESTADO'}:null,schoolId:'escola-1',
     headerForm:()=>{headerFormOpened=true;},
     message:value=>{message=value;},esc:value=>String(value ?? ''),
     rich:()=>({render:value=>`<p>${value}</p>`,hydrate:async()=>{}}),db:{},
@@ -49,6 +49,10 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.match(result.html,/Leia o texto/);
   assert.match(result.html,/A\) Casa/);
   assert.match(result.html,/B\) Escola/);
+  assert.match(result.html,/\.logo-school\{width:26mm;height:26mm/);
+  assert.match(result.html,/\.logo-state\{width:55mm;height:26mm/);
+  assert.ok(result.html.indexOf('base64,ESCOLA') < result.html.indexOf('base64,ESTADO'));
+  assert.ok(result.html.indexOf('base64,ESTADO') < result.html.indexOf('Escola Exemplo'));
   assert.doesNotMatch(result.html,/RESPOSTA_SIGILOSA|Gabarito interno|correct_answer/);
 });
 
