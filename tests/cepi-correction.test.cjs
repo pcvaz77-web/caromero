@@ -3,6 +3,13 @@ const assert=require('node:assert/strict');
 const sheets=require('../cepi-answer-sheets.js');
 const correction=require('../cepi-correction.js');
 
+test('correção CEPI exige versão que reconhece os cartões de bloco',()=>{
+  assert.equal(correction.supportsExtension('0.28.32'),false);
+  assert.equal(correction.supportsExtension('0.28.34'),true);
+  assert.equal(correction.supportsExtension('0.28.35'),true);
+  assert.equal(correction.supportsExtension(''),false);
+});
+
 test('bloco misto conserva 30 respostas e o gabarito vem das questões',()=>{
   const exam={id:'exam',title:'BLOCO 4 - ING ART EFI - MÉDIO',question_count:30,answer_format:'ABCDE'};
   const subjects=['Língua Inglesa','Arte','Educação Física'];

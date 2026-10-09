@@ -46,6 +46,7 @@
   let planningDockOriginal;
   let planningDockNaturalWidth = 0;
   let planningDockDetached = false;
+  let peiFormIdentity = null;
   let planningResumeTimer;
   let planningAiRun;
   let consumingFeature = false;
@@ -286,26 +287,28 @@
 
   function applyPlanningDockLayout() {
     if (!panel) return;
-    const planningPage = ["planning-lesson", "planning-overview"].includes(Core.pageType(location.pathname));
-    const dock = planningPage && !panel.hidden && !planningDockDetached && innerWidth >= 1000;
+    const siapPage = Core.pageType(location.pathname) !== "unsupported";
+    const main = siapPage && !panel.hidden && !planningDockDetached && innerWidth >= 1180
+      ? document.querySelector("#FormularioPrincipal > .sis") : null;
+    const dock = Boolean(main);
     panel.classList.toggle("cm-planning-docked", dock);
-    const main = dock ? document.querySelector("#FormularioPrincipal > .sis") : null;
     if (!main) return restorePlanningDockTarget();
     if (planningDockTarget !== main) {
       restorePlanningDockTarget();
       planningDockTarget = main;
-      planningDockOriginal = Object.fromEntries(["width", "margin-left", "margin-right", "zoom"].map((property) => [property, {
+      planningDockOriginal = Object.fromEntries(["width", "margin-left", "margin-right", "zoom", "overflow-x"].map((property) => [property, {
         value: main.style.getPropertyValue(property), priority: main.style.getPropertyPriority(property)
       }]));
       planningDockNaturalWidth = Math.max(1014, main.scrollWidth);
     }
     const available = panel.getBoundingClientRect().left - 20;
-    const scale = Math.min(1, Math.max(0.6, available / planningDockNaturalWidth));
     for (const [property, value] of Object.entries({
-      width:`${Math.round(planningDockNaturalWidth)}px`, "margin-left":"8px", "margin-right":"0", zoom:String(scale)
+      width:`${Math.floor(Math.min(planningDockNaturalWidth, available))}px`, "margin-left":"8px", "margin-right":"0", zoom:"1"
     })) {
       if (main.style.getPropertyValue(property) !== value) main.style.setProperty(property, value);
     }
+    const overflow = main.scrollWidth > main.clientWidth + 2 ? "auto" : "visible";
+    if (main.style.getPropertyValue("overflow-x") !== overflow) main.style.setProperty("overflow-x", overflow);
   }
 
   function detachPlanningDock() {
@@ -472,6 +475,7 @@
 
   function render() {
     if (!panel) return;
+    const peiControls = capturePeiDraftControls();
     const pending = model.days.filter((day) => day.state === "pending" && day.eligible);
     const future = model.days.filter((day) => day.state === "pending" && !day.eligible);
     const saved = model.days.filter((day) => day.state === "saved");
@@ -511,7 +515,7 @@
     if (accountToggle) {
       const connected = !!model.accountEmail && !model.sessionRequired;
       accountToggle.disabled = false;
-      accountToggle.hidden = model.sessionRequired;
+      accountToggle.hidden = model.page === 'exam' || model.sessionRequired;
       accountToggle.textContent = connected ? 'Sair' : 'Entrar';
       accountToggle.classList.toggle('cm-sign-out', connected);
       accountToggle.onclick = async () => {
@@ -528,6 +532,12 @@
     }
     if (model.page === 'exam' && window.CepiSiapPanel?.supports(document)) {
       window.CepiSiapPanel.mount(panel.querySelector('.cm-body'));
+      updateOperationStatus();
+      return;
+    }
+    if (model.page === 'exam' && model.sessionRequired) {
+      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Correção de provas no Carômetro</h3><p>Abra o Carômetro com sua conta e, em “Correção de provas” ou “Meu CEPI”, conecte a extensão. Você não precisa digitar o e-mail novamente aqui.</p><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer">Abrir Carômetro</a><button class="cm-btn cm-full" type="button" data-exam-check-access>Já conectei · verificar acesso</button></section>';
+      panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
       updateOperationStatus();
       return;
     }
@@ -610,11 +620,33 @@
         <div class="cm-stats"><div class="cm-stat"><strong>${pending.length}</strong><span>Pendentes</span></div><div class="cm-stat"><strong>${saved.length}</strong><span>Salvos</span></div><div class="cm-stat"><strong>${future.length}</strong><span>Futuros</span></div></div>
         <div class="cm-actions"><button class="cm-btn cm-full" data-action="analyze">Analisar novamente</button></div>
       </section>
-      ${workCard(pending)}
+      ${workCard(pending, peiControls)}
       ${logCard()}
       ${licenseCard()}`;
     updateOperationStatus();
     bindPanelEvents();
+  }
+
+  function capturePeiDraftControls() {
+    if (model.page !== "pei-edit") {
+      peiFormIdentity = null;
+      return null;
+    }
+    // A orientação atravessa apenas a reconstrução atual do painel; não é gravada no navegador.
+    const formIdentity = document.getElementById("cphFuncionalidade_cphCampos_txtPotencialidadesExpectativas");
+    if (formIdentity !== peiFormIdentity) {
+      peiFormIdentity = formIdentity;
+      return null;
+    }
+    const guidance = panel.querySelector("#cm-pei-guidance");
+    if (!guidance) return null;
+    return {
+      guidance:guidance.value,
+      focuses:[...panel.querySelectorAll("[data-pei-focus]:checked")].map((input) => input.dataset.peiFocus),
+      tense:panel.querySelector('[name="cm-pei-tense"]:checked')?.value || "planned",
+      useName:panel.querySelector("#cm-pei-use-name")?.checked === true,
+      confirmed:panel.querySelector("#cm-pei-confirm")?.checked === true
+    };
   }
 
   function readStoredJson(key) {
@@ -723,12 +755,12 @@
     </div></section>`;
   }
 
-  function workCard(pending) {
+  function workCard(pending, peiControls) {
     if (model.page === "diary") return `<section class="cm-card"><h3>Próximo passo</h3><p>Use os filtros, clique em <strong>Listar</strong>, selecione uma única turma e escolha Conteúdo ou Frequência.</p><p class="cm-note">O assistente aguardará cada atualização do SIAP antes de continuar.</p></section>`;
     if (model.page === "grades") return `<section class="cm-card"><h3>Notas protegidas</h3><div class="cm-alert">O MVP não preenche notas nem envia dados ao SIGE.</div></section>`;
     if (model.page === "remote") return `<section class="cm-card"><h3>Fora do escopo</h3><p>Acesso Remoto permanece somente para consulta.</p></section>`;
     if (model.page === "pei-list") return `<section class="cm-card"><h3>PEI · Etapa 2</h3><p>Filtre e liste os registros no SIAP. Selecione um estudante e clique em <strong>Visualizar</strong> para preparar um rascunho individual.</p><p class="cm-note">O assistente não guarda matrícula, nome, laudo ou diagnóstico.</p></section>`;
-    if (model.page === "pei-edit") return peiCard();
+    if (model.page === "pei-edit") return peiCard(peiControls);
     if (model.page === "planning-list") return `<section class="cm-card"><h3>Planejamentos</h3><p>Filtre a turma, clique em <strong>Listar</strong>, selecione uma linha e abra <strong>Visualizar</strong>.</p><p class="cm-note">Na próxima tela, datas azuis indicam aulas ainda sem planejamento.</p></section>`;
     if (model.page === "planning-overview") return planningOverviewCard(pending);
     if (model.page === "planning-calendar") return planningCalendarCard(pending);
@@ -762,7 +794,7 @@
     const batch = getContentBatch();
     const selectedMonth = document.getElementById(IDS.month)?.selectedIndex ?? new Date().getMonth();
     if (batch) return `<section class="cm-card"><h3>Executar conteúdos</h3>
-      <div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>${batch.completed || 0} aula(s) concluída(s) · ${escapeHtml(SUPPORT_MATERIALS[batch.materialIndex] || "Material não identificado")}</div>
+      <div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>${batch.completed || 0} aula(s) concluída(s) · ${batch.skipped || 0} data(s) ignorada(s) · ${escapeHtml(SUPPORT_MATERIALS[batch.materialIndex] || "Material não identificado")}</div>
       <p class="cm-note">${escapeHtml(batch.currentLabel || "Procurando a próxima data pendente nos meses escolhidos.")}${batch.lessonValues?.[batch.lessonIndex] ? ` · ${escapeHtml(batch.lessonValues[batch.lessonIndex])}` : ""}</p>
       <div class="cm-actions"><button class="cm-btn" data-action="content-batch-toggle">${batch.paused ? "Continuar" : "Pausar"}</button><button class="cm-btn" data-action="content-batch-stop">Parar</button></div>
     </section>`;
@@ -965,34 +997,37 @@
       <div class="cm-alert">Você pode pedir o planejamento sem escolher nada antes. O Assistente selecionará a unidade temática, a habilidade, o conteúdo e, quando houver, a Matriz SAEB. Se você já escolheu uma ou mais opções, elas serão preservadas; o Assistente completará somente as escolhas ausentes.</div>
       <label class="cm-field"><span>Orientação opcional para a IA</span><textarea id="cm-plan-guidance" maxlength="1000" rows="3" placeholder="Ex.: usar datashow; metodologia mais elaborada; avaliação curta.">${escapeHtml(readStoredJson("assistenteSiapPlanningGuidanceDraft")?.signature === planningSignature() ? readStoredJson("assistenteSiapPlanningGuidanceDraft")?.value || "" : "")}</textarea></label>
       <label class="cm-check"><input id="cm-plan-confirm" type="checkbox"><span>Autorizo completar as seleções ausentes e gerar metodologia e avaliação para esta aula. A IA substituirá os textos atuais desses dois campos; revisarei antes de salvar.</span></label>
-      <label class="cm-check"><input id="cm-plan-auto-save-replicate" type="checkbox"><span><strong>Salvar e replicar automaticamente, sem revisão.</strong><br><small>Após completar o planejamento, o assistente abrirá a replicação, selecionará todas as turmas compatíveis e confirmará. Se nenhuma estiver disponível, cancelará a replicação e salvará somente esta aula.</small></span></label>
+      <label class="cm-check"><input id="cm-plan-auto-save-replicate" type="checkbox"><span><strong>Salvar e replicar automaticamente, sem revisão.</strong><br><small>Após completar o planejamento, o assistente confirmará a replicação oferecida pelo SIAP: próxima aula da mesma turma ou todas as turmas compatíveis. Se nenhuma turma estiver disponível, salvará somente esta aula.</small></span></label>
       <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="plan-ai-draft" disabled>Completar com IA</button></div>
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-draft" disabled>Modelo local · preencher campos vazios</button></div>
       <hr>
       <label class="cm-check"><input id="cm-plan-save-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação.</span></label>
-      <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Salvar e replicar nesta ação em todas as turmas compatíveis.</span></label>
+      <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Salvar e confirmar a replicação oferecida pelo SIAP nesta ação.</span></label>
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-save" disabled>Salvar planejamento revisado</button></div>
     </section>`;
   }
 
-  function peiCard() {
+  function peiCard(peiControls) {
     const fields = getPeiFields();
     const ready = fields.length === 4;
     const filled = fields.filter((field) => hasMeaningfulPeiText(field.value)).length;
+    const choices = peiControls || {};
+    const focuses = new Set(choices.focuses || []);
     return `<section class="cm-card"><h3>PEI contextualizado</h3>
       <span class="cm-badge ${ready ? "cm-green" : "cm-red"}">${ready ? "Estrutura reconhecida" : "Estrutura divergente"}</span>
       <p class="cm-note">${filled}/4 campos acadêmicos preenchidos. A extensão usa temporariamente série, disciplina e informações pedagógicas desta página, sem guardar nome, matrícula, laudo ou textos.</p>
-      <label class="cm-check"><input id="cm-pei-use-name" type="checkbox"><span>Usar o nome do estudante nos textos.</span></label>
+      <label class="cm-check"><input id="cm-pei-use-name" type="checkbox" ${choices.useName ? "checked" : ""}><span>Usar o nome do estudante nos textos.</span></label>
       <div class="cm-field"><span>O texto deve registrar:</span><div class="cm-choice-group">
-        <label class="cm-choice"><input type="radio" name="cm-pei-tense" value="planned" checked><span><strong>O que será trabalhado</strong><small>Planejamento escrito no futuro</small></span></label>
-        <label class="cm-choice"><input type="radio" name="cm-pei-tense" value="realized"><span><strong>O que já foi realizado</strong><small>Registro escrito no passado</small></span></label>
+        <label class="cm-choice"><input type="radio" name="cm-pei-tense" value="planned" ${choices.tense !== "realized" ? "checked" : ""}><span><strong>O que será trabalhado</strong><small>Planejamento escrito no futuro</small></span></label>
+        <label class="cm-choice"><input type="radio" name="cm-pei-tense" value="realized" ${choices.tense === "realized" ? "checked" : ""}><span><strong>O que já foi realizado</strong><small>Registro escrito no passado</small></span></label>
       </div></div>
       <h4>Focos opcionais</h4><div class="cm-option-grid">
-        ${["Leitura", "Escrita", "Oralidade", "Atividades práticas", "Trabalho em quadra", "Recursos visuais", "Autonomia", "Trabalho colaborativo"].map((focus) => `<label class="cm-check"><input type="checkbox" data-pei-focus="${escapeHtml(focus)}"><span>${escapeHtml(focus)}</span></label>`).join("")}
+        ${["Leitura", "Escrita", "Oralidade", "Atividades práticas", "Trabalho em quadra", "Recursos visuais", "Autonomia", "Trabalho colaborativo"].map((focus) => `<label class="cm-check"><input type="checkbox" data-pei-focus="${escapeHtml(focus)}" ${focuses.has(focus) ? "checked" : ""}><span>${escapeHtml(focus)}</span></label>`).join("")}
       </div>
-      <label class="cm-field"><span>Orientação opcional do professor</span><textarea id="cm-pei-guidance" maxlength="1000" rows="4" placeholder="Ex.: priorizar leitura oral, atividades curtas, uso de imagens ou trabalho em dupla."></textarea></label>
+      <label class="cm-field"><span>Orientação para a IA (opcional)</span><textarea id="cm-pei-guidance" maxlength="1000" rows="4" placeholder="Ex.: priorizar leitura oral; usar imagens na metodologia; avaliar com perguntas curtas.">${escapeHtml(choices.guidance || "")}</textarea></label>
+      <p class="cm-note">Se preencher este campo, o Assistente verificará a orientação antes de inserir o rascunho.</p>
       <div class="cm-alert">A denominação clínica não será reproduzida nem interpretada. O rascunho utilizará apenas necessidades educacionais já descritas e deverá ser revisado antes de salvar.</div>
-      <label class="cm-check"><input id="cm-pei-confirm" type="checkbox"><span>Entendo que o texto é um rascunho pedagógico e deve ser revisado individualmente.</span></label>
+      <label class="cm-check"><input id="cm-pei-confirm" type="checkbox" ${choices.confirmed ? "checked" : ""}><span>Entendo que o texto é um rascunho pedagógico e deve ser revisado individualmente.</span></label>
       <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="pei-ai-draft" disabled>Gerar campos com IA</button></div>
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="pei-draft" disabled>Usar modelo local</button></div>
       <p class="cm-note">A opção com IA envia ao servidor somente série, disciplina, orientação e contexto educacional anonimizado. Nome, matrícula e senha não são enviados.</p>
@@ -1023,11 +1058,13 @@
     const peiConfirm = panel.querySelector("#cm-pei-confirm");
     const peiDraft = panel.querySelector('[data-action="pei-draft"]');
     const peiAiDraft = panel.querySelector('[data-action="pei-ai-draft"]');
-    peiConfirm?.addEventListener("change", () => {
+    const updatePeiButtons = () => {
       const disabled = !peiConfirm.checked || getPeiFields().length !== 4;
       if (peiDraft) peiDraft.disabled = disabled;
       if (peiAiDraft) peiAiDraft.disabled = disabled;
-    });
+    };
+    peiConfirm?.addEventListener("change", updatePeiButtons);
+    if (peiConfirm) updatePeiButtons();
     peiDraft?.addEventListener("click", generatePeiDraft);
     peiAiDraft?.addEventListener("click", generatePeiAiDraft);
     const planConfirm = panel.querySelector("#cm-plan-confirm");
@@ -1089,7 +1126,7 @@
     if (!months.length) return addLog("Selecione pelo menos um mês.");
     if (!material) return addLog("Selecione um material de apoio.");
     if (!await consumeFeature("content")) return;
-    setContentBatch({ active: true, authorized: true, paused: false, phase: "month", months, monthIndex: 0, materialIndex: Number(material.dataset.materialIndex), completed: 0, saveAttempts: 0 });
+    setContentBatch({ active: true, authorized: true, paused: false, phase: "month", months, monthIndex: 0, materialIndex: Number(material.dataset.materialIndex), completed: 0, skipped: 0, skippedDays: [], processedDays: [], saveAttempts: 0 });
     render();
     scheduleContentResume(100);
   }
@@ -1163,6 +1200,27 @@
     scheduleContentResume(100);
   }
 
+  function skipUnavailableContentDay(batch, reason) {
+    const label = batch.currentLabel || "Data não identificada";
+    const key = `${batch.months[batch.monthIndex]}|${label}`;
+    batch.completed = (batch.completed || 0) + (batch.lessonIndex || 0);
+    batch.processedDays = [...new Set([...(batch.processedDays || []), key])];
+    batch.skippedDays = [...new Set([...(batch.skippedDays || []), key])];
+    batch.skipped = batch.skippedDays.length;
+    batch.currentLabel = "";
+    batch.lessonValues = [];
+    batch.lessonIndex = 0;
+    batch.contentButtonIds = [];
+    batch.contentIndex = 0;
+    batch.saveAttempts = 0;
+    batch.dayAttempts = 0;
+    delete batch.saveWaitStartedAt;
+    batch.phase = "month";
+    setContentBatch(batch);
+    addLog(`${label} ignorada: ${reason}. Seguindo para a próxima data ou mês.`);
+    scheduleContentResume(100);
+  }
+
   function resumeContentBatch() {
     if (model.license?.active === false && !finishingAuthorizedFreeWork()) return lockAssistantAfterExpiry();
     const batch = getContentBatch();
@@ -1170,7 +1228,7 @@
     const monthSelect = document.getElementById(IDS.month);
     if (!monthSelect) return stopContentBatchWithError("Seletor de mês não encontrado.");
     const targetMonth = batch.months[batch.monthIndex];
-    if (targetMonth === undefined) { setContentBatch(null); return addLog(`Execução concluída: ${batch.completed || 0} aula(s) salva(s).`); }
+    if (targetMonth === undefined) { setContentBatch(null); return addLog(`Execução concluída: ${batch.completed || 0} aula(s) salva(s) e ${batch.skipped || 0} data(s) ignorada(s).`); }
 
     if (batch.phase === "switch-month") {
       const elapsed = Date.now() - (batch.switchStartedAt || 0);
@@ -1253,7 +1311,9 @@
       if (!save || save.disabled) {
         batch.saveWaitStartedAt = batch.saveWaitStartedAt || Date.now();
         setContentBatch(batch);
-        if (Date.now() - batch.saveWaitStartedAt >= 20000) return stopContentBatchWithError("O botão de salvar permaneceu indisponível por 20 segundos.");
+        if (Date.now() - batch.saveWaitStartedAt >= (!save ? 5000 : 10000)) {
+          return skipUnavailableContentDay(batch, !save ? "o SIAP não apresentou botão de salvar" : "o botão de salvar permaneceu indisponível");
+        }
         return scheduleContentResume(500);
       }
       delete batch.saveWaitStartedAt;
@@ -2215,8 +2275,21 @@
     const expected = sessionStorage.getItem("assistenteSiapConfirmReplicate");
     if (!expected || expected !== planningSignature()) return;
     const dialog = document.getElementById("divTurmasReplicacao") || document.querySelector('[id$="_divTurmasReplicacao"]');
+    const confirmationDialog = document.getElementById("dialogConfirmacao");
+    const replicationType = document.getElementById("cphFuncionalidade_cphCampos_ddlTipoReplicacao");
     const confirm = document.getElementById("cphFuncionalidade_cphCampos_btnConfirmarReplicar");
     const openedAt = Number(sessionStorage.getItem("assistenteSiapReplicationOpenedAt")) || Date.now();
+    if (confirmationDialog?.getClientRects().length && confirmationDialog.contains(confirm)
+      && replicationType?.value === "PROXIMA" && !replicationType.disabled
+      && confirm && !confirm.disabled && confirm.getClientRects().length) {
+      sessionStorage.removeItem("assistenteSiapConfirmReplicate");
+      sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
+      const batch = getPlanningBatch();
+      if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
+      addLog("Confirmando a replicação na próxima aula da mesma turma.");
+      confirm.click();
+      return;
+    }
     if (!dialog || !confirm || confirm.disabled || !dialog.getClientRects().length) {
       if (Date.now() - openedAt < 8000) return setTimeout(completeReplicationIfRequested, 200);
       sessionStorage.removeItem("assistenteSiapConfirmReplicate");
@@ -2340,13 +2413,14 @@
     ];
     const educationalContext = sourceIds.map((id) => document.getElementById(id)?.value?.trim() || "").filter(Boolean).join("\n");
     const selectedFocuses = [...panel.querySelectorAll("[data-pei-focus]:checked")].map((input) => input.dataset.peiFocus).filter(Boolean);
-    const guidance = [panel.querySelector("#cm-pei-guidance")?.value.trim() || "", selectedFocuses.length ? `Focos: ${selectedFocuses.join(", ")}.` : ""].filter(Boolean).join(" ");
+    const guidance = panel.querySelector("#cm-pei-guidance")?.value.trim() || "";
     const payload = {
       kind:"pei",
       grade:model.context.grade || "Turma não identificada",
       subject:(model.context.subject || "Componente curricular").replace(/^\d+\s*-\s*/, ""),
       period:model.context.term || "",
       guidance,
+      selectedFocuses,
       educationalContext,
       tense:panel.querySelector('[name="cm-pei-tense"]:checked')?.value === "realized" ? "realized" : "planned"
     };

@@ -19,7 +19,7 @@
 #assistente-siap-panel[hidden] { display: none !important; }
 #assistente-siap-panel.cm-planning-docked {
   top: 8px !important; right: 8px !important; left: auto !important; bottom: auto !important;
-  width: clamp(280px, 28vw, 340px); height: calc(100vh - 16px);
+  width: clamp(390px, 31vw, 440px); height: calc(100vh - 16px);
   border-radius: 14px;
 }
 #assistente-siap-panel.cm-planning-docked .cm-head { padding: 10px 12px; gap: 8px; }

@@ -4,6 +4,15 @@
   else root.CepiCorrection=api;
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
   'use strict';
+  function supportsExtension(version) {
+    const parts=String(version||'').split('.').map(Number);
+    if(parts.length!==3||parts.some(part=>!Number.isInteger(part)||part<0))return false;
+    const minimum=[0,28,34];
+    for(let index=0;index<3;index++){
+      if(parts[index]!==minimum[index])return parts[index]>minimum[index];
+    }
+    return true;
+  }
   function key(prepared) {
     return {alphabet:prepared.test.answer_format,answers:[...prepared.answers],ranges:[{subject:'Prova CEPI',from:1,to:prepared.answers.length}]};
   }
@@ -36,5 +45,5 @@
       window.postMessage({source:'CAROMETRO_WEB',type:'CAROMETRO_CEPI_EXAM_REQUEST',requestId,action,room,token,body,accessToken},window.location.origin);
     });
   }
-  return Object.freeze({key,reviewedItems,request});
+  return Object.freeze({key,reviewedItems,request,supportsExtension});
 });

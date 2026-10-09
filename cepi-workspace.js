@@ -270,6 +270,33 @@ document.addEventListener('DOMContentLoaded', () => {
     catch(error){message(error.message);return;}
     const relevant=classes.filter(item=>test.class_ids?.includes(item.id));
     $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Escolha a turma, leia o QR Code da tela com o celular e selecione cada aluno antes da foto. Confira as marcações no celular. O gabarito oficial já vem das questões salvas.</p><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart">Conectar celular por QR Code</button></div><div id="cepiCorrectionLive" role="status"></div></div>`;
+    const setup=document.createElement('div');
+    setup.className='cepi-workspace-hint';
+    setup.innerHTML='<strong>Extensão de correção</strong><p id="cepiCorrectionExtensionStatus" role="status">Verificando a extensão neste navegador…</p><div class="cepi-workspace-actions"><a id="cepiCorrectionInstall" class="btn secondary" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button id="cepiCorrectionConnect" class="btn secondary" type="button">Verificar e conectar</button></div>';
+    $('cepiCorrectionStart').closest('.actions').before(setup);
+    const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus');
+    install.href=window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl||'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
+    start.disabled=true;
+    const connectExtension=async()=>{
+      connect.disabled=true;
+      extensionStatus.textContent='Conectando à sua conta do Carômetro…';
+      const result=typeof window.connectCarometroCorrectionExtension==='function'
+        ? await window.connectCarometroCorrectionExtension().catch(()=>null) : null;
+      if(!start.isConnected||!ensureContext())return;
+      const compatible=window.CepiCorrection.supportsExtension(result?.extensionVersion);
+      const active=result?.ok===true&&result.license?.examAccess?.active===true;
+      start.disabled=!active||!compatible;
+      install.hidden=active&&compatible;
+      install.style.display=install.hidden?'none':'';
+      install.textContent=active&&!compatible?'Atualizar extensão':'Instalar extensão';
+      extensionStatus.textContent=active&&compatible
+        ? 'Extensão conectada. Escolha a turma e conecte o celular.'
+        : active ? 'Esta prova exige a extensão 0.28.34 ou mais recente. Atualize pela Chrome Web Store e recarregue o Carômetro.'
+          : 'Instale a extensão ou clique em “Verificar e conectar” após a instalação. A conta do Carômetro será usada sem digitar e-mail novamente.';
+      connect.disabled=false;
+    };
+    connect.onclick=connectExtension;
+    connectExtension();
     $('cepiCorrectionBack').onclick=()=>{if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}renderTests();};
     $('cepiCorrectionStart').onclick=async()=>{
       if(!ensureContext())return;

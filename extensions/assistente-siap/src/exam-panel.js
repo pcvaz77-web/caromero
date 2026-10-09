@@ -76,8 +76,10 @@
       <details><summary>Possíveis faltas — confirme somente quem realmente faltou</summary><p>Esta lista mostra apenas alunos sem prova identificada e sem acerto, presença ou falta já registrados nesta chamada. Marcar a caixa lança falta. Sem foto não significa falta.</p>${pendingStudents(rows).map(r => `<label class="cm-exam-absence"><input type="checkbox" data-exam-absent="${escape(r.id)}"> ${escape(r.name)}</label>`).join('') || '<p>Nenhum aluno sem prova e sem lançamento nesta chamada.</p>'}</details>
       <p data-exam-summary role="status"></p>
       <p data-exam-ready role="status"></p><p data-exam-message role="status">${escape(message)}</p>
-      ${state.queue && state.queue.phase !== 'done' ? `<p role="status">Lote ${state.queue.paused ? 'pausado' : 'em preenchimento'}: ${state.queue.index} de ${state.queue.entries.length} aluno(s) conferido(s). ${state.queue.paused ? 'Após o aviso do SIAP, confira os campos e clique em Enviar abaixo para reaplicar os resultados deste lote.' : ''}</p>${state.queue.paused ? '' : '<button class="cm-btn" type="button" data-exam="pauseBatch">Pausar preenchimento</button>'}<button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
-      <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button><button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
+      ${state.queue && state.queue.phase !== 'done' ? `<p role="status">Lote ${state.queue.paused ? 'pausado' : 'em preenchimento'}: ${state.queue.index} de ${state.queue.entries.length} aluno(s) conferido(s). ${state.queue.paused ? 'Após o aviso do SIAP, confira os campos e clique em Enviar abaixo para reaplicar os resultados deste lote.' : ''}</p>${state.queue.paused ? '<button class="cm-btn" type="button" data-exam="resume">Revisar e retomar lote pausado</button>' : '<button class="cm-btn" type="button" data-exam="pauseBatch">Pausar preenchimento</button>'}<button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
+      <button type="button" class="cm-btn cm-primary" data-exam="prepare">Enviar identificados para o SIAP</button>
+      ${appliedIds(snapshot.signature, Number(host.querySelector('[data-exam-call]')?.value || 1)).length ? '<button type="button" class="cm-btn" data-exam="resend">Reenviar resultados já conferidos para o SIAP</button>' : ''}
+      <button type="button" class="cm-btn" data-exam="whatsapp">Compartilhar resumo no WhatsApp</button>
       <p>Ao enviar, os resultados conferidos no Carômetro substituem acertos e presença/falta já marcados para estes alunos nesta chamada. Depois confira os campos e clique em Salvar no próprio SIAP.</p>` : ''}` : ''}`}</section>`;
     if(selecting && !state){const start=host.querySelector('[data-exam=start]');if(start){start.disabled=true;start.textContent='Abra a avaliação com os alunos para conectar';}}
     host.querySelectorAll('[data-exam]').forEach(button => button.onclick = () => action(() => operations[button.dataset.exam]()));
@@ -188,7 +190,7 @@
     pending.push(...(remote?.items||[]).filter(i=>i.kind==='student'&&!i.discarded&&i.status!=='ready').map(i=>i.id));
     return { ready: unique, pending, preserved };
   }
-  function readiness() {
+  function readiness(includeApplied = false) {
     if(connectionLost || blocked) return 'Conexão indisponível. Aguarde a reconexão antes de enviar.';
     if (!remote?.key || snapshot.mode !== 'entry') return '';
     if(state.appliedKeySignature && state.appliedKeySignature!==JSON.stringify(remote.key) && Object.values(state.applied||{}).some(ids=>ids.length)) return 'O gabarito mudou após um preenchimento. Confira e ajuste os campos já lançados manualmente antes de salvar.';
@@ -197,21 +199,29 @@
     const total = range.to-range.from+1;
     if (total !== snapshot.context.total) return `O gabarito tem ${total} questões, mas o SIAP tem ${snapshot.context.total}. Confira a avaliação e os intervalos.`;
     if (state.queue && state.queue.phase !== 'done') return state.queue.paused ? 'Lote pausado. Confira os acertos no SIAP e clique em Enviar para continuar.' : 'Lançamento em andamento. O botão Enviar continua disponível até o lote terminar.';
-    const batch = batchState();
+    const batch = batchState(includeApplied);
+    if (includeApplied && !batch.ready.some(i => appliedIds(snapshot.signature, Number(host.querySelector('[data-exam-call]')?.value || 1)).includes(i.studentId))) return 'Não há resultados já conferidos e sem duplicidade para reenviar nesta chamada.';
     if (!batch.ready.length && !host.querySelector('[data-exam-absent]:checked')) return batch.preserved.length ? `Há ${batch.preserved.length} aluno(s) já marcado(s) como presente na outra chamada. Esses resultados foram preservados.` : batch.pending.length ? 'Há somente exceções. Confira nomes e marcações duvidosas; os campos ficam para preenchimento manual.' : 'Aguardando provas dos alunos. Até agora há apenas o gabarito ou resultados já preenchidos.';
     return '';
   }
   function updateReadiness() {
-    const button=host?.querySelector('[data-exam=prepare]'), hint=host?.querySelector('[data-exam-ready]');
+    const button=host?.querySelector('[data-exam=prepare]'), resend=host?.querySelector('[data-exam=resend]'), hint=host?.querySelector('[data-exam-ready]');
     if(!button||!hint)return;
     const batch=batchState(), reason=readiness();
     const queue = state?.queue && state.queue.phase !== 'done' ? state.queue : null;
     button.disabled=queue ? connectionLost || blocked || snapshot.mode !== 'entry' || queue.signature !== snapshot.signature : !!reason;
+    if(resend) {
+      const already=new Set(appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)));
+      const count=batchState(true).ready.filter(item=>already.has(item.studentId)).length;
+      resend.textContent=`Reenviar ${count} resultado(s) já conferido(s) para o SIAP`;
+      resend.disabled=!!queue || !!readiness(true) || !count;
+    }
     button.textContent=queue ? queue.paused ? `Enviar novamente ${queue.entries.length} aluno(s) ao SIAP` : `Enviando ${queue.entries.length - queue.index} restante(s) ao SIAP` : `Enviar ${batch.ready.length} identificado(s) para o SIAP`;
     host.querySelector('[data-exam-summary]').textContent=`${batch.ready.length} prova(s) pronta(s) · ${batch.pending.length} pendência(s) · ${batch.preserved.length} preservada(s) de outra chamada · ${appliedIds(snapshot.signature,Number(host.querySelector('[data-exam-call]')?.value||1)).length} aluno(s) preenchido(s).`;
     hint.textContent=reason || (batch.pending.length ? 'Os identificados substituirão os valores já marcados nesta chamada. As exceções permanecem pendentes. Confira e salve no SIAP.' : batch.preserved.length ? 'Os resultados da outra chamada permanecerão intactos. Envie somente os alunos prontos desta chamada.' : 'Confira os resultados acima e envie em um clique. Eles substituirão os valores desta chamada.');
   }
   const operations = {
+    async resend() { await operations.prepare(true); },
     async finishBlock() {
       assertContext();
       if(!host.querySelector('[data-finish-block-confirm]')?.checked) throw new Error('Confirme que terminou o bloco em todas as turmas.');
@@ -290,7 +300,7 @@
       const summary=[`Correção de Provas — ${now.label} — ${now.context.subject}`, ...entries.map(e=>`${now.roster.find(r=>r.id===e.id)?.name}: ${e.correct}/${now.context.total}`), `${batch.pending.length} pendência(s); confira antes de compartilhar.`].join('\n');
       window.open('https://wa.me/?text='+encodeURIComponent(summary),'_blank','noopener,noreferrer');
     },
-    async prepare() {
+    async prepare(reapply = false) {
       if (state?.queue && state.queue.phase !== 'done') {
         if (state.queue.paused) await operations.resume();
         else message = 'O envio já está em andamento. Aguarde a conclusão do lote.';
@@ -298,8 +308,10 @@
       }
       const now = assertContext();
       if (now.mode !== 'entry') throw new Error('Abra a avaliação antes de preencher.');
-      const reason = readiness(); if (reason) throw new Error(reason);
-      const expected=revision(remote), batch = batchState(), items = batch.ready;
+      const reason = readiness(reapply); if (reason) throw new Error(reason);
+      const expected=revision(remote), batch = batchState(reapply);
+      const already=new Set(appliedIds(now.signature,Number(host.querySelector('[data-exam-call]').value)));
+      const items = reapply ? batch.ready.filter(item=>already.has(item.studentId)) : batch.ready;
       const expectedReviews=new Map((remote.items||[]).map(i=>[i.id,i.review||null]));
       const entries = Core.batch(remote.key, items, now.roster, now.context.subject, now.context.total);
       for (const el of host.querySelectorAll('[data-exam-absent]:checked')) {

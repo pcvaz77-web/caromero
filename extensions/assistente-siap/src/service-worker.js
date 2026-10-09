@@ -245,7 +245,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if (response.status === 401 && session.deviceToken) await chrome.storage.local.remove("carometroAiDeviceSession");
         if (response.ok) await renewLocalDeviceSession(session, data);
         if (!response.ok || data?.ok !== true) {
-          respond({ ok:false, code:data?.code || "AI_REQUEST_FAILED", license:data?.license || null, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : data?.code === "license_expired" ? "Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." : "Não foi possível gerar o texto com IA agora." });
+          respond({ ok:false, code:data?.code || "AI_REQUEST_FAILED", license:data?.license || null, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : data?.code === "license_expired" ? "Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." : data?.code === "guidance_not_followed" ? "O Assistente não conseguiu cumprir toda a orientação nesta tentativa. Nenhum campo foi preenchido nem houve consumo de uso. Você pode tentar gerar novamente sem alterar sua orientação." : "Não foi possível gerar o texto com IA agora." });
           return;
         }
         if (data?.license) await broadcastLicense(data.license);

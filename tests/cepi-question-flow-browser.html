@@ -12,12 +12,16 @@
   const imageExample=location.search.includes('image=1');
   const rows={school_members:[{role:'teacher',school_id:school,user_id:user,status:'active'}],cepi_tests:[{id:testId,school_id:school,title:'BLOCO 1 - PORTUGUÊS - FUNDAMENTAL - 3º BIM',kind:'bloco',status:'draft',answer_format:'ABCD',question_count:2,subject_plan:[{subject:'Língua Portuguesa',count:2}],subjects:['Língua Portuguesa'],class_ids:['44444444-4444-4444-8444-444444444444'],academic_year:2026,bimester:3,stage:'fundamental_ii',created_by:user}],cepi_test_questions:[],cepi_question_bank:[],cepi_exam_headers:[],cepi_groups:[],cepi_group_classes:[],cepi_group_students:[],observation_options:[],classes:[{id:'44444444-4444-4444-8444-444444444444',school_id:school,name:'6A'}],students:[]};
   if(imageExample)rows.cepi_test_questions.push({id:'55555555-5555-4555-8555-555555555555',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:`<!--cepi-rich-v1--><p>Leia o texto e observe a imagem.</p><img data-cepi-path="${school}/${user}/66666666-6666-4666-8666-666666666666.png" data-cepi-width="60" data-cepi-align="center"><p>A) Primeira resposta<br>B) Segunda resposta</p>`,alternatives:{},correct_answer:'B'});
+  window.CAROMETRO_RUNTIME_CONFIG={siapAssistantStoreUrl:'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc'};
+  window.connectCarometroCorrectionExtension=async()=>location.search.includes('connected=1')?{ok:true,extensionVersion:'0.28.35',license:{examAccess:{active:true}}}:null;
   window.getActiveSchoolId=()=>school;
   class Query {constructor(name){this.name=name;this.filters=[]}select(){return this}eq(key,value){this.filters.push([key,value]);return this}is(){return this}order(){return this}in(){return this}range(){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));return Promise.resolve({data,error:null})}maybeSingle(){return Promise.resolve({data:(rows[this.name]||[])[0]||null,error:null})}insert(value){this.newRow={id:crypto.randomUUID(),...value};return this}update(value){this.patch=value;return this}single(){if(this.patch&&location.search.includes('editError=1'))return Promise.resolve({data:null,error:{message:'Falha simulada ao salvar.'}});return new Promise(resolve=>this.then(result=>resolve({data:result.data[0]||null,error:null})))}then(resolve){if(this.newRow){rows[this.name].push(this.newRow);resolve({data:[this.newRow],error:null});return}const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));if(this.patch)for(const row of data)Object.assign(row,this.patch);resolve({data,error:null})}}
   window.db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async()=>({data:{enabled:true},error:null}),from:name=>new Query(name),storage:{from:()=>({upload:async()=>({error:null}),remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='},error:null})})}};
 </script>
 <script src="../cepi-blocks.js"></script>
 <script src="../cepi-rich-text.js"></script>
+<script src="../cepi-answer-sheets.js"></script>
+<script src="../cepi-correction.js"></script>
 <script src="../cepi-workspace.js"></script>
 <script>
   document.addEventListener('DOMContentLoaded',async()=>{
@@ -38,11 +42,20 @@
       document.title='Prévia local · Salvar edição de questão CEPI (dados fictícios)';
       rows.cepi_test_questions=[{id:'55555555-5555-4555-8555-555555555551',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:'<!--cepi-rich-v1--><p>Leia o texto e escolha a alternativa correta.</p><p>A) Casa<br>B) Escola<br>C) Floresta<br>D) Laboratório</p>',alternatives:{},correct_answer:'B'}];
     }
+    if(location.search.includes('correction=1')){
+      document.title='Prévia local · Instalação da correção CEPI (dados fictícios)';
+      rows.cepi_tests[0].status='applied';
+      rows.cepi_test_questions=[
+        {id:'55555555-5555-4555-8555-555555555551',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:'Questão de exemplo 1',alternatives:{A:'Sim',B:'Não'},correct_answer:'A'},
+        {id:'55555555-5555-4555-8555-555555555552',school_id:school,test_id:testId,number:2,subject:'Língua Portuguesa',statement:'Questão de exemplo 2',alternatives:{A:'Sim',B:'Não'},correct_answer:'B'}
+      ];
+    }
     document.querySelector('[data-cepi-workspace="provas"]').click();
-    if(location.search.includes('form=1') || location.search.includes('review=1') || location.search.includes('edit=1')){
+    if(location.search.includes('form=1') || location.search.includes('review=1') || location.search.includes('edit=1') || location.search.includes('correction=1')){
       const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
       for(let i=0;i<40 && document.getElementById('cepiWorkspaceNew').classList.contains('hidden');i++)await wait();
       if(location.search.includes('form=1'))document.getElementById('cepiWorkspaceNew').click();
+      else if(location.search.includes('correction=1'))document.querySelector('[data-action="correct-cards"]')?.click();
       else {
         document.querySelector('[data-action="questions"]')?.click();
         if(location.search.includes('edit=1'))document.querySelector('[data-action="edit-question"]')?.click();

@@ -32,38 +32,96 @@ test('painel lateral libera o SIAP ao minimizar e volta ao reabrir', () => {
       remove(name){ classes.delete(name); },
       contains(name){ return classes.has(name); }
     },
-    getBoundingClientRect:()=>({ width:342, left:context.innerWidth - 365 })
+    getBoundingClientRect:()=>({ width:423, left:context.innerWidth - 431 })
   };
-  const main = { style, scrollWidth:1014 };
+  const main = { style, scrollWidth:1014, get clientWidth(){ return Number.parseInt(values.get('width') || '1014', 10); } };
   const context = {
     panel, document:{ querySelector:()=>main },
-    Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
+    Core:{ pageType:()=>context.currentPage }, currentPage:'planning-lesson',
+    location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
     innerWidth:1366
   };
   vm.createContext(context);
   vm.runInContext(`let planningDockTarget = null, planningDockOriginal = null, planningDockNaturalWidth = 0, planningDockDetached = false; ${section}; applyPlanningDockLayout()`, context);
   assert.equal(classes.has('cm-planning-docked'), true);
-  assert.equal(values.get('width'), '1014px');
+  assert.equal(values.get('width'), '915px');
   assert.equal(values.get('margin-left'), '8px');
-  assert.ok(Number(values.get('zoom')) < 1, 'o SIAP deve manter uma folga antes do painel');
+  assert.equal(values.get('zoom'), '1', 'o texto do SIAP deve manter o tamanho original');
+  assert.equal(values.get('overflow-x'), 'auto', 'conteúdo largo permanece acessível por rolagem horizontal');
   panel.hidden = true;
   vm.runInContext('applyPlanningDockLayout()', context);
   assert.equal(classes.has('cm-planning-docked'), false);
   assert.equal(values.get('margin-left'), 'auto');
   assert.equal(values.has('width'), false);
   assert.equal(values.has('zoom'), false);
+  assert.equal(values.has('overflow-x'), false);
   panel.hidden = false;
   context.innerWidth = 1080;
+  context.currentPage = 'pei-edit';
+  vm.runInContext('applyPlanningDockLayout()', context);
+  assert.equal(classes.has('cm-planning-docked'), false, 'janela estreita mantém a disposição original');
+  context.innerWidth = 1280;
   vm.runInContext('applyPlanningDockLayout()', context);
   assert.equal(classes.has('cm-planning-docked'), true);
-  assert.ok(Number(values.get('zoom')) < 1, 'em tela menor, o SIAP deve caber ao lado');
+  assert.equal(values.get('zoom'), '1', 'o PEI mantém as letras legíveis');
+  assert.ok(Number.parseInt(values.get('width'), 10) <= panel.getBoundingClientRect().left - 20, 'o SIAP não pode ficar atrás do painel');
+  context.currentPage = 'content';
+  vm.runInContext('applyPlanningDockLayout()', context);
+  assert.equal(classes.has('cm-planning-docked'), true, 'Conteúdo usa a mesma disposição');
+  context.currentPage = 'unsupported';
+  vm.runInContext('applyPlanningDockLayout()', context);
+  assert.equal(classes.has('cm-planning-docked'), false);
 });
 
 test('conteudo repete salvamento com limite seguro', () => {
   assert.match(source, /const MAX_SAVE_ATTEMPTS = 5/);
   assert.match(source, /batch\[retryKey\] >= MAX_SAVE_ATTEMPTS/);
-  assert.match(source, /saveWaitStartedAt >= 20000/);
+  assert.match(source, /skipUnavailableContentDay\(batch, !save/);
   assert.match(source, /O lote foi pausado/);
+});
+
+test('conteudo sem salvar avanca para a proxima data e depois para o proximo mes', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function skipUnavailableContentDay('), source.indexOf('  function scheduleAttendanceResume('));
+  assert.ok(section.includes('function resumeContentBatch()'));
+  const opened = [];
+  const logs = [];
+  let batch = {
+    active:true, paused:false, phase:'save', months:[5, 6], monthIndex:0,
+    currentLabel:'15/06/2024', lessonValues:['1ª Aula'], lessonIndex:0,
+    saveWaitStartedAt:1000, completed:0, processedDays:[]
+  };
+  const monthSelect = { selectedIndex:5 };
+  const context = {
+    Date:{ now:()=>7000 }, model:{ license:{ active:true } },
+    Core:{ pageType:()=> 'content' }, location:{ pathname:'/Conteudo.aspx' },
+    IDS:{ month:'month', save:'save' },
+    document:{ getElementById:id=>id === 'month' ? monthSelect : null },
+    getContentBatch:()=>batch, setContentBatch:value=>{ batch=value; },
+    scheduleContentResume:()=>{}, addLog:message=>logs.push(message),
+    readCalendarDays:()=>{
+      const labels = monthSelect.selectedIndex === 5 ? ['15/06/2024', '16/06/2024'] : ['01/07/2024'];
+      return labels.map(label=>({ label, state:'pending', eligible:true, cell:{ click:()=>opened.push(label) } }));
+    }
+  };
+  vm.createContext(context);
+  vm.runInContext(`${section}\nthis.resumeContentBatch = resumeContentBatch;`, context);
+  context.resumeContentBatch();
+  assert.equal(batch.skipped, 1);
+  assert.equal(batch.phase, 'month');
+  assert.ok(batch.processedDays.includes('5|15/06/2024'));
+  assert.match(logs[0], /próxima data ou mês/);
+  context.resumeContentBatch();
+  assert.equal(batch.currentLabel, '16/06/2024');
+  assert.deepEqual(opened, ['16/06/2024']);
+  batch.phase = 'month';
+  batch.processedDays.push('5|16/06/2024');
+  context.resumeContentBatch();
+  assert.equal(batch.monthIndex, 1);
+  monthSelect.selectedIndex = 6;
+  context.resumeContentBatch();
+  assert.equal(batch.currentLabel, '01/07/2024');
+  assert.deepEqual(opened, ['16/06/2024', '01/07/2024']);
 });
 
 test('frequencia repete salvamento e pula data sem botao salvar', () => {
@@ -121,6 +179,106 @@ test('replicação revisada abre antes de salvar e salva apenas a origem se não
   assert.equal(saved, 0, 'a aula não pode ser salva antes de abrir a replicação');
   vm.runInContext('completeReplicationIfRequested()', context);
   assert.equal(saved, 1, 'sem turma compatível, salva somente a aula atual');
+});
+
+test('replicação na próxima aula confirma o modal do SIAP e não salva apenas a origem', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function savePlanning() {'), source.indexOf('  function generatePeiDraft() {'));
+  const data = new Map([['assistenteSiapConfirmReplicate', 'aula-atual'], ['assistenteSiapReplicationOpenedAt', String(Date.now())]]);
+  const events = [];
+  const confirm = { disabled:false, getClientRects:()=>[{}], click(){ events.push('confirmar'); } };
+  const confirmationDialog = { getClientRects:()=>[{}], contains:element=>element===confirm };
+  const hiddenClassList = { getClientRects:()=>[], querySelectorAll:()=>[] };
+  const batch = { active:true, phase:'replicating' };
+  const context = {
+    document:{
+      getElementById(id){ return ({
+        dialogConfirmacao:confirmationDialog,
+        divTurmasReplicacao:hiddenClassList,
+        cphFuncionalidade_cphCampos_ddlTipoReplicacao:{ value:'PROXIMA', disabled:false },
+        cphFuncionalidade_cphCampos_btnConfirmarReplicar:confirm,
+        cphFuncionalidade_btnAlterar:{ click(){ events.push('salvar'); } }
+      })[id] || null; },
+      querySelector:()=>null
+    },
+    sessionStorage:{ getItem:key=>data.get(key) || null, setItem:(key,value)=>data.set(key,value), removeItem:key=>data.delete(key) },
+    planningSignature:()=> 'aula-atual', getPlanningBatch:()=>batch, setPlanningBatch:()=>{}, addLog:message=>events.push(message),
+    setTimeout:()=>{ throw Error('não deve aguardar o modal já aberto'); }
+  };
+  vm.createContext(context);
+  vm.runInContext(section, context);
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(events.filter(event=>event==='confirmar').length, 1);
+  assert.ok(!events.includes('salvar'));
+  assert.equal(batch.phase, 'saving');
+  assert.equal(data.has('assistenteSiapConfirmReplicate'), false);
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(events.filter(event=>event==='confirmar').length, 1, 'não confirma duas vezes');
+});
+
+test('replicação para outras turmas ainda seleciona as compatíveis e confirma', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function savePlanning() {'), source.indexOf('  function generatePeiDraft() {'));
+  const data = new Map([['assistenteSiapConfirmReplicate', 'aula-atual'], ['assistenteSiapReplicationOpenedAt', String(Date.now())]]);
+  let confirmations = 0, changes = 0;
+  const available = { disabled:false, checked:false, dispatchEvent(){ changes++; } };
+  const blocked = { disabled:true, checked:false };
+  const confirm = { disabled:false, getClientRects:()=>[{}], click(){ confirmations++; } };
+  const context = {
+    document:{
+      getElementById(id){ return ({
+        dialogConfirmacao:{ getClientRects:()=>[{}], contains:element=>element===confirm },
+        divTurmasReplicacao:{ getClientRects:()=>[{}], querySelectorAll:()=>[available, blocked] },
+        cphFuncionalidade_cphCampos_ddlTipoReplicacao:{ value:'OUTRAS', disabled:false },
+        cphFuncionalidade_cphCampos_btnConfirmarReplicar:confirm
+      })[id] || null; },
+      querySelector:()=>null
+    },
+    Event:class { constructor(type){ this.type=type; } },
+    sessionStorage:{ getItem:key=>data.get(key) || null, setItem:(key,value)=>data.set(key,value), removeItem:key=>data.delete(key) },
+    planningSignature:()=> 'aula-atual', getPlanningBatch:()=>null, addLog:()=>{}, setTimeout:()=>{}
+  };
+  vm.createContext(context);
+  vm.runInContext(section, context);
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(available.checked, true);
+  assert.equal(blocked.checked, false);
+  assert.equal(changes, 1);
+  assert.equal(confirmations, 1);
+});
+
+test('replicação da próxima aula exige pedido pendente e opção reconhecida', () => {
+  const vm = require('node:vm');
+  const section = source.slice(source.indexOf('  function savePlanning() {'), source.indexOf('  function generatePeiDraft() {'));
+  let confirmations = 0;
+  const data = new Map();
+  const confirm = { disabled:false, getClientRects:()=>[{}], click(){ confirmations++; } };
+  const type = { value:'PROXIMA', disabled:false };
+  const context = {
+    document:{
+      getElementById(id){ return ({
+        dialogConfirmacao:{ getClientRects:()=>[{}], contains:element=>element===confirm },
+        divTurmasReplicacao:{ getClientRects:()=>[], querySelectorAll:()=>[] },
+        cphFuncionalidade_cphCampos_ddlTipoReplicacao:type,
+        cphFuncionalidade_cphCampos_btnConfirmarReplicar:confirm
+      })[id] || null; },
+      querySelector:()=>null
+    },
+    sessionStorage:{ getItem:key=>data.get(key) || null, setItem:(key,value)=>data.set(key,value), removeItem:key=>data.delete(key) },
+    planningSignature:()=> 'aula-atual', getPlanningBatch:()=>null, addLog:()=>{}, setTimeout:()=>{}
+  };
+  vm.createContext(context);
+  vm.runInContext(section, context);
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(confirmations, 0, 'sem pedido do professor, não confirma');
+  data.set('assistenteSiapConfirmReplicate', 'outra-aula');
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(confirmations, 0, 'pedido de outra aula não confirma');
+  data.set('assistenteSiapConfirmReplicate', 'aula-atual');
+  data.set('assistenteSiapReplicationOpenedAt', String(Date.now()));
+  type.value = 'DESCONHECIDA';
+  vm.runInContext('completeReplicationIfRequested()', context);
+  assert.equal(confirmations, 0, 'opção desconhecida não confirma');
 });
 
 test('PEI local usa textos desenvolvidos com aberturas diferentes', () => {

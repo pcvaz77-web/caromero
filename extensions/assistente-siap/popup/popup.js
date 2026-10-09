@@ -12,7 +12,9 @@ chrome.runtime.sendMessage({ type: "GET_TAB_STATUS" }).then((response) => {
   }
   const names = { exam: "Correção de Provas", diary: "Diário do Professor", content: "Conteúdo", attendance: "Frequência", grades: "Notas", remote: "Acesso Remoto", "pei-list": "PEI · Etapa 2", "pei-edit": "PEI · Edição", unsupported: "Página não reconhecida" };
   if (response.status.page === "exam") {
+    document.querySelector("header h1").textContent = "Carômetro";
     document.querySelector("header p").textContent = "Correção de Provas";
+    document.querySelector(".account-link").hidden = true;
     status.textContent = "Abra o painel para conectar o celular e corrigir as provas.";
   } else {
     status.textContent = `${names[response.status.page] || "SIAP"} · ${response.status.pending || 0} pendência(s) no mês visível.`;
