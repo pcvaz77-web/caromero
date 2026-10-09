@@ -51,6 +51,9 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.match(result.html,/B\) Escola/);
   assert.match(result.html,/\.logo-school\{width:26mm;height:26mm/);
   assert.match(result.html,/\.logo-state\{width:55mm;height:26mm/);
+  assert.match(result.html,/@page\{margin:18mm\}@media print\{body\{margin:0\}/);
+  assert.doesNotMatch(result.html,/\.question\{break-inside:avoid/);
+  assert.doesNotMatch(result.html,/\.brand-row\{[^}]*padding-right/);
   assert.ok(result.html.indexOf('base64,ESCOLA') < result.html.indexOf('base64,ESTADO'));
   assert.ok(result.html.indexOf('base64,ESTADO') < result.html.indexOf('Escola Exemplo'));
   assert.doesNotMatch(result.html,/RESPOSTA_SIGILOSA|Gabarito interno|correct_answer/);
