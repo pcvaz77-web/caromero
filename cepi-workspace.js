@@ -32,6 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `#cepiQuestionSaveStatus{margin:0;padding:10px 12px;border-radius:9px;background:#f3f7ff;color:#34466a;font-size:14px;font-weight:700}#cepiQuestionSaveStatus:empty{display:none}`;
   style.textContent += `.cepi-test-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:0 0 16px;padding:14px;border:1px solid #dce4f0;border-radius:12px;background:#f8faff}.cepi-test-filters label{display:grid;gap:5px;font-size:13px;font-weight:750;color:var(--navy)}.cepi-test-filters select{width:100%;min-height:40px;background:#fff}.cepi-test-step{margin:10px 0 13px;padding:10px 12px;border-radius:9px;background:#f3f7ff;color:#34466a;line-height:1.45}`;
   style.textContent += `.cepi-workspace-item.cepi-block-card{border-left:6px solid var(--cepi-block-color);padding-left:15px}.cepi-block-1{--cepi-block-strong:#4167d4;--cepi-block-soft:#94a9eb}.cepi-block-2{--cepi-block-strong:#087e83;--cepi-block-soft:#87c9c6}.cepi-block-3{--cepi-block-strong:#7148b9;--cepi-block-soft:#b59be0}.cepi-block-4{--cepi-block-strong:#a77513;--cepi-block-soft:#e3c27b}.cepi-block-5{--cepi-block-strong:#277c53;--cepi-block-soft:#94cbaa}.cepi-block-6{--cepi-block-strong:#365c8c;--cepi-block-soft:#8eaacb}.cepi-block-medio{--cepi-block-color:var(--cepi-block-strong)}.cepi-block-fundamental{--cepi-block-color:var(--cepi-block-soft)}`;
+  style.textContent += `#cepiGroupForm .cepi-group-heading{padding:18px 20px;border:1px solid #dbe5f6;border-radius:15px;background:linear-gradient(120deg,#f1f5ff,#fff)}#cepiGroupForm .cepi-group-heading h4{margin:0 0 5px;font-size:22px;color:var(--navy)}#cepiGroupForm .cepi-group-heading p{margin:0;color:#53627e}#cepiGroupForm fieldset{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiGroupForm legend{padding:0 5px;font-weight:800;color:var(--navy)}#cepiGroupForm fieldset>p{margin:3px 0 12px;color:#53627e;font-size:13px}#cepiGroupForm .cepi-group-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}#cepiGroupForm .cepi-group-options label{display:flex;align-items:center;gap:8px;min-height:42px;margin:0;padding:8px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;cursor:pointer}#cepiGroupForm .cepi-group-options label:has(input:checked),#cepiGroupForm .cepi-group-student:has(input:checked){border-color:#7299ef;background:#e7efff;box-shadow:inset 0 0 0 1px #7299ef;color:#173e87}#cepiGroupForm input[type=checkbox]{width:18px;min-height:18px;height:18px;margin:0;accent-color:var(--blue);flex:none}#cepiGroupForm .cepi-group-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;max-height:290px;overflow:auto}#cepiGroupForm .cepi-group-student{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border:1px solid #d8e1f1;border-radius:10px;background:#fff;cursor:pointer;font-size:13px}#cepiGroupForm .cepi-group-student[hidden]{display:none}#cepiGroupForm .cepi-group-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:#dce6ff;color:#315dbb;overflow:hidden;font-weight:800}#cepiGroupForm .cepi-group-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#cepiGroupForm .cepi-group-student small{display:block;color:#53627e;font-weight:500}#cepiGroupForm .cepi-group-student input:disabled{opacity:.6}#cepiGroupForm .cepi-group-count{display:block;margin-top:10px;color:#415273;font-size:13px;font-weight:700}#cepiGroupForm .actions{padding-top:12px;border-top:1px solid #e4eaf4}`;
   document.head.appendChild(style);
 
   let section = 'provas';
@@ -45,6 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let groups = [];
   let groupClasses = [];
   let groupStudents = [];
+  let groupTeachers = [];
+  let groupTeachersLoaded = false;
   let observationOptions = [];
   let classes = [];
   let students = [];
@@ -131,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchAll(()=>db.from('cepi_group_students').select('*').eq('school_id',requestedSchool).is('ended_at',null).order('id')),
       db.from('observation_options').select('label,is_pinned,is_top_priority').eq('school_id',requestedSchool),
       db.from('classes').select('id,name,archived_at').eq('school_id',requestedSchool).order('name'),
-      fetchAll(()=>db.from('students').select('id,full_name,class_id,enrollment_status,has_report').eq('school_id',requestedSchool).order('full_name').order('id'))
+      fetchAll(()=>db.from('students').select('id,full_name,class_id,enrollment_status,has_report,photo_path').eq('school_id',requestedSchool).order('full_name').order('id'))
     ]);
     const firstError = [roleResult,testResult,questionResult,bankResult,headerResult,groupResult,groupClassResult,groupStudentResult,observationResult,classResult,studentResult].find(result => result.error)?.error;
     if (firstError) throw firstError;
@@ -139,6 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
     schoolId = requestedSchool; access = nextAccess; userId = auth.user?.id; memberRole = roleResult.data?.role || '';
     tests = testResult.data || []; questions = questionResult.data || []; questionBank = bankResult.data || []; results = []; examHeader = headerResult.data || null; groups = groupResult.data || [];
     groupClasses = groupClassResult.data || []; groupStudents = groupStudentResult.data || [];
+    groupTeachers = []; groupTeachersLoaded = false;
     observationOptions = observationResult.data || [];
     classes = classResult.data || []; students = studentResult.data || [];
   }
@@ -672,13 +676,25 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiHeaderForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const form=event.currentTarget,data=new FormData(form);const readLogo=async(name,existing)=>{const file=form.elements[name].files?.[0];if(!file)return existing||null;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>300000)throw new Error('Use uma imagem PNG, JPG ou WebP de até 300 KB.');return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Não foi possível ler a imagem.'));reader.readAsDataURL(file);});};try{const payload={school_id:schoolId,state_name:String(data.get('state_name')).trim(),department_name:String(data.get('department_name')).trim(),school_name:String(data.get('school_name')).trim(),subtitle:String(data.get('subtitle')).trim(),state_logo_data:await readLogo('state_logo',h.state_logo_data),school_logo_data:await readLogo('school_logo',h.school_logo_data),updated_by:userId};const result=await db.from('cepi_exam_headers').upsert(payload,{onConflict:'school_id'});if(result.error)return fail(result.error);await load().then(()=>{returnToTests?renderTests():renderHeader();if(returnToTests)message('Cabeçalho salvo. Agora clique em Imprimir prova do aluno.');}).catch(fail);}catch(error){fail(error);}};
   }
 
+  async function loadClubTeachers() {
+    if(groupTeachersLoaded)return;
+    const requestedSchool=schoolId;
+    const {data,error}=await db.rpc('list_cepi_tutor_candidates',{p_school_id:requestedSchool});
+    if(error)throw error;
+    if(!ensureContext()||schoolId!==requestedSchool)throw new Error('A escola ativa mudou. Abra Meu CEPI novamente.');
+    groupTeachers=data||[];
+    groupTeachersLoaded=true;
+  }
+
   function renderGroups() {
+    if(section==='clube'&&manager()&&!groupTeachersLoaded){$('cepiWorkspaceContent').textContent='Carregando professores…';loadClubTeachers().then(renderGroups).catch(fail);return;}
     const subset = groups.filter(item=>item.kind===section);
-    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p><div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
+    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; const teacher=groupTeachers.find(item=>item.user_id===group.responsible_user_id); return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p>${section==='clube'&&manager()?`<p>Professor responsável: <strong>${esc(teacher?.full_name||(group.responsible_user_id?'Usuário indisponível':'Não definido'))}</strong></p>`:''}<div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
     bindActions({'members':id=>renderMembers(id),'edit-group':id=>groupForm(groups.find(g=>g.id===id))});
   }
   function groupForm(group=null) {
     if (!manager()) return;
+    if (section === 'clube') return clubForm(group);
     const value=group || {kind:section,academic_year:year,subjects:[],active:true};
     const selectedClasses=groupClasses.filter(item=>item.group_id===group?.id).map(item=>item.class_id);
     $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiGroupForm"><h4>${group?'Editar':'Cadastrar'} ${esc(groupLabel(section))}</h4><label>Título<input name="title" maxlength="200" required value="${esc(value.title||'')}"></label><div class="cepi-workspace-grid"><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" value="${value.academic_year}" required></label><label>Semestre<select name="semester"><option value="">Não informado</option><option value="1" ${value.semester===1?'selected':''}>1º</option><option value="2" ${value.semester===2?'selected':''}>2º</option></select></label><label>Vagas<input name="seats" type="number" min="1" max="999" value="${value.seats||''}"></label><label>Perfil<input name="profile" value="${esc(value.profile||'')}"></label></div><label>Turmas do público alvo<select name="classes" multiple size="${Math.min(6,Math.max(2,classes.length))}">${classes.map(item=>`<option value="${esc(item.id)}" ${selectedClasses.includes(item.id)?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label>${section==='clube'?`<div class="cepi-workspace-grid"><label>Líder<select name="leader_student_id"><option value="">Selecione</option>${students.filter(s=>s.enrollment_status==='active'||s.id===value.leader_student_id).map(s=>`<option value="${esc(s.id)}" ${value.leader_student_id===s.id?'selected':''}>${esc(s.full_name)} · ${esc(labelClass(s.class_id))}</option>`).join('')}</select></label><label>Co-líder<select name="coleader_student_id"><option value="">Selecione</option>${students.filter(s=>s.enrollment_status==='active'||s.id===value.coleader_student_id).map(s=>`<option value="${esc(s.id)}" ${value.coleader_student_id===s.id?'selected':''}>${esc(s.full_name)} · ${esc(labelClass(s.class_id))}</option>`).join('')}</select></label></div>`:''}<label>Componentes curriculares<input name="subjects" value="${esc((value.subjects||[]).join(', '))}"></label><label>Proposta<textarea name="proposal">${esc(value.proposal||'')}</textarea></label><label>Práticas<textarea name="practices">${esc(value.practices||'')}</textarea></label><label>Culminância<textarea name="culmination">${esc(value.culmination||'')}</textarea></label><label><input name="active" type="checkbox" ${value.active?'checked':''}> Ativo</label><div class="actions"><button class="btn secondary" id="cepiCancelForm" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div></form>`;
@@ -693,6 +709,82 @@ document.addEventListener('DOMContentLoaded', () => {
       if(result.error)return fail(result.error);
       const missing=targetClasses.filter(id=>!selectedClasses.includes(id));
       if(missing.length){const links=await db.from('cepi_group_classes').insert(missing.map(class_id=>({school_id:schoolId,group_id:result.data.id,class_id})));if(links.error){await load().catch(()=>{});message('O agrupamento foi salvo, mas as turmas não foram vinculadas. Reabra o cadastro e tente novamente. '+links.error.message);return;}}
+      await load().then(render).catch(fail);
+    };
+  }
+
+  async function clubForm(group=null) {
+    if(!manager()||!ensureContext())return;
+    $('cepiWorkspaceContent').textContent='Carregando professores e alunos…';
+    try{await loadClubTeachers();}catch(error){fail(error);return;}
+    if(section!=='clube'||!ensureContext())return;
+    const value=group||{academic_year:year,subjects:[],active:true};
+    const selectedClasses=groupClasses.filter(item=>item.group_id===group?.id).map(item=>item.class_id);
+    const existingMembers=groupStudents.filter(item=>item.group_id===group?.id).map(item=>item.student_id);
+    const availableStudents=students.filter(item=>item.enrollment_status==='active'&&classes.some(cls=>cls.id===item.class_id&&!cls.archived_at))
+      .sort((a,b)=>a.full_name.localeCompare(b.full_name,'pt-BR'));
+    const teacherOptions=groupTeachers.map(item=>`<option value="${esc(item.user_id)}" ${item.user_id===value.responsible_user_id?'selected':''}>${esc(item.full_name)}</option>`).join('');
+    const studentOptions=availableStudents.map(item=>`<label class="cepi-group-student" data-class="${esc(item.class_id)}" hidden><input type="checkbox" name="students" value="${esc(item.id)}" ${existingMembers.includes(item.id)?'checked disabled':''}><span class="cepi-group-avatar">${esc(item.full_name.trim().charAt(0).toUpperCase())}${item.photo_path?`<img data-photo-path="${esc(item.photo_path)}" alt="" hidden>`:''}</span><span>${esc(item.full_name)}<small>${esc(labelClass(item.class_id))}${existingMembers.includes(item.id)?' · Já participa':''}</small></span></label>`).join('');
+    $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiGroupForm"><div class="cepi-group-heading"><h4>${group?'Editar clube':'Cadastrar clube'}</h4><p>Escolha o responsável entre os usuários ativos desta escola, selecione as turmas e marque os estudantes participantes.</p></div><label>Título do clube<input name="title" maxlength="200" required value="${esc(value.title||'')}"></label><div class="cepi-workspace-grid"><label>Professor responsável<select name="responsible_user_id" required><option value="">Selecione um responsável</option>${teacherOptions}</select></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" value="${value.academic_year}" required></label><label>Semestre<select name="semester"><option value="">Não informado</option><option value="1" ${value.semester===1?'selected':''}>1º</option><option value="2" ${value.semester===2?'selected':''}>2º</option></select></label><label>Vagas<input name="seats" type="number" min="1" max="999" value="${value.seats||''}"></label></div><fieldset><legend>Turmas do público alvo</legend><p>Clique nas turmas desejadas. Você pode marcar várias.</p><div class="cepi-group-options">${classes.filter(item=>!item.archived_at).map(item=>`<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${selectedClasses.includes(item.id)?'checked':''}><span>${esc(item.name)}</span></label>`).join('')}</div><small id="cepiGroupClassCount" class="cepi-group-count"></small></fieldset><fieldset><legend>Estudantes do clube</legend><p>Escolha as turmas acima para ver os alunos cadastrados. A foto aparece quando o estudante a possui no Carômetro.</p><input id="cepiGroupStudentSearch" type="search" placeholder="Buscar estudante pelo nome" aria-label="Buscar estudante pelo nome"><div class="cepi-group-students" id="cepiGroupStudents">${studentOptions}</div><small id="cepiGroupStudentCount" class="cepi-group-count"></small></fieldset><div class="cepi-workspace-grid"><label>Líder<select name="leader_student_id"><option value="">Selecione</option></select></label><label>Co-líder<select name="coleader_student_id"><option value="">Selecione</option></select></label></div><label>Componentes curriculares<input name="subjects" value="${esc((value.subjects||[]).join(', '))}"></label><label>Proposta<textarea name="proposal">${esc(value.proposal||'')}</textarea></label><label>Práticas<textarea name="practices">${esc(value.practices||'')}</textarea></label><label>Culminância<textarea name="culmination">${esc(value.culmination||'')}</textarea></label><label><input name="active" type="checkbox" ${value.active?'checked':''}> Ativo</label><div class="actions"><button class="btn secondary" id="cepiCancelForm" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar clube</button></div></form>`;
+    const form=$('cepiGroupForm'),classChecks=[...form.querySelectorAll('input[name=classes]')],studentChecks=[...form.querySelectorAll('input[name=students]')];
+    const selectedClassIds=()=>classChecks.filter(input=>input.checked).map(input=>input.value);
+    const photoCache=new Map();
+    async function showPhotos(){
+      const pending=[...form.querySelectorAll('.cepi-group-student:not([hidden]) img[data-photo-path]')].filter(img=>!img.src&&!photoCache.has(img.dataset.photoPath));
+      const paths=[...new Set(pending.map(img=>img.dataset.photoPath))];
+      for(let index=0;index<paths.length;index+=100){
+        const {data}=await db.storage.from('student-photos').createSignedUrls(paths.slice(index,index+100),3600);
+        (data||[]).forEach(item=>{if(item?.signedUrl)photoCache.set(item.path,item.signedUrl);});
+      }
+      if(!form.isConnected||!ensureContext())return;
+      form.querySelectorAll('img[data-photo-path]').forEach(img=>{const url=photoCache.get(img.dataset.photoPath);if(url&&!img.src){img.src=url;img.hidden=false;img.onerror=()=>{img.hidden=true;};}});
+    }
+    const refresh=()=>{
+      const selected=selectedClassIds(),query=$('cepiGroupStudentSearch').value.trim().toLocaleLowerCase('pt-BR');
+      let visible=0;
+      studentChecks.forEach(input=>{
+        const card=input.closest('.cepi-group-student'),student=availableStudents.find(item=>item.id===input.value);
+        const inClass=selected.includes(student.class_id);
+        if(!inClass&&!input.disabled)input.checked=false;
+        card.hidden=!inClass||!!query&&!student.full_name.toLocaleLowerCase('pt-BR').includes(query);
+        if(!card.hidden)visible++;
+      });
+      $('cepiGroupClassCount').textContent=`${selected.length} turma(s) selecionada(s)`;
+      $('cepiGroupStudentCount').textContent=`${studentChecks.filter(input=>input.checked).length} participante(s) marcado(s) · ${visible} aluno(s) exibido(s)`;
+      for(const name of ['leader_student_id','coleader_student_id']){
+        const field=form.elements[name],previous=field.value||value[name]||'';
+        field.innerHTML='<option value="">Selecione</option>'+availableStudents.filter(item=>selected.includes(item.class_id)).map(item=>`<option value="${esc(item.id)}">${esc(item.full_name)} · ${esc(labelClass(item.class_id))}</option>`).join('');
+        field.value=previous;
+      }
+      void showPhotos();
+    };
+    classChecks.forEach(input=>input.onchange=refresh);
+    studentChecks.forEach(input=>input.onchange=refresh);
+    $('cepiGroupStudentSearch').oninput=refresh;
+    for(const name of ['leader_student_id','coleader_student_id'])form.elements[name].onchange=event=>{
+      const studentCheck=studentChecks.find(input=>input.value===event.target.value);
+      if(studentCheck&&!studentCheck.checked){studentCheck.checked=true;refresh();}
+    };
+    $('cepiCancelForm').onclick=render;
+    refresh();
+    form.onsubmit=async event=>{
+      event.preventDefault();if(!ensureContext()||!manager())return;
+      const data=new FormData(form),targetClasses=selectedClassIds();
+      if(!targetClasses.length){message('Selecione ao menos uma turma.');return;}
+      if(group&&selectedClasses.some(id=>!targetClasses.includes(id))){message('Para preservar o histórico, encerre os vínculos antes de retirar uma turma do público alvo.');return;}
+      const responsibleUserId=String(data.get('responsible_user_id')||'');
+      if(!groupTeachers.some(item=>item.user_id===responsibleUserId)){message('Selecione um usuário ativo desta escola.');return;}
+      const leaderId=String(data.get('leader_student_id')||''),coleaderId=String(data.get('coleader_student_id')||'');
+      if(leaderId&&leaderId===coleaderId){message('Líder e co-líder precisam ser estudantes diferentes.');return;}
+      const targetStudents=studentChecks.filter(input=>input.checked).map(input=>input.value);
+      if(Number(data.get('seats'))>0&&targetStudents.length>Number(data.get('seats'))){message('O número de participantes excede as vagas.');return;}
+      const payload={school_id:schoolId,kind:'clube',title:String(data.get('title')).trim(),academic_year:Number(data.get('academic_year')),semester:data.get('semester')?Number(data.get('semester')):null,seats:data.get('seats')?Number(data.get('seats')):null,profile:group?.profile||null,responsible_user_id:responsibleUserId,proposal:data.get('proposal')||null,practices:data.get('practices')||null,culmination:data.get('culmination')||null,subjects:String(data.get('subjects')||'').split(',').map(item=>item.trim()).filter(Boolean),leader_student_id:leaderId||null,coleader_student_id:coleaderId||null,active:data.has('active')};
+      const save=group?await db.from('cepi_groups').update(payload).eq('school_id',schoolId).eq('id',group.id).select('id').single():await db.from('cepi_groups').insert({...payload,created_by:userId}).select('id').single();
+      if(save.error)return fail(save.error);
+      const missingClasses=targetClasses.filter(id=>!selectedClasses.includes(id));
+      if(missingClasses.length){const links=await db.from('cepi_group_classes').insert(missingClasses.map(class_id=>({school_id:schoolId,group_id:save.data.id,class_id})));if(links.error){message('Clube salvo, mas não foi possível vincular as turmas: '+links.error.message);return;}}
+      const newStudents=targetStudents.filter(id=>!existingMembers.includes(id));
+      if(newStudents.length){const links=await db.from('cepi_group_students').insert(newStudents.map(student_id=>({school_id:schoolId,group_id:save.data.id,student_id})));if(links.error){message('Clube salvo, mas não foi possível vincular todos os alunos: '+links.error.message);return;}}
       await load().then(render).catch(fail);
     };
   }
