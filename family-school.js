@@ -265,7 +265,8 @@
         ${messages.map(m => `<p>${esc(m.message_title)}: ${m.acknowledged_at ? 'Ciência confirmada' : m.viewed_at ? 'Visualizada' : 'Aguardando leitura'}
           <button class="btn secondary" type="button" data-withdraw="${esc(m.message_id)}">Retirar publicação</button>
           </p>`).join('')}
-        ${row.link_status !== 'revoked' ? `<button class="btn secondary" type="button" data-revoke="${esc(row.link_id)}">Revogar acesso</button>` : ''}</article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
+        ${row.link_status !== 'revoked' ? `<button class="btn secondary" type="button" data-revoke="${esc(row.link_id)}">Revogar acesso</button>` : ''}
+        <button class="btn secondary" type="button" data-remove-guardian="${esc(row.link_id)}">Excluir responsável desta escola</button></article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
     }
     button.onclick = async () => {
       error('');
@@ -351,15 +352,25 @@
     get('familySchoolOverview').onclick = async event => {
       const revoke = event.target.closest('[data-revoke]');
       const withdraw = event.target.closest('[data-withdraw]');
-      if (!revoke && !withdraw) return;
-      if (!confirm(revoke ? 'Revogar agora o acesso deste responsável? O histórico de ciência será preservado.' : 'Retirar esta comunicação da área da família? O histórico de ciência será preservado.')) return;
-      const action = revoke || withdraw;
+      const remove = event.target.closest('[data-remove-guardian]');
+      if (!revoke && !withdraw && !remove) return;
+      const question = remove
+        ? 'Excluir este responsável desta escola? Todos os vínculos deste celular nesta escola serão revogados e ocultados. O histórico de ciência e o acesso a outras escolas serão preservados.'
+        : revoke
+          ? 'Revogar agora o acesso deste responsável? O histórico de ciência será preservado.'
+          : 'Retirar esta comunicação da área da família? O histórico de ciência será preservado.';
+      if (!confirm(question)) return;
+      const action = revoke || withdraw || remove;
       action.disabled = true; error('');
       try {
-        const { error: requestError } = revoke
-          ? await db.rpc('family_revoke_link', { p_school_id:currentSchool,p_link_id:revoke.dataset.revoke })
-          : await db.rpc('family_withdraw_message', { p_school_id:currentSchool,p_message_id:withdraw.dataset.withdraw });
+        const activeSchool = currentSchool;
+        const { error: requestError } = remove
+          ? await db.rpc('family_remove_school_guardian', { p_school_id:activeSchool,p_link_id:remove.dataset.removeGuardian })
+          : revoke
+            ? await db.rpc('family_revoke_link', { p_school_id:activeSchool,p_link_id:revoke.dataset.revoke })
+            : await db.rpc('family_withdraw_message', { p_school_id:activeSchool,p_message_id:withdraw.dataset.withdraw });
         if (requestError) throw requestError;
+        if (activeSchool !== currentSchool) throw new Error('A escola ativa mudou. Abra a tela novamente.');
         await loadOverview();
       } catch (caught) { error(caught.message || 'Não foi possível concluir.'); action.disabled = false; }
     };
