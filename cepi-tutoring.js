@@ -167,6 +167,28 @@ document.addEventListener('DOMContentLoaded', () => {
     @media(max-width:600px){#cepiFormModal{padding:6px}#cepiFormModal .cepi-form-dialog{height:calc(100dvh - 12px);max-height:calc(100dvh - 12px);border-radius:14px}#cepiFormModal .modal-head{padding:18px}#cepiFormModal .modal-head h3{font-size:21px}#cepiFormModal .cepi-form-body{padding:14px 14px 0}#cepiFormModal .cepi-form-section{padding:18px 16px}#cepiFormModal .actions{display:grid;grid-template-columns:1fr 1fr;padding:12px 14px}#cepiFormModal .actions .btn{width:100%;padding:10px 8px;font-size:13px}}
     @media(max-width:800px){.cepi-modal{padding:8px;align-items:start;overflow:auto}.cepi-dialog{max-height:calc(100dvh - 16px)}.cepi-home,.cepi-filters,.cepi-filter-grid,.cepi-competencies,.cepi-project-terms{grid-template-columns:1fr}.cepi-toolbar{align-items:stretch;flex-direction:column}.cepi-actions{display:grid;grid-template-columns:1fr 1fr}.cepi-summary{grid-template-columns:1fr}.cepi-student-row{grid-template-columns:76px 1fr}.cepi-student-photo{width:68px;height:68px;font-size:17px}.cepi-row-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr}.cepi-row-actions .btn{width:100%}.cepi-tutor-head{align-items:flex-start;flex-direction:column}.cepi-tutor-actions{width:100%;flex-wrap:wrap}.cepi-student-expanded{grid-template-columns:1fr}.cepi-history-body dl{grid-template-columns:1fr}.cepi-history-body dd{margin-bottom:8px}}
   `;
+  style.textContent += `
+    #cepiModal .cepi-dialog{border:1px solid #dce5fa;border-radius:22px;box-shadow:0 28px 80px #101b3b45;overflow:auto}
+    #cepiModal .cepi-dialog>.modal-head{position:relative;overflow:hidden;align-items:flex-start;padding:28px 32px 25px;border:0;background:linear-gradient(120deg,#172b52 0%,#3158c5 58%,#6840cf 100%);color:#fff}
+    #cepiModal .cepi-dialog>.modal-head::after{content:"";position:absolute;width:230px;height:230px;right:80px;top:-155px;border-radius:50%;background:#ffffff15;pointer-events:none}
+    #cepiModal .cepi-dialog>.modal-head h3{font-size:27px;letter-spacing:-.035em;line-height:1.1;margin:4px 0 7px}
+    #cepiModal .cepi-kicker{color:#cfddff;font-size:11px;letter-spacing:.16em}
+    #cepiModal .cepi-dialog>.modal-head .meta{color:#e5ebff;font-size:14px;line-height:1.45}
+    #cepiModal .cepi-dialog>.modal-head .close{z-index:1;width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#ffffff20;color:#fff;line-height:1;transition:background .18s ease,transform .18s ease}
+    #cepiModal .cepi-dialog>.modal-head .close:hover{background:#ffffff35;transform:rotate(90deg)}
+    #cepiModal .cepi-home{min-height:280px;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding:24px 28px 30px;background:#f5f7fd}
+    #cepiModal .cepi-feature-card{min-width:0;min-height:112px;grid-template-columns:54px minmax(0,1fr) 34px;gap:15px;padding:18px 19px;border:1px solid #ffffff3d;border-radius:17px;background:linear-gradient(125deg,#356ae6,#4c51d8);color:#fff;box-shadow:0 10px 23px #3158c526;transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+    #cepiModal .cepi-feature-card:nth-child(3n+2){background:linear-gradient(125deg,#5746ce,#7d39d3);box-shadow:0 10px 23px #643dcc26}
+    #cepiModal .cepi-feature-card:nth-child(3n){background:linear-gradient(125deg,#234783,#3866be);box-shadow:0 10px 23px #23478330}
+    #cepiModal .cepi-feature-card:hover{border-color:#ffffff9c;transform:translateY(-3px);filter:brightness(1.06);box-shadow:0 16px 30px #233a8738}
+    #cepiModal .cepi-feature-card:focus-visible,#cepiModal .cepi-dialog>.modal-head .close:focus-visible{outline:3px solid #ffdc79;outline-offset:3px}
+    #cepiModal .cepi-feature-card b{font-size:17px;line-height:1.25}
+    #cepiModal .cepi-feature-card small{color:#eef2ff;font-size:13px;line-height:1.35;margin-top:5px}
+    #cepiModal .cepi-feature-icon{width:52px;height:52px;border-radius:15px;background:#ffffff24;color:#fff;font-size:26px}
+    #cepiModal .cepi-feature-card>strong{width:30px;height:30px;display:grid;place-items:center;border-radius:50%;background:#ffffff24;font-size:18px;font-weight:600}
+    @media(max-width:800px){#cepiModal .cepi-home{grid-template-columns:1fr;padding:16px;gap:10px}#cepiModal .cepi-dialog>.modal-head{padding:24px 22px}#cepiModal .cepi-feature-card{min-height:98px;padding:15px}}
+    @media(prefers-reduced-motion:reduce){#cepiModal .cepi-feature-card,#cepiModal .cepi-dialog>.modal-head .close{transition:none}}
+  `;
   document.head.appendChild(style);
 
   const closeModal = id => document.getElementById(id)?.classList.add('hidden');
