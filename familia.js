@@ -10,6 +10,103 @@
     let links = [];
     let selectedLink = null;
     let previewedPhone = null;
+    let installPrompt = null;
+    let installedThisSession = false;
+    let familyUserId = null;
+    let sessionGeneration = 0;
+    let claimInFlight = Promise.resolve();
+    const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+    const isAppleMobile = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+    const supportsPush = () => window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const pushStatus = message => { get('familyPushStatus').textContent = message; };
+    const installHelp = message => { for (const id of ['installFamilyHelp','installFamilyAccessHelp']) { get(id).textContent = message; get(id).classList.toggle('hidden', !message); } };
+    const vapidKey = () => {
+      const value = config.vapidPublicKey || '';
+      const padded = (value + '='.repeat((4 - value.length % 4) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+      return Uint8Array.from(atob(padded), char => char.charCodeAt(0));
+    };
+    function syncInstall() {
+      const installed = installedThisSession || isStandalone();
+      get('installFamily').classList.toggle('hidden', installed);
+      get('installFamilyAccessBox').classList.toggle('hidden', installed || !!token);
+      if (installed) installHelp('O Portal da Família já está instalado neste aparelho.');
+    }
+    window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; syncInstall(); });
+    window.addEventListener('appinstalled', () => { installPrompt = null; installedThisSession = true; syncInstall(); installHelp('Portal instalado. Agora toque em “Ativar notificações neste aparelho” se quiser receber avisos da escola.'); });
+    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', syncInstall);
+    get('installFamily').onclick = async () => {
+      if (installPrompt) {
+        const prompt = installPrompt; installPrompt = null;
+        try {
+          await prompt.prompt();
+          const choice = await prompt.userChoice;
+          if (choice?.outcome === 'accepted') return installHelp('Instalação aceita. Abra o Portal pelo ícone na tela inicial e ative as notificações, se desejar.');
+        } catch { /* Exibe o caminho manual abaixo. */ }
+        if (isStandalone()) return syncInstall();
+      }
+      installHelp(isAppleMobile()
+        ? 'No iPhone ou iPad, abra esta página no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”. Depois abra o Portal pelo novo ícone.'
+        : 'No menu do navegador (⋮ ou ⋯), escolha “Instalar aplicativo” ou “Adicionar à tela inicial”. Se a opção não aparecer, abra esta página no Chrome ou Edge.');
+    };
+    get('installFamilyAccess').onclick = () => get('installFamily').onclick();
+    async function syncPushStatus() {
+      const userId = familyUserId;
+      if (!userId) return;
+      if (isAppleMobile() && !isStandalone()) return pushStatus('No iPhone ou iPad, primeiro adicione o Portal à Tela de Início e abra-o pelo ícone. Depois ative as notificações aqui.');
+      if (!supportsPush()) return pushStatus('Este navegador não permite notificações neste aparelho. As comunicações continuam disponíveis aqui no Portal.');
+      if (Notification.permission === 'denied') return pushStatus('As notificações estão bloqueadas. Abra as configurações deste site no aparelho para permitir e tente novamente.');
+      if (Notification.permission !== 'granted') return pushStatus('Toque no botão e escolha “Permitir” quando o aparelho perguntar. Você pode mudar essa escolha nas configurações.');
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription || familyUserId !== userId) return pushStatus('A permissão está concedida. Toque em “Ativar notificações neste aparelho” para concluir.');
+        const { data, error: queryError } = await db.from('push_subscriptions').select('id').eq('user_id', userId).eq('endpoint', subscription.endpoint).eq('enabled', true).maybeSingle();
+        if (familyUserId !== userId) return;
+        pushStatus(!queryError && data ? 'Notificações ativadas neste aparelho para sua conta.' : 'A permissão está concedida. Toque em “Ativar notificações neste aparelho” para concluir.');
+      } catch { pushStatus('Não foi possível verificar este aparelho. Toque em “Ativar notificações” para tentar novamente.'); }
+    }
+    get('enableFamilyPush').onclick = async event => {
+      const button = event.currentTarget;
+      const userId = familyUserId;
+      const generation = sessionGeneration;
+      if (!userId) return;
+      if (isAppleMobile() && !isStandalone()) return syncPushStatus();
+      if (!supportsPush()) return syncPushStatus();
+      if (Notification.permission === 'denied') return syncPushStatus();
+      if (!config.vapidPublicKey || config.vapidPublicKey.startsWith('__')) return pushStatus('As notificações ainda não estão configuradas. Consulte a escola.');
+      // O pedido nativo precisa ocorrer diretamente após o toque do responsável.
+      const permissionRequest = Notification.permission === 'granted' ? Promise.resolve('granted') : Notification.requestPermission();
+      button.disabled = true;
+      pushStatus('Aguardando a escolha de permissão do aparelho…');
+      try {
+        if (await permissionRequest !== 'granted') return pushStatus('Você não autorizou notificações. Pode ativá-las depois; as comunicações continuam no Portal.');
+        if (familyUserId !== userId || sessionGeneration !== generation) return;
+        const registration = await navigator.serviceWorker.register('./sw.js', { scope:'./' });
+        const ready = registration.active ? registration : await navigator.serviceWorker.ready;
+        if (familyUserId !== userId || sessionGeneration !== generation) return;
+        let subscription = await ready.pushManager.getSubscription();
+        subscription ||= await ready.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:vapidKey() });
+        if (familyUserId !== userId || sessionGeneration !== generation) return;
+        const details = subscription.toJSON();
+        const claim = db.rpc('claim_push_subscription', { p_endpoint:details.endpoint, p_p256dh:details.keys?.p256dh, p_auth_key:details.keys?.auth, p_user_agent:navigator.userAgent });
+        claimInFlight = claim.then(() => {}, () => {});
+        const { error: claimError } = await claim;
+        if (claimError) throw claimError;
+        if (familyUserId === userId && sessionGeneration === generation) pushStatus('Pronto. Este aparelho receberá avisos das comunicações publicadas pela escola para seus filhos autorizados.');
+      } catch { if (familyUserId === userId && sessionGeneration === generation) pushStatus('Não foi possível ativar as notificações agora. Tente novamente; as comunicações continuam no Portal.'); }
+      finally { button.disabled = false; }
+    };
+    async function unlinkPushOnSignOut(userId) {
+      if (!userId || !supportsPush()) return;
+      try {
+        const registration = await navigator.serviceWorker.ready;
+        const subscription = await registration.pushManager.getSubscription();
+        if (!subscription) return;
+        const { error: removeError } = await db.from('push_subscriptions').delete().eq('user_id', userId).eq('endpoint', subscription.endpoint);
+        if (!removeError) await subscription.unsubscribe();
+      } catch { /* A sessão será encerrada mesmo se o aparelho estiver offline. */ }
+    }
+    syncInstall();
     const error = (id, message) => { const box = get(id); box.textContent = message; box.classList.toggle('hidden', !message); };
     const phone = value => { const clean = value.replace(/[\s()\-]/g, ''); if (!/^\+[1-9][0-9]{7,14}$/.test(clean)) throw new Error('Use o celular com DDI, por exemplo +5562999999999.'); return clean; };
     const familyEmail = value => `familia-${phone(value).slice(1)}@sistemacarometro.com.br`;
@@ -20,8 +117,11 @@
       const { data, error: listError } = await db.rpc('family_my_students');
       if (listError) throw listError;
       links = data || [];
+      familyUserId = userData.user.id;
+      sessionGeneration++;
       get('access').classList.add('hidden');
       get('portal').classList.remove('hidden');
+      void syncPushStatus();
       error('portalError','');
       get('students').innerHTML = links.length ? links.map(link => `<button class="student-card" type="button" data-link="${link.link_id}"><strong>${esc(link.student_name)}</strong><small>${esc(link.school_name)} · ${esc(link.class_name)}</small></button>`).join('') : '<div class="empty">Nenhum estudante autorizado para este celular. Consulte a escola caso tenha recebido um convite.</div>';
       if (selectedLink && links.some(link => link.link_id === selectedLink)) await openTimeline(selectedLink);
@@ -76,7 +176,7 @@
       article.querySelector('small').textContent = 'Ciência confirmada';
       button.remove();
     };
-    get('signOut').onclick = async () => { await db.auth.signOut(); selectedLink = null; links = []; get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
+    get('signOut').onclick = async () => { const leavingUser = familyUserId; familyUserId = null; sessionGeneration++; await claimInFlight; await unlinkPushOnSignOut(leavingUser); await db.auth.signOut(); selectedLink = null; links = []; get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
     get('passwordForm').onsubmit = event => {
       event.preventDefault(); error('accessError','');
       busy(event.submitter, async () => {
