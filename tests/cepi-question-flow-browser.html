@@ -51,11 +51,42 @@
       ];
     }
     document.querySelector('[data-cepi-workspace="provas"]').click();
-    if(location.search.includes('form=1') || location.search.includes('review=1') || location.search.includes('edit=1') || location.search.includes('correction=1')){
+    if(location.search.includes('form=1') || location.search.includes('review=1') || location.search.includes('edit=1') || location.search.includes('correction=1') || location.search.includes('teacherWorkflow=1')){
       const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
       for(let i=0;i<40 && document.getElementById('cepiWorkspaceNew').classList.contains('hidden');i++)await wait();
       if(location.search.includes('form=1'))document.getElementById('cepiWorkspaceNew').click();
       else if(location.search.includes('correction=1'))document.querySelector('[data-action="correct-cards"]')?.click();
+      else if(location.search.includes('workflow=1')){
+        const waitFor=async predicate=>{for(let i=0;i<80&&!predicate();i++)await wait();return predicate();};
+        const checks=[];
+        checks.push(!!document.querySelector('[data-action="mark-ready"]'));
+        checks.push(!document.querySelector('[data-action="print-cards"]'));
+        document.querySelector('[data-action="mark-ready"]')?.click();
+        await waitFor(()=>rows.cepi_tests[0].status==='ready'&&!!document.querySelector('[data-action="print-cards"]'));
+        checks.push(rows.cepi_tests[0].status==='ready');
+        checks.push(!!document.querySelector('[data-action="print-key"]'));
+        const statusFilter=document.querySelector('[data-test-filter="status"]');
+        statusFilter.value='draft';statusFilter.dispatchEvent(new Event('change'));
+        checks.push(!document.querySelector('[data-action="print-cards"]'));
+        const readyFilter=document.querySelector('[data-test-filter="status"]');
+        readyFilter.value='ready';readyFilter.dispatchEvent(new Event('change'));
+        checks.push(!!document.querySelector('[data-action="print-cards"]'));
+        window.confirm=()=>true;
+        document.querySelector('[data-action="mark-applied"]')?.click();
+        checks.push(await waitFor(()=>rows.cepi_tests[0].status==='applied'&&!!document.querySelector('[data-action="correct-cards"]')));
+        document.querySelector('[data-cepi-workspace="correcao"]').click();
+        await waitFor(()=>!!document.getElementById('cepiHubInstall'));
+        checks.push(!!document.getElementById('cepiHubInstall')?.href.includes('chromewebstore.google.com'));
+        checks.push(!!document.querySelector('[data-action="correct-cards"]'));
+        document.body.dataset.workflowResult=checks.every(Boolean)?'PASS':'FAIL '+checks.join(',');
+      }
+      else if(location.search.includes('teacherWorkflow=1')){
+        const checks=[!document.querySelector('[data-action="mark-ready"]'),!document.querySelector('[data-action="print-cards"]'),!document.querySelector('[data-action="print-key"]')];
+        document.querySelector('[data-cepi-workspace="correcao"]').click();
+        for(let i=0;i<40&&!document.getElementById('cepiHubInstall');i++)await wait();
+        checks.push(!!document.getElementById('cepiHubInstall'));
+        document.body.dataset.workflowResult=checks.every(Boolean)?'PASS':'FAIL '+checks.join(',');
+      }
       else {
         document.querySelector('[data-action="questions"]')?.click();
         if(location.search.includes('edit=1'))document.querySelector('[data-action="edit-question"]')?.click();
