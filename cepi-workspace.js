@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiWorkspaceNew').classList.toggle('hidden',!editor());
     const visible=tests.filter(test=>(!testFilters.year||String(test.academic_year)===testFilters.year)&&(!testFilters.bimester||String(test.bimester)===testFilters.bimester)&&(!testFilters.stage||test.stage===testFilters.stage)&&(!testFilters.block||String(test.block_number)===testFilters.block)&&(!testFilters.status||test.status===testFilters.status));
     const years=[...new Set(tests.map(test=>test.academic_year))].sort((a,b)=>b-a).map(value=>[value,String(value)]);
-    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-test-filters" aria-label="Filtrar provas"><label>Ano letivo<select data-test-filter="year">${filterOptions(years,testFilters.year,'Todos')}</select></label><label>Bimestre<select data-test-filter="bimester">${filterOptions([1,2,3,4].map(value=>[value,`${value}º bimestre`]),testFilters.bimester,'Todos')}</select></label><label>Etapa<select data-test-filter="stage">${filterOptions([['fundamental_ii','Ensino Fundamental Anos Finais'],['medio','Ensino Médio']],testFilters.stage,'Todas')}</select></label><label>Bloco<select data-test-filter="block">${filterOptions([1,2,3,4,5,6].map(value=>[value,`Bloco ${value}`]),testFilters.block,'Todos')}</select></label><label>Situação<select data-test-filter="status">${filterOptions(Object.entries(statusLabel),testFilters.status,'Todas')}</select></label></div><p class="cepi-workspace-hint">As turmas vinculadas são escolhidas no cadastro da prova. Na correção, aparecem somente essas turmas e os alunos ativos da turma selecionada.</p><div class="cepi-workspace-list">${visible.map(test => `<article class="cepi-workspace-item${blockCardClass(test)}"><h4>${esc(test.title)}</h4><p>${esc(kinds[test.kind] || test.kind)}${test.block_number?` · Bloco ${test.block_number}`:''} · ${test.bimester}º bimestre de ${test.academic_year} · ${esc(test.stage === 'medio' ? 'Ensino Médio' : 'Ensino Fundamental Anos Finais')} · ${testQuestions(test).length}/${test.question_count} questões · <strong>${esc(statusLabel[test.status]||test.status)}</strong></p><p class="cepi-test-step">${esc(nextStep(test))}</p><div class="cepi-workspace-actions">${actionButton(manager()?'Conferir e editar questões':'Ver e editar questões','questions',test.id)}${statusActions(test)}${manager()?actionButton('Imprimir prova do aluno','print',test.id):''}${manager()&&test.status!=='draft'?actionButton('Imprimir cartões-resposta','print-cards',test.id)+actionButton('Gabarito oficial','print-key',test.id):''}${test.status==='applied'&&editor()?actionButton('Corrigir cartões pelo celular','correct-cards',test.id)+actionButton('Registrar respostas manualmente','record-result',test.id):''}${canEditTest(test) ? actionButton('Editar dados da prova','edit-test',test.id) : ''}</div></article>`).join('') || '<div class="cepi-empty">Nenhuma prova encontrada para estes filtros.</div>'}</div>`;
+    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-test-filters" aria-label="Filtrar provas"><label>Ano letivo<select data-test-filter="year">${filterOptions(years,testFilters.year,'Todos')}</select></label><label>Bimestre<select data-test-filter="bimester">${filterOptions([1,2,3,4].map(value=>[value,`${value}º bimestre`]),testFilters.bimester,'Todos')}</select></label><label>Etapa<select data-test-filter="stage">${filterOptions([['fundamental_ii','Ensino Fundamental Anos Finais'],['medio','Ensino Médio']],testFilters.stage,'Todas')}</select></label><label>Bloco<select data-test-filter="block">${filterOptions([1,2,3,4,5,6].map(value=>[value,`Bloco ${value}`]),testFilters.block,'Todos')}</select></label><label>Situação<select data-test-filter="status">${filterOptions(Object.entries(statusLabel),testFilters.status,'Todas')}</select></label></div><p class="cepi-workspace-hint">As turmas vinculadas são escolhidas no cadastro da prova. Na correção, aparecem somente essas turmas e os alunos ativos da turma selecionada.</p><div class="cepi-workspace-list">${visible.map(test => `<article class="cepi-workspace-item${blockCardClass(test)}"><h4>${esc(test.title)}</h4><p>${esc(kinds[test.kind] || test.kind)}${test.block_number?` · Bloco ${test.block_number}`:''} · ${test.bimester}º bimestre de ${test.academic_year} · ${esc(test.stage === 'medio' ? 'Ensino Médio' : 'Ensino Fundamental Anos Finais')} · ${testQuestions(test).length}/${test.question_count} questões · <strong>${esc(statusLabel[test.status]||test.status)}</strong></p><p>Turmas: ${esc(test.class_ids?.map(id=>{const cls=classes.find(item=>item.id===id);return cls?`${cls.name}${cls.archived_at?' (arquivada)':''}`:'Turma não encontrada';}).join(', ')||'Nenhuma')}</p><p class="cepi-test-step">${esc(nextStep(test))}</p><div class="cepi-workspace-actions">${actionButton(manager()?'Conferir e editar questões':'Ver e editar questões','questions',test.id)}${statusActions(test)}${manager()?actionButton('Imprimir prova do aluno','print',test.id):''}${manager()&&test.status!=='draft'?actionButton('Imprimir cartões-resposta','print-cards',test.id)+actionButton('Gabarito oficial','print-key',test.id):''}${test.status==='applied'&&editor()?actionButton('Corrigir cartões pelo celular','correct-cards',test.id)+actionButton('Registrar respostas manualmente','record-result',test.id):''}${canEditTest(test) ? actionButton('Editar dados da prova','edit-test',test.id) : ''}</div></article>`).join('') || '<div class="cepi-empty">Nenhuma prova encontrada para estes filtros.</div>'}</div>`;
     $('cepiWorkspaceContent').querySelectorAll('[data-test-filter]').forEach(select=>select.onchange=()=>{testFilters[select.dataset.testFilter]=select.value;renderTests();});
     bindActions({'questions':id => renderQuestions(id),'mark-ready':id=>advanceTest(id,'ready'),'mark-applied':id=>advanceTest(id,'applied'),'print':id => printTest(id),'print-cards':id=>answerSheetForm(id),'print-key':id=>printAnswerSheet(id,true),'correct-cards':id=>correctionForm(id),'record-result':id=>resultForm(tests.find(t=>t.id===id)),'edit-test':id => testForm(tests.find(t => t.id === id))});
   }
@@ -345,13 +345,44 @@ document.addEventListener('DOMContentLoaded', () => {
     catch(error){message(error.message);return;}
     const expired=expireCorrectionSession();
     const relevant=classes.filter(item=>test.class_ids?.includes(item.id));
-    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Escolha a turma, leia o QR Code da tela com o celular e selecione cada aluno antes da foto. Confira as marcações no celular. O gabarito oficial já vem das questões salvas.</p><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart">Conectar celular por QR Code</button></div><div id="cepiCorrectionLive" role="status"></div></div>`;
+    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Escolha a turma, leia o QR Code da tela com o celular e selecione cada aluno antes da foto. Confira as marcações no celular. O gabarito oficial já vem das questões salvas.</p><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}${item.archived_at?' · turma arquivada':''}</option>`).join('')}</select></label><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart">Conectar celular por QR Code</button></div><p id="cepiCorrectionActionStatus" class="cepi-workspace-hint" role="alert" hidden></p><div id="cepiCorrectionRecovery"></div><div id="cepiCorrectionLive" role="status"></div></div>`;
     if(expired)$('cepiCorrectionLive').innerHTML='<div class="cepi-workspace-hint">A sessão de leitura expirou. Gere outro QR Code e leia os cartões novamente para lançar no SIAP. Os resultados já registrados no Carômetro continuam salvos.</div>';
     const setup=document.createElement('div');
     setup.className='cepi-workspace-hint';
     setup.innerHTML='<strong>Extensão de correção</strong><p id="cepiCorrectionExtensionStatus" role="status">Verificando a extensão neste navegador…</p><div class="cepi-workspace-actions"><a id="cepiCorrectionInstall" class="btn secondary" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button id="cepiCorrectionConnect" class="btn secondary" type="button">Verificar e conectar</button></div>';
     $('cepiCorrectionStart').closest('.actions').before(setup);
-    const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus');
+    const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus'), actionStatus=$('cepiCorrectionActionStatus'), recovery=$('cepiCorrectionRecovery');
+    const showActionStatus=value=>{actionStatus.textContent=value||'';actionStatus.hidden=!value;};
+    const emptyClassMessage=classId=>{
+      const selected=classes.find(item=>item.id===classId);
+      const current=classes.find(item=>item.id!==classId&&!item.archived_at&&item.name===selected?.name);
+      if(selected?.archived_at)return `Esta prova está vinculada à antiga turma ${selected.name}, que foi arquivada.${current?' Existe outra turma '+selected.name+' ativa no cadastro.':''} A coordenação precisa conferir o vínculo da prova antes da correção.`;
+      return `Não há alunos ativos na turma ${selected?.name||'selecionada'} vinculada a esta prova.${current?' Existe outra turma com o mesmo nome no cadastro.':''} Confira o vínculo da prova e o cadastro dos alunos.`;
+    };
+    $('cepiCorrectionClass').onchange=()=>{
+      const classId=$('cepiCorrectionClass').value;
+      const selected=classes.find(item=>item.id===classId);
+      showActionStatus(selected?.archived_at?emptyClassMessage(classId):'');
+      recovery.replaceChildren();
+      const candidates=classes.filter(item=>!item.archived_at&&item.name===selected?.name&&item.id!==classId);
+      if(!manager()||!selected?.archived_at||candidates.length!==1)return;
+      const button=document.createElement('button');
+      button.type='button';button.className='btn secondary';button.textContent=`Copiar prova para a ${candidates[0].name} ativa`;
+      recovery.appendChild(button);
+      button.onclick=async()=>{
+        if(!ensureContext()){showActionStatus('A escola ativa mudou. Abra Meu CEPI novamente.');return;}
+        if(!window.confirm(`Criar uma cópia desta prova para a turma ${candidates[0].name} ativa? A prova aplicada antiga será preservada. Confira a cópia e marque-a como aplicada somente após a turma realizar a prova.`))return;
+        button.disabled=true;button.textContent='Copiando prova…';
+        let copied=false;
+        try{
+          const result=await db.rpc('copy_applied_cepi_test_to_active_class',{p_school_id:schoolId,p_test_id:id,p_old_class_id:classId,p_new_class_id:candidates[0].id});
+          if(result.error)throw result.error;
+          copied=true;
+          await load();testFilters.status='';renderTests();
+          message('Prova copiada para a turma ativa. Confira a cópia e marque-a como aplicada após a turma realizar a prova.');
+        }catch(error){showActionStatus(copied?'A prova foi copiada, mas a lista não atualizou. Reabra Meu CEPI antes de tentar novamente.':error.message||'Não foi possível copiar a prova.');button.disabled=copied;button.textContent=copied?'Prova copiada':`Copiar prova para a ${candidates[0].name} ativa`;}
+      };
+    };
     install.href=window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl||'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
     start.setAttribute('aria-describedby','cepiCorrectionExtensionStatus');
     let extensionReady=false,connectionTask=null;
@@ -397,19 +428,25 @@ document.addEventListener('DOMContentLoaded', () => {
     connectExtension();
     $('cepiCorrectionBack').onclick=()=>{if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}renderTests();};
     $('cepiCorrectionStart').onclick=async()=>{
-      if(!ensureContext())return;
+      if(!ensureContext()){showActionStatus('A escola ativa mudou ou o acesso ao Meu CEPI expirou. Feche esta janela e abra o Meu CEPI novamente.');return;}
       const classId=$('cepiCorrectionClass').value;
-      if(!classId){message('Selecione a turma antes de conectar.');return;}
-      if(!extensionReady && !await connectExtension()){message(extensionStatus.textContent);return;}
+      if(!classId){showActionStatus('Selecione a turma antes de conectar.');return;}
+      const selectedClass=classes.find(item=>item.id===classId);
+      if(selectedClass?.archived_at){showActionStatus(emptyClassMessage(classId));return;}
+      showActionStatus('');
+      if(!extensionReady && !await connectExtension()){showActionStatus(extensionStatus.textContent);return;}
       expireCorrectionSession();
-      if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){message('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
+      if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){showActionStatus('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
       if(correction){renderCorrectionLive(test,true);return;}
       const button=$('cepiCorrectionStart');button.disabled=true;button.textContent='Gerando QR Code…';
       let room=null;
       try{
         const prepared=window.CepiAnswerSheets.prepare(test,questions);
-        const roster=students.filter(student=>student.class_id===classId&&student.enrollment_status==='active').map(student=>({id:student.id,name:student.full_name}));
-        if(!roster.length)throw new Error('Esta turma não tem alunos ativos para corrigir.');
+        const currentStudents=await fetchAll(()=>db.from('students').select('id,school_id,full_name,class_id,enrollment_status,has_report,photo_path').eq('school_id',schoolId).eq('class_id',classId).eq('enrollment_status','active').order('full_name').order('id'));
+        if(currentStudents.error)throw currentStudents.error;
+        const roster=(currentStudents.data||[]).map(student=>({id:student.id,name:student.full_name}));
+        if(!roster.length)throw new Error(emptyClassMessage(classId));
+        students=students.filter(student=>student.class_id!==classId||student.enrollment_status!=='active').concat(currentStudents.data);
         const subjectMap=[...new Set(prepared.rows.map(row=>row.subject))].map(subject=>({subject,numbers:prepared.rows.filter(row=>row.subject===subject).map(row=>row.number)}));
         const created=await correctionApi('create',{context:`${test.title} · ${labelClass(classId)} · ${test.question_count} questões`,mobileWorkflow:true,cepiMeta:{schoolId,testId:id,schoolName:examHeader?.school_name||'',className:labelClass(classId),academicYear:test.academic_year,bimester:test.bimester,stage:test.stage,blockNumber:test.block_number,subjectMap}});
         room=created;
@@ -418,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await correctionApi('roster',{roster,binding:`${schoolId}:${id}:${classId}`},session);
         correction=session;
         renderCorrectionLive(test,true);
-      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});button.textContent='Conectar celular por QR Code';message(error.message);}
+      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});button.textContent='Conectar celular por QR Code';showActionStatus(error.message||'Não foi possível gerar o QR Code.');}
       finally{button.disabled=false;}
     };
     if(correction?.schoolId===schoolId&&correction.testId===id){$('cepiCorrectionClass').value=correction.classId;renderCorrectionLive(test,true);}
