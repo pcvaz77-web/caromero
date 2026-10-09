@@ -13,10 +13,11 @@ document.addEventListener('DOMContentLoaded', () => {
     ['eletiva','✦','Eletivas','Propostas, turmas, vagas e participantes.'],
     ['clube','♧','Clubes','Clubes, líderes e estudantes participantes.'],
     ['oficina','◈','Oficinas','Oficinas e seus participantes.'],
+    ['listas','▦','Imprimir listas','Alunos por turma com eletiva, clube e tutor.'],
     ['lideres','★','Líderes','Etiqueta aplicada ao cadastro dos alunos.']
   ];
   home.insertAdjacentHTML('beforeend', cards.map(([key,icon,title,description]) =>
-    `<button class="cepi-feature-card" type="button" data-cepi-workspace="${key}"><span class="cepi-feature-icon" aria-hidden="true">${icon}</span><span><b>${title}</b><small>${description}</small></span><strong aria-hidden="true">→</strong></button>`).join(''));
+    `<button class="cepi-feature-card${key==='listas'?' hidden':''}" ${key==='listas'?'id="cepiPrintListsCard"':''} type="button" data-cepi-workspace="${key}"><span class="cepi-feature-icon" aria-hidden="true">${icon}</span><span><b>${title}</b><small>${description}</small></span><strong aria-hidden="true">→</strong></button>`).join(''));
 
   const workspace = document.createElement('div');
   workspace.id = 'cepiWorkspace';
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `.cepi-workspace-item.cepi-block-card{border-left:6px solid var(--cepi-block-color);padding-left:15px}.cepi-block-1{--cepi-block-strong:#4167d4;--cepi-block-soft:#94a9eb}.cepi-block-2{--cepi-block-strong:#087e83;--cepi-block-soft:#87c9c6}.cepi-block-3{--cepi-block-strong:#7148b9;--cepi-block-soft:#b59be0}.cepi-block-4{--cepi-block-strong:#a77513;--cepi-block-soft:#e3c27b}.cepi-block-5{--cepi-block-strong:#277c53;--cepi-block-soft:#94cbaa}.cepi-block-6{--cepi-block-strong:#365c8c;--cepi-block-soft:#8eaacb}.cepi-block-medio{--cepi-block-color:var(--cepi-block-strong)}.cepi-block-fundamental{--cepi-block-color:var(--cepi-block-soft)}`;
   style.textContent += `#cepiGroupForm .cepi-group-heading{padding:18px 20px;border:1px solid #dbe5f6;border-radius:15px;background:linear-gradient(120deg,#f1f5ff,#fff)}#cepiGroupForm .cepi-group-heading h4{margin:0 0 5px;font-size:22px;color:var(--navy)}#cepiGroupForm .cepi-group-heading p{margin:0;color:#53627e}#cepiGroupForm fieldset{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiGroupForm legend{padding:0 5px;font-weight:800;color:var(--navy)}#cepiGroupForm fieldset>p{margin:3px 0 12px;color:#53627e;font-size:13px}#cepiGroupForm .cepi-group-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}#cepiGroupForm .cepi-group-options label{display:flex;align-items:center;gap:8px;min-height:42px;margin:0;padding:8px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;cursor:pointer}#cepiGroupForm .cepi-group-options label:has(input:checked),#cepiGroupForm .cepi-group-student:has(input:checked){border-color:#7299ef;background:#e7efff;box-shadow:inset 0 0 0 1px #7299ef;color:#173e87}#cepiGroupForm input[type=checkbox]{width:18px;min-height:18px;height:18px;margin:0;accent-color:var(--blue);flex:none}#cepiGroupForm .cepi-group-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;max-height:290px;overflow:auto}#cepiGroupForm .cepi-group-student{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border:1px solid #d8e1f1;border-radius:10px;background:#fff;cursor:pointer;font-size:13px}#cepiGroupForm .cepi-group-student[hidden]{display:none}#cepiGroupForm .cepi-group-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:#dce6ff;color:#315dbb;overflow:hidden;font-weight:800}#cepiGroupForm .cepi-group-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#cepiGroupForm .cepi-group-student small{display:block;color:#53627e;font-weight:500}#cepiGroupForm .cepi-group-student input:disabled{opacity:.6}#cepiGroupForm .cepi-group-count{display:block;margin-top:10px;color:#415273;font-size:13px;font-weight:700}#cepiGroupForm .actions{padding-top:12px;border-top:1px solid #e4eaf4}`;
   style.textContent += `#cepiGroupForm .cepi-club-disciplines .cepi-group-options{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));max-height:240px;overflow:auto}#cepiGroupForm .cepi-club-disciplines .cepi-group-options label[hidden]{display:none}#cepiGroupForm .cepi-discipline-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}#cepiGroupForm .cepi-discipline-toolbar button{padding:7px 10px;border:1px solid #ccd8ed;border-radius:8px;background:#fff;color:#23488f;font-weight:700;cursor:pointer}#cepiGroupForm .cepi-discipline-toolbar button:hover{background:#e7efff}`;
+  style.textContent += `.cepi-useful-list-preview{max-width:100%;overflow:auto;border:1px solid #dce4f0;border-radius:12px}.cepi-useful-table{width:100%;border-collapse:collapse;table-layout:fixed}.cepi-useful-table th,.cepi-useful-table td{padding:10px;border-bottom:1px solid #e2e8f2;text-align:left;vertical-align:top;overflow-wrap:anywhere}.cepi-useful-table th{background:#eaf0ff;color:#173e87;font-weight:800}.cepi-useful-table th:first-child{width:24%}.cepi-useful-table th:nth-child(2),.cepi-useful-table th:nth-child(3){width:28%}.cepi-useful-table th:last-child{width:20%}.cepi-useful-table .student-name{font-weight:800}.cepi-useful-table .allocation strong,.cepi-useful-table .allocation small{display:block}.cepi-useful-table .allocation small{margin-top:3px;color:#52617a;font-size:12px}.cepi-useful-table .allocation+.allocation{margin-top:8px}.cepi-useful-table .missing{color:#69758a}.cepi-useful-head{border-left:5px solid #4262d5;padding:14px 16px;background:#f3f7ff;border-radius:10px}.cepi-useful-head h4{margin:0 0 4px;font-size:20px}.cepi-useful-head p{margin:0;color:#53627e}.cepi-useful-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}@media(max-width:700px){.cepi-useful-list-preview{font-size:12px;min-width:0}.cepi-useful-table{min-width:720px}}`;
   document.head.appendChild(style);
 
   let section = 'provas';
@@ -135,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchAll(()=>db.from('cepi_group_students').select('*').eq('school_id',requestedSchool).is('ended_at',null).order('id')),
       db.from('observation_options').select('label,is_pinned,is_top_priority').eq('school_id',requestedSchool),
       db.from('classes').select('id,name,archived_at').eq('school_id',requestedSchool).order('name'),
-      fetchAll(()=>db.from('students').select('id,full_name,class_id,enrollment_status,has_report,photo_path').eq('school_id',requestedSchool).order('full_name').order('id'))
+      fetchAll(()=>db.from('students').select('id,school_id,full_name,class_id,enrollment_status,has_report,photo_path').eq('school_id',requestedSchool).order('full_name').order('id'))
     ]);
     const firstError = [roleResult,testResult,questionResult,bankResult,headerResult,groupResult,groupClassResult,groupStudentResult,observationResult,classResult,studentResult].find(result => result.error)?.error;
     if (firstError) throw firstError;
@@ -153,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
     section = key;
     $('cepiModal').classList.add('hidden');
     workspace.classList.remove('hidden');
-    $('cepiWorkspaceTitle').textContent = ({provas:'Provas',correcao:'Correção de provas',ranking:'Ranking de médias',banco:'Banco de questões',cabecalho:'Cabeçalho das provas',lideres:'Líderes'})[key] || groupLabel(key);
-    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Acompanhe a produção, imprima e aplique as provas da escola.' : key === 'correcao' ? 'Instale a extensão e corrija os cartões das provas aplicadas.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : 'Registros específicos do CEPI, ligados à escola ativa.';
+    $('cepiWorkspaceTitle').textContent = ({provas:'Provas',correcao:'Correção de provas',ranking:'Ranking de médias',banco:'Banco de questões',cabecalho:'Cabeçalho das provas',listas:'Imprimir listas',lideres:'Líderes'})[key] || groupLabel(key);
+    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Acompanhe a produção, imprima e aplique as provas da escola.' : key === 'correcao' ? 'Instale a extensão e corrija os cartões das provas aplicadas.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : key === 'listas' ? 'Consulte e imprima a alocação dos alunos por turma.' : 'Registros específicos do CEPI, ligados à escola ativa.';
     $('cepiWorkspaceNew').classList.add('hidden');
     message('Carregando…');
     $('cepiWorkspaceContent').replaceChildren();
@@ -175,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (section === 'ranking') renderRanking();
     else if (section === 'banco') renderBank();
     else if (section === 'cabecalho') renderHeader();
+    else if (section === 'listas') void renderUsefulLists();
     else if (section === 'lideres') renderLeaders();
     else renderGroups();
   }
@@ -692,6 +695,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const subset = groups.filter(item=>item.kind===section);
     $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; const teacher=groupTeachers.find(item=>item.user_id===group.responsible_user_id); return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p>${['clube','eletiva'].includes(section)&&manager()?`<p>Professor responsável: <strong>${esc(teacher?.full_name||(group.responsible_user_id?'Usuário indisponível':'Não definido'))}</strong></p>`:''}<div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
     bindActions({'members':id=>renderMembers(id),'edit-group':id=>groupForm(groups.find(g=>g.id===id))});
+  }
+  async function renderUsefulLists() {
+    if (!manager() || !ensureContext()) { message('Somente coordenação e administração podem imprimir estas listas.'); return; }
+    $('cepiWorkspaceContent').textContent='Carregando alocações da turma…';
+    const requestedSchool=schoolId;
+    try {
+      const [tutorResult,assignmentResult]=await Promise.all([
+        fetchAll(()=>db.from('cepi_tutors').select('id,school_id,display_name').eq('school_id',requestedSchool).order('id')),
+        fetchAll(()=>db.from('cepi_tutor_students').select('school_id,student_id,tutor_id,active').eq('school_id',requestedSchool).eq('active',true).order('id')),
+        loadClubTeachers()
+      ]);
+      if (tutorResult.error || assignmentResult.error) throw tutorResult.error || assignmentResult.error;
+      if (!ensureContext() || schoolId!==requestedSchool || section!=='listas') return;
+      const schoolClasses=classes.filter(item=>!item.archived_at);
+      const years=[...new Set([year,...groups.filter(item=>item.active).map(item=>Number(item.academic_year)).filter(Number.isInteger)])].sort((a,b)=>b-a);
+      const defaultYear=years.includes(year)?year:years[0];
+      const defaultSemester=new Date().getMonth()<6?1:2;
+      $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-useful-head"><h4>Alocação dos alunos</h4><p>Escolha a turma para conferir Eletiva, Clube, seus responsáveis e o tutor de cada aluno. A lista impressa mostra a turma apenas no cabeçalho.</p></div><div class="cepi-workspace-grid"><label>Turma<select id="cepiUsefulClass"><option value="">Selecione a turma</option>${schoolClasses.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Ano letivo<select id="cepiUsefulYear">${years.map(item=>`<option value="${item}" ${item===defaultYear?'selected':''}>${item}</option>`).join('')}</select></label><label>Semestre<select id="cepiUsefulSemester"><option value="1" ${defaultSemester===1?'selected':''}>1º semestre</option><option value="2" ${defaultSemester===2?'selected':''}>2º semestre</option></select></label></div><div class="cepi-useful-actions"><strong id="cepiUsefulCount">Selecione uma turma.</strong><button type="button" class="btn primary" id="cepiUsefulPrint" disabled>Imprimir lista da turma</button></div><div id="cepiUsefulPreview" class="cepi-useful-list-preview" hidden></div></div>`;
+      const classField=$('cepiUsefulClass'),yearField=$('cepiUsefulYear'),semesterField=$('cepiUsefulSemester'),preview=$('cepiUsefulPreview'),printButton=$('cepiUsefulPrint');
+      let currentRows=[];
+      const refresh=()=>{
+        const classId=classField.value;
+        if(!classId){currentRows=[];preview.hidden=true;preview.innerHTML='';$('cepiUsefulCount').textContent='Selecione uma turma.';printButton.disabled=true;return;}
+        currentRows=window.CepiUsefulLists.prepare({schoolId, classId,year:Number(yearField.value),semester:Number(semesterField.value),students,groups,groupStudents,groupTeachers,tutors:tutorResult.data,tutorAssignments:assignmentResult.data});
+        $('cepiUsefulCount').textContent=`${currentRows.length} aluno(s) ativo(s) na turma ${labelClass(classId)}.`;
+        preview.innerHTML=currentRows.length?window.CepiUsefulLists.table(currentRows):'<p class="cepi-workspace-hint">Nenhum aluno ativo nesta turma.</p>';
+        preview.hidden=false;printButton.disabled=!currentRows.length;
+      };
+      [classField,yearField,semesterField].forEach(field=>field.onchange=refresh);
+      printButton.onclick=()=>{
+        if(!manager()||!ensureContext()||!currentRows.length)return;
+        const html=window.CepiUsefulLists.printHtml({rows:currentRows,schoolName:examHeader?.school_name,className:labelClass(classField.value),year:Number(yearField.value),semester:Number(semesterField.value)});
+        const popup=window.open('','_blank');
+        if(!popup){message('Permita a janela de impressão para gerar a lista.');return;}
+        popup.document.write(html);popup.document.close();popup.focus();
+      };
+    } catch(error) { fail(error); }
   }
   function groupForm(group=null) {
     if (!manager()) return;

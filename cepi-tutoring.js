@@ -178,11 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (accessRefreshPromise) return accessRefreshPromise;
     accessRefreshPromise = (async () => {
     const schoolId = window.getActiveSchoolId?.();
-    if (!schoolId) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); return; }
+    if (!schoolId) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); document.getElementById('cepiPrintListsCard')?.classList.add('hidden'); return; }
     const { data, error } = await db.rpc('get_cepi_access_context', { p_school_id:schoolId });
-    if (error) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); return; }
+    if (error) { access = { enabled:false, can_manage:false, tutor_id:null }; cepiNav.classList.add('hidden'); document.getElementById('cepiPrintListsCard')?.classList.add('hidden'); return; }
     access = (Array.isArray(data) ? data[0] : data) || { enabled:false, can_manage:false, tutor_id:null };
     cepiNav.classList.toggle('hidden', access.enabled !== true);
+    document.getElementById('cepiPrintListsCard')?.classList.toggle('hidden', access.enabled !== true || !['school_admin','coordinator'].includes(window.getActiveSchoolRole?.()));
     document.getElementById('cepiManagementActions').classList.toggle('hidden', access.can_manage !== true);
     if (access.enabled) await loadTutorLabels();
     else {
@@ -931,6 +932,7 @@ document.addEventListener('DOMContentLoaded', () => {
     tutors = [];
     assignments = [];
     cepiNav.classList.add('hidden');
+    document.getElementById('cepiPrintListsCard')?.classList.add('hidden');
     closeModal('cepiModal');
   }, { capture:true });
 
