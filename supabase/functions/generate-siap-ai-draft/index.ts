@@ -327,7 +327,7 @@ Deno.serve(async (request) => {
   if (['exam_preview','exam_bind','exam_check','exam_finish'].includes(String(accessAction))) {
     if(accessAction!=='exam_finish') {
       const access=await examAccessForUser(admin,userId);
-      if(access.active && ['granted','subscription'].includes(access.status)) return json(request,{ok:true,license:{examAccess:access}});
+      if(access.active && ['carometro','granted','subscription'].includes(access.status)) return json(request,{ok:true,license:{examAccess:access}});
     }
     let block;
     try { block=examBlockKey((rawBody as Record<string,unknown>).block); }

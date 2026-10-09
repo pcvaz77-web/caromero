@@ -5,7 +5,8 @@
   // O retorno do link de autenticação pode chegar sem a query string.
   // Nessa situação, nunca presumimos uma compra: o backend decide se a
   // conta ainda pode experimentar, já possui assinatura ou tem concessão.
-  const planKey = new URLSearchParams(location.search).get('plano') || 'account';
+  const requestedPlan = new URLSearchParams(location.search).get('plano') || 'account';
+  const planKey = ['exam_one','exam_four','monthly_exam','quarterly_exam','semiannual_exam'].includes(requestedPlan) ? 'account' : requestedPlan;
   const accountFlow = planKey === 'account';
   const trialFlow = planKey === 'trial';
   const examFlow = ['exam_one','exam_four','monthly_exam','quarterly_exam','semiannual_exam'].includes(planKey);

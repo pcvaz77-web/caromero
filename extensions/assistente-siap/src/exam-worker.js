@@ -22,15 +22,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       else await chrome.storage.session.remove([key, resumeKey]);
       return { ok: true };
     }
-    if(message.type==='SIAP_EXAM_BUY') {
-      if(!['exam_one','exam_four'].includes(message.offerKey)||message.legalAccepted!==true) throw new Error('Compra inválida');
-      const session=await readConnectedSession();
-      if(!session) return {ok:false,loginRequired:true};
-      const response=await fetch(AI_ENDPOINT.replace('generate-siap-ai-draft','siap-exam-commerce'),{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON_KEY,Authorization:`Bearer ${session.accessToken||SUPABASE_ANON_KEY}`,...(session.deviceToken?{'X-Assistant-Session':session.deviceToken}:{})},body:JSON.stringify({action:'checkout',offerKey:message.offerKey,legalAccepted:true}),signal:AbortSignal.timeout(15000)});
-      const data=await response.json();
-      if(response.ok&&data.ok&&new URL(data.checkoutUrl).origin==='https://pay.hotmart.com') {await chrome.tabs.create({url:data.checkoutUrl});return {ok:true};}
-      return {ok:false,error:'Pagamento ainda indisponível. Tente novamente em instantes.'};
-    }
+    if(message.type==='SIAP_EXAM_BUY') return {ok:false,error:'A Correção de Provas agora integra o Carômetro.'};
     if (message.type !== 'SIAP_EXAM_API') throw new Error('Operação desconhecida.');
     const { action, room, token, body = {} } = message;
     if (!['create', 'heartbeat', 'finish-block', 'status', 'image', 'key', 'review', 'pause', 'close', 'retry', 'discard', 'roster'].includes(action)) throw new Error('Operação inválida.');

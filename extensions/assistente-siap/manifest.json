@@ -47,6 +47,8 @@
         "src/exam-core.js",
         "src/exam-dom.js",
         "src/exam-panel.js",
+        "src/cepi-siap-dom.js",
+        "src/cepi-siap-panel.js",
         "src/content.js"
       ],
       "css": [

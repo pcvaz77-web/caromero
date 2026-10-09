@@ -26,16 +26,16 @@
       const gap=second.x-c.x,slope=(second.y-c.y)/gap;
       if(gap<c.d*.95||gap>c.d*2.2||Math.abs(slope)>.22||Math.abs(second.d-c.d)>c.d*.3)continue;
       const row=[c,second];
-      for(let k=2;k<4;k++){const expectedX=c.x+gap*k,expectedY=c.y+(second.y-c.y)*k;const p=circles.find(p=>Math.abs(p.x-expectedX)<gap*.18&&Math.abs(p.y-expectedY)<c.d*.3&&Math.abs(p.d-c.d)<c.d*.3);if(p)row.push(p);}
-      if(row.length!==4)continue;
+      for(let k=2;k<5;k++){const expectedX=c.x+gap*k,expectedY=c.y+(second.y-c.y)*k;const p=circles.find(p=>Math.abs(p.x-expectedX)<gap*.18&&Math.abs(p.y-expectedY)<c.d*.3&&Math.abs(p.d-c.d)<c.d*.3);if(p)row.push(p);}
+      if(row.length!==4&&row.length!==5)continue;
       if(runs.some(r=>Math.abs(r.y-c.y)<c.d*.65&&Math.abs(r.x-c.x)<gap*2))continue;
-      runs.push({x:c.x,y:c.y,d:c.d,gap,right:row[3].x});
+      runs.push({x:c.x,y:c.y,d:c.d,gap,right:row.at(-1).x,alternatives:row.length});
     }
     const groups=[];
-    for(const run of runs){let group=groups.find(g=>Math.abs(g.x-run.x)<run.gap*.6&&Math.abs(g.gap-run.gap)<run.gap*.3);if(!group){group={x:run.x,gap:run.gap,rows:[]};groups.push(group);}group.rows.push(run);}
-    const blocks=groups.filter(g=>g.rows.length>=6).sort((a,b)=>a.x-b.x);
+    for(const run of runs){let group=groups.find(g=>g.alternatives===run.alternatives&&Math.abs(g.x-run.x)<run.gap*.6&&Math.abs(g.gap-run.gap)<run.gap*.3);if(!group){group={x:run.x,gap:run.gap,alternatives:run.alternatives,rows:[]};groups.push(group);}group.rows.push(run);}
+    const blocks=groups.filter(g=>g.rows.length>=4).sort((a,b)=>a.x-b.x);
     const total=blocks.reduce((n,g)=>n+g.rows.length,0);
-    const target=expected||(total>=12&&total<=16?15:total>=30&&total<=42?40:0);
+    const target=expected||(total>=12&&total<=16?15:total>=18&&total<=22?20:total>=27&&total<=33?30:total>=36&&total<=42?40:0);
     if(!target||total<target*.5||total>target*1.1)return {ready:false,gray,reason:'Enquadre o cartão inteiro, com todas as marcações.'};
     for(const g of blocks){g.rows.sort((a,b)=>a.y-b.y);const gaps=g.rows.slice(1).map((r,i)=>r.y-g.rows[i].y),mean=gaps.reduce((a,b)=>a+b,0)/gaps.length;if(gaps.some(v=>v<mean*.55||v>mean*2.6))return {ready:false,gray,reason:'Alinhe a folha e evite cortes.'};}
     const points=blocks.flatMap(g=>g.rows);

@@ -72,6 +72,35 @@ async function broadcastLicense(license) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.type === 'SIAP_CEPI_ROOM_GET') {
+    let url;
+    try { url=new URL(sender.tab?.url||''); } catch {}
+    if(url?.origin!=='https://siap.educacao.go.gov.br'||url.pathname!=='/LancamentoNotasModeloEdicao.aspx'){respond({ok:false});return;}
+    chrome.storage.session.get('carometroCepiExamRoom').then(({carometroCepiExamRoom:room})=>respond({ok:true,room:Number(room?.expires)>Date.now()?room:null})).catch(()=>respond({ok:false}));
+    return true;
+  }
+  if (message?.type === 'CAROMETRO_CEPI_EXAM_INTERNAL') {
+    let origin='';
+    try { origin=new URL(sender.tab?.url || '').origin; } catch {}
+    if (origin !== 'https://sistemacarometro.com.br') { respond({ok:false,error:'Origem inválida.'}); return; }
+    (async()=>{
+      const action=String(message.action||'');
+      if (!['create','heartbeat','status','key','roster','close','pause'].includes(action)) throw new Error('Operação inválida.');
+      const room=String(message.room||''), token=String(message.token||'');
+      if (action!=='create' && (!/^[0-9a-f-]{36}$/i.test(room)||!/^[0-9a-f]{64}$/i.test(token))) throw new Error('Sessão inválida.');
+      const accessToken=String(message.accessToken||'');
+      if (['create','heartbeat'].includes(action) && (!accessToken || accessToken.length>5000)) throw new Error('Entre novamente no Carômetro.');
+      const body=message.body && typeof message.body==='object' ? message.body : {};
+      if (JSON.stringify(body).length>80000) throw new Error('Dados da correção muito grandes.');
+      const path=action==='create'?'/api/create':`/api/${room}/${action}`;
+      const response=await fetch(SiapExamConfig.origin+path,{method:'POST',headers:{'Content-Type':'application/json','X-Exam-Token':token,...(['create','heartbeat'].includes(action)?{Authorization:`Bearer ${accessToken}`}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
+      const data=await response.json().catch(()=>({}));
+      if(response.ok&&data.ok&&action==='create'&&body.cepiMeta&&data.id&&data.desktop){await chrome.storage.session.set({carometroCepiExamRoom:{id:data.id,desktop:data.desktop,expires:data.expires,meta:body.cepiMeta}});}
+      if(response.ok&&action==='close'){const stored=await chrome.storage.session.get('carometroCepiExamRoom');if(stored.carometroCepiExamRoom?.id===room)await chrome.storage.session.remove('carometroCepiExamRoom');}
+      respond(response.ok ? data : {ok:false,error:data.error||'Correção indisponível.',status:response.status});
+    })().catch(error=>respond({ok:false,error:error.message||'Correção indisponível.'}));
+    return true;
+  }
   if (message?.type === 'ASSISTENTE_SIAP_EMAIL_SIGN_IN') {
     const email=typeof message.email==='string'?message.email.trim().toLowerCase():'';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length>254) {respond({ok:false,code:'invalid_email'});return;}

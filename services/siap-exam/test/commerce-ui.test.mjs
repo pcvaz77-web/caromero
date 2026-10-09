@@ -13,21 +13,21 @@ async function setup(ready=true){
  w.supabase={createClient:()=>({auth:{getSession:async()=>({data:{session:null}})},from:table=>{const chain={select:()=>chain,eq:()=>chain,order:()=>chain,then:(resolve,reject)=>Promise.resolve({data:table==='siap_exam_offers'?offers:plans,error:null}).then(resolve,reject)};return chain;}})};
  w.eval(js);for(let i=0;i<5;i++)await new Promise(r=>setImmediate(r));return {w,dom};
 }
-test('preços atuais permanecem; marcar correção soma 35 ou 45 ao total',async()=>{
+test('planos do Assistente mantêm preço próprio sem adicional de correção',async()=>{
  const {w,dom}=await setup();try{
- for(const [plan,total] of [['monthly','114,90'],['quarterly','174,90']]){
- const addon=w.document.querySelector(`[data-exam-addon="${plan}"]`),button=w.document.querySelector(`[data-assistant-plan="${plan}"]`);
- assert.equal(button.disabled,false);addon.checked=true;addon.dispatchEvent(new w.Event('change'));
- assert.match(button.closest('article').querySelector('.price').textContent,new RegExp(total));assert.equal(button.disabled,false);
+ for(const [plan,total] of [['monthly','79,90'],['quarterly','129,90']]){
+ const button=w.document.querySelector(`[data-assistant-plan="${plan}"]`);
+ assert.equal(button.disabled,false);
+ assert.match(button.closest('article').querySelector('.price').textContent,new RegExp(total));
  }
- assert.equal(w.document.querySelector('[data-exam-offer="exam_one"]').disabled,false);
+ assert.equal(w.document.querySelectorAll('[data-exam-addon],[data-exam-offer]').length,0);
  }finally{dom.window.close();}
 });
-test('ofertas não configuradas nunca abrem compra; mensal antigo continua disponível',async()=>{
+test('catálogo antigo de correção não reativa venda na página',async()=>{
  const {w,dom}=await setup(false);try{
- const addon=w.document.querySelector('[data-exam-addon="monthly"]'),button=w.document.querySelector('[data-assistant-plan="monthly"]');
- assert.equal(button.disabled,false);addon.checked=true;addon.dispatchEvent(new w.Event('change'));assert.equal(button.disabled,true);
- addon.checked=false;addon.dispatchEvent(new w.Event('change'));assert.equal(button.disabled,false);
- assert.equal(w.document.querySelector('[data-exam-offer="exam_one"]').disabled,true);
+ const button=w.document.querySelector('[data-assistant-plan="monthly"]');
+ assert.equal(button.disabled,false);
+ assert.equal(w.document.querySelectorAll('[data-exam-addon],[data-exam-offer]').length,0);
+ assert.match(w.document.getElementById('correcao-de-provas').textContent,/Sem cobrança à parte/);
  }finally{dom.window.close();}
 });

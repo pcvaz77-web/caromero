@@ -6,14 +6,14 @@ const source=readFileSync(new URL('../../../extensions/assistente-siap/src/conte
 const summarySource=source.slice(source.indexOf('  function accessSummary('),source.indexOf('  function licenseCard()'));
 const core={accessSummary:new Function(summarySource+'; return accessSummary;')()};
 const start=source.indexOf('    if (model.page === "exam") {');
-const end=source.indexOf('    if (model.license && model.license.active !== true)',start);
+const end=source.indexOf('    if (model.license && model.license.active !== true',start);
 const render=new Function('panel','model','window','document','refreshLicenseStatus',summarySource+source.slice(start,end));
 
 test('cabeçalho mostra a conta autenticada como texto e oculta ao desconectar',()=>{
   const dom=new JSDOM('<aside><span class="cm-account-identity" hidden></span></aside>');
   const panel=dom.window.document.querySelector('aside');
   const begin=source.indexOf("    const identity = panel.querySelector('.cm-account-identity');");
-  const finish=source.indexOf('    if (model.sessionRequired) {',begin);
+  const finish=source.indexOf("    if (model.page === 'exam' && window.CepiSiapPanel",begin);
   const show=new Function('panel','model',source.slice(begin,finish));
   try {
     show(panel,{accountEmail:'professor@example.invalid',sessionRequired:false});
@@ -47,7 +47,7 @@ test('painel ativo substitui compra por licença e preserva a sessão ao redesen
   const draw=access=>render(panel,{page:'exam',license:{examAccess:access}},w,w.document,()=>{});
   try {
     draw({active:false,status:'not_granted'});
-    assert.equal(panel.querySelectorAll('[data-exam-buy]').length,2);
+    assert.equal(panel.querySelectorAll('[data-exam-buy]').length,0);
     for(const access of [
       {active:true,status:'granted',expiresAt:null},
       {active:true,status:'subscription',expiresAt:'2027-01-01T12:00:00Z'},
@@ -61,7 +61,7 @@ test('painel ativo substitui compra por licença e preserva a sessão ao redesen
     assert.match(panel.textContent,/3 crédito\(s\).*1 bloco\(s\)/);
     draw({active:false,status:'expired'});
     assert.equal(panel.querySelectorAll('[data-exam-access]').length,0);
-    assert.equal(panel.querySelectorAll('[data-exam-buy]').length,2);
+    assert.equal(panel.querySelectorAll('[data-exam-buy]').length,0);
     draw({active:false,status:'unavailable'});
     assert.equal(panel.querySelectorAll('[data-exam-buy]').length,0);
   } finally {dom.window.close();}

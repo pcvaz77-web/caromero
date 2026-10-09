@@ -24,26 +24,9 @@ Deno.serve(async request=>{
    const {data,error}=await admin.rpc('siap_exam_commerce_access',{p_user:user.id});
    return reply(error?{code:'unavailable'}:{ok:true,access:data},error?503:200,origin);
   }
-  if(body.legalAccepted!==true) return reply({code:'legal_acceptance_required'},400,origin);
-  const {data:offer,error}=await admin.from('siap_exam_offers').select('*').eq('offer_key',String(body.offerKey)).eq('active',true).maybeSingle();
-  if(error||!offer) return reply({code:'plan_not_available'},409,origin);
-  const checkout=new URL(offer.checkout_url);
-  if(checkout.origin!=='https://pay.hotmart.com') throw new Error('checkout_invalid');
-  if(offer.base_plan) {
-   const {data:existing,error:subscriptionError}=await admin.from('siap_assistant_payment_subscriptions').select('id').eq('user_id',user.id).in('status',['creating','pending','authorized','paused']).limit(1).maybeSingle();
-   const {data:commerce,error:commerceError}=await admin.rpc('siap_exam_commerce_access',{p_user:user.id});
-   if(subscriptionError||commerceError) throw new Error('subscription_check_failed');
-   if(existing||commerce?.generalUntil) return reply({code:'existing_subscription_upgrade_required'},409,origin);
-   const {data:base}=await admin.from('siap_assistant_plans').select('active,amount').eq('plan_key',offer.base_plan).single();
-   if(!base?.active||Number(offer.amount)!==Number(base.amount)+(offer.months===1?35:45)) return reply({code:'plan_not_available'},409,origin);
-  }
-  const {error:insertError}=await admin.from('siap_exam_orders').insert({user_id:user.id,offer_key:offer.offer_key,payer_email:user.email.toLowerCase(),legal_accepted_at:new Date().toISOString(),amount:offer.amount,credits:offer.credits,months:offer.months,product_id:offer.product_id,offer_code:offer.offer_code});
-  if(insertError) throw insertError;
-  // Pre-fill the account used to create this order, avoiding a different
-  // remembered Hotmart email. The authenticated webhook still validates it.
-  checkout.searchParams.set('email',user.email.trim().toLowerCase());
-  // Customer must use their signed-in account email at checkout. Never trust a return URL as payment.
-  return reply({ok:true,checkoutUrl:checkout.href},200,origin);
+  // Correção agora integra o Carômetro. Mantemos status e webhooks para
+  // contratos já comprados, mas não abrimos novos checkouts deste produto.
+  return reply({code:'plan_not_available'},409,origin);
  }
  const secret=Deno.env.get('HOTMART_HOTTOK');
  if(!secret||request.headers.get('x-hotmart-hottok')!==secret) return reply({},401);

@@ -25,7 +25,7 @@
     return list.map(r => ({ subject: String(r.subject).trim(), from: r.from, to: r.to }));
   }
   function validateKey(key) {
-    if (!key || !['ABCD', 'ABCDE'].includes(key.alphabet)) throw new Error('Modelo de alternativas inválido.');
+    if (!key || !['ABCD', 'ABCDE', 'VF'].includes(key.alphabet)) throw new Error('Modelo de alternativas inválido.');
     if(key.firstQuestion!==undefined && (!Number.isInteger(key.firstQuestion)||key.firstQuestion<1||key.firstQuestion>200)) throw new Error('Numeração inicial inválida.');
     return { ...(key.firstQuestion!==undefined?{firstQuestion:key.firstQuestion}:{}), alphabet: key.alphabet, answers: answers(key.answers, key.answers.length, key.alphabet, true), ranges: ranges(key.ranges, key.answers.length) };
   }
@@ -41,7 +41,7 @@
     return exact.length === 1 ? { id: exact[0].id, status: 'suggested' } : { id: '', status: 'review' };
   }
   function extraction(raw) {
-    if (!raw || typeof raw.name !== 'string' || typeof raw.title !== 'string' || typeof raw.warning !== 'string' || !['ABCD', 'ABCDE'].includes(raw.alphabet) || !Array.isArray(raw.questions)) throw new Error('Leitura inválida. Fotografe novamente.');
+    if (!raw || typeof raw.name !== 'string' || typeof raw.title !== 'string' || typeof raw.warning !== 'string' || !['ABCD', 'ABCDE', 'VF'].includes(raw.alphabet) || !Array.isArray(raw.questions)) throw new Error('Leitura inválida. Fotografe novamente.');
     const count = raw.questions.length;
     if (raw.questions.some((q, i) => q.number !== i + 1)) throw new Error('A numeração das questões não foi lida com segurança.');
     return { name: raw.name.slice(0, 180), title: raw.title.slice(0, 240), warning: raw.warning.slice(0, 500), alphabet: raw.alphabet, answers: answers(raw.questions.map(q => q.mark), count, raw.alphabet), ranges: ranges(raw.ranges, count) };
