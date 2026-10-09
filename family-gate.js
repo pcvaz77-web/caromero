@@ -171,7 +171,7 @@
         popup.document.open();
         popup.document.write(printHtml);
         popup.document.close();
-        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas${missingPhotos ? `; ${missingPhotos} foto(s) indisponível(is)` : ''}. Confira a prévia e imprima em frente e verso.`);
+        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas${missingPhotos ? `; ${missingPhotos} foto(s) indisponível(is)` : ''}. Confira a prévia, imprima em uma face, recorte cada par e dobre ao meio.`);
       } catch (caught) {
         const message = caught.message || 'Não foi possível gerar as carteirinhas.';
         if (!popup.closed) {
