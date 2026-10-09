@@ -28,6 +28,6 @@ test('catálogo antigo de correção não reativa venda na página',async()=>{
  const button=w.document.querySelector('[data-assistant-plan="monthly"]');
  assert.equal(button.disabled,false);
  assert.equal(w.document.querySelectorAll('[data-exam-addon],[data-exam-offer]').length,0);
- assert.match(w.document.getElementById('correcao-de-provas').textContent,/Sem cobrança à parte/);
+ assert.equal(w.document.getElementById('correcao-de-provas'),null);
  }finally{dom.window.close();}
 });
