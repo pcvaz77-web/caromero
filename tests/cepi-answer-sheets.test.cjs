@@ -17,7 +17,10 @@ for (const count of [15,20,30]) test(`cartão do aluno imprime exatamente ${coun
   assert.equal((html.match(/class="answer-row"/g)||[]).length,count*4);
   assert.equal((html.match(/class="bubble"/g)||[]).length,count*5*4);
   assert.doesNotMatch(html,/bubble filled|GABARITO OFICIAL/);
-  assert.match(html,/Assinatura:/);
+  assert.equal((html.match(/Nome do aluno:/g)||[]).length,4);
+  assert.doesNotMatch(html,/Turma:|Nº:|Data:|Assinatura:/);
+  assert.match(html,/Escola Exemplo/);
+  assert.match(html,/BLOCO 1 - PORTUGUÊS/);
   assert.match(html,/@page\{size:A4;margin:0/);
 });
 
