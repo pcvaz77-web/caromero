@@ -11,6 +11,7 @@ Deno.serve(async request=>{
   const caller=createClient(url,anon,{global:{headers:{Authorization:request.headers.get('Authorization')??''}}});const {data:{user}}=await caller.auth.getUser()
   if(!user?.email) return json(request,{ok:false,code:'login_required'},401)
   let planKey='',legalAccepted=false;try{const b=await request.json();planKey=String(b?.planKey??'');legalAccepted=b?.legalAccepted===true}catch{}
+  if (/_exam$/.test(planKey) || ['exam_one','exam_four'].includes(planKey)) return json(request,{ok:false,code:'plan_not_available'},409)
   if(!legalAccepted) return json(request,{ok:false,code:'legal_acceptance_required'},400)
   const admin=createClient(url,service,{auth:{autoRefreshToken:false,persistSession:false}})
   const {data:m}=await admin.from('hotmart_product_mappings').select('*').eq('target','assistant').eq('plan_key',planKey).eq('active',true).maybeSingle()

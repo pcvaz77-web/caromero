@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {stripTypeScriptTypes} from 'node:module';
 const source=readFileSync(new URL('../../../supabase/functions/siap-exam-commerce/index.ts',import.meta.url),'utf8').replace(/^import .*\r?\n/,'');
+const assistantCheckoutSource=readFileSync(new URL('../../../supabase/functions/create-hotmart-assistant-checkout/index.ts',import.meta.url),'utf8').replace(/^import .*\r?\n/,'');
 function app({logged=true}={}) {
  const calls=[],writes=[];
  const order={id:'order',user_id:'real-user',offer_key:'exam_one',amount:20,credits:1,months:0,product_id:123,offer_code:'real-offer',payer_email:'test@example.invalid'};
@@ -22,6 +23,18 @@ test('novos checkouts de créditos ficam encerrados e não criam pedidos',async(
  assert.equal((await a.request({action:'checkout',offerKey:'exam_one'},{Origin:'https://site.test'})).status,409);
  assert.equal((await app({logged:false}).request({action:'checkout',legalAccepted:true},{Origin:'https://site.test'})).status,401);
  assert.equal((await a.request({action:'checkout',legalAccepted:true},{Origin:'https://evil.test'})).status,403);
+});
+test('link antigo de plano com correção não abre checkout do Assistente',async()=>{
+ let handler,queries=0;
+ const config={ALLOWED_ORIGINS:'https://site.test',SUPABASE_URL:'https://test.invalid',SUPABASE_ANON_KEY:'anon-test',SUPABASE_SERVICE_ROLE_KEY:'service-test'};
+ new Function('Deno','createClient',stripTypeScriptTypes(assistantCheckoutSource))(
+  {env:{get:key=>config[key]},serve:fn=>handler=fn},
+  (_url,key)=>key==='service-test'?{from:()=>{queries++;throw new Error('checkout consultado')}}:{auth:{getUser:async()=>({data:{user:{id:'user',email:'test@example.invalid'}}})}}
+ );
+ const response=await handler(new Request('https://test.invalid/checkout',{method:'POST',headers:{Origin:'https://site.test','Content-Type':'application/json'},body:JSON.stringify({planKey:'quarterly_exam',legalAccepted:true})}));
+ assert.equal(response.status,409);
+ assert.equal((await response.json()).code,'plan_not_available');
+ assert.equal(queries,0);
 });
 test('webhook exige autenticação, valor, moeda e oferta corretos antes da concessão',async()=>{
  const a=app(),headers={'x-hotmart-hottok':'test-secret'};
