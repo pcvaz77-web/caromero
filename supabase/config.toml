@@ -51,3 +51,6 @@ verify_jwt = false
 
 [functions.siap-exam-commerce]
 verify_jwt = false
+
+[functions.family-activate]
+verify_jwt = false

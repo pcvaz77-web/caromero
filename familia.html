@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Portal da Família | Carômetro</title><meta name="theme-color" content="#17233a"><meta name="referrer" content="no-referrer">
+<link rel="manifest" href="familia.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="familia.css?v=1"><script src="carometro-config.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script><script src="familia.js?v=2" defer></script></head>
+<body><header class="brand"><span class="logo">✦ CARÔMETRO</span><span>Portal da Família</span></header>
+<main>
+  <section id="access" class="access card"><p class="eyebrow">Portal da Família Carômetro</p><h1>Acompanhe seus filhos em um só lugar.</h1><p>Leia o QR Code de convite apresentado pela escola. Depois, entre com seu celular e a senha que você criou. Não precisa de e-mail.</p>
+    <div id="accessError" class="error hidden" role="alert"></div>
+    <form id="passwordForm"><label>Celular com DDI<input id="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+5562999999999" required></label><label>Senha<input id="password" type="password" autocomplete="current-password" required></label><button class="primary" type="submit">Entrar</button></form>
+    <div class="access-actions"><button id="firstAccess" type="button">Primeiro acesso com convite</button><a id="recoverAccess" href="https://wa.me/5561998971069?text=Ol%C3%A1%21%20Preciso%20recuperar%20o%20acesso%20ao%20Portal%20da%20Fam%C3%ADlia%20do%20Car%C3%B4metro." target="_blank" rel="noopener noreferrer">Esqueci minha senha</a></div>
+    <form id="firstAccessForm" class="hidden"><p>Use o celular autorizado pela escola. Crie uma senha só sua, com pelo menos 12 caracteres. A escola não conhecerá essa senha.</p><label>Seu celular<input id="invitePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+5562999999999" required></label><button class="outline" id="checkInvitation" type="button">Conferir filhos do convite</button><div id="inviteChildren" class="invite-children hidden" role="status"></div><label>Crie sua senha<input id="invitePassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary" type="submit">Criar meu acesso</button><button class="text-button" id="backToLogin" type="button">Voltar ao login</button></form>
+  </section>
+  <section id="portal" class="portal hidden"><div class="portal-head"><div><p class="eyebrow">Acesso da Família</p><h1>Seus estudantes</h1><p>Você vê apenas os estudantes autorizados pela escola.</p><p>Para deixar o Portal no celular, use a opção “Instalar” ou “Adicionar à tela inicial” do navegador.</p></div><button id="signOut" class="outline" type="button">Sair</button></div>
+    <div id="portalError" class="error hidden" role="alert"></div><div id="students" class="student-list"></div>
+    <details class="card"><summary>Alterar minha senha</summary><form id="changePasswordForm"><label>Senha atual<input id="currentPassword" type="password" autocomplete="current-password" required></label><label>Nova senha<input id="changedPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary" type="submit">Salvar nova senha</button></form></details>
+    <section id="timeline" class="timeline hidden"><div class="timeline-head"><div><p class="eyebrow" id="schoolName"></p><h2 id="studentName"></h2><p id="className"></p></div><button id="backToStudents" class="outline" type="button">Todos os estudantes</button></div><div id="messages" class="message-list"></div></section>
+  </section>
+</main><footer>Carômetro · Comunicação oficial da escola</footer></body></html>

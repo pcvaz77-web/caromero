@@ -1,4 +1,4 @@
-const CACHE = 'carometro-commercial-v52';
+const CACHE = 'carometro-commercial-v53';
 const CORE = [
   './',
   './index.html',
@@ -10,7 +10,7 @@ const CORE = [
   './carometro-icon-192.png',
   './carometro-icon-512.png'
 ];
-const SENSITIVE_PAGE_NAMES = new Set(['accept-invite.html', 'reset-password.html']);
+const SENSITIVE_PAGE_NAMES = new Set(['accept-invite.html', 'reset-password.html', 'familia.html']);
 const STATIC_EXTENSION = /\.(?:css|js|png|jpg|jpeg|webp|svg|ico|woff2?)$/i;
 
 self.addEventListener('install', event => event.waitUntil(
