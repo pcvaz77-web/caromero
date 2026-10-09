@@ -9,7 +9,7 @@ const start = source.indexOf('  async function printTest(id) {');
 const end = source.indexOf('  function renderHeader()', start);
 assert.ok(start >= 0 && end > start, 'Rotina de impressão não encontrada');
 
-function setup({coordinator = true, complete = true, header = true} = {}) {
+function setup({coordinator = true, complete = true, header = true, mixedSubjects = false} = {}) {
   let printed = false;
   let html = '';
   let message = '';
@@ -19,7 +19,7 @@ function setup({coordinator = true, complete = true, header = true} = {}) {
   const exam = {id:'prova-1',title:'BLOCO 1 - PORTUGUÊS',question_count:2};
   const rows = [
     {test_id:exam.id,number:1,subject:'Português',statement:'Leia o texto.',alternatives:{A:'Casa',B:'Escola'},correct_answer:'RESPOSTA_SIGILOSA_1'},
-    {test_id:exam.id,number:2,subject:'Português',statement:'Escolha a ideia principal.',alternatives:{A:'Ideia A',B:'Ideia B'},correct_answer:'RESPOSTA_SIGILOSA_2'}
+    {test_id:exam.id,number:2,subject:mixedSubjects?'Ciências':'Português',statement:'Escolha a ideia principal.',alternatives:{A:'Ideia A',B:'Ideia B'},correct_answer:'RESPOSTA_SIGILOSA_2'}
   ];
   const popup = {
     document:{images:[],write(value){html=value;},close(){},getElementById:()=>printButton},
@@ -49,6 +49,10 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.match(result.html,/Leia o texto/);
   assert.match(result.html,/A\) Casa/);
   assert.match(result.html,/B\) Escola/);
+  assert.match(result.html,/<b>1\.<\/b>/);
+  assert.match(result.html,/<b>2\.<\/b>/);
+  assert.doesNotMatch(result.html,/class="question-subject"/);
+  assert.doesNotMatch(result.html,/<b>\d+\. Português<\/b>/);
   assert.match(result.html,/\.logo-school\{width:26mm;height:26mm/);
   assert.match(result.html,/\.logo-state\{width:55mm;height:26mm/);
   assert.match(result.html,/@page\{margin:18mm\}@media print\{body\{margin:0\}/);
@@ -57,6 +61,15 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.ok(result.html.indexOf('base64,ESCOLA') < result.html.indexOf('base64,ESTADO'));
   assert.ok(result.html.indexOf('base64,ESTADO') < result.html.indexOf('Escola Exemplo'));
   assert.doesNotMatch(result.html,/RESPOSTA_SIGILOSA|Gabarito interno|correct_answer/);
+});
+
+test('bloco com disciplinas diferentes mostra cada componente só no início da seção',async()=>{
+  const fixture=setup({mixedSubjects:true});
+  await fixture.print();
+  const html=fixture.result().html;
+  assert.equal((html.match(/class="question-subject"/g)||[]).length,2);
+  assert.match(html,/<div class="question-subject">Português<\/div><b>1\.<\/b>/);
+  assert.match(html,/<div class="question-subject">Ciências<\/div><b>2\.<\/b>/);
 });
 
 test('a impressão fica restrita à coordenação e à prova completa',async()=>{
