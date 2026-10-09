@@ -106,22 +106,41 @@
       // Abrir a prévia durante o clique evita que o navegador bloqueie a janela após o RPC.
       const popup = window.open('', '_blank');
       if (!popup) return setMessage('familyCardsMessage','Permita a janela de impressão no navegador.',true);
-      popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Preparando carteirinhas</title><p>Preparando carteirinhas...</p></html>');
+      popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Preparando carteirinhas</title><style>body{font:16px system-ui,sans-serif;color:#17233a;background:#f5f7fb;margin:0;padding:32px}main{max-width:560px;margin:10vh auto;background:white;border:1px solid #dce5f5;border-radius:14px;padding:28px}h1{font-size:22px}p{line-height:1.5}</style><main><h1>Carteirinhas da turma</h1><p id="familyPreparationStatus" role="status">Consultando os alunos e as carteirinhas...</p></main></html>');
       popup.document.close();
       const button = get('familyPrintCards'); button.disabled = true;
       setMessage('familyCardsMessage','Gerando carteirinhas da turma...');
+      const showProgress = message => {
+        if (!popup.closed) {
+          const status = popup.document.getElementById('familyPreparationStatus');
+          if (status) status.textContent = message;
+        }
+        setMessage('familyCardsMessage',message);
+      };
+      const withTimeout = (promise, milliseconds, message) => new Promise((resolve,reject) => {
+        const timer = setTimeout(() => reject(new Error(message)), milliseconds);
+        Promise.resolve(promise).then(value => { clearTimeout(timer); resolve(value); }, reason => { clearTimeout(timer); reject(reason); });
+      });
       try {
         const activeSchool = schoolId;
-        const { data, error } = await db.rpc('family_issue_cards', { p_school_id:activeSchool, p_class_id:classId });
+        const { data, error } = await withTimeout(
+          db.rpc('family_issue_cards', { p_school_id:activeSchool, p_class_id:classId }),
+          60000, 'A consulta das carteirinhas demorou demais. Confira a conexão e tente novamente.'
+        );
         if (error) throw error;
         if (activeSchool !== schoolId) throw new Error('A escola ativa mudou. Abra a tela novamente.');
         if (!data?.length) throw new Error('Não há alunos ativos nesta turma.');
         if (typeof window.qrcode !== 'function' || !window.FamilyCardPrint) throw new Error('Gerador de carteirinhas indisponível.');
+        showProgress(`Carregando fotos de ${data.length} aluno(s)...`);
+        let missingPhotos = 0;
         const cards = await Promise.all(data.map(async row => {
           let photo_url = '';
           if (row.photo_path) {
-            const result = await db.storage.from('student-photos').createSignedUrl(row.photo_path, 1800);
-            photo_url = result.data?.signedUrl || '';
+            try {
+              const result = await withTimeout(db.storage.from('student-photos').createSignedUrl(row.photo_path, 1800), 15000, 'Foto indisponível');
+              photo_url = result.data?.signedUrl || '';
+            } catch { /* A foto é opcional; a carteirinha continua com as iniciais. */ }
+            if (!photo_url) missingPhotos++;
           }
           return { ...row, photo_url };
         }));
@@ -129,13 +148,23 @@
           const qr = window.qrcode(0,'M'); qr.addData(value); qr.make();
           return qr.createSvgTag({ cellSize:3, margin:4, scalable:true });
         };
+        showProgress(`Montando ${cards.length} carteirinha(s) para impressão...`);
+        await new Promise(resolve => setTimeout(resolve,0));
+        const printHtml = window.FamilyCardPrint.render(cards, schoolName, qrSvg);
+        if (popup.closed) throw new Error('A janela de impressão foi fechada. Abra novamente para imprimir.');
         popup.document.open();
-        popup.document.write(window.FamilyCardPrint.render(cards, schoolName, qrSvg));
+        popup.document.write(printHtml);
         popup.document.close();
-        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas. Confira a prévia e imprima em frente e verso.`);
+        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas${missingPhotos ? `; ${missingPhotos} foto(s) indisponível(is)` : ''}. Confira a prévia e imprima em frente e verso.`);
       } catch (caught) {
-        popup.close();
-        setMessage('familyCardsMessage',caught.message || 'Não foi possível gerar as carteirinhas.',true);
+        const message = caught.message || 'Não foi possível gerar as carteirinhas.';
+        if (!popup.closed) {
+          popup.document.open();
+          popup.document.write('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Carteirinhas indisponíveis</title><body style="font:16px system-ui,sans-serif;color:#17233a;max-width:560px;margin:10vh auto;padding:24px"><h1>Não foi possível preparar as carteirinhas</h1><p id="familyPreparationError" role="alert"></p><p>Volte ao Carômetro e tente novamente.</p></body></html>');
+          popup.document.close();
+          popup.document.getElementById('familyPreparationError').textContent = message;
+        }
+        setMessage('familyCardsMessage',message,true);
       } finally { button.disabled = false; }
     };
     async function displayStudent(rawValue) {

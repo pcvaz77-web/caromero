@@ -38,3 +38,10 @@ test('nome exibido é escapado e QR aceita somente token de carteirinha', () => 
   assert.equal(qrValue(item.qr_token), `CAROMETRO:CARD:${item.qr_token}`);
   assert.throws(() => qrValue('outro-aluno'), /inválido/);
 });
+
+test('faixa azul da escola integra frente e verso mesmo sem fundos de impressão', () => {
+  const html = render([card(1)], 'Escola & Cia', () => '<svg></svg>');
+  assert.equal((html.match(/<rect width="100" height="20" fill="#1d3b76"\/>/g) || []).length, 2);
+  assert.equal((html.match(/<span>Escola &amp; Cia<\/span>/g) || []).length, 2);
+  assert.match(html, /print-color-adjust:exact/);
+});
