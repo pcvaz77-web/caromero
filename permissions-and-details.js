@@ -361,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (canDelete(student) && !remove) { const button = document.createElement('button'); button.className = 'delete'; button.textContent = 'Excluir'; button.onclick = event => { event.stopPropagation(); window.deleteStudent(id); }; actions.appendChild(button); }
     });
     const classDelete = document.getElementById('deleteClass');
-    if (classDelete && selectedClassId) classDelete.classList.toggle('hidden', !canDelete());
+    if (classDelete) classDelete.classList.toggle('hidden', !selectedClassId || permission.role !== 'admin');
   }
   new MutationObserver(syncStudentActions).observe(document.getElementById('list'), { childList:true });
   syncStudentActions();

@@ -14,47 +14,44 @@ document.addEventListener('DOMContentLoaded', () => {
       toast('Somente administradores podem excluir turmas.');
       return;
     }
-    const affected = students.filter(student => student.classId === cls.id);
-    const suffix = affected.length === 1 ? '' : 's';
-    const message = affected.length
-      ? `Excluir a turma ${cls.name} e também os ${affected.length} aluno${suffix} cadastrado${suffix}? Esta ação não pode ser desfeita.`
-      : `Excluir a turma ${cls.name}? Esta ação não pode ser desfeita.`;
-    if (!confirm(message)) return;
-
-    const typedName = prompt(`Para confirmar a exclusão, digite exatamente o nome da turma: ${cls.name}`);
-    if (typedName !== cls.name) {
-      toast('Exclusão cancelada. O nome da turma não foi confirmado.');
-      return;
-    }
-
     deleteButton.disabled = true;
     try {
-      let deleteQuery = db.from('classes').delete().eq('id', cls.id);
       const schoolId = window.getActiveSchoolId?.();
       if (!schoolId) { toast('Selecione uma escola antes de excluir a turma.'); return; }
-      deleteQuery = deleteQuery.eq('school_id', schoolId);
-      const { error: classError } = await deleteQuery;
-      if (classError) {
-        if (classError.code === '23503') throw new Error('A exclusão foi bloqueada para proteger os alunos. Execute o script supabase-delete-class-cascade.sql no Supabase antes de tentar novamente.');
-        throw classError;
+      const { count, error: countError } = await db.from('students')
+        .select('id', { count: 'exact', head: true })
+        .eq('school_id', schoolId)
+        .eq('class_id', cls.id);
+      if (countError) throw countError;
+      if (count === null) throw new Error('Não foi possível conferir os alunos desta turma.');
+      if (count > 0) {
+        toast(`A turma ${cls.name} tem ${count} aluno${count === 1 ? '' : 's'}. Remaneje os alunos antes de excluir a turma; os registros deles serão preservados.`);
+        return;
       }
 
-      const photos = affected.map(student => student.photoPath).filter(Boolean);
-      let photoCleanupFailed = false;
-      if (photos.length) {
-        const { error:photoError } = await db.storage.from('student-photos').remove(photos);
-        photoCleanupFailed = !!photoError;
+      if (!confirm(`Excluir a turma vazia ${cls.name}? Esta ação não pode ser desfeita.`)) return;
+      const typedName = prompt(`Para confirmar a exclusão, digite exatamente o nome da turma: ${cls.name}`);
+      if (typedName !== cls.name) {
+        toast('Exclusão cancelada. O nome da turma não foi confirmado.');
+        return;
       }
+
+      const { data, error: classError } = await db.from('classes').delete()
+        .eq('id', cls.id)
+        .eq('school_id', schoolId)
+        .select('id');
+      if (classError) {
+        if (classError.code === '23503') throw new Error('Esta turma tem vínculos com registros escolares e não pode ser excluída. Mantenha a turma para preservar esse histórico.');
+        throw classError;
+      }
+      if (!data?.length) { toast('Turma não encontrada nesta escola ou exclusão não autorizada.'); return; }
 
       // Update the screen immediately; the reload then confirms the server state.
       classes = classes.filter(item => item.id !== cls.id);
-      students = students.filter(student => student.classId !== cls.id);
       selectedClassId = null;
       detailStudentId = null;
       render();
-      toast(photoCleanupFailed
-        ? 'Turma e alunos excluídos. Algumas fotos antigas permaneceram protegidas no armazenamento.'
-        : affected.length ? `Turma e ${affected.length} aluno${suffix} excluído${suffix}.` : 'Turma excluída.');
+      toast('Turma vazia excluída.');
       load();
     } catch (error) {
       toast(error.message || 'Não foi possível excluir a turma.');

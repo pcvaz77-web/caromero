@@ -95,7 +95,7 @@ function render() {
   $('pageTitle').textContent = selected ? selected.name : 'CARÔMETRO';
   $('pageSubtitle').textContent = selected ? 'Alunos cadastrados nesta turma.' : 'Consulte os perfis dos estudantes.';
   $('listTitle').textContent = selected ? `Alunos — ${selected.name}` : 'Lista de alunos';
-  $('deleteClass').classList.toggle('hidden', !selected || !permission.can_edit_students);
+  $('deleteClass').classList.toggle('hidden', !selected || permission.role !== 'admin');
   $('classList').innerHTML = classes.length
     ? classes.map(item => `<button class="${item.id === selectedClassId ? 'active' : ''}" onclick="selectClass('${item.id}')">${esc(item.name)}</button>`).join('')
     : '<div class="meta" style="padding:0 10px">Nenhuma turma.</div>';
