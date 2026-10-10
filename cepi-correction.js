@@ -14,7 +14,7 @@
     return true;
   }
   function key(prepared) {
-    return {alphabet:prepared.test.answer_format,answers:[...prepared.answers],ranges:[{subject:'Prova CEPI',from:1,to:prepared.answers.length}]};
+    return {firstQuestion:1,alphabet:prepared.test.answer_format,answers:[...prepared.answers],ranges:[{subject:'Prova CEPI',from:1,to:prepared.answers.length}]};
   }
   function reviewedItems(status, studentIds, test) {
     const allowed=new Set(studentIds), seen=new Set(), entries=[];

@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const kinds = { bloco:'Prova de Bloco', bimestral:'Prova Bimestral', simulado:'Simulado', eletiva:'Eletivas', clube:'Clubes', oficina:'Oficinas' };
   const cards = [
     ['provas','▤','Provas','Provas de Bloco, Provas Bimestrais e Simulados.'],
-    ['correcao','◎','Correção de provas','Instale a extensão e corrija os cartões das provas aplicadas.'],
+    ['correcao','◎','Correção de provas','Corrija pelo celular os cartões das provas aplicadas.'],
     ['ranking','▥','Ranking de médias','Acertos por disciplina, turma e bimestre.'],
     ['banco','✎','Banco de questões','Questões compartilhadas entre professores e coordenação.'],
     ['cabecalho','▣','Cabeçalho das provas','Identidade da escola e do estado para impressão.'],
@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `#cepiQuestionSaveStatus{margin:0;padding:10px 12px;border-radius:9px;background:#f3f7ff;color:#34466a;font-size:14px;font-weight:700}#cepiQuestionSaveStatus:empty{display:none}`;
   style.textContent += `.cepi-test-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;margin:0 0 16px;padding:14px;border:1px solid #dce4f0;border-radius:12px;background:#f8faff}.cepi-test-filters label{display:grid;gap:5px;font-size:13px;font-weight:750;color:var(--navy)}.cepi-test-filters select{width:100%;min-height:40px;background:#fff}.cepi-test-step{margin:10px 0 13px;padding:10px 12px;border-radius:9px;background:#f3f7ff;color:#34466a;line-height:1.45}`;
   style.textContent += `.cepi-workspace-item.cepi-block-card{border-left:6px solid var(--cepi-block-color);padding-left:15px}.cepi-block-1{--cepi-block-strong:#4167d4;--cepi-block-soft:#94a9eb}.cepi-block-2{--cepi-block-strong:#087e83;--cepi-block-soft:#87c9c6}.cepi-block-3{--cepi-block-strong:#7148b9;--cepi-block-soft:#b59be0}.cepi-block-4{--cepi-block-strong:#a77513;--cepi-block-soft:#e3c27b}.cepi-block-5{--cepi-block-strong:#277c53;--cepi-block-soft:#94cbaa}.cepi-block-6{--cepi-block-strong:#365c8c;--cepi-block-soft:#8eaacb}.cepi-block-medio{--cepi-block-color:var(--cepi-block-strong)}.cepi-block-fundamental{--cepi-block-color:var(--cepi-block-soft)}`;
+  style.textContent += `.cepi-connection-status{margin:10px 0 0;padding:10px 12px;border-radius:9px;background:#edf3ff;color:#294b83;font-weight:700}.cepi-connection-status[data-state="success"]{background:#e4f5e9;color:#146335;border:1px solid #a8dbb7}.cepi-connection-status[data-state="error"]{background:#fff0ed;color:#9b3427;border:1px solid #efb8ae}.cepi-class-status{margin:0;padding:10px 12px;border-radius:9px;background:#edf3ff;color:#294b83}.cepi-class-status[data-state="error"]{background:#fff0ed;color:#9b3427;border:1px solid #efb8ae}.cepi-correction-steps{margin:0;padding:15px 18px 15px 36px;border:1px solid #dce4f0;border-radius:12px;background:#f8faff;line-height:1.55}.cepi-correction-steps li+li{margin-top:7px}.cepi-workspace-form .actions #cepiCorrectionStart{width:100%;min-height:48px}.cepi-workspace-form .actions #cepiCorrectionStart:disabled{opacity:.55;cursor:not-allowed}#cepiCorrectionActionStatus[data-state="error"]{background:#fff0ed;color:#9b3427}#cepiCorrectionActionStatus[data-state="loading"]{background:#edf3ff;color:#294b83}#cepiCorrectionActionStatus[data-state="success"]{background:#e4f5e9;color:#146335}`;
   style.textContent += `#cepiGroupForm .cepi-group-heading{padding:18px 20px;border:1px solid #dbe5f6;border-radius:15px;background:linear-gradient(120deg,#f1f5ff,#fff)}#cepiGroupForm .cepi-group-heading h4{margin:0 0 5px;font-size:22px;color:var(--navy)}#cepiGroupForm .cepi-group-heading p{margin:0;color:#53627e}#cepiGroupForm fieldset{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiGroupForm legend{padding:0 5px;font-weight:800;color:var(--navy)}#cepiGroupForm fieldset>p{margin:3px 0 12px;color:#53627e;font-size:13px}#cepiGroupForm .cepi-group-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}#cepiGroupForm .cepi-group-options label{display:flex;align-items:center;gap:8px;min-height:42px;margin:0;padding:8px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;cursor:pointer}#cepiGroupForm .cepi-group-options label:has(input:checked),#cepiGroupForm .cepi-group-student:has(input:checked){border-color:#7299ef;background:#e7efff;box-shadow:inset 0 0 0 1px #7299ef;color:#173e87}#cepiGroupForm input[type=checkbox]{width:18px;min-height:18px;height:18px;margin:0;accent-color:var(--blue);flex:none}#cepiGroupForm .cepi-group-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;max-height:290px;overflow:auto}#cepiGroupForm .cepi-group-student{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border:1px solid #d8e1f1;border-radius:10px;background:#fff;cursor:pointer;font-size:13px}#cepiGroupForm .cepi-group-student[hidden]{display:none}#cepiGroupForm .cepi-group-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:#dce6ff;color:#315dbb;overflow:hidden;font-weight:800}#cepiGroupForm .cepi-group-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#cepiGroupForm .cepi-group-student small{display:block;color:#53627e;font-weight:500}#cepiGroupForm .cepi-group-student input:disabled{opacity:.6}#cepiGroupForm .cepi-group-count{display:block;margin-top:10px;color:#415273;font-size:13px;font-weight:700}#cepiGroupForm .actions{padding-top:12px;border-top:1px solid #e4eaf4}`;
   style.textContent += `#cepiGroupForm .cepi-club-disciplines .cepi-group-options{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));max-height:240px;overflow:auto}#cepiGroupForm .cepi-club-disciplines .cepi-group-options label[hidden]{display:none}#cepiGroupForm .cepi-discipline-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}#cepiGroupForm .cepi-discipline-toolbar button{padding:7px 10px;border:1px solid #ccd8ed;border-radius:8px;background:#fff;color:#23488f;font-weight:700;cursor:pointer}#cepiGroupForm .cepi-discipline-toolbar button:hover{background:#e7efff}`;
   style.textContent += `.cepi-useful-list-preview{max-width:100%;overflow:auto;border:1px solid #dce4f0;border-radius:12px}.cepi-useful-table{width:100%;border-collapse:collapse;table-layout:fixed}.cepi-useful-table th,.cepi-useful-table td{padding:10px;border-bottom:1px solid #e2e8f2;text-align:left;vertical-align:top;overflow-wrap:anywhere}.cepi-useful-table th{background:#eaf0ff;color:#173e87;font-weight:800}.cepi-useful-table th:first-child{width:24%}.cepi-useful-table th:nth-child(2),.cepi-useful-table th:nth-child(3){width:28%}.cepi-useful-table th:last-child{width:20%}.cepi-useful-table .student-name{font-weight:800}.cepi-useful-table .allocation strong,.cepi-useful-table .allocation small{display:block}.cepi-useful-table .allocation small{margin-top:3px;color:#52617a;font-size:12px}.cepi-useful-table .allocation+.allocation{margin-top:8px}.cepi-useful-table .missing{color:#69758a}.cepi-useful-head{border-left:5px solid #4262d5;padding:14px 16px;background:#f3f7ff;border-radius:10px}.cepi-useful-head h4{margin:0 0 4px;font-size:20px}.cepi-useful-head p{margin:0;color:#53627e}.cepi-useful-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}@media(max-width:700px){.cepi-useful-list-preview{font-size:12px;min-width:0}.cepi-useful-table{min-width:720px}}`;
@@ -156,7 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiModal').classList.add('hidden');
     workspace.classList.remove('hidden');
     $('cepiWorkspaceTitle').textContent = ({provas:'Provas',correcao:'Correção de provas',ranking:'Ranking de médias',banco:'Banco de questões',cabecalho:'Cabeçalho das provas',listas:'Imprimir listas',lideres:'Líderes'})[key] || groupLabel(key);
-    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Acompanhe a produção, imprima e aplique as provas da escola.' : key === 'correcao' ? 'Instale a extensão e corrija os cartões das provas aplicadas.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : key === 'listas' ? 'Consulte e imprima a alocação dos alunos por turma.' : 'Registros específicos do CEPI, ligados à escola ativa.';
+    $('cepiWorkspaceSubtitle').textContent = key === 'provas' ? 'Acompanhe a produção, imprima e aplique as provas da escola.' : key === 'correcao' ? 'Escolha a prova aplicada e a turma para ler os cartões no celular.' : key === 'banco' ? 'Professores e coordenação compartilham as questões.' : key === 'listas' ? 'Consulte e imprima a alocação dos alunos por turma.' : 'Registros específicos do CEPI, ligados à escola ativa.';
     $('cepiWorkspaceNew').classList.add('hidden');
     message('Carregando…');
     $('cepiWorkspaceContent').replaceChildren();
@@ -227,16 +228,22 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderCorrectionHub() {
     $('cepiWorkspaceNew').classList.add('hidden');
     const applied=editor()?tests.filter(test=>test.status==='applied'):[];
-    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-item"><h4>Instalar ou conectar a extensão</h4><p>Use a mesma extensão do Carômetro. A conexão usa a sua sessão, sem digitar novamente o e-mail.</p><div class="cepi-workspace-actions"><a class="btn secondary" id="cepiHubInstall" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button class="btn secondary" id="cepiHubConnect" type="button">Verificar e conectar</button></div><p id="cepiHubStatus" role="status"></p></div><p class="cepi-workspace-hint">A correção é liberada quando a coordenação marca a prova como aplicada. Se ainda não apareceu aqui, abra Provas e confira a situação dela.</p><div class="cepi-workspace-actions">${actionButton('Ver provas','show-tests','')}</div><div class="cepi-workspace-list cepi-workspace-questions">${applied.map(test=>`<article class="cepi-workspace-item${blockCardClass(test)}"><h4>${esc(test.title)}</h4><p>${test.question_count} questões · ${test.class_ids?.length||0} turma(s) vinculada(s)</p>${actionButton('Corrigir cartões pelo celular','correct-cards',test.id,true)}</article>`).join('')||'<div class="cepi-empty">Nenhuma prova aplicada nesta escola.</div>'}</div>`;
+    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-item"><h4>Extensão neste computador</h4><p>O Carômetro verifica a extensão automaticamente. Depois, escolha uma prova aplicada e uma turma ativa para gerar o QR Code. O celular abre a página de leitura ao apontar a câmera para o código exibido aqui.</p><p id="cepiHubStatus" class="cepi-connection-status" role="status">Verificando a extensão…</p><div class="cepi-workspace-actions"><a class="btn secondary" id="cepiHubInstall" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button class="btn secondary" id="cepiHubConnect" type="button">Tentar conectar novamente</button></div></div><p class="cepi-workspace-hint">A correção é liberada quando a coordenação marca a prova como aplicada. Se ainda não apareceu aqui, abra Provas e confira a situação dela.</p><div class="cepi-workspace-actions">${actionButton('Ver provas','show-tests','')}</div><div class="cepi-workspace-list cepi-workspace-questions">${applied.map(test=>`<article class="cepi-workspace-item${blockCardClass(test)}"><h4>${esc(test.title)}</h4><p>${test.question_count} questões · ${test.class_ids?.length||0} turma(s) vinculada(s)</p>${actionButton('Corrigir cartões pelo celular','correct-cards',test.id,true)}</article>`).join('')||'<div class="cepi-empty">Nenhuma prova aplicada nesta escola.</div>'}</div>`;
     $('cepiHubInstall').href=window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl||'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
-    $('cepiHubConnect').onclick=async()=>{
-      const button=$('cepiHubConnect'),status=$('cepiHubStatus');button.disabled=true;status.textContent='Verificando a extensão…';
+    const verifyHubExtension=async()=>{
+      const button=$('cepiHubConnect'),status=$('cepiHubStatus'),install=$('cepiHubInstall');
+      button.disabled=true;status.dataset.state='loading';status.textContent='Verificando a extensão neste computador…';
       const result=typeof window.connectCarometroCorrectionExtension==='function' ? await window.connectCarometroCorrectionExtension().catch(()=>null) : null;
       if(!status.isConnected||!ensureContext())return;
       const active=result?.ok===true&&result.license?.examAccess?.active===true;
-      status.textContent=active&&window.CepiCorrection.supportsExtension(result.extensionVersion) ? 'Extensão conectada. Escolha uma prova aplicada abaixo.' : active ? 'Atualize a extensão pela loja e recarregue o Carômetro.' : 'Instale a extensão e clique novamente em Verificar e conectar.';
-      button.disabled=false;
+      const ready=active&&window.CepiCorrection.supportsExtension(result.extensionVersion);
+      status.dataset.state=ready?'success':'error';
+      status.textContent=ready?'✓ Extensão instalada e conectada. Escolha uma prova aplicada abaixo.':active?'Atualize a extensão pela loja e recarregue o Carômetro.':'A extensão não respondeu ou o acesso à correção não foi confirmado. Confira a instalação e tente novamente.';
+      install.hidden=ready;install.style.display=ready?'none':'';button.hidden=ready;button.style.display=ready?'none':'';button.disabled=false;
+      if(active&&!ready)install.textContent='Atualizar extensão';
     };
+    $('cepiHubConnect').onclick=verifyHubExtension;
+    verifyHubExtension();
     bindActions({'show-tests':()=>openSection('provas'),'correct-cards':id=>correctionForm(id)});
   }
   function testForm(test=null) {
@@ -335,7 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const live=$('cepiCorrectionLive');
     if(live)live.innerHTML='<div class="cepi-workspace-hint">A sessão de leitura expirou. Para lançar no SIAP, gere outro QR Code e leia os cartões novamente. Os resultados já registrados no Carômetro continuam salvos.</div>';
     const start=$('cepiCorrectionStart');
-    if(start)start.textContent='Conectar celular por QR Code';
+    if(start)start.textContent='Gerar QR Code para esta prova';
     return true;
   }
   function correctionForm(id) {
@@ -345,14 +352,13 @@ document.addEventListener('DOMContentLoaded', () => {
     catch(error){message(error.message);return;}
     const expired=expireCorrectionSession();
     const relevant=classes.filter(item=>test.class_ids?.includes(item.id));
-    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Escolha a turma, leia o QR Code da tela com o celular e selecione cada aluno antes da foto. Confira as marcações no celular. O gabarito oficial já vem das questões salvas.</p><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}${item.archived_at?' · turma arquivada':''}</option>`).join('')}</select></label><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart">Conectar celular por QR Code</button></div><p id="cepiCorrectionActionStatus" class="cepi-workspace-hint" role="alert" hidden></p><div id="cepiCorrectionRecovery"></div><div id="cepiCorrectionLive" role="status"></div></div>`;
+    $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(test.title)}</h4><ol class="cepi-correction-steps"><li>Selecione a turma ativa e a chamada desta prova.</li><li>Toque em <strong>Gerar QR Code para esta prova</strong>. O gabarito salvo e os alunos serão preparados automaticamente.</li><li>O código aparecerá <strong>nesta tela</strong>. No celular, abra a câmera e aponte para ele; a página de leitura abrirá para escolher o aluno e fotografar seu cartão-resposta.</li></ol><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}${item.archived_at?' · turma arquivada':''}</option>`).join('')}</select></label><p id="cepiCorrectionClassStatus" class="cepi-class-status" role="status">Selecione uma turma ativa vinculada a esta prova.</p><div id="cepiCorrectionRecovery"></div><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div id="cepiCorrectionExtensionSetup" class="cepi-workspace-hint"></div><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart" disabled>Gerar QR Code para esta prova</button></div><p id="cepiCorrectionActionStatus" class="cepi-workspace-hint" role="status" hidden></p><div id="cepiCorrectionLive" role="status"></div></div>`;
     if(expired)$('cepiCorrectionLive').innerHTML='<div class="cepi-workspace-hint">A sessão de leitura expirou. Gere outro QR Code e leia os cartões novamente para lançar no SIAP. Os resultados já registrados no Carômetro continuam salvos.</div>';
     const setup=document.createElement('div');
-    setup.className='cepi-workspace-hint';
-    setup.innerHTML='<strong>Extensão de correção</strong><p id="cepiCorrectionExtensionStatus" role="status">Verificando a extensão neste navegador…</p><div class="cepi-workspace-actions"><a id="cepiCorrectionInstall" class="btn secondary" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button id="cepiCorrectionConnect" class="btn secondary" type="button">Verificar e conectar</button></div>';
-    $('cepiCorrectionStart').closest('.actions').before(setup);
-    const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus'), actionStatus=$('cepiCorrectionActionStatus'), recovery=$('cepiCorrectionRecovery');
-    const showActionStatus=value=>{actionStatus.textContent=value||'';actionStatus.hidden=!value;};
+    setup.innerHTML='<strong>Extensão neste computador</strong><p id="cepiCorrectionExtensionStatus" class="cepi-connection-status" role="status">Verificando a extensão…</p><div class="cepi-workspace-actions"><a id="cepiCorrectionInstall" class="btn secondary" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button id="cepiCorrectionConnect" class="btn secondary" type="button">Tentar conectar novamente</button></div>';
+    $('cepiCorrectionExtensionSetup').replaceWith(setup);
+    const install=$('cepiCorrectionInstall'), connect=$('cepiCorrectionConnect'), start=$('cepiCorrectionStart'), extensionStatus=$('cepiCorrectionExtensionStatus'), actionStatus=$('cepiCorrectionActionStatus'), classStatus=$('cepiCorrectionClassStatus'), recovery=$('cepiCorrectionRecovery');
+    const showActionStatus=(value,state='error')=>{actionStatus.textContent=value||'';actionStatus.dataset.state=state;actionStatus.hidden=!value;};
     const emptyClassMessage=classId=>{
       const selected=classes.find(item=>item.id===classId);
       const current=classes.find(item=>item.id!==classId&&!item.archived_at&&item.name===selected?.name);
@@ -362,7 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiCorrectionClass').onchange=()=>{
       const classId=$('cepiCorrectionClass').value;
       const selected=classes.find(item=>item.id===classId);
-      showActionStatus(selected?.archived_at?emptyClassMessage(classId):'');
+      classStatus.dataset.state=selected?.archived_at?'error':'ready';
+      classStatus.textContent=selected?.archived_at?emptyClassMessage(classId):selected?`Turma ${selected.name} selecionada. Após gerar o QR Code, leia-o com a câmera do celular.`:'Selecione uma turma ativa vinculada a esta prova.';
+      showActionStatus('');
+      updateStartAvailability();
       recovery.replaceChildren();
       const candidates=classes.filter(item=>!item.archived_at&&item.name===selected?.name&&item.id!==classId);
       if(!manager()||!selected?.archived_at||candidates.length!==1)return;
@@ -384,14 +393,20 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     };
     install.href=window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl||'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
-    start.setAttribute('aria-describedby','cepiCorrectionExtensionStatus');
+    start.setAttribute('aria-describedby','cepiCorrectionClassStatus cepiCorrectionExtensionStatus');
     let extensionReady=false,connectionTask=null;
+    const updateStartAvailability=()=>{
+      if(!start.isConnected)return;
+      const selected=classes.find(item=>item.id===$('cepiCorrectionClass').value);
+      start.disabled=!!connectionTask||!extensionReady||!selected||!!selected.archived_at;
+    };
     const connectExtension=()=>{
       if(connectionTask)return connectionTask;
       connectionTask=(async()=>{
         connect.disabled=true;
         start.disabled=true;
-        start.textContent='Verificando extensão…';
+        connect.textContent='Verificando…';
+        extensionStatus.dataset.state='loading';
         extensionStatus.textContent='Conectando à sua conta do Carômetro…';
         let result=null;
         try{
@@ -405,6 +420,9 @@ document.addEventListener('DOMContentLoaded', () => {
         install.hidden=extensionReady;
         install.style.display=install.hidden?'none':'';
         install.textContent=active&&!compatible?'Atualizar extensão':'Instalar extensão';
+        connect.hidden=extensionReady;
+        connect.style.display=connect.hidden?'none':'';
+        connect.textContent='Tentar conectar novamente';
         const reason=result?.code==='SESSION_EXPIRED'
           ? 'Sua sessão do Carômetro expirou. Entre novamente para conectar a extensão.'
           : result?.code==='INVALID_SESSION'
@@ -414,14 +432,13 @@ document.addEventListener('DOMContentLoaded', () => {
               : result?.ok===true
                 ? 'A extensão respondeu, mas o acesso à correção não foi confirmado para esta conta.'
                 : 'A extensão não respondeu neste navegador. Confira se está instalada e ativada, recarregue o Carômetro e tente novamente.';
+        extensionStatus.dataset.state=extensionReady?'success':'error';
         extensionStatus.textContent=extensionReady
-          ? 'Extensão conectada. Escolha a turma e conecte o celular.'
+          ? '✓ Extensão instalada e conectada neste computador. Selecione uma turma ativa e gere o QR Code abaixo.'
           : active ? 'Esta prova exige a extensão 0.28.34 ou mais recente. Atualize pela Chrome Web Store e recarregue o Carômetro.' : reason;
         connect.disabled=false;
-        start.disabled=false;
-        start.textContent='Conectar celular por QR Code';
         return extensionReady;
-      })().finally(()=>{connectionTask=null;});
+      })().finally(()=>{connectionTask=null;updateStartAvailability();});
       return connectionTask;
     };
     connect.onclick=connectExtension;
@@ -430,15 +447,15 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiCorrectionStart').onclick=async()=>{
       if(!ensureContext()){showActionStatus('A escola ativa mudou ou o acesso ao Meu CEPI expirou. Feche esta janela e abra o Meu CEPI novamente.');return;}
       const classId=$('cepiCorrectionClass').value;
-      if(!classId){showActionStatus('Selecione a turma antes de conectar.');return;}
+      if(!classId){showActionStatus('Selecione uma turma ativa desta prova para gerar o QR Code.');return;}
       const selectedClass=classes.find(item=>item.id===classId);
-      if(selectedClass?.archived_at){showActionStatus(emptyClassMessage(classId));return;}
+      if(selectedClass?.archived_at){classStatus.dataset.state='error';classStatus.textContent=emptyClassMessage(classId);updateStartAvailability();return;}
       showActionStatus('');
       if(!extensionReady && !await connectExtension()){showActionStatus(extensionStatus.textContent);return;}
       expireCorrectionSession();
       if(correction && (correction.schoolId!==schoolId||correction.testId!==id||correction.classId!==classId)){showActionStatus('Encerre a sessão de correção anterior antes de trocar de prova ou turma.');return;}
       if(correction){renderCorrectionLive(test,true);return;}
-      const button=$('cepiCorrectionStart');button.disabled=true;button.textContent='Gerando QR Code…';
+      const button=$('cepiCorrectionStart');button.disabled=true;button.textContent='Preparando gabarito e QR Code…';showActionStatus(`Preparando o gabarito de ${test.question_count} questões e os alunos da turma ${selectedClass.name}…`,'loading');
       let room=null;
       try{
         const prepared=window.CepiAnswerSheets.prepare(test,questions);
@@ -454,11 +471,12 @@ document.addEventListener('DOMContentLoaded', () => {
         await correctionApi('key',{key:window.CepiCorrection.key(prepared)},session);
         await correctionApi('roster',{roster,binding:`${schoolId}:${id}:${classId}`},session);
         correction=session;
+        showActionStatus('QR Code pronto abaixo. Aponte a câmera do celular para ele e escolha o aluno na página que abrir.','success');
         renderCorrectionLive(test,true);
-      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});button.textContent='Conectar celular por QR Code';showActionStatus(error.message||'Não foi possível gerar o QR Code.');}
-      finally{button.disabled=false;}
+      }catch(error){if(room)correctionApi('close',{}, {room}).catch(()=>{});button.textContent='Gerar QR Code para esta prova';showActionStatus(error.message||'Não foi possível gerar o QR Code.');actionStatus.scrollIntoView({block:'nearest'});}
+      finally{updateStartAvailability();}
     };
-    if(correction?.schoolId===schoolId&&correction.testId===id){$('cepiCorrectionClass').value=correction.classId;renderCorrectionLive(test,true);}
+    if(correction?.schoolId===schoolId&&correction.testId===id){$('cepiCorrectionClass').value=correction.classId;$('cepiCorrectionClass').onchange();renderCorrectionLive(test,true);}
   }
   function renderCorrectionLive(test,reveal=false) {
     if(!correction || correction.testId!==test.id)return;
@@ -466,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const target=$('cepiCorrectionLive');if(!target)return;
     const qr=window.qrcode(0,'M');
     qr.addData(`https://correcao.sistemacarometro.com.br/#session=${correction.room.id}&token=${correction.room.mobile}`);qr.make();
-    target.innerHTML=`<div class="cepi-workspace-item"><h4>Celular conectado à turma ${esc(labelClass(correction.classId))}</h4><p>Leia este QR Code com o celular do professor. Ele expira às ${new Date(correction.room.expires).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Não compartilhe a imagem do QR Code.</p><div id="cepiCorrectionQr" style="width:min(260px,100%);margin:auto"></div><div id="cepiCorrectionResults">Aguardando cartões…</div><div class="cepi-workspace-actions"><button type="button" class="btn primary" id="cepiCorrectionSave">Registrar correções conferidas</button><button type="button" class="btn secondary" id="cepiCorrectionClose">Encerrar leitura</button></div></div>`;
+    target.innerHTML=`<div class="cepi-workspace-item"><h4>QR Code pronto · turma ${esc(labelClass(correction.classId))}</h4><p>Abra a câmera do celular e aponte para o código abaixo. Toque no link que aparecer para abrir a página de leitura; nela, selecione o aluno e fotografe o cartão-resposta. O gabarito desta prova já está preparado. O código expira às ${new Date(correction.room.expires).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Não compartilhe esta imagem.</p><div id="cepiCorrectionQr" style="width:min(260px,100%);margin:auto"></div><div id="cepiCorrectionResults">Aguardando cartões dos alunos. Leia o QR Code no celular para começar.</div><div class="cepi-workspace-actions"><button type="button" class="btn primary" id="cepiCorrectionSave">Registrar correções conferidas</button><button type="button" class="btn secondary" id="cepiCorrectionClose">Encerrar leitura</button></div></div>`;
     $('cepiCorrectionQr').innerHTML=qr.createSvgTag({cellSize:4,margin:8,scalable:true});
     const start=$('cepiCorrectionStart');
     if(start)start.textContent='Mostrar QR Code da sessão';
