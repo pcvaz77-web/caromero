@@ -9,14 +9,14 @@ const start = source.indexOf('  async function printTest(id) {');
 const end = source.indexOf('  function renderHeader()', start);
 assert.ok(start >= 0 && end > start, 'Rotina de impressão não encontrada');
 
-function setup({coordinator = true, complete = true, header = true, mixedSubjects = false} = {}) {
+function setup({coordinator = true, complete = true, header = true, mixedSubjects = false, applicationDate = null} = {}) {
   let printed = false;
   let html = '';
   let message = '';
   let popupCount = 0;
   let headerFormOpened = false;
   const printButton = {};
-  const exam = {id:'prova-1',title:'BLOCO 1 - PORTUGUÊS',question_count:2};
+  const exam = {id:'prova-1',title:'BLOCO 1 - PORTUGUÊS',question_count:2,scheduled_on:applicationDate};
   const rows = [
     {test_id:exam.id,number:1,subject:'Português',statement:'Leia o texto.',alternatives:{A:'Casa',B:'Escola'},correct_answer:'RESPOSTA_SIGILOSA_1'},
     {test_id:exam.id,number:2,subject:mixedSubjects?'Ciências':'Português',statement:'Escolha a ideia principal.',alternatives:{A:'Ideia A',B:'Ideia B'},correct_answer:'RESPOSTA_SIGILOSA_2'}
@@ -31,7 +31,7 @@ function setup({coordinator = true, complete = true, header = true, mixedSubject
     headerForm:()=>{headerFormOpened=true;},
     message:value=>{message=value;},esc:value=>String(value ?? ''),
     rich:()=>({render:value=>`<p>${value}</p>`,hydrate:async()=>{}}),db:{},
-    window:{open:()=>{popupCount++;return popup;}},Promise
+    window:{CepiAnswerSheets:require('../cepi-answer-sheets.js'),open:()=>{popupCount++;return popup;}},Promise
   };
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.printTest = printTest;',context);
   return {print:()=>context.printTest(exam.id),clickPrint:()=>printButton.onclick(),result:()=>({printed,html,message,popupCount,headerFormOpened})};
@@ -61,6 +61,13 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.ok(result.html.indexOf('base64,ESCOLA') < result.html.indexOf('base64,ESTADO'));
   assert.ok(result.html.indexOf('base64,ESTADO') < result.html.indexOf('Escola Exemplo'));
   assert.doesNotMatch(result.html,/RESPOSTA_SIGILOSA|Gabarito interno|correct_answer/);
+  assert.doesNotMatch(result.html,/Data:/);
+});
+
+test('a data escolhida fica impressa no cabeçalho da prova',async()=>{
+  const fixture=setup({applicationDate:'2026-10-26'});
+  await fixture.print();
+  assert.match(fixture.result().html,/<span class="meta-field date-fixed">Data: 26\/10\/2026<\/span>/);
 });
 
 test('bloco com disciplinas diferentes mostra cada componente só no início da seção',async()=>{

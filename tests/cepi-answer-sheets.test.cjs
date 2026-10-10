@@ -38,6 +38,18 @@ test('gabarito oficial usa as respostas salvas, na ordem, com acesso separado',(
   assert.match(html,/GABARITO OFICIAL/);
 });
 
+test('data opcional aparece no alto dos cartões e do gabarito oficial',()=>{
+  const {exam,questions}=fixture(15);
+  exam.scheduled_on='2026-10-26';
+  const prepared=sheets.prepare(exam,questions);
+  const cards=sheets.studentHtml(prepared,'Escola Exemplo',4);
+  const key=sheets.officialHtml(prepared,'Escola Exemplo');
+  assert.equal((cards.match(/Data de aplicação: 26\/10\/2026/g)||[]).length,4);
+  assert.match(key,/Data de aplicação: 26\/10\/2026/);
+  exam.scheduled_on=null;
+  assert.doesNotMatch(sheets.studentHtml(sheets.prepare(exam,questions),'Escola Exemplo',1),/Data de aplicação:/);
+});
+
 test('cartão não é impresso com questão ausente, repetida ou gabarito inválido',()=>{
   const {exam,questions}=fixture();
   assert.throws(()=>sheets.prepare(exam,questions.slice(1)),/Complete/);

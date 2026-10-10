@@ -55,6 +55,14 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
     const document=dom.window.document;
     document.getElementById('cepiImportExam').click();
     await waitFor(()=>document.getElementById('cepiExamImportForm'));
+    const importForm=document.getElementById('cepiExamImportForm');
+    assert.equal(importForm.elements.answer_format.value,'ABCD');
+    importForm.elements.stage.value='medio';
+    importForm.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(importForm.elements.answer_format.value,'ABCDE');
+    importForm.elements.stage.value='fundamental_ii';
+    importForm.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(importForm.elements.answer_format.value,'ABCD');
     document.getElementById('cepiExamImportRaw').value='1. Qual alternativa está correta?\nA) Primeira\nB) Segunda\n2. Escolha a resposta.\nA) Sim\nB) Não';
     document.getElementById('cepiExamImportParse').click();
     assert.equal(document.querySelectorAll('[data-import-question]').length,2);

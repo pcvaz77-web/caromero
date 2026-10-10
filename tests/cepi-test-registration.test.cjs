@@ -34,6 +34,23 @@ test('cadastrar prova abre o cadastro de questões e confirma o salvamento', asy
   } finally { dom.window.close(); }
 });
 
+test('etapa sugere o formato das alternativas e permite escolha manual', async () => {
+  const {dom, errors} = await fixture('');
+  try {
+    const form=dom.window.document.getElementById('cepiTestForm');
+    assert.equal(form.elements.answer_format.value,'ABCD');
+    form.elements.stage.value='medio';
+    form.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.answer_format.value,'ABCDE');
+    form.elements.answer_format.value='VF';
+    assert.equal(form.elements.answer_format.value,'VF');
+    form.elements.stage.value='fundamental_ii';
+    form.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.answer_format.value,'ABCD');
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
 test('falha do serviço aparece junto ao botão e permite nova tentativa', async () => {
   const {dom, waitFor, errors} = await fixture('testSaveError=1');
   try {

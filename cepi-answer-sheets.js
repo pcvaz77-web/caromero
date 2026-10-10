@@ -5,6 +5,10 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
   'use strict';
   const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+  const formatApplicationDate = value => {
+    const match = String(value || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return match ? `${match[3]}/${match[2]}/${match[1]}` : '';
+  };
   function prepare(test, allQuestions) {
     if (!test || !Number.isInteger(test.question_count) || test.question_count < 1 || test.question_count > 100) throw new Error('Total de questões inválido.');
     const rows = allQuestions.filter(q => q.test_id === test.id).sort((a,b) => a.number - b.number);
@@ -21,7 +25,8 @@
   }
   function identity(prepared, schoolName) {
     const {test} = prepared;
-    return `<header><b>${escape(schoolName || 'Escola')}</b><small>${escape(test.title)} · ${test.question_count} questões</small></header>`;
+    const date=formatApplicationDate(test.scheduled_on);
+    return `<header><b>${escape(schoolName || 'Escola')}</b><small>${escape(test.title)} · ${test.question_count} questões</small>${date?`<small>Data de aplicação: ${date}</small>`:''}</header>`;
   }
   function grid(prepared, official = false) {
     const {rows,alphabet} = prepared;
@@ -33,7 +38,8 @@
     const subjects = (prepared.test.subject_plan?.length
       ? prepared.test.subject_plan.map(item=>`${item.subject}: ${item.count}`)
       : [...new Set(prepared.rows.map(q=>q.subject))].map(subject=>`${subject}: ${prepared.rows.filter(q=>q.subject===subject).length}`)).join(' · ');
-    const card = `<section class="student-card"><i class="marker tl"></i><i class="marker tr"></i><i class="marker bl"></i><i class="marker br"></i><header><b>${escape(schoolName || 'Escola')}</b><small>${escape(prepared.test.title)} · ${prepared.test.question_count} questões</small><small>${escape(subjects)}</small></header><div class="student-fields"><div class="student-name">Nome do aluno: <span class="line"></span></div></div>${grid(prepared)}<footer>Preencha completamente uma bolha por questão.</footer></section>`;
+    const date=formatApplicationDate(prepared.test.scheduled_on);
+    const card = `<section class="student-card"><i class="marker tl"></i><i class="marker tr"></i><i class="marker bl"></i><i class="marker br"></i><header><b>${escape(schoolName || 'Escola')}</b><small>${escape(prepared.test.title)} · ${prepared.test.question_count} questões</small>${date?`<small>Data de aplicação: ${date}</small>`:''}<small>${escape(subjects)}</small></header><div class="student-fields"><div class="student-name">Nome do aluno: <span class="line"></span></div></div>${grid(prepared)}<footer>Preencha completamente uma bolha por questão.</footer></section>`;
     const pages = Array.from({length:Math.ceil(quantity / 4)},(_,page) => `<div class="card-page">${Array.from({length:Math.min(4,quantity-page*4)},()=>card).join('')}</div>`).join('');
     return `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cartões-resposta · ${escape(prepared.test.title)}</title><style>
       @page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#eef1f7;color:#111;font:8pt Arial,sans-serif}.toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;background:#fff}.toolbar button{border:0;border-radius:8px;background:#5149dc;color:#fff;padding:10px 16px;font-weight:bold;cursor:pointer}.card-page{width:210mm;height:297mm;margin:10px auto;padding:6mm;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:2mm;background:#fff;box-shadow:0 6px 24px #0002;break-after:page}.student-card{position:relative;min-width:0;overflow:hidden;padding:6mm 4mm 3mm;border:1px dashed #777}.marker{position:absolute;width:2.5mm;height:2.5mm;background:#111}.tl{top:1mm;left:1mm}.tr{top:1mm;right:1mm}.bl{bottom:1mm;left:1mm}.br{bottom:1mm;right:1mm}header{text-align:center;border-bottom:1px solid #555;margin-bottom:3mm;padding-bottom:2mm}header b{display:block;font-size:9pt}header small{display:block;font-size:6.5pt}.student-fields{margin-bottom:4mm;font-size:7pt}.student-name{display:flex;align-items:flex-end;gap:1mm;min-height:7mm;white-space:nowrap}.student-fields .line{flex:1;min-width:0;border-bottom:1px solid #333;height:5mm}.columns{display:grid;grid-template-columns:repeat(3,1fr);gap:1mm}.column{display:grid;align-content:start;gap:1.4mm}.answer-row{display:flex;align-items:center;gap:.45mm;white-space:nowrap;break-inside:avoid}.number{width:4.5mm;text-align:right;font-weight:bold}.bubble{display:inline-flex;align-items:center;justify-content:center;width:3.7mm;height:3.7mm;border:1px solid #555;border-radius:50%;font-size:5pt}footer{text-align:center;font-size:6pt;margin-top:3mm}@media print{body{background:white}.toolbar{display:none}.card-page{margin:0;box-shadow:none;page-break-after:always}.card-page:last-of-type{page-break-after:auto}}
@@ -42,5 +48,5 @@
   function officialHtml(prepared, schoolName) {
     return base('Gabarito oficial · uso interno', `<section class="sheet"><i class="marker tl"></i><i class="marker tr"></i><i class="marker bl"></i><i class="marker br"></i>${identity(prepared,schoolName)}<div class="key-label">GABARITO OFICIAL · USO DA COORDENAÇÃO</div>${grid(prepared,true)}<footer>As bolhas preenchidas são as respostas salvas nas questões.</footer></section>`);
   }
-  return Object.freeze({prepare,studentHtml,officialHtml});
+  return Object.freeze({prepare,studentHtml,officialHtml,formatApplicationDate});
 });
