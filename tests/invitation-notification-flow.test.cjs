@@ -38,7 +38,7 @@ test('push repete somente falhas transitórias e remove assinaturas encerradas',
 test('service worker não guarda páginas sensíveis e restringe o destino do clique', () => {
   const worker = read('sw.js');
 
-  assert.match(worker, /SENSITIVE_PAGE_NAMES = new Set\(\['accept-invite\.html', 'reset-password\.html'\]\)/);
+  assert.match(worker, /SENSITIVE_PAGE_NAMES = new Set\(\['accept-invite\.html', 'reset-password\.html', 'familia\.html'\]\)/);
   assert.match(worker, /requested\.origin === scope\.origin/);
   assert.match(worker, /requested\.pathname\.startsWith\(scope\.pathname\)/);
 });

@@ -59,7 +59,7 @@ self.addEventListener('push', event => {
   } catch {
     data = { body:event.data?.text() || 'Nova atualização no CARÔMETRO.' };
   }
-  event.waitUntil(self.registration.showNotification(data.title || 'CARÔMETRO', {
+  const shown = self.registration.showNotification(data.title || 'CARÔMETRO', {
     body:data.body || 'Existe uma nova atualização.',
     icon:'./carometro-icon-192.png',
     badge:'./carometro-icon-192.png',
@@ -67,7 +67,15 @@ self.addEventListener('push', event => {
     renotify:true,
     data:{ url:data.url || './' },
     vibrate:[180, 80, 180]
-  }));
+  });
+  const familyPage = data.url === './familia.html' || data.url === './familia';
+  const updateOpenPortal = familyPage ? self.clients.matchAll({ type:'window', includeUncontrolled:true }).then(clients => {
+    for (const client of clients) {
+      const pathname = new URL(client.url).pathname;
+      if (pathname === '/familia' || pathname === '/familia.html') client.postMessage({ type:'family-notice' });
+    }
+  }) : Promise.resolve();
+  event.waitUntil(Promise.all([shown,updateOpenPortal]));
 });
 
 self.addEventListener('notificationclick', event => {

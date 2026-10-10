@@ -15,6 +15,14 @@
     let familyUserId = null;
     let sessionGeneration = 0;
     let claimInFlight = Promise.resolve();
+    let liveChannel = null;
+    let livePoll = null;
+    let refreshBusy = false;
+    let lastFeedSignature = '';
+    let historyCategory = null;
+    let historyOffset = 0;
+    let historyRequest = 0;
+    const historyPageSize = 50;
     const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const isAppleMobile = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
     const supportsPush = () => window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -111,12 +119,51 @@
     const phone = value => { const clean = value.replace(/[\s()\-]/g, ''); if (!/^\+[1-9][0-9]{7,14}$/.test(clean)) throw new Error('Use o celular com DDI, por exemplo +5562999999999.'); return clean; };
     const familyEmail = value => `familia-${phone(value).slice(1)}@sistemacarometro.com.br`;
     const busy = async (button, work, errorId = 'accessError') => { button.disabled = true; try { await work(); } catch (caught) { error(errorId, caught.message || 'Não foi possível continuar.'); } finally { button.disabled = false; } };
+    function stopLive() {
+      if (livePoll) clearInterval(livePoll);
+      livePoll = null;
+      if (liveChannel && typeof db.removeChannel === 'function') void db.removeChannel(liveChannel);
+      liveChannel = null;
+    }
+    async function refreshPortalFeed(fromNotice = false) {
+      if (!familyUserId || document.visibilityState === 'hidden' || refreshBusy) return;
+      refreshBusy = true;
+      try {
+        if (fromNotice) get('portalLiveStatus').textContent = 'Nova comunicação da escola. Confira seus estudantes.';
+        if (selectedLink) {
+          const changed = await openTimeline(selectedLink);
+          if (changed) {
+            get('portalLiveStatus').textContent = 'Há uma nova comunicação da escola para este estudante.';
+            if (historyCategory) await loadHistory(false);
+          }
+        } else if (fromNotice) {
+          get('portalLiveStatus').textContent = 'Há uma nova comunicação da escola. Escolha o estudante para ler.';
+        }
+      } finally { refreshBusy = false; }
+    }
+    function startLive(userId) {
+      stopLive();
+      if (typeof db.channel === 'function') {
+        liveChannel = db.channel(`family-notices-${userId}`)
+          .on('postgres_changes', { event:'INSERT',schema:'public',table:'user_notifications',filter:`recipient_id=eq.${userId}` }, payload => {
+            if (payload.new?.target_type === 'family_message') void refreshPortalFeed(true).catch(() => {});
+          }).subscribe();
+      }
+      // Recupera avisos após suspensão do navegador ou queda da conexão Realtime.
+      if (typeof setInterval === 'function') livePoll = setInterval(() => { if (selectedLink) void refreshPortalFeed().catch(() => {}); }, 15000);
+    }
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'hidden') void refreshPortalFeed().catch(() => {}); });
+    window.addEventListener('focus', () => { if (selectedLink) void refreshPortalFeed().catch(() => {}); });
+    navigator.serviceWorker?.addEventListener?.('message', event => {
+      if (event.data?.type === 'family-notice') void refreshPortalFeed(true).catch(() => {});
+    });
     async function loadPortal() {
       const { data: userData, error: authError } = await db.auth.getUser();
       if (authError || !userData?.user) return;
       const { data, error: listError } = await db.rpc('family_my_students');
       if (listError) throw listError;
       links = data || [];
+      stopLive();
       familyUserId = userData.user.id;
       sessionGeneration++;
       get('access').classList.add('hidden');
@@ -126,6 +173,7 @@
       get('students').innerHTML = links.length ? links.map(link => `<button class="student-card" type="button" data-link="${link.link_id}"><strong>${esc(link.student_name)}</strong><small>${esc(link.school_name)} · ${esc(link.class_name)}</small></button>`).join('') : '<div class="empty">Nenhum estudante autorizado para este celular. Consulte a escola caso tenha recebido um convite.</div>';
       if (selectedLink && links.some(link => link.link_id === selectedLink)) await openTimeline(selectedLink);
       else get('timeline').classList.add('hidden');
+      startLive(familyUserId);
     }
     async function acceptPendingInvite() {
       if (!token) return;
@@ -136,17 +184,78 @@
     async function openTimeline(linkId) {
       const link = links.find(row => row.link_id === linkId);
       if (!link) return;
+      const wasSelected = selectedLink === linkId;
       selectedLink = linkId;
+      if (!wasSelected) {
+        lastFeedSignature = '';
+        historyCategory = null;
+        historyRequest++;
+        get('familyHistory').classList.add('hidden');
+        for (const id of ['showOccurrenceHistory','showEntryHistory']) get(id).setAttribute('aria-pressed','false');
+      }
+      const generation = sessionGeneration;
       const { data, error: feedError } = await db.rpc('family_feed', { p_link_id:linkId });
+      if (familyUserId === null || generation !== sessionGeneration || selectedLink !== linkId) return false;
       if (feedError) { error('portalError',feedError.message); return; }
+      // Leitura e ciência mudam em segundo plano; não feche o cartão aberto por isso.
+      const signature = `${linkId}:${JSON.stringify((data || []).map(row => [row.message_id,row.published_at,row.title,row.body,row.category]))}`;
+      if (signature === lastFeedSignature) return false;
+      lastFeedSignature = signature;
       get('schoolName').textContent = link.school_name;
       get('studentName').textContent = link.student_name;
       get('className').textContent = link.class_name || '';
       get('timeline').classList.remove('hidden');
-      get('messages').innerHTML = data?.length ? data.map(message => `<article class="message" data-message="${message.message_id}" data-viewed="${message.viewed_at ? 'true' : 'false'}"><header><h3>${esc(message.title)}</h3><time>${new Intl.DateTimeFormat('pt-BR',{ dateStyle:'medium',timeStyle:'short' }).format(new Date(message.published_at))}</time></header><small>${message.acknowledged_at ? 'Ciência confirmada' : message.viewed_at ? 'Visualizada' : 'Ainda não visualizada'}</small><div><button class="outline" type="button" data-open aria-expanded="false">Ver comunicação</button></div><div class="message-detail hidden"><p>${esc(message.body)}</p><footer>${message.acknowledged_at ? 'Ciência confirmada' : 'Ciência ainda não confirmada'}</footer>${message.acknowledged_at ? '' : '<button class="primary" type="button" data-acknowledge>Confirmar ciência</button>'}</div></article>`).join('') : '<div class="empty">Ainda não há comunicações para este estudante.</div>';
+      get('messages').innerHTML = data?.length ? data.map(message => `<article class="message" data-message="${esc(message.message_id)}" data-viewed="${message.viewed_at ? 'true' : 'false'}"><header><h3>${esc(message.title)}</h3><time>${new Intl.DateTimeFormat('pt-BR',{ dateStyle:'medium',timeStyle:'short' }).format(new Date(message.published_at))}</time></header><small>${message.acknowledged_at ? 'Ciência confirmada' : message.viewed_at ? 'Visualizada' : 'Ainda não visualizada'}</small><div><button class="outline" type="button" data-open aria-expanded="false">Ver comunicação</button></div><div class="message-detail hidden"><p class="${message.category === 'entry' ? 'entry-highlight' : ''}">${message.category === 'entry' ? `<strong>${esc(message.body)}</strong>` : esc(message.body)}</p><footer>${message.acknowledged_at ? 'Ciência confirmada' : 'Ciência ainda não confirmada'}</footer>${message.acknowledged_at ? '' : '<button class="primary" type="button" data-acknowledge>Confirmar ciência</button>'}</div></article>`).join('') : '<div class="empty">Ainda não há comunicações para este estudante.</div>';
+      return true;
     }
-    get('students').onclick = event => { const card = event.target.closest('[data-link]'); if (card) openTimeline(card.dataset.link); };
-    get('backToStudents').onclick = () => { selectedLink = null; get('timeline').classList.add('hidden'); };
+    const displayDate = value => value ? `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}` : '';
+    const entryMoment = value => new Intl.DateTimeFormat('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(value)).replace(',',' às');
+    async function loadHistory(append = false) {
+      if (!selectedLink || !historyCategory) return;
+      const request = ++historyRequest;
+      const linkId = selectedLink;
+      const category = historyCategory;
+      const offset = append ? historyOffset : 0;
+      get('historyStatus').textContent = 'Buscando histórico…';
+      get('moreHistory').disabled = true;
+      const { data, error: historyError } = await db.rpc('family_history', {
+        p_link_id:linkId,p_category:category,p_date:get('historyDate').value || null,
+        p_teacher:category === 'occurrence' ? get('historyTeacher').value.trim() || null : null,
+        p_limit:historyPageSize,p_offset:offset,
+      });
+      if (request !== historyRequest || selectedLink !== linkId || historyCategory !== category) return;
+      get('moreHistory').disabled = false;
+      if (historyError) { get('historyStatus').textContent = 'Não foi possível consultar o histórico. Tente novamente.'; return; }
+      const rows = data || [];
+      const markup = rows.map(row => category === 'entry'
+        ? `<article class="history-result"><h4>Entrada na escola</h4><p class="history-entry"><strong>Entrada registrada em ${esc(entryMoment(row.event_at))}.</strong></p></article>`
+        : `<article class="history-result"><h4>${esc(row.title)}</h4><small>Data da ocorrência: ${esc(displayDate(row.event_date))} · Professor responsável: ${esc(row.professor_name || 'Não informado')}</small><p>${esc(row.body)}</p></article>`).join('');
+      if (append) get('historyResults').insertAdjacentHTML('beforeend', markup);
+      else get('historyResults').innerHTML = markup || '<div class="empty">Nenhum registro publicado para estes filtros.</div>';
+      historyOffset = offset + rows.length;
+      get('moreHistory').classList.toggle('hidden', rows.length < historyPageSize);
+      get('historyStatus').textContent = rows.length ? `${historyOffset} registro(s) exibido(s).` : '';
+    }
+    async function showHistory(category) {
+      historyCategory = category;
+      historyRequest++;
+      historyOffset = 0;
+      get('historyDate').value = '';
+      get('historyTeacher').value = '';
+      get('historyTeacherRow').classList.toggle('hidden', category !== 'occurrence');
+      get('familyHistoryTitle').textContent = category === 'entry' ? 'Histórico de entradas na escola' : 'Histórico de ocorrências compartilhadas pela escola';
+      get('familyHistory').classList.remove('hidden');
+      get('showOccurrenceHistory').setAttribute('aria-pressed',String(category === 'occurrence'));
+      get('showEntryHistory').setAttribute('aria-pressed',String(category === 'entry'));
+      await loadHistory();
+    }
+    get('showOccurrenceHistory').onclick = () => showHistory('occurrence');
+    get('showEntryHistory').onclick = () => showHistory('entry');
+    get('historyFilters').onsubmit = event => { event.preventDefault(); return loadHistory(); };
+    get('clearHistoryFilters').onclick = () => { get('historyDate').value = ''; get('historyTeacher').value = ''; return loadHistory(); };
+    get('moreHistory').onclick = () => loadHistory(true);
+    get('students').onclick = event => { const card = event.target.closest('[data-link]'); if (card) { get('portalLiveStatus').textContent = ''; return openTimeline(card.dataset.link); } };
+    get('backToStudents').onclick = () => { selectedLink = null; lastFeedSignature = ''; historyCategory = null; historyRequest++; get('timeline').classList.add('hidden'); get('portalLiveStatus').textContent = ''; };
     get('messages').onclick = async event => {
       const opener = event.target.closest('[data-open]');
       if (opener && selectedLink) {
@@ -176,7 +285,7 @@
       article.querySelector('small').textContent = 'Ciência confirmada';
       button.remove();
     };
-    get('signOut').onclick = async () => { const leavingUser = familyUserId; familyUserId = null; sessionGeneration++; await claimInFlight; await unlinkPushOnSignOut(leavingUser); await db.auth.signOut(); selectedLink = null; links = []; get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
+    get('signOut').onclick = async () => { const leavingUser = familyUserId; familyUserId = null; sessionGeneration++; stopLive(); historyRequest++; await claimInFlight; await unlinkPushOnSignOut(leavingUser); await db.auth.signOut(); selectedLink = null; links = []; get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
     get('passwordForm').onsubmit = event => {
       event.preventDefault(); error('accessError','');
       busy(event.submitter, async () => {
