@@ -26,29 +26,19 @@ function setup(){
  const dom=new JSDOM('<div id="platformSiapSchoolAccess"></div>',{runScripts:'outside-only'});const w=dom.window,calls=[];
  const members=[{school_id:'s1',school_name:'Escola A',user_id:'u1',full_name:'Professor Teste',member_role:'teacher',member_status:'active'},{school_id:'s2',school_name:'Escola B',user_id:'u1',full_name:'Professor Teste',member_role:'teacher',member_status:'active'}];
  w.esc=s=>String(s??'').replaceAll('<','&lt;');w.shortDate=s=>s.slice(0,10);w.toast=()=>{};
- w.db={rpc:async(name,args)=>{calls.push({name,args});return {data:name==='platform_list_siap_school_users'?members:name==='platform_list_siap_exam_access'?[{user_id:'u1',active:true,expires_at:null}]:{},error:null};}};
- w.eval('const siapSchoolAccessState = { query:"", openSchools:new Set() };'+source.slice(source.indexOf('  function renderSiapSchoolAccess('),source.indexOf('  function limitLabel('))+';window.renderAccess=renderSiapSchoolAccess;window.updateAccess=updateExamAccess;');
- w.renderAccess(members,null,[],null);return {w,calls,dom};
+ w.db={rpc:async(name,args)=>{calls.push({name,args});return {data:name==='platform_list_siap_school_users'?members:{},error:null};}};
+ w.eval('const siapSchoolAccessState = { query:"", openSchools:new Set() };'+source.slice(source.indexOf('  function renderSiapSchoolAccess('),source.indexOf('  function limitLabel('))+';window.renderAccess=renderSiapSchoolAccess;window.refreshAccess=refreshSiapSchoolAccess;');
+ w.renderAccess(members,null);return {w,calls,dom};
 }
-test('dono concede correção pela conta, mantém escola aberta e atualiza conta nas duas escolas',async()=>{
+test('painel do dono mostra apenas concessão do Assistente SIAP',async()=>{
  const {w,calls,dom}=setup();
  w.document.querySelector('[data-school-id="s2"]').open=true;
- const card=w.document.querySelector('[data-school-id="s2"] [data-exam-access]');
- card.querySelector('select').value='permanent';
- await w.updateAccess(card.querySelector('[data-exam-grant]'),true);
- assert.equal(calls[0].name,'platform_set_siap_exam_access');assert.equal(calls[0].args.p_user_id,'u1');assert.equal(calls[0].args.p_expires_at,null);
- assert.equal(w.document.querySelectorAll('[data-exam-revoke]').length,2);
+ await w.refreshAccess();
+ assert.equal(calls.length,1);assert.equal(calls[0].name,'platform_list_siap_school_users');
+ assert.equal(w.document.querySelectorAll('[data-exam-access],[data-exam-grant],[data-exam-revoke]').length,0);
+ assert.equal(w.document.querySelectorAll('[data-siap-grant]').length,2);
  assert.equal(w.document.querySelector('[data-school-id="s2"]').open,true);
- assert.equal(calls.some(c=>c.name==='platform_set_siap_assistant_access'),false);dom.window.close();
-});
-test('data final é local ao usuário selecionado, inválida não grava; cancelamento só altera correção',async()=>{
- const {w,calls,dom}=setup();const card=w.document.querySelector('[data-school-id="s2"] [data-exam-access]'),select=card.querySelector('select');
- select.value='custom';select.onchange();assert.equal(card.querySelector('input').classList.contains('hidden'),false);
- await w.updateAccess(card.querySelector('button'),true);assert.equal(calls.length,0);
- card.querySelector('input').value='2099-05-10';await w.updateAccess(card.querySelector('button'),true);
- assert.equal(calls[0].args.p_expires_at,'2099-05-11T02:59:59.000Z');
- const revoke=w.document.querySelector('[data-exam-revoke]');await w.updateAccess(revoke,false);
- assert.equal(calls.find(c=>c.args?.p_enabled===false).name,'platform_set_siap_exam_access');dom.window.close();
+ dom.window.close();
 });
 
 test('revogação detectada no heartbeat pausa a sessão anterior',async()=>{
