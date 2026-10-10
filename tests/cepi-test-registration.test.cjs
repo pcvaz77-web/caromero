@@ -51,6 +51,25 @@ test('etapa sugere o formato das alternativas e permite escolha manual', async (
   } finally { dom.window.close(); }
 });
 
+test('editar cabeçalho mostra a orientação gerada para a prova escolhida', async () => {
+  const {dom, waitFor, errors} = await fixture('manager=1');
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-cepi-workspace="cabecalho"]').click();
+    await waitFor(()=>document.getElementById('cepiHeaderPreviewText'));
+    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa/);
+    document.querySelector('[data-action="edit-header"]').click();
+    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa/);
+    assert.match(document.getElementById('cepiHeaderForm').textContent,/não informe aqui disciplinas nem quantidade/i);
+    const message=document.getElementById('cepiHeaderInstructions');
+    assert.match(message.value,/Leia atentamente cada questão/);
+    message.value='Confira o tempo disponível.';
+    message.dispatchEvent(new dom.window.Event('input'));
+    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa\. Confira o tempo disponível\.$/);
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
 test('falha do serviço aparece junto ao botão e permite nova tentativa', async () => {
   const {dom, waitFor, errors} = await fixture('testSaveError=1');
   try {

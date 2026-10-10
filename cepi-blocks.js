@@ -39,6 +39,7 @@
     fundamental_ii: ['PORTUGUÊS','CIÊNCIAS','MATEMÁTICA','ING ART EFI','HISTÓRIA','GEOGRAFIA'],
     medio: ['PORTUGUÊS','GEO HIS','MATEMÁTICA','ING ART EFI','FIS QUI','BIO SOC FIL']
   };
+  const defaultInstructionTail = 'Leia atentamente cada questão, assinale a única alternativa correta e, em seguida, transcreva suas respostas para o cartão-resposta. Boa prova!';
 
   function title({kind,stage,bimester,blockNumber,subjects=[]}) {
     const stageName = {fundamental_ii:'FUNDAMENTAL',medio:'MÉDIO'}[stage];
@@ -52,6 +53,37 @@
     if (!['bimestral','simulado'].includes(kind)) return null;
     const subject = subjects.map(value => String(value).trim()).filter(Boolean).join(' / ').toLocaleUpperCase('pt-BR');
     return `${kind === 'bimestral' ? 'PROVA BIMESTRAL' : 'SIMULADO'}${subject ? ` - ${subject}` : ''} - ${suffix}`.slice(0,200);
+  }
+
+  function instructions(test, questions = [], tail = defaultInstructionTail) {
+    const total = Number(test?.question_count);
+    if (!Number.isInteger(total) || total < 1) return '';
+    let distribution = [];
+    if (test.kind === 'bloco') {
+      const saved = Array.isArray(test.subject_plan) && test.subject_plan.length
+        ? test.subject_plan : plan(test.stage, test.block_number);
+      if (Array.isArray(saved)) distribution = saved;
+    } else {
+      const rows = questions.filter(item => item.test_id === test.id);
+      if (rows.length === total && rows.every(item => String(item.subject || '').trim())) {
+        const counts = new Map();
+        rows.forEach(item => {
+          const subject = String(item.subject).trim();
+          counts.set(subject, (counts.get(subject) || 0) + 1);
+        });
+        distribution = [...counts].map(([subject,count]) => ({subject,count}));
+      } else if (Array.isArray(test.subjects) && test.subjects.length === 1 && String(test.subjects[0]).trim()) {
+        distribution = [{subject:String(test.subjects[0]).trim(),count:total}];
+      }
+    }
+    const valid = distribution.length && distribution.every(item =>
+      String(item.subject || '').trim() && Number.isInteger(Number(item.count)) && Number(item.count) > 0
+    ) && distribution.reduce((sum,item) => sum + Number(item.count),0) === total;
+    const prefix = `Esta avaliação é composta por ${total} ${total === 1 ? 'questão' : 'questões'}`;
+    const parts = valid ? distribution.map(item => `${item.count} ${Number(item.count) === 1 ? 'questão' : 'questões'} de ${String(item.subject).trim()}`) : [];
+    const list = parts.length > 1 ? `${parts.slice(0,-1).join(', ')} e ${parts.at(-1)}` : parts[0];
+    const ending = String(tail ?? defaultInstructionTail).trim();
+    return `${prefix}${list ? `, assim ${total === 1 ? 'distribuída' : 'distribuídas'}: ${list}` : ''}.${ending ? ` ${ending}` : ''}`;
   }
 
   function summarize(test, questions, answers) {
@@ -91,5 +123,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,title,summarize,ranking,stageForClassName};
+  window.CepiBlocks = {plan,title,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
 })();

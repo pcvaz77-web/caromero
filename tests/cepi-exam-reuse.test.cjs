@@ -53,6 +53,7 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
   const {dom,waitFor,errors}=await openFixture();
   try{
     const document=dom.window.document;
+    assert.ok(document.querySelector('.cepi-import-entry #cepiImportExam'));
     document.getElementById('cepiImportExam').click();
     await waitFor(()=>document.getElementById('cepiExamImportForm'));
     const importForm=document.getElementById('cepiExamImportForm');
@@ -74,6 +75,32 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
     await waitFor(()=>/Prova importada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
     assert.ok(document.getElementById('cepiQuestionBack'));
     assert.deepEqual(dom.window.eval('rows.cepi_test_questions.filter(item=>item.test_id==="33333333-3333-4333-8333-333333333336").map(item=>item.correct_answer)').join(''),'BA');
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
+test('remove arquivo selecionado, limpa a extração e aceita outro arquivo',async()=>{
+  const {dom,waitFor,errors}=await openFixture();
+  try{
+    const document=dom.window.document;
+    document.getElementById('cepiImportExam').click();
+    const input=document.getElementById('cepiExamImportFile');
+    let selected=[];
+    Object.defineProperty(input,'files',{configurable:true,get:()=>selected});
+    Object.defineProperty(input,'value',{configurable:true,get:()=>selected[0]?.name||'',set:value=>{if(!value)selected=[];}});
+    dom.window.CepiExamImport.extractText=async file=>`1. Texto de ${file.name}\nA) Sim\nB) Não`;
+    selected=[new dom.window.File(['a'],'primeira.txt',{type:'text/plain'})];
+    input.dispatchEvent(new dom.window.Event('change'));
+    await waitFor(()=>document.getElementById('cepiExamImportRaw').value.includes('primeira.txt'));
+    document.getElementById('cepiExamImportParse').click();
+    assert.equal(document.querySelectorAll('[data-import-question]').length,1);
+    document.getElementById('cepiImportRemoveFile').click();
+    assert.equal(document.getElementById('cepiExamImportRaw').value,'');
+    assert.equal(document.querySelectorAll('[data-import-question]').length,0);
+    assert.equal(document.getElementById('cepiImportFileName').textContent,'Nenhum arquivo selecionado');
+    selected=[new dom.window.File(['b'],'segunda.txt',{type:'text/plain'})];
+    input.dispatchEvent(new dom.window.Event('change'));
+    await waitFor(()=>document.getElementById('cepiExamImportRaw').value.includes('segunda.txt'));
     assert.deepEqual(errors,[]);
   }finally{dom.window.close();}
 });

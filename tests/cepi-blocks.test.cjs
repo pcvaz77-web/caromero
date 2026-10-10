@@ -6,7 +6,7 @@ const {test} = require('node:test');
 
 const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
-const {plan,title,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+const {plan,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
 
 test('turmas são identificadas pela série da etapa escolhida', () => {
   for (const name of ['6A','7º B','8º Ano C','9D']) assert.equal(stageForClassName(name),'fundamental_ii',name);
@@ -41,6 +41,41 @@ test('os seis blocos de cada etapa têm a distribuição informada', () => {
     });
   }
   assert.equal(plan('medio',7),null);
+});
+
+test('orientação usa a quantidade e as disciplinas do bloco e da etapa escolhidos', () => {
+  const fundamental={kind:'bloco',stage:'fundamental_ii',block_number:1,question_count:15,subject_plan:plan('fundamental_ii',1)};
+  const medio={kind:'bloco',stage:'medio',block_number:1,question_count:20,subject_plan:plan('medio',1)};
+  const misto={kind:'bloco',stage:'medio',block_number:2,question_count:30,subject_plan:plan('medio',2)};
+  assert.match(instructions(fundamental),/15 questões de Língua Portuguesa/);
+  assert.match(instructions(medio),/20 questões de Língua Portuguesa/);
+  assert.match(instructions(misto),/15 questões de Geografia e 15 questões de História/);
+  assert.doesNotMatch(instructions(misto),/Língua Portuguesa/);
+  for (const stage of ['fundamental_ii','medio']) {
+    for (let block=1;block<=6;block++) {
+      const entries=plan(stage,block);
+      const count=entries.reduce((sum,item)=>sum+item.count,0);
+      const text=instructions({kind:'bloco',stage,block_number:block,question_count:count,subject_plan:entries});
+      assert.match(text,new RegExp(`${count} questões?`),`${stage}, bloco ${block}`);
+      entries.forEach(item=>assert.ok(text.includes(`${item.count} questões de ${item.subject}`),`${stage}, bloco ${block}, ${item.subject}`));
+    }
+  }
+});
+
+test('outras provas usam as questões cadastradas e não inventam distribuição incompleta', () => {
+  const prova={id:'p1',kind:'simulado',question_count:3,subjects:['Arte','Ciências']};
+  const rows=[{test_id:'p1',subject:'Arte'},{test_id:'p1',subject:'Ciências'},{test_id:'p1',subject:'Ciências'}];
+  assert.match(instructions(prova,rows),/1 questão de Arte e 2 questões de Ciências/);
+  assert.doesNotMatch(instructions(prova,rows.slice(0,2)),/assim distribuídas/);
+  assert.doesNotMatch(instructions({...prova,kind:'bloco',subject_plan:[{subject:'Arte',count:7}]},rows),/7 questões de Arte/);
+});
+
+test('somente a orientação final personalizada altera o texto padrão', () => {
+  const prova={kind:'bloco',stage:'medio',block_number:2,question_count:30,subject_plan:plan('medio',2)};
+  const text=instructions(prova,[],'Confira o tempo disponível. Boa prova!');
+  assert.match(text,/30 questões, assim distribuídas: 15 questões de Geografia e 15 questões de História/);
+  assert.match(text,/Confira o tempo disponível\. Boa prova!$/);
+  assert.doesNotMatch(text,/Leia atentamente/);
 });
 
 test('o total é ponderado por questões e não pela média dos percentuais', () => {
