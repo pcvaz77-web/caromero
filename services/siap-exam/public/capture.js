@@ -26,7 +26,7 @@
     return data;
   }
   function showCamera(show) { $('camera-view').hidden = !show; document.body.classList.toggle('camera-open', show); }
-  function stopCamera() { clearTimeout(scanTimer);scanWorker?.terminate();scanWorker=null; cameraAttempt++; opening = false; stream?.getTracks().forEach(t => t.stop()); stream = null; $('video').srcObject = null; $('video').hidden = true; $('snap').hidden = true; showCamera(false); document.body.classList.remove('camera-complete');$('camera-result').hidden=true;$('camera-photo').hidden=true;$('camera-photo').removeAttribute('src');$('camera-summary').textContent='';setEnabled(); }
+  function stopCamera() { clearTimeout(scanTimer);scanWorker?.terminate();scanWorker=null; cameraAttempt++; opening = false; stream?.getTracks().forEach(t => t.stop()); stream = null; $('video').srcObject = null; $('video').hidden = true; $('snap').hidden = true; showCamera(false); document.body.classList.remove('camera-complete');$('camera-result').hidden=true;$('camera-manual').hidden=true;$('camera-photo').hidden=true;$('camera-photo').removeAttribute('src');$('camera-summary').textContent='';setEnabled(); }
   async function deadline(promise) {
     let timer;
     try { return await Promise.race([promise, new Promise((_,reject) => { timer = setTimeout(function cameraDeadline() { reject(Object.assign(new Error(), { name: 'CameraTimeout' })); }, 15000); })]); }
@@ -203,8 +203,21 @@
     });
   }
   let keyDraft=null, resultAnswers=[], resultKey=null, confirming=false;
+  function showKeyDraft(id,draft,manual=false) {
+    keyDraftId=id;keyDraft=JSON.parse(JSON.stringify(draft));
+    $('key-review').hidden=false;document.body.classList.add('mobile-reviewing');
+    $('key-photo-area').hidden=manual;$('key-cancel-manual').hidden=!manual;$('key-alphabet').value=keyDraft.alphabet;
+    $('key-first-question').value=String(keyDraft.firstQuestion||1);$('key-photo').hidden=true;
+    answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);
+    $('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+(keyDraft.firstQuestion||1)-1} a ${r.to+(keyDraft.firstQuestion||1)-1}`).join(' · ');
+    $('key-ranges').replaceChildren();
+    for(const range of keyDraft.ranges){const row=document.createElement('div');row.className='range-row';
+      for(const field of ['subject','from','to']){const input=document.createElement('input');input.type=field==='subject'?'text':'number';input.value=range[field];input.setAttribute('aria-label',field==='subject'?'Disciplina':field==='from'?'Primeira questão':'Última questão');input.oninput=()=>range[field]=field==='subject'?input.value:Number(input.value);row.append(input);} $('key-ranges').append(row);}
+  }
   function renderMobile(status) {
     $('mobile-workflow').hidden=!mobileWorkflow;if(!mobileWorkflow)return;
+    $('manual-key').hidden=keyReady||!assessment||keyDraftId==='manual';
+    $('camera-manual').hidden=true;
     const selected=$('student-select').value;
     if($('student-select').dataset.roster!==JSON.stringify(roster)) {fillStudents($('student-select'),selected);$('student-select').dataset.roster=JSON.stringify(roster);}
     $('student-choice').hidden=!keyReady;
@@ -215,6 +228,7 @@
     const focusedLocal=outbox.find(i=>i.id===focusedCapture);
     if(!$('camera-view').hidden && focusedLocal?.status==='failed') {
       document.body.classList.remove('reading');
+      $('snap').hidden=true;
       $('camera-status').textContent='Falha ao enviar a foto. Confira a conexão e tente novamente.';
       $('camera-summary').textContent='A foto continua guardada nesta aba.';
       $('camera-result').hidden=false;
@@ -223,9 +237,13 @@
     }
     if(!$('camera-view').hidden && focused?.status==='error') {
       document.body.classList.remove('reading');
+      $('snap').hidden=true;
       $('camera-status').textContent=focused.error||'Não foi possível ler esta foto com segurança.';
-      $('camera-summary').textContent='Confira se todas as questões da disciplina estão legíveis. Você pode solicitar outra leitura ou fotografar novamente.';
+      $('camera-summary').textContent=/serviço|tempo de resposta|limite temporário/i.test(focused.error||'')
+        ? 'A foto chegou ao serviço. Alterar a iluminação não resolve esta falha.'
+        : 'Confira se todas as questões da disciplina estão legíveis. Você pode solicitar outra leitura ou fotografar novamente.';
       $('camera-result').hidden=false;
+      $('camera-manual').hidden=focused.kind!=='official'||!assessment;
       const retryUnavailable=focusedLocal?.retryExhausted||/ajuste técnico/.test(focused.error||'');
       $('camera-result').textContent=retryUnavailable?'Fechar e fotografar novamente':'Tentar ler novamente';
       $('camera-result').onclick=async()=>{
@@ -236,14 +254,8 @@
         finally { $('camera-result').disabled=false; }
       };
     }
-    if(official && !keyReady && keyDraftId!==official.id){
-      keyDraftId=official.id;keyDraft=JSON.parse(JSON.stringify(official.result));
-      $('key-review').hidden=false;document.body.classList.add('mobile-reviewing');$('key-alphabet').value=keyDraft.alphabet;
-      answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);
-      $('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+(keyDraft.firstQuestion||1)-1} a ${r.to+(keyDraft.firstQuestion||1)-1}`).join(' · ');
-      $('key-photo').hidden=true; $('key-ranges').replaceChildren();
-      for(const range of keyDraft.ranges){const row=document.createElement('div');row.className='range-row';
-        for(const field of ['subject','from','to']){const input=document.createElement('input');input.type=field==='subject'?'text':'number';input.value=range[field];input.setAttribute('aria-label',field==='subject'?'Disciplina':field==='from'?'Primeira questão':'Última questão');input.oninput=()=>range[field]=field==='subject'?input.value:Number(input.value);row.append(input);} $('key-ranges').append(row);}
+    if(official && !keyReady && keyDraftId!==official.id && keyDraftId!=='manual'){
+      showKeyDraft(official.id,official.result);
       if(!$('camera-view').hidden) completeCamera(()=>{stopCamera();$('key-review').scrollIntoView?.({block:'start',behavior:'smooth'});},'Conferir gabarito');
       else $('key-review').scrollIntoView?.({block:'start',behavior:'smooth'});tell('Gabarito lido. Confira as alternativas e confirme para começar.');
     }
@@ -306,6 +318,16 @@
     if(changed)$('result-warning').textContent='O gabarito mudou. Reabra este resultado para conferir novamente.';
     $('result-confirm').disabled=confirming||changed||!student||!valid||!active;
   }
+  $('camera-manual').onclick=()=>{stopCamera();$('manual-key').click();};
+  $('manual-key').onclick=()=>{
+    if(!mobileWorkflow||!assessment||keyReady)return;
+    stopCamera();
+    showKeyDraft('manual',{firstQuestion:1,alphabet:'ABCDE',answers:Array(assessment.total).fill('?'),ranges:[{subject:assessment.subject,from:1,to:assessment.total}]},true);
+    $('manual-key').hidden=true;$('key-review').scrollIntoView?.({block:'start',behavior:'smooth'});
+    tell('Selecione a alternativa correta em cada questão e confira com o gabarito impresso.');
+  };
+  $('key-cancel-manual').onclick=()=>{$('key-review').hidden=true;keyDraftId='';keyDraft=null;document.body.classList.remove('mobile-reviewing');$('manual-key').hidden=false;camera();};
+  $('key-first-question').onchange=()=>{if(!keyDraft)return;keyDraft.firstQuestion=Number($('key-first-question').value);answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);$('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+keyDraft.firstQuestion-1} a ${r.to+keyDraft.firstQuestion-1}`).join(' · ');};
   $('key-retake').onclick=async()=>{try{await api('mobile-discard',{id:keyDraftId});$('key-review').hidden=true;document.body.classList.remove('mobile-reviewing');keyDraftId='';focusedCapture='';camera();}catch(e){tell(e.message);}};
   $('key-photo-button').onclick=async()=>{try{const data=await api('mobile-image',{id:keyDraftId});$('key-photo').src=data.image;$('key-photo').hidden=false;}catch(e){tell(e.message);}};
   $('key-alphabet').onchange=()=>{if(!keyDraft)return;keyDraft.alphabet=$('key-alphabet').value;answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);};

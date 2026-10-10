@@ -136,6 +136,7 @@ test('trecho da disciplina mantém números impressos variáveis e não envia ga
  const key={...official,answers:Array(20).fill('E')};
  const student=await recognize(image,{OPENAI_API_KEY:'synthetic'},key,assessment);
  assert.equal(student.firstQuestion,31);assert.match(received.instructions,/31 a 50/);assert.equal(received.text.format.schema.properties.ranges,undefined);assert.equal(JSON.stringify(received).includes(JSON.stringify(key.answers)),false);
+ assert.equal(received.max_output_tokens,5000);
  responseStart=1;await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic'},key,assessment),/[Nn]umeração/);
  }finally{globalThis.fetch=original;}
 });
@@ -194,5 +195,12 @@ test('erro de configuração da leitura não é apresentado como foto ruim',asyn
  try {
   globalThis.fetch=async()=>new Response('{}',{status:400});
   await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic-test-only'},null,{subject:'Arte',total:7}),/Configuração de leitura rejeitada/);
+ } finally { globalThis.fetch=original; }
+});
+test('resposta interrompida por limite de tokens é distinguida de foto ruim',async()=>{
+ const original=globalThis.fetch;
+ try {
+  globalThis.fetch=async()=>Response.json({status:'incomplete',incomplete_details:{reason:'max_output_tokens'}});
+  await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic-test-only'},null,{subject:'Arte',total:7}),/Limite de resposta da leitura/);
  } finally { globalThis.fetch=original; }
 });

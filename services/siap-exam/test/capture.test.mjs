@@ -139,6 +139,10 @@ test('falha do gabarito aparece sobre a câmera e permite nova leitura',async()=
  assert.match(a.w.document.getElementById('camera-status').textContent,/não permitiu ler todas/);
  assert.match(a.w.document.getElementById('camera-progress').textContent,/1 com falha/);
  const retry=a.w.document.getElementById('camera-result');assert.equal(retry.hidden,false);
+ assert.equal(a.w.document.getElementById('snap').hidden,true);
+ a.remote.items[0].error='O serviço esgotou o tempo de resposta antes de concluir o gabarito.';
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ assert.match(a.w.document.getElementById('camera-summary').textContent,/iluminação não resolve/);
  retry.click();await settle();assert.match(a.w.document.getElementById('camera-status').textContent,/Nova leitura solicitada/);
  }finally{a.dom.window.close();}
 });
@@ -157,6 +161,24 @@ test('falha no envio da foto aparece sobre a câmera sem perder a imagem',async(
  assert.match(a.w.document.getElementById('camera-status').textContent,/Falha ao enviar/);
  assert.match(a.w.document.getElementById('camera-progress').textContent,/1 com falha/);
  assert.equal(a.w.document.getElementById('camera-result').textContent,'Tentar enviar novamente');
+ }finally{a.dom.window.close();}
+});
+test('gabarito manual de sete questões exige todas as alternativas e mantém numeração',async()=>{
+ const a=await setup();try{
+ a.remote.mobileWorkflow=true;a.remote.assessment={subject:'Arte',total:7};
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ const doc=a.w.document;
+ assert.equal(doc.getElementById('manual-key').hidden,false);
+ doc.getElementById('manual-key').click();
+ assert.equal(doc.querySelectorAll('#key-grid select').length,7);
+ doc.getElementById('key-confirm').click();await settle();
+ assert.match(doc.getElementById('notice').textContent,/alternativas do modelo/);
+ const start=doc.getElementById('key-first-question');start.value='8';start.dispatchEvent(new a.w.Event('change'));
+ assert.match(doc.querySelector('#key-grid label').textContent,/08/);
+ doc.querySelectorAll('#key-grid select').forEach((select,i)=>{select.value=['A','B','C','D','E','A','B'][i];select.dispatchEvent(new a.w.Event('change'));});
+ doc.getElementById('key-confirm').click();await settle();
+ assert.equal(doc.getElementById('key-review').hidden,true);
+ assert.equal(doc.getElementById('student-choice').hidden,false);
  }finally{a.dom.window.close();}
 });
 
