@@ -26,7 +26,7 @@
     return data;
   }
   function showCamera(show) { $('camera-view').hidden = !show; document.body.classList.toggle('camera-open', show); }
-  function stopCamera() { clearTimeout(scanTimer);scanWorker?.terminate();scanWorker=null; cameraAttempt++; opening = false; stream?.getTracks().forEach(t => t.stop()); stream = null; $('video').srcObject = null; $('video').hidden = true; $('snap').hidden = true; showCamera(false); document.body.classList.remove('camera-complete');$('camera-result').hidden=true;$('camera-manual').hidden=true;$('camera-photo').hidden=true;$('camera-photo').removeAttribute('src');$('camera-summary').textContent='';setEnabled(); }
+  function stopCamera() { clearTimeout(scanTimer);scanWorker?.terminate();scanWorker=null; cameraAttempt++; opening = false; stream?.getTracks().forEach(t => t.stop()); stream = null; $('video').srcObject = null; $('video').hidden = true; $('snap').hidden = true; showCamera(false); document.body.classList.remove('camera-complete');$('camera-result').hidden=true;if($('camera-manual'))$('camera-manual').hidden=true;$('camera-photo').hidden=true;$('camera-photo').removeAttribute('src');$('camera-summary').textContent='';setEnabled(); }
   async function deadline(promise) {
     let timer;
     try { return await Promise.race([promise, new Promise((_,reject) => { timer = setTimeout(function cameraDeadline() { reject(Object.assign(new Error(), { name: 'CameraTimeout' })); }, 15000); })]); }
@@ -54,7 +54,7 @@
         finally { video.removeEventListener('loadeddata', onReady); video.removeEventListener('resize', onReady); }
       }
       if (attempt !== cameraAttempt) return;
-      $('camera-status').textContent = mobileWorkflow?'Enquadre as marcações e mantenha o celular parado. A leitura começará automaticamente.':'Câmera pronta';startAutomaticScan(); $('snap').hidden = false; tell(mobileWorkflow?'Enquadre as marcações. A captura é automática quando o cartão estiver estável.':'Câmera aberta. Enquadre a folha e toque em Fotografar folha.');
+      $('camera-status').textContent = mobileWorkflow?'Enquadre as marcações e mantenha o celular parado. A leitura começará automaticamente.':'Câmera pronta';$('snap').hidden = false;startAutomaticScan();tell(mobileWorkflow?'Enquadre as marcações. A captura é automática quando o cartão estiver estável.':'Câmera aberta. Enquadre a folha e toque em Fotografar folha.');
     } catch (error) {
       if (attempt !== cameraAttempt) return;
       stopCamera();
@@ -65,15 +65,19 @@
   }
   function startAutomaticScan(){
     if(!mobileWorkflow||!window.Worker)return;
-    scanWorker?.terminate();scanWorker=new Worker('card-detector.js');
-    const takeFrame=()=>{if(!stream||$('camera-view').hidden||!$('camera-photo').hidden||$('snap').disabled)return;
-      const video=$('video'),scale=Math.min(640/video.videoWidth,960/video.videoHeight),canvas=document.createElement('canvas');canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);
-      const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(video,0,0,canvas.width,canvas.height);const pixels=context.getImageData(0,0,canvas.width,canvas.height);
-      scanWorker?.postMessage({buffer:pixels.data.buffer,width:canvas.width,height:canvas.height,expected:currentKey?.answers.length||assessment?.total||0},[pixels.data.buffer]);
+    try { scanWorker?.terminate();scanWorker=new Worker('card-detector.js'); }
+    catch { scanWorker=null;$('camera-status').textContent='Câmera pronta. Toque em Ler agora para fotografar.';return; }
+    const detectorFailed=()=>{clearTimeout(scanTimer);scanWorker?.terminate();scanWorker=null;$('camera-status').textContent='Câmera pronta. Toque em Ler agora para fotografar.';$('snap').hidden=false;};
+    const takeFrame=()=>{if(!stream||$('camera-view').hidden||!$('camera-photo').hidden||$('snap').disabled||!scanWorker)return;
+      try {const video=$('video'),scale=Math.min(640/video.videoWidth,960/video.videoHeight),canvas=document.createElement('canvas');canvas.width=Math.round(video.videoWidth*scale);canvas.height=Math.round(video.videoHeight*scale);
+        const context=canvas.getContext('2d',{willReadFrequently:true});context.drawImage(video,0,0,canvas.width,canvas.height);const pixels=context.getImageData(0,0,canvas.width,canvas.height);
+        scanWorker.postMessage({buffer:pixels.data.buffer,width:canvas.width,height:canvas.height,expected:currentKey?.answers.length||assessment?.total||0},[pixels.data.buffer]);
+      } catch { detectorFailed(); }
     };
     scanWorker.onmessage=({data})=>{if(!stream||!$('camera-photo').hidden)return;$('camera-status').textContent=data.reason;
       if(data.capture&&!$('snap').disabled){clearTimeout(scanTimer);$('snap').click();return;}scanTimer=setTimeout(takeFrame,450);
     };
+    scanWorker.onerror=detectorFailed;
     scanTimer=setTimeout(takeFrame,450);
   }
   function resize(source, width, height) {
@@ -206,8 +210,11 @@
   function showKeyDraft(id,draft,manual=false) {
     keyDraftId=id;keyDraft=JSON.parse(JSON.stringify(draft));
     $('key-review').hidden=false;document.body.classList.add('mobile-reviewing');
-    $('key-photo-area').hidden=manual;$('key-cancel-manual').hidden=!manual;$('key-alphabet').value=keyDraft.alphabet;
-    $('key-first-question').value=String(keyDraft.firstQuestion||1);$('key-photo').hidden=true;
+    if($('key-photo-area'))$('key-photo-area').hidden=manual;
+    if($('key-cancel-manual'))$('key-cancel-manual').hidden=!manual;
+    $('key-alphabet').value=keyDraft.alphabet;
+    if($('key-first-question'))$('key-first-question').value=String(keyDraft.firstQuestion||1);
+    $('key-photo').hidden=true;
     answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);
     $('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+(keyDraft.firstQuestion||1)-1} a ${r.to+(keyDraft.firstQuestion||1)-1}`).join(' · ');
     $('key-ranges').replaceChildren();
@@ -216,8 +223,8 @@
   }
   function renderMobile(status) {
     $('mobile-workflow').hidden=!mobileWorkflow;if(!mobileWorkflow)return;
-    $('manual-key').hidden=keyReady||!assessment||keyDraftId==='manual';
-    $('camera-manual').hidden=true;
+    if($('manual-key'))$('manual-key').hidden=keyReady||!assessment||keyDraftId==='manual';
+    if($('camera-manual'))$('camera-manual').hidden=true;
     const selected=$('student-select').value;
     if($('student-select').dataset.roster!==JSON.stringify(roster)) {fillStudents($('student-select'),selected);$('student-select').dataset.roster=JSON.stringify(roster);}
     $('student-choice').hidden=!keyReady;
@@ -243,7 +250,7 @@
         ? 'A foto chegou ao serviço. Alterar a iluminação não resolve esta falha.'
         : 'Confira se todas as questões da disciplina estão legíveis. Você pode solicitar outra leitura ou fotografar novamente.';
       $('camera-result').hidden=false;
-      $('camera-manual').hidden=focused.kind!=='official'||!assessment;
+      if($('camera-manual'))$('camera-manual').hidden=focused.kind!=='official'||!assessment;
       const retryUnavailable=focusedLocal?.retryExhausted||/ajuste técnico/.test(focused.error||'');
       $('camera-result').textContent=retryUnavailable?'Fechar e fotografar novamente':'Tentar ler novamente';
       $('camera-result').onclick=async()=>{
@@ -318,16 +325,16 @@
     if(changed)$('result-warning').textContent='O gabarito mudou. Reabra este resultado para conferir novamente.';
     $('result-confirm').disabled=confirming||changed||!student||!valid||!active;
   }
-  $('camera-manual').onclick=()=>{stopCamera();$('manual-key').click();};
-  $('manual-key').onclick=()=>{
+  if($('camera-manual'))$('camera-manual').onclick=()=>{stopCamera();$('manual-key')?.click();};
+  if($('manual-key'))$('manual-key').onclick=()=>{
     if(!mobileWorkflow||!assessment||keyReady)return;
     stopCamera();
     showKeyDraft('manual',{firstQuestion:1,alphabet:'ABCDE',answers:Array(assessment.total).fill('?'),ranges:[{subject:assessment.subject,from:1,to:assessment.total}]},true);
     $('manual-key').hidden=true;$('key-review').scrollIntoView?.({block:'start',behavior:'smooth'});
     tell('Selecione a alternativa correta em cada questão e confira com o gabarito impresso.');
   };
-  $('key-cancel-manual').onclick=()=>{$('key-review').hidden=true;keyDraftId='';keyDraft=null;document.body.classList.remove('mobile-reviewing');$('manual-key').hidden=false;camera();};
-  $('key-first-question').onchange=()=>{if(!keyDraft)return;keyDraft.firstQuestion=Number($('key-first-question').value);answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);$('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+keyDraft.firstQuestion-1} a ${r.to+keyDraft.firstQuestion-1}`).join(' · ');};
+  if($('key-cancel-manual'))$('key-cancel-manual').onclick=()=>{$('key-review').hidden=true;keyDraftId='';keyDraft=null;document.body.classList.remove('mobile-reviewing');$('manual-key').hidden=false;camera();};
+  if($('key-first-question'))$('key-first-question').onchange=()=>{if(!keyDraft)return;keyDraft.firstQuestion=Number($('key-first-question').value);answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);$('key-summary').textContent=keyDraft.ranges.map(r=>`${r.subject}: questões ${r.from+keyDraft.firstQuestion-1} a ${r.to+keyDraft.firstQuestion-1}`).join(' · ');};
   $('key-retake').onclick=async()=>{try{await api('mobile-discard',{id:keyDraftId});$('key-review').hidden=true;document.body.classList.remove('mobile-reviewing');keyDraftId='';focusedCapture='';camera();}catch(e){tell(e.message);}};
   $('key-photo-button').onclick=async()=>{try{const data=await api('mobile-image',{id:keyDraftId});$('key-photo').src=data.image;$('key-photo').hidden=false;}catch(e){tell(e.message);}};
   $('key-alphabet').onchange=()=>{if(!keyDraft)return;keyDraft.alphabet=$('key-alphabet').value;answerGrid($('key-grid'),keyDraft.answers,keyDraft.alphabet,(i,v)=>keyDraft.answers[i]=v);};

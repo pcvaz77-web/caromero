@@ -38,6 +38,13 @@ test('reenvio idempotente não gera duas chamadas de IA e foto repetida é sinal
   assert.equal((await r.call('upload',{...body,id:crypto.randomUUID()},init.mobile)).status,409);
   assert.equal((await r.call('status',{},init.desktop)).items.length,1);
 });
+test('leitura presa por mais de dois minutos deixa de aparecer como lendo',async()=>{
+  const r=room(),init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID(),mobileWorkflow:true,assessment:{subject:'Arte',total:7}});
+  const id=crypto.randomUUID();await r.call('upload',{id,kind:'official',image},init.mobile);
+  const item=await r.storage.get('item:'+id);item.status='processing';item.processingAt=Date.now()-121000;item.attempts=1;await r.storage.put('item:'+id,item);
+  const status=await r.call('status',{},init.mobile);
+  assert.equal(status.items[0].status,'error');assert.match(status.items[0].error,/dois minutos/);
+});
 test('celular aguarda gabarito confirmado e pausa se computador perder conexão',async()=>{
   const r=room(), init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID()});
   assert.equal((await r.call('upload',{id:crypto.randomUUID(),kind:'student',image},init.mobile)).status,400);
@@ -129,10 +136,12 @@ test('sessão móvel autoriza conferência somente na turma vinculada e mantém 
 test('trecho da disciplina mantém números impressos variáveis e não envia gabarito à IA',async()=>{
  const original=globalThis.fetch;let responseStart=31,received;
  try{
- globalThis.fetch=async(url,options)=>{received=JSON.parse(options.body);return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({name:'',title:'',warning:'',alphabet:'ABCDE',...(received.text.format.schema.properties.marks?{marks:Object.fromEntries(Array.from({length:20},(_,i)=>[String(responseStart+i),'A']))}:{questions:Array.from({length:20},(_,i)=>(received.text.format.schema.properties.questions.items.properties.n?{n:responseStart+i,a:'A'}:{number:responseStart+i,mark:'A'}))}),ranges:[]})}]}]});};
+ globalThis.fetch=async(url,options)=>{received=JSON.parse(options.body);const props=received.text.format.schema.properties;return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({name:'',title:'',warning:'',alphabet:'ABCDE',...(props.firstQuestion?{firstQuestion:responseStart,marks:Object.fromEntries(Array.from({length:20},(_,i)=>[String(i+1),'A']))}:props.marks?{marks:Object.fromEntries(Array.from({length:20},(_,i)=>[String(responseStart+i),'A']))}:{questions:Array.from({length:20},(_,i)=>({number:responseStart+i,mark:'A'}))}),ranges:[]})}]}]});};
  const assessment={subject:'Língua Portuguesa',total:20};
  const official=await recognize(image,{OPENAI_API_KEY:'synthetic'},null,assessment);
  assert.equal(official.firstQuestion,31);assert.equal(official.answers.length,20);assert.equal(official.ranges[0].subject,'Língua Portuguesa');
+ assert.deepEqual(Object.keys(received.text.format.schema.properties.marks.properties),Array.from({length:20},(_,i)=>String(i+1)));
+ assert.equal(received.input[0].content[0].detail,'original');
  const key={...official,answers:Array(20).fill('E')};
  const student=await recognize(image,{OPENAI_API_KEY:'synthetic'},key,assessment);
  assert.equal(student.firstQuestion,31);assert.match(received.instructions,/31 a 50/);assert.equal(received.text.format.schema.properties.ranges,undefined);assert.equal(JSON.stringify(received).includes(JSON.stringify(key.answers)),false);

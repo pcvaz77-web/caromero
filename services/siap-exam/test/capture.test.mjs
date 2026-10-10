@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {JSDOM} from 'jsdom';
 const settle=async()=>{for(let i=0;i<12;i++)await new Promise(r=>setImmediate(r));};
-async function setup(error){
+async function setup(error,options={}){
  const dom=new JSDOM(readFileSync(new URL('../public/index.html',import.meta.url),'utf8'),{url:'https://correcao.sistemacarometro.com.br/#session=11111111-1111-4111-8111-111111111111&token='+ 'a'.repeat(64),runScripts:'outside-only'});
  const w=dom.window,timers=[];let plays=0,stops=0;
+ if(options.legacyMarkup){for(const id of ['manual-key','camera-manual','key-cancel-manual','key-first-question'])w.document.getElementById(id)?.remove();w.document.getElementById('key-photo-area')?.removeAttribute('id');}
  w.setTimeout=fn=>{timers.push(fn);return timers.length;};
  const remote={active:true,key:false,context:'Turma fictícia',items:[]}; const uploads=[];
  w.fetch=async(url,opts)=>{if(url.endsWith('/upload'))uploads.push(JSON.parse(opts.body));return {ok:true,json:async()=>url.endsWith('/status') ? remote : {ok:true}};};
@@ -22,6 +23,27 @@ test('câmera inicia reprodução explícita e libera captura',async()=>{
  assert.equal(a.plays(),1);assert.equal(a.w.document.getElementById('video').hidden,false);
  assert.equal(a.w.document.getElementById('snap').hidden,false);
  a.w.document.getElementById('stop').click();assert.equal(a.stops(),1);
+ }finally{a.dom.window.close();}
+});
+test('detector indisponível mantém a câmera aberta e permite captura manual',async()=>{
+ const a=await setup();try{
+ a.remote.mobileWorkflow=true;a.remote.assessment={subject:'Arte',total:7};
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ a.w.Worker=class {constructor(){throw new Error('Detector indisponível');}};
+ a.w.document.getElementById('camera').click();await settle();
+ assert.equal(a.w.document.getElementById('camera-view').hidden,false);
+ assert.equal(a.w.document.getElementById('video').hidden,false);
+ assert.equal(a.w.document.getElementById('snap').hidden,false);
+ assert.match(a.w.document.getElementById('camera-status').textContent,/Toque em Ler agora/);
+ }finally{a.dom.window.close();}
+});
+test('página antiga ainda abre a câmera após atualização do script',async()=>{
+ const a=await setup(undefined,{legacyMarkup:true});try{
+ a.remote.mobileWorkflow=true;a.remote.assessment={subject:'Arte',total:7};
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ a.w.document.getElementById('camera').click();await settle();
+ assert.equal(a.w.document.getElementById('camera-view').hidden,false);
+ assert.equal(a.w.document.getElementById('video').hidden,false);
  }finally{a.dom.window.close();}
 });
 test('erro da câmera permanece visível após consulta de conexão e oferece câmera nativa',async()=>{
