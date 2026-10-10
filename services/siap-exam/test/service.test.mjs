@@ -197,6 +197,7 @@ test('falha da leitura informa motivo seguro ao celular',async()=>{
   const status=await r.call('status',{},init.mobile);
   assert.equal(status.items[0].status,'error');
   assert.match(status.items[0].error,/serviço de leitura não concluiu/i);
+  assert.match(status.items[0].error,/Código: upstream_incomplete/);
  } finally { globalThis.fetch=original; }
 });
 test('erro de configuração da leitura não é apresentado como foto ruim',async()=>{
@@ -211,5 +212,19 @@ test('resposta interrompida por limite de tokens é distinguida de foto ruim',as
  try {
   globalThis.fetch=async()=>Response.json({status:'incomplete',incomplete_details:{reason:'max_output_tokens'}});
   await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic-test-only'},null,{subject:'Arte',total:7}),/Limite de resposta da leitura/);
+ } finally { globalThis.fetch=original; }
+});
+
+test('leitura curta de disciplina reduz raciocínio e mantém sete respostas no esquema',async()=>{
+ const original=globalThis.fetch;
+ try {
+  globalThis.fetch=async(_url,options)=>{
+   const request=JSON.parse(options.body);
+   assert.equal(request.reasoning.effort,'low');
+   assert.deepEqual(Object.keys(request.text.format.schema.properties.marks.properties),['1','2','3','4','5','6','7']);
+   return Response.json({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify({warning:'',alphabet:'ABCDE',firstQuestion:1,marks:{1:'C',2:'C',3:'B',4:'A',5:'A',6:'A',7:'E'}})}]}]});
+  };
+  const result=await recognize(image,{OPENAI_API_KEY:'synthetic-test-only'},null,{subject:'Arte',total:7});
+  assert.deepEqual(result.answers,['C','C','B','A','A','A','E']);
  } finally { globalThis.fetch=original; }
 });
