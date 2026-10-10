@@ -228,7 +228,17 @@ export class ExamSession {
       const started=Date.now();item.timing={queueMs:Math.max(0,started-(item.queuedAt||started))};
       item.status='processing'; item.attempts++; await this.storage.put('item:'+item.id,item);
       try { item.result=await recognize(await this.photo(item),this.env,item.kind==='student'?state.key:null,state.assessment); item.status='ready'; item.error=''; }
-      catch { item.status='error'; item.error='Não foi possível ler com segurança. Confira a foto e tente novamente.'; }
+      catch (error) {
+        item.status='error';
+        const reason=String(error?.message||'');
+        item.error=/Inclua todas as questões|Confira a numeração|A numeração das questões|Quantidade de questões|Leitura inválida/.test(reason)
+          ? 'A foto não permitiu ler todas as questões desta disciplina. Fotografe novamente com a numeração e as alternativas inteiras.'
+          : /Leitura indisponível|Leitura incompleta|Serviço de leitura não configurado/.test(reason)
+            ? 'O serviço de leitura não concluiu esta foto. Aguarde um momento e tente ler novamente.'
+            : /Configuração de leitura rejeitada|Serviço de leitura sem autorização/.test(reason)
+              ? 'O serviço de leitura precisa de ajuste técnico. Avise o suporte; outra foto não resolverá.'
+              : 'Não foi possível ler com segurança. Confira a foto e tente novamente.';
+      }
       finally { await capacity.fetch(new Request('https://internal/release',{method:'POST',body:JSON.stringify({id:item.id})})); }
       item.timing.readMs=Date.now()-started;
       const latest=await this.storage.get('session');
@@ -258,7 +268,7 @@ export async function recognize(image, env, knownKey = null, assessment = null) 
       text: { format: { type: 'json_schema', name: 'exam_transcription', strict: true, schema } }
     })
   });
-  if (!response.ok) throw new Error('Leitura indisponível.');
+  if (!response.ok) throw new Error([400,401,403].includes(response.status) ? response.status===400?'Configuração de leitura rejeitada.':'Serviço de leitura sem autorização.' : 'Leitura indisponível.');
   const result = await response.json();
   if (result.status !== 'completed') throw new Error('Leitura incompleta.');
   const text = (result.output || []).flatMap(o => o.content || []).filter(c => c.type === 'output_text').map(c => c.text).join('');

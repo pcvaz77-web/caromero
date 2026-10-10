@@ -177,3 +177,22 @@ test('foto em múltiplos blocos preserva bytes e leitura expõe somente tempos',
  const status=await r.call('status',{},init.mobile);assert.equal(status.items[0].status,'ready');assert.ok(status.items[0].timing.readMs>=0);assert.ok(status.items[0].timing.queueMs>=0);assert.equal(status.items[0].imageHash,undefined);
  }finally{globalThis.fetch=original;}
 });
+test('falha da leitura informa motivo seguro ao celular',async()=>{
+ const r=room(),init=await r.call('init',{context:'TESTE',sessionId:crypto.randomUUID(),mobileWorkflow:true,assessment:{subject:'Arte',total:7}});
+ const id=crypto.randomUUID();await r.call('upload',{id,kind:'official',image},init.mobile);
+ const original=globalThis.fetch;r.object.env={OPENAI_API_KEY:'synthetic-test-only',EXAMS:{idFromName:x=>x,get:()=>({fetch:async()=>Response.json({ok:true})})}};
+ try {
+  globalThis.fetch=async()=>Response.json({status:'incomplete'});
+  await r.object.alarm();
+  const status=await r.call('status',{},init.mobile);
+  assert.equal(status.items[0].status,'error');
+  assert.match(status.items[0].error,/serviço de leitura não concluiu/i);
+ } finally { globalThis.fetch=original; }
+});
+test('erro de configuração da leitura não é apresentado como foto ruim',async()=>{
+ const original=globalThis.fetch;
+ try {
+  globalThis.fetch=async()=>new Response('{}',{status:400});
+  await assert.rejects(recognize(image,{OPENAI_API_KEY:'synthetic-test-only'},null,{subject:'Arte',total:7}),/Configuração de leitura rejeitada/);
+ } finally { globalThis.fetch=original; }
+});

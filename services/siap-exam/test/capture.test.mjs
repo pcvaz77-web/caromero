@@ -123,6 +123,42 @@ test('fluxo do celular: gabarito, aluno antes da foto, resultado e confirmação
  assert.equal(a.w.document.getElementById('camera').disabled,true);
  }finally{a.dom.window.close();}
 });
+test('falha do gabarito aparece sobre a câmera e permite nova leitura',async()=>{
+ const a=await setup();try{
+ a.remote.mobileWorkflow=true;a.remote.assessment={subject:'Arte',total:7};
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ const video=a.w.document.getElementById('video');Object.defineProperty(video,'videoHeight',{value:100});
+ a.w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});
+ a.w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/jpeg;base64,AAAA';
+ a.w.document.getElementById('camera').click();await settle();
+ a.w.document.getElementById('snap').click();await settle();
+ assert.equal(a.uploads.length,1);
+ assert.match(a.w.document.getElementById('camera-progress').textContent,/1 aguardando ou em leitura/);
+ a.remote.items=[{id:a.uploads[0].id,kind:'official',status:'error',error:'A foto não permitiu ler todas as questões desta disciplina.'}];
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ assert.match(a.w.document.getElementById('camera-status').textContent,/não permitiu ler todas/);
+ assert.match(a.w.document.getElementById('camera-progress').textContent,/1 com falha/);
+ const retry=a.w.document.getElementById('camera-result');assert.equal(retry.hidden,false);
+ retry.click();await settle();assert.match(a.w.document.getElementById('camera-status').textContent,/Nova leitura solicitada/);
+ }finally{a.dom.window.close();}
+});
+test('falha no envio da foto aparece sobre a câmera sem perder a imagem',async()=>{
+ const a=await setup();try{
+ a.remote.mobileWorkflow=true;a.remote.assessment={subject:'Arte',total:7};
+ await a.timers.splice(a.timers.findIndex(fn=>fn.name==='poll'),1)[0]();await settle();
+ a.w.fetch=async(url)=>url.endsWith('/upload')
+   ? {ok:false,status:503,json:async()=>({error:'Envio indisponível.'})}
+   : {ok:true,json:async()=>a.remote};
+ const video=a.w.document.getElementById('video');Object.defineProperty(video,'videoHeight',{value:100});
+ a.w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){}});
+ a.w.HTMLCanvasElement.prototype.toDataURL=()=> 'data:image/jpeg;base64,AAAA';
+ a.w.document.getElementById('camera').click();await settle();
+ a.w.document.getElementById('snap').click();await settle();
+ assert.match(a.w.document.getElementById('camera-status').textContent,/Falha ao enviar/);
+ assert.match(a.w.document.getElementById('camera-progress').textContent,/1 com falha/);
+ assert.equal(a.w.document.getElementById('camera-result').textContent,'Tentar enviar novamente');
+ }finally{a.dom.window.close();}
+});
 
 
 test('detecção estável dispara uma única foto automaticamente e encerra ao fechar',async()=>{

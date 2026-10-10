@@ -115,7 +115,7 @@
     uploading = true; const uploadStarted=Date.now(); setEnabled(); item.status = 'sending'; render();
     try { await api('upload', { id: item.id, kind: item.kind, image: item.image, studentId: item.studentId || '' }); item.uploadMs=Date.now()-uploadStarted; item.status = 'received'; item.image = ''; tell(mobileWorkflow ? 'Foto enviada. Lendo a folha… O resultado aparecerá neste celular.' : item.kind === 'official' ? 'Gabarito recebido. Confirme a leitura no computador e depois toque em Fotografar provas dos alunos.' : 'Foto recebida no computador. Pode fotografar a próxima.'); }
     catch (error) { item.status = 'failed'; tell(error.message + ' A foto continua nesta aba para tentar novamente.'); }
-    finally { uploading = false; setEnabled(); render(); if (outbox.some(i => i.status === 'waiting')) flush(); }
+    finally { uploading = false; setEnabled(); render(); if (mobileWorkflow && item.status === 'failed') renderMobile({items:lastRemote}); if (outbox.some(i => i.status === 'waiting')) flush(); }
   }
   function render(remote = lastRemote) {
     lastRemote = remote;
@@ -134,8 +134,10 @@
       }
       $('queue').append(li);
     }
-    const reading = remote.filter(i=>['queued','processing'].includes(i.status)).length, ready = remote.filter(i=>i.status==='ready').length;
-    $('progress').textContent = `${ready} leitura(s) pronta(s) · ${reading} aguardando ou em leitura · ${outbox.filter(i=>i.image).length} aguardando envio`;
+    const reading = outbox.filter(i=>['received','queued','processing'].includes(i.status)).length;
+    const ready = remote.filter(i=>i.status==='ready').length;
+    const failed = outbox.filter(i=>['error','failed'].includes(i.status)).length;
+    $('progress').textContent = `${ready} leitura(s) pronta(s) · ${reading} aguardando ou em leitura · ${outbox.filter(i=>i.image).length} aguardando envio${failed ? ` · ${failed} com falha` : ''}`;
     $('camera-progress').textContent = $('progress').textContent;
     const focused=outbox.find(i=>i.id===focusedCapture),status=focused?.status;document.body.dataset.readStage=document.body.classList.contains('camera-complete')?'ready':status||'idle';
     if(mobileWorkflow) document.body.classList.toggle('reading',!document.body.classList.contains('camera-complete')&&(reading>0||outbox.some(i=>['waiting','sending','received'].includes(i.status))));
@@ -151,7 +153,7 @@
       $('connection').textContent = active ? 'Conectado ao computador. Envio liberado.' : status.block && status.scanRequested && !status.activated ? 'Vinculando seu acesso a este bloco… Mantenha o Assistente aberto no computador.' : status.pauseReason === 'context' ? 'Envio pausado: confira o gabarito e vincule a avaliação no computador. Você pode fotografar; as fotos aguardam nesta aba.' : 'Computador sem conexão recente. Deixe o SIAP e o Assistente abertos. Você pode fotografar; as fotos aguardam nesta aba.';
       if (active && !connectedOnce) { tell('Celular conectado. O QR Code não precisa ser lido novamente nesta sessão.'); connectedOnce = true; }
       render(status.items); renderMobile(status); setEnabled(); flush();
-    } catch (error) { active = false; $('connection').textContent = 'Envio indisponível. As fotos não enviadas permanecem nesta aba.'; setEnabled(); tell(error.message); }
+    } catch (error) { active = false; $('connection').textContent = 'Envio indisponível. As fotos não enviadas permanecem nesta aba.'; setEnabled(); tell(error.message); if(!$('camera-view').hidden) $('camera-status').textContent = `Não foi possível consultar a leitura: ${error.message}`; }
     if (!stopped) setTimeout(poll, outbox.some(i=>['waiting','sending','received','queued','processing'].includes(i.status))?1000:3500);
   }
   $('camera').onclick = camera; $('stop').onclick = stopCamera;
@@ -178,7 +180,7 @@
     if (!official) studentAutoSend = true;
     const id=crypto.randomUUID(); focusedCapture=id;
     outbox.push({ id, kind: capturedKind, studentId:capturedStudentId, image: pendingImage, status: 'waiting' }); reset(); if (official && !mobileWorkflow) stopCamera(); render();
-    $('camera-status').textContent = mobileWorkflow ? 'Foto enviada para leitura. Aguarde o resultado…' : `Foto ${outbox.filter(i=>i.kind==='student').length} capturada — ${active ? 'enviando' : 'aguardando conexão'}. Pode enquadrar a próxima.`;
+    $('camera-status').textContent = mobileWorkflow ? 'Foto capturada. Enviando para leitura…' : `Foto ${outbox.filter(i=>i.kind==='student').length} capturada — ${active ? 'enviando' : 'aguardando conexão'}. Pode enquadrar a próxima.`;
     if (!active) tell('Foto guardada nesta aba. O envio acontecerá quando a sessão do computador for liberada. Não feche esta página.');
     flush();
   }
@@ -209,6 +211,31 @@
     document.body.classList.toggle('mobile-reviewing',!$('key-review').hidden||!$('mobile-result').hidden);
     if(keyReady && !roster.length) $('mobile-summary').textContent='Abra a avaliação da turma no SIAP para trazer os nomes. Você pode continuar fotografando.';
     const official=status.items.filter(i=>i.kind==='official'&&i.status==='ready'&&!i.discarded).at(-1);
+    const focused=status.items.find(i=>i.id===focusedCapture);
+    const focusedLocal=outbox.find(i=>i.id===focusedCapture);
+    if(!$('camera-view').hidden && focusedLocal?.status==='failed') {
+      document.body.classList.remove('reading');
+      $('camera-status').textContent='Falha ao enviar a foto. Confira a conexão e tente novamente.';
+      $('camera-summary').textContent='A foto continua guardada nesta aba.';
+      $('camera-result').hidden=false;
+      $('camera-result').textContent='Tentar enviar novamente';
+      $('camera-result').onclick=()=>{focusedLocal.status='waiting';$('camera-result').hidden=true;$('camera-summary').textContent='';flush();};
+    }
+    if(!$('camera-view').hidden && focused?.status==='error') {
+      document.body.classList.remove('reading');
+      $('camera-status').textContent=focused.error||'Não foi possível ler esta foto com segurança.';
+      $('camera-summary').textContent='Confira se todas as questões da disciplina estão legíveis. Você pode solicitar outra leitura ou fotografar novamente.';
+      $('camera-result').hidden=false;
+      const retryUnavailable=focusedLocal?.retryExhausted||/ajuste técnico/.test(focused.error||'');
+      $('camera-result').textContent=retryUnavailable?'Fechar e fotografar novamente':'Tentar ler novamente';
+      $('camera-result').onclick=async()=>{
+        if(retryUnavailable){stopCamera();return;}
+        $('camera-result').disabled=true;
+        try { await api('mobile-retry',{id:focused.id}); $('camera-result').hidden=true; $('camera-status').textContent='Nova leitura solicitada. Aguarde o resultado…'; $('camera-summary').textContent=''; }
+        catch(e) { if(focusedLocal)focusedLocal.retryExhausted=true; $('camera-status').textContent=e.message; $('camera-result').textContent='Fechar e fotografar novamente'; $('camera-result').onclick=stopCamera; }
+        finally { $('camera-result').disabled=false; }
+      };
+    }
     if(official && !keyReady && keyDraftId!==official.id){
       keyDraftId=official.id;keyDraft=JSON.parse(JSON.stringify(official.result));
       $('key-review').hidden=false;document.body.classList.add('mobile-reviewing');$('key-alphabet').value=keyDraft.alphabet;
@@ -228,8 +255,11 @@
     const complete=students.filter(i=>i.review?.reviewed).length;
     $('mobile-summary').textContent=`${!roster.length?'Abra a avaliação no SIAP para trazer os nomes da turma. ':''}${complete} prova(s) conferida(s) · ${students.filter(i=>i.status==='ready'&&!i.review?.reviewed).length} para conferir. No computador, use Enviar identificados para o SIAP ao terminar.`;
     const reading=status.items.some(i=>['queued','processing'].includes(i.status)) || outbox.some(i=>['waiting','sending','received'].includes(i.status));
-    document.body.classList.toggle('reading',reading&&!document.body.classList.contains('camera-complete'));
-    if(reading && !document.body.classList.contains('camera-complete'))$('camera-status').textContent='Lendo a prova… Aguarde o resultado neste celular.';
+    document.body.classList.toggle('reading',reading&&focused?.status!=='error'&&focusedLocal?.status!=='failed'&&!document.body.classList.contains('camera-complete'));
+    if(reading && !document.body.classList.contains('camera-complete') && focused?.status!=='error' && focusedLocal?.status!=='failed'){
+      const stage=focusedLocal?.status;
+      $('camera-status').textContent=stage==='waiting'?'Foto capturada. Aguardando envio…':stage==='sending'?'Enviando foto…':stage==='received'?'Foto recebida. Aguardando início da leitura…':stage==='queued'?'Foto na fila de leitura…':'Lendo a prova… Aguarde o resultado neste celular.';
+    }
     $('students').hidden=true;
     for(const [index,item] of outbox.entries()){
       const server=status.items.find(i=>i.id===item.id);if(server?.kind!=='student'||server.status!=='ready')continue;
