@@ -59,6 +59,9 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
   await get('familyStartScan').onclick();
   await flush();
   assert.equal(calls.filter(name => name === 'family_lookup_card').length, 1);
+  assert.equal(get('familyConfirmEntry').disabled, true);
+  await get('familyManualIdentity').onclick();
+  assert.equal(get('familyConfirmEntry').disabled, false);
   await get('familyConfirmEntry').onclick();
   await flush();
   assert.equal(calls.filter(name => name === 'family_lookup_card').length, 2);

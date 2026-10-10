@@ -15,7 +15,7 @@ test('manifesto inicia dentro da rota canônica do Portal da Família', () => {
   assert.match(html, /rel="manifest" href="familia\.webmanifest\?v=2"/);
 });
 
-async function run({ ios = false, permission = 'default', standalone = false, permissionRequest, feed = [], historyRows = [] } = {}) {
+async function run({ ios = false, permission = 'default', standalone = false, permissionRequest, feed = [], historyRows = [], digitalSchools = [], digitalCard = null } = {}) {
   const elements = new Map();
   const events = new Map();
   const calls = [];
@@ -27,7 +27,7 @@ async function run({ ios = false, permission = 'default', standalone = false, pe
       elements.set(id, {
         classList: { add: x => classes.add(x), remove: x => classes.delete(x), contains: x => classes.has(x), toggle: (x, force) => force ? classes.add(x) : classes.delete(x) },
         textContent:'', innerHTML:'', value:'', disabled:false,
-        setAttribute:() => {}, insertAdjacentHTML:(_, html) => { element(id).innerHTML += html; },
+        setAttribute:() => {}, removeAttribute:() => {}, insertAdjacentHTML:(_, html) => { element(id).innerHTML += html; },
       });
     }
     return elements.get(id);
@@ -40,14 +40,14 @@ async function run({ ios = false, permission = 'default', standalone = false, pe
       getUser:async () => ({ data:{ user:{ id:'parent' } } }),
       signOut:async () => {},
     },
-    rpc:async (name,args) => { calls.push(name); if (name==='family_history') calls.push({historyArgs:args}); return { data:name==='family_my_students' ? [{ link_id:'link',student_name:'Aluno',school_name:'Escola',class_name:'6A' }] : name==='family_feed' ? feed : name==='family_history' ? historyRows : null, error:null }; },
+    rpc:async (name,args) => { calls.push(name); if (name==='family_history') calls.push({historyArgs:args}); if (name==='family_get_digital_card') calls.push({digitalArgs:args}); return { data:name==='family_my_students' ? [{ link_id:'link',school_id:'school',student_name:'Aluno',school_name:'Escola',class_name:'6A' }] : name==='family_feed' ? feed : name==='family_history' ? historyRows : name==='family_digital_cards_available' ? digitalSchools.map(school_id => ({school_id})) : name==='family_get_digital_card' ? digitalCard ? [digitalCard] : [] : null, error:null }; },
     from:() => ({ select:() => ({ eq:() => ({ eq:() => ({ eq:() => ({ maybeSingle:async () => ({ data:null,error:null }) }) }) }) }) }),
     channel:() => ({ on:(_,__,handler) => { noticeHandler=handler; return { subscribe:() => ({}) }; } }),
     removeChannel:async () => {},
   };
   const notification = { permission, requestPermission:() => { calls.push('permission'); return permissionRequest ? permissionRequest() : Promise.resolve('granted'); } };
   const context = {
-    window:{ CAROMETRO_RUNTIME_CONFIG:{ backendConfigured:true,supabaseUrl:'https://example.test',supabasePublishableKey:'key',vapidPublicKey:'AQID' }, supabase:{ createClient:() => db }, isSecureContext:true, PushManager:function(){}, Notification:notification, matchMedia:() => ({ matches:standalone, addEventListener:() => {} }), addEventListener:(name,fn) => events.set(name,fn) },
+    window:{ CAROMETRO_RUNTIME_CONFIG:{ backendConfigured:true,supabaseUrl:'https://example.test',supabasePublishableKey:'key',vapidPublicKey:'AQID' }, supabase:{ createClient:() => db }, FamilyDigitalCard:{ render:() => ({toDataURL:() => 'data:image/png;base64,card',toBlob:callback => callback({})}),renderQr:() => ({toDataURL:() => 'data:image/png;base64,qr'}) },qrcode:() => ({}), isSecureContext:true, PushManager:function(){}, Notification:notification, matchMedia:() => ({ matches:standalone, addEventListener:() => {} }), addEventListener:(name,fn) => events.set(name,fn) },
     document:{ addEventListener:(name,fn) => events.set(name,fn), getElementById:element, createElement:() => {
       let value = '';
       return { set textContent(text) { value = String(text); }, get innerHTML() { return value.replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); } };
@@ -55,6 +55,7 @@ async function run({ ios = false, permission = 'default', standalone = false, pe
     navigator:{ userAgent:ios?'Mozilla/5.0 iPhone':'Mozilla/5.0 Android', maxTouchPoints:ios?5:0, serviceWorker:{ register:async () => registration, ready:Promise.resolve(registration) }, standalone:false },
     Notification:notification, PushManager:function(){}, matchMedia:() => ({ matches:standalone }),
     setInterval:fn => { poll=fn; return 1; }, clearInterval:() => {},
+    File:class { constructor(parts,name){this.parts=parts;this.name=name;} },
     URL, location:{ href:'https://example.test/familia.html', pathname:'/familia.html' },
     history:{ replaceState:() => {} }, Intl, Uint8Array, atob, console,
   };
@@ -176,4 +177,18 @@ test('a nova comunicação sinaliza o Portal mesmo sem assinatura push do aparel
   assert.match(queue, /insert into public\.user_notifications/);
   assert.doesNotMatch(queue, /push_subscriptions/);
   assert.match(migration, /create policy "Family notices for active guardian"/);
+});
+
+test('a carteirinha só aparece para escola liberada e abre frente, verso e QR ampliado', async () => {
+  const disabled = await run();
+  await disabled.element('students').onclick({ target:{ closest:() => ({dataset:{link:'link'}}) } });
+  assert.equal(disabled.element('openDigitalCard').classList.contains('hidden'), true);
+  const enabled = await run({ digitalSchools:['school'],digitalCard:{ school_name:'Escola',student_name:'Aluno',class_name:'6A',qr_token:'00000000-0000-4000-8000-000000000001' } });
+  await enabled.element('students').onclick({ target:{ closest:() => ({dataset:{link:'link'}}) } });
+  assert.equal(enabled.element('openDigitalCard').classList.contains('hidden'), false);
+  await enabled.element('openDigitalCard').onclick();
+  assert.equal(enabled.calls.find(call => call?.digitalArgs)?.digitalArgs.p_link_id, 'link');
+  assert.equal(enabled.element('digitalCardImage').src, 'data:image/png;base64,card');
+  enabled.element('showDigitalQr').onclick();
+  assert.equal(enabled.element('digitalCardImage').src, 'data:image/png;base64,qr');
 });

@@ -43,8 +43,8 @@ test('faixa azul da escola integra frente e verso mesmo sem fundos de impressão
   const html = render([card(1)], 'Escola & Cia', () => '<svg></svg>');
   assert.equal((html.match(/<rect width="100" height="20" fill="#1d3b76"\/>/g) || []).length, 2);
   assert.equal((html.match(/class="school"/g) || []).length, 2);
-  assert.equal((html.match(/<span>Escola &amp; Cia<\/span>/g) || []).length, 8);
+  assert.equal((html.match(/<span>Escola &amp; Cia<\/span>/g) || []).length, 14);
   assert.match(html, /print-color-adjust:exact/);
   assert.equal((html.match(/class="watermark"/g) || []).length, 2);
-  assert.match(html, /rgba\(29,59,118,\.085\)/);
+  assert.match(html, /rgba\(29,59,118,\.055\)/);
 });

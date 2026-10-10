@@ -4,8 +4,8 @@
 <link rel="manifest" href="familia.webmanifest?v=2"><link rel="apple-touch-icon" href="carometro-icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400..800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="familia.css?v=3"><script src="carometro-config.js?v=7"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script><script src="familia.js?v=4" defer></script></head>
+<link rel="stylesheet" href="familia.css?v=4"><script src="carometro-config.js?v=7"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script><script src="cepi-qrcode.js?v=1" defer></script><script src="family-digital-card.js?v=1" defer></script><script src="familia.js?v=5" defer></script></head>
 <body><header class="brand"><span class="logo">✦ CARÔMETRO</span><span>Portal da Família</span></header>
 <main>
   <section id="access" class="access card"><p class="eyebrow">Portal da Família Carômetro</p><h1>Acompanhe seus filhos em um só lugar.</h1><p>Leia o QR Code de convite apresentado pela escola. Depois, entre com seu celular e a senha que você criou. Não precisa de e-mail.</p>
@@ -20,9 +20,11 @@
     <div id="portalError" class="error hidden" role="alert"></div><div id="students" class="student-list"></div>
     <details class="card"><summary>Alterar minha senha</summary><form id="changePasswordForm"><label>Senha atual<input id="currentPassword" type="password" autocomplete="current-password" required></label><label>Nova senha<input id="changedPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label><button class="primary" type="submit">Salvar nova senha</button></form></details>
     <p id="portalLiveStatus" class="live-status" role="status" aria-live="polite"></p>
-    <section id="timeline" class="timeline hidden"><div class="timeline-head"><div><p class="eyebrow" id="schoolName"></p><h2 id="studentName"></h2><p id="className"></p></div><button id="backToStudents" class="outline" type="button">Todos os estudantes</button></div>
+    <section id="timeline" class="timeline hidden"><div class="timeline-head"><div><p class="eyebrow" id="schoolName"></p><h2 id="studentName"></h2><p id="className"></p></div><button id="backToStudents" class="outline" type="button">Todos os estudantes</button></div><button id="openDigitalCard" class="primary digital-card-open hidden" type="button">Ver carteirinha digital</button>
       <div class="history-actions"><button id="showOccurrenceHistory" class="outline" type="button" aria-pressed="false">Histórico de ocorrências</button><button id="showEntryHistory" class="outline" type="button" aria-pressed="false">Histórico de entradas na escola</button></div>
       <section id="familyHistory" class="family-history hidden" aria-labelledby="familyHistoryTitle"><h3 id="familyHistoryTitle"></h3><p class="history-explanation">Aparecem aqui somente registros que a escola compartilhou com você.</p><form id="historyFilters" class="history-filters"><label>Data<input id="historyDate" type="date"></label><label id="historyTeacherRow">Nome do professor<input id="historyTeacher" type="search" maxlength="100" placeholder="Digite o nome do professor"></label><button class="primary" type="submit">Pesquisar</button><button id="clearHistoryFilters" class="outline" type="button">Limpar filtros</button></form><p id="historyStatus" class="history-status" role="status"></p><div id="historyResults" class="history-results"></div><button id="moreHistory" class="outline hidden" type="button">Carregar mais</button></section>
       <h3 class="communications-title">Comunicações da escola</h3><div id="messages" class="message-list"></div></section>
   </section>
-</main><footer>Carômetro · Comunicação oficial da escola</footer></body></html>
+</main><footer>Carômetro · Comunicação oficial da escola</footer>
+<div id="digitalCardViewer" class="digital-card-viewer hidden" role="dialog" aria-modal="true" aria-labelledby="digitalCardTitle"><div class="digital-card-toolbar"><div><strong id="digitalCardTitle">Carteirinha digital</strong><p id="digitalCardStatus" role="status">Preparando carteirinha…</p></div><button id="closeDigitalCard" type="button" class="outline">Fechar</button></div><p class="digital-rotate-hint">Para ver a carteirinha maior, gire o celular e deixe-o deitado.</p><img id="digitalCardImage" class="digital-card-image hidden" alt="Frente e verso da carteirinha digital"><div class="digital-card-actions"><button id="showDigitalQr" class="outline hidden" type="button">Ampliar QR Code</button><button id="shareDigitalCard" class="primary hidden" type="button">Compartilhar carteirinha</button><button id="saveDigitalCard" class="outline hidden" type="button">Salvar imagem</button></div></div>
+</body></html>

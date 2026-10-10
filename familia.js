@@ -8,6 +8,7 @@
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
     const token = new URL(location.href).searchParams.get('token');
     let links = [];
+    let digitalEnabledSchools = new Set();
     let selectedLink = null;
     let previewedPhone = null;
     let installPrompt = null;
@@ -23,6 +24,12 @@
     let historyOffset = 0;
     let historyRequest = 0;
     const historyPageSize = 50;
+    let digitalCanvas = null;
+    let digitalQrCanvas = null;
+    let digitalCardFile = null;
+    let digitalCardName = '';
+    let digitalShowingQr = false;
+    let digitalRequest = 0;
     const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
     const isAppleMobile = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
     const supportsPush = () => window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
@@ -163,6 +170,8 @@
       const { data, error: listError } = await db.rpc('family_my_students');
       if (listError) throw listError;
       links = data || [];
+      const available = await db.rpc('family_digital_cards_available');
+      digitalEnabledSchools = new Set((available.error ? [] : available.data || []).map(row => row.school_id));
       stopLive();
       familyUserId = userData.user.id;
       sessionGeneration++;
@@ -186,6 +195,7 @@
       if (!link) return;
       const wasSelected = selectedLink === linkId;
       selectedLink = linkId;
+      get('openDigitalCard').classList.toggle('hidden', !digitalEnabledSchools.has(link.school_id));
       if (!wasSelected) {
         lastFeedSignature = '';
         historyCategory = null;
@@ -254,6 +264,109 @@
     get('historyFilters').onsubmit = event => { event.preventDefault(); return loadHistory(); };
     get('clearHistoryFilters').onclick = () => { get('historyDate').value = ''; get('historyTeacher').value = ''; return loadHistory(); };
     get('moreHistory').onclick = () => loadHistory(true);
+    function closeDigitalViewer() {
+      digitalRequest++;
+      digitalCanvas = null;
+      digitalQrCanvas = null;
+      digitalCardFile = null;
+      digitalCardName = '';
+      get('digitalCardImage').removeAttribute('src');
+      get('digitalCardViewer').classList.add('hidden');
+      if (document.fullscreenElement === get('digitalCardViewer')) void document.exitFullscreen?.().catch(() => {});
+      try { screen.orientation?.unlock?.(); } catch { /* O navegador pode não oferecer bloqueio de orientação. */ }
+    }
+    get('closeDigitalCard').onclick = closeDigitalViewer;
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && !get('digitalCardViewer').classList.contains('hidden')) closeDigitalViewer(); });
+    async function loadCardPhoto(path) {
+      if (!path) return null;
+      const { data, error: photoError } = await db.storage.from('student-photos').download(path);
+      if (photoError || !data) throw new Error('A foto do aluno não está disponível. Peça à escola para conferir o cadastro.');
+      const url = URL.createObjectURL(data);
+      try {
+        return await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = () => reject(new Error('Não foi possível abrir a foto do aluno.'));
+          image.src = url;
+        });
+      } finally { URL.revokeObjectURL(url); }
+    }
+    get('openDigitalCard').onclick = async () => {
+      const linkId = selectedLink;
+      if (!linkId || !familyUserId) return;
+      const request = ++digitalRequest;
+      const generation = sessionGeneration;
+      const viewer = get('digitalCardViewer');
+      digitalCanvas = null; digitalQrCanvas = null; digitalCardFile = null;
+      viewer.classList.remove('hidden');
+      get('digitalCardTitle').textContent = 'Carteirinha digital';
+      get('digitalCardImage').classList.add('hidden');
+      for (const id of ['shareDigitalCard','saveDigitalCard','showDigitalQr']) get(id).classList.add('hidden');
+      get('digitalCardStatus').textContent = 'Preparando a carteirinha…';
+      // O pedido de tela cheia precisa ocorrer diretamente no toque do responsável.
+      if (viewer.requestFullscreen) void viewer.requestFullscreen().then(() => screen.orientation?.lock?.('landscape')).catch(() => {});
+      try {
+        const { data, error: cardError } = await db.rpc('family_get_digital_card', { p_link_id:linkId });
+        if (cardError || !data?.[0]) throw new Error(cardError?.message || 'A escola ainda não liberou a carteirinha deste aluno.');
+        const card = data[0];
+        if (!window.FamilyDigitalCard || typeof window.qrcode !== 'function') throw new Error('Não foi possível preparar a imagem da carteirinha.');
+        const photo = await loadCardPhoto(card.photo_path);
+        if (request !== digitalRequest || generation !== sessionGeneration || selectedLink !== linkId) return;
+        digitalCanvas = window.FamilyDigitalCard.render(card, photo, window.qrcode);
+        digitalQrCanvas = window.FamilyDigitalCard.renderQr(card.qr_token, window.qrcode);
+        digitalCardName = card.student_name;
+        const blob = await new Promise((resolve,reject) => digitalCanvas.toBlob(value => value ? resolve(value) : reject(new Error('Não foi possível gerar a imagem.')),'image/png'));
+        if (request !== digitalRequest || generation !== sessionGeneration || selectedLink !== linkId) return;
+        digitalCardFile = new File([blob], `carteirinha-${digitalCardName.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}.png`, { type:'image/png' });
+        digitalShowingQr = false;
+        get('digitalCardImage').src = digitalCanvas.toDataURL('image/png');
+        get('digitalCardImage').classList.remove('hidden');
+        for (const id of ['shareDigitalCard','saveDigitalCard','showDigitalQr']) get(id).classList.remove('hidden');
+        get('showDigitalQr').textContent = 'Ampliar QR Code';
+        get('digitalCardTitle').textContent = `Carteirinha de ${card.student_name}`;
+        get('digitalCardStatus').textContent = 'Frente e verso lado a lado. Mostre o QR Code à escola.';
+      } catch (caught) {
+        if (request === digitalRequest) get('digitalCardStatus').textContent = caught.message || 'Não foi possível abrir a carteirinha.';
+      }
+    };
+    get('showDigitalQr').onclick = () => {
+      if (!digitalCanvas || !digitalQrCanvas) return;
+      digitalShowingQr = !digitalShowingQr;
+      get('digitalCardImage').src = (digitalShowingQr ? digitalQrCanvas : digitalCanvas).toDataURL('image/png');
+      get('showDigitalQr').textContent = digitalShowingQr ? 'Mostrar frente e verso' : 'Ampliar QR Code';
+      get('digitalCardStatus').textContent = digitalShowingQr ? 'QR Code ampliado para leitura na entrada.' : 'Frente e verso lado a lado.';
+    };
+    const cardFile = () => {
+      if (!digitalCardFile) throw new Error('Abra a carteirinha primeiro.');
+      return digitalCardFile;
+    };
+    function downloadCard(file) {
+      const url = URL.createObjectURL(file);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = file.name;
+      document.body.append(anchor); anchor.click(); anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    get('shareDigitalCard').onclick = async event => {
+      const button = event.currentTarget; button.disabled = true;
+      try {
+        const file = cardFile();
+        if (navigator.share && navigator.canShare?.({ files:[file] })) {
+          await navigator.share({ files:[file],title:'Carteirinha escolar' });
+          get('digitalCardStatus').textContent = 'Carteirinha compartilhada pelo aplicativo escolhido.';
+        } else {
+          downloadCard(file);
+          get('digitalCardStatus').textContent = 'Imagem salva. Compartilhe-a pelo WhatsApp ou pela galeria do aparelho.';
+        }
+      } catch (caught) { if (caught.name !== 'AbortError') get('digitalCardStatus').textContent = caught.message || 'Não foi possível compartilhar.'; }
+      finally { button.disabled = false; }
+    };
+    get('saveDigitalCard').onclick = async event => {
+      const button = event.currentTarget; button.disabled = true;
+      try { downloadCard(cardFile()); get('digitalCardStatus').textContent = 'Imagem da carteirinha salva neste aparelho.'; }
+      catch (caught) { get('digitalCardStatus').textContent = caught.message || 'Não foi possível salvar a imagem.'; }
+      finally { button.disabled = false; }
+    };
     get('students').onclick = event => { const card = event.target.closest('[data-link]'); if (card) { get('portalLiveStatus').textContent = ''; return openTimeline(card.dataset.link); } };
     get('backToStudents').onclick = () => { selectedLink = null; lastFeedSignature = ''; historyCategory = null; historyRequest++; get('timeline').classList.add('hidden'); get('portalLiveStatus').textContent = ''; };
     get('messages').onclick = async event => {
@@ -285,7 +398,7 @@
       article.querySelector('small').textContent = 'Ciência confirmada';
       button.remove();
     };
-    get('signOut').onclick = async () => { const leavingUser = familyUserId; familyUserId = null; sessionGeneration++; stopLive(); historyRequest++; await claimInFlight; await unlinkPushOnSignOut(leavingUser); await db.auth.signOut(); selectedLink = null; links = []; get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
+    get('signOut').onclick = async () => { const leavingUser = familyUserId; familyUserId = null; sessionGeneration++; stopLive(); historyRequest++; closeDigitalViewer(); await claimInFlight; await unlinkPushOnSignOut(leavingUser); await db.auth.signOut(); selectedLink = null; links = []; digitalEnabledSchools.clear(); get('portal').classList.add('hidden'); get('access').classList.remove('hidden'); };
     get('passwordForm').onsubmit = event => {
       event.preventDefault(); error('accessError','');
       busy(event.submitter, async () => {
