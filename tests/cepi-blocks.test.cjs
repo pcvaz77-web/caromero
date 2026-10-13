@@ -94,7 +94,7 @@ test('o total é ponderado por questões e não pela média dos percentuais', ()
 });
 
 test('ausência não vira zero, segunda chamada revista prevalece e transferido não entra', () => {
-  const tests=[{id:'e1',kind:'bloco',status:'applied',academic_year:2026,bimester:3,stage:'fundamental_ii',block_number:1,class_ids:['c1'],subject_plan:[{subject:'Português',count:1}],question_count:1}];
+  const tests=[{id:'e1',kind:'bloco',status:'ready',academic_year:2026,bimester:3,stage:'fundamental_ii',block_number:1,class_ids:['c1'],subject_plan:[{subject:'Português',count:1}],question_count:1}];
   const questions=[{test_id:'e1',number:1,subject:'Português',correct_answer:'A'}];
   const students=[
     {id:'s1',full_name:'Ana',class_id:'c1',enrollment_status:'active'},

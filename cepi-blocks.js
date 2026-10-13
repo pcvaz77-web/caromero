@@ -99,7 +99,7 @@
   }
 
   function ranking({tests,questions,results,students,academicYear,bimester,stage,classId,blockNumber}) {
-    const relevant = tests.filter(t => t.kind === 'bloco' && t.status === 'applied' && t.academic_year === Number(academicYear) && t.bimester === Number(bimester) && t.stage === stage && (!blockNumber || t.block_number === Number(blockNumber)) && (!classId || t.class_ids?.includes(classId)));
+    const relevant = tests.filter(t => t.kind === 'bloco' && ['ready','applied'].includes(t.status) && t.academic_year === Number(academicYear) && t.bimester === Number(bimester) && t.stage === stage && (!blockNumber || t.block_number === Number(blockNumber)) && (!classId || t.class_ids?.includes(classId)));
     const subjects = [...new Set(relevant.flatMap(t => (t.subject_plan || []).map(item => item.subject)))];
     const rows = students.filter(s => s.enrollment_status === 'active' && (!classId || s.class_id === classId) && relevant.some(t => t.class_ids?.includes(s.class_id))).map(student => {
       const assigned = relevant.filter(t => t.class_ids?.includes(student.class_id));

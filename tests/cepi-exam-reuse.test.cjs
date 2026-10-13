@@ -75,6 +75,8 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
     await waitFor(()=>/Prova importada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
     assert.ok(document.getElementById('cepiQuestionBack'));
     assert.deepEqual(dom.window.eval('rows.cepi_test_questions.filter(item=>item.test_id==="33333333-3333-4333-8333-333333333336").map(item=>item.correct_answer)').join(''),'BA');
+    assert.equal(dom.window.eval('rows.cepi_tests.find(item=>item.id==="33333333-3333-4333-8333-333333333336").status'),'ready');
+    assert.ok(document.querySelector('[data-action="print-cards"]'));
     assert.deepEqual(errors,[]);
   }finally{dom.window.close();}
 });

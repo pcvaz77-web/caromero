@@ -107,3 +107,30 @@ test('professor vê a prova cadastrada e adiciona questões sem cadastrar outra 
     assert.deepEqual(errors,[]);
   } finally { dom.window.close(); }
 });
+
+test('questões completas liberam impressão e correção sem confirmação manual', async () => {
+  const file = path.join(__dirname, 'cepi-question-flow-browser.html');
+  const dom = await JSDOM.fromFile(file, {
+    url: `${pathToFileURL(file).href}?review=1&workflow=1`,
+    runScripts:'dangerously',resources:'usable'
+  });
+  try {
+    for(let i=0;i<80&&!dom.window.document.body.dataset.workflowResult;i++)
+      await new Promise(resolve=>setTimeout(resolve,25));
+    assert.equal(dom.window.document.body.dataset.workflowResult,'PASS');
+  } finally { dom.window.close(); }
+});
+
+test('professor pode abrir a correção de uma prova com questões completas', async () => {
+  const file = path.join(__dirname, 'cepi-question-flow-browser.html');
+  const dom = await JSDOM.fromFile(file, {
+    url: `${pathToFileURL(file).href}?correction=1`,
+    runScripts:'dangerously',resources:'usable'
+  });
+  try {
+    for(let i=0;i<80&&!dom.window.document.getElementById('cepiCorrectionClass');i++)
+      await new Promise(resolve=>setTimeout(resolve,25));
+    assert.ok(dom.window.document.getElementById('cepiCorrectionClass'));
+    assert.equal(dom.window.document.querySelector('[data-action="print-cards"]'),null);
+  } finally { dom.window.close(); }
+});

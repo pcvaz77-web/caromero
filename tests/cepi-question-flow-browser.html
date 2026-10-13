@@ -35,7 +35,7 @@
       }
       if(name==='import_cepi_exam_from_text'){
         const id='33333333-3333-4333-8333-333333333336';
-        rows.cepi_tests.push({id,school_id:school,title:args.p_title,kind:args.p_kind,stage:args.p_stage,block_number:args.p_block_number,class_ids:args.p_class_ids,academic_year:args.p_academic_year,bimester:args.p_bimester,scheduled_on:args.p_scheduled_on,question_count:args.p_questions.length,answer_format:args.p_answer_format,subjects:args.p_subjects,status:'draft',created_by:user});
+        rows.cepi_tests.push({id,school_id:school,title:args.p_title,kind:args.p_kind,stage:args.p_stage,block_number:args.p_block_number,class_ids:args.p_class_ids,academic_year:args.p_academic_year,bimester:args.p_bimester,scheduled_on:args.p_scheduled_on,question_count:args.p_questions.length,answer_format:args.p_answer_format,subjects:args.p_subjects,status:'ready',created_by:user});
         rows.cepi_test_questions.push(...args.p_questions.map((item,index)=>({id:crypto.randomUUID(),school_id:school,test_id:id,number:index+1,...item,alternatives:{},created_by:user})));
         return {data:id,error:null};
       }
@@ -69,6 +69,7 @@
     if(location.search.includes('review=1')){
       document.title='Prévia local · Conferir e imprimir prova CEPI (dados fictícios)';
       rows.school_members[0].role='coordinator';
+      rows.cepi_tests[0].status='ready';
       if(!location.search.includes('missingHeader=1'))rows.cepi_exam_headers=[{school_id:school,state_name:'Estado de Exemplo',school_name:'Escola Exemplo',department_name:'Secretaria de Educação',subtitle:''}];
       rows.cepi_test_questions=[
         {id:'55555555-5555-4555-8555-555555555551',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:'Leia o texto e escolha a alternativa correta.',alternatives:{A:'Primeira opção',B:'Segunda opção',C:'Terceira opção',D:'Quarta opção'},correct_answer:'B'},
@@ -81,7 +82,7 @@
     }
     if(location.search.includes('correction=1')){
       document.title='Prévia local · Instalação da correção CEPI (dados fictícios)';
-      rows.cepi_tests[0].status='applied';
+      rows.cepi_tests[0].status='ready';
       rows.cepi_test_questions=[
         {id:'55555555-5555-4555-8555-555555555551',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:'Questão de exemplo 1',alternatives:{A:'Sim',B:'Não'},correct_answer:'A'},
         {id:'55555555-5555-4555-8555-555555555552',school_id:school,test_id:testId,number:2,subject:'Língua Portuguesa',statement:'Questão de exemplo 2',alternatives:{A:'Sim',B:'Não'},correct_answer:'B'}
@@ -96,11 +97,11 @@
       else if(location.search.includes('workflow=1')){
         const waitFor=async predicate=>{for(let i=0;i<80&&!predicate();i++)await wait();return predicate();};
         const checks=[];
-        checks.push(!!document.querySelector('[data-action="mark-ready"]'));
-        checks.push(!document.querySelector('[data-action="print-cards"]'));
-        document.querySelector('[data-action="mark-ready"]')?.click();
-        await waitFor(()=>rows.cepi_tests[0].status==='ready'&&!!document.querySelector('[data-action="print-cards"]'));
+        checks.push(!document.querySelector('[data-action="mark-ready"]'));
+        checks.push(!document.querySelector('[data-action="mark-applied"]'));
         checks.push(rows.cepi_tests[0].status==='ready');
+        checks.push(!!document.querySelector('[data-action="print"]'));
+        checks.push(!!document.querySelector('[data-action="print-cards"]'));
         checks.push(!!document.querySelector('[data-action="print-key"]'));
         const statusFilter=document.querySelector('[data-test-filter="status"]');
         statusFilter.value='draft';statusFilter.dispatchEvent(new Event('change'));
@@ -108,9 +109,7 @@
         const readyFilter=document.querySelector('[data-test-filter="status"]');
         readyFilter.value='ready';readyFilter.dispatchEvent(new Event('change'));
         checks.push(!!document.querySelector('[data-action="print-cards"]'));
-        window.confirm=()=>true;
-        document.querySelector('[data-action="mark-applied"]')?.click();
-        checks.push(await waitFor(()=>rows.cepi_tests[0].status==='applied'&&!!document.querySelector('[data-action="correct-cards"]')));
+        checks.push(!!document.querySelector('[data-action="correct-cards"]'));
         document.querySelector('[data-cepi-workspace="correcao"]').click();
         await waitFor(()=>!!document.getElementById('cepiHubInstall'));
         checks.push(!!document.getElementById('cepiHubInstall')?.href.includes('chromewebstore.google.com'));
