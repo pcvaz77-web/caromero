@@ -27,12 +27,37 @@ test('coordenação cadastra a prova e a deixa disponível para os professores',
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {
     assert.equal(dom.window.document.querySelector('#cepiTestForm [name="status"]'), null);
-    dom.window.document.querySelector('#cepiTestForm [name="teachers"]').checked=true;
+    dom.window.document.querySelector('#cepiTestForm [data-cepi-person-id]').click();
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
     await waitFor(() => dom.window.document.querySelectorAll('.cepi-workspace-list > article').length === 2);
     assert.match(dom.window.document.getElementById('cepiWorkspaceMessage').textContent, /Prova cadastrada/);
     assert.equal(dom.window.document.getElementById('cepiQuestionForm'), null);
     assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
+test('lista suspensa permite escolher professor e coordenador da escola', async () => {
+  const {dom, waitFor, errors} = await fixture('manager=1');
+  try {
+    const document=dom.window.document;
+    const picker=document.querySelector('#cepiTestForm .cepi-person-picker');
+    assert.ok(picker);
+    assert.equal(document.querySelector('#cepiTestForm [name="teachers"]'),null);
+    picker.open=true;
+    const search=picker.querySelector('input[type="search"]');
+    search.value='Coordenação';
+    search.dispatchEvent(new dom.window.Event('input',{bubbles:true}));
+    assert.equal(picker.querySelectorAll('[data-cepi-person-id]:not([hidden])').length,1);
+    picker.querySelector('[data-cepi-person-id]:not([hidden])').click();
+    search.value='';
+    search.dispatchEvent(new dom.window.Event('input',{bubbles:true}));
+    picker.querySelector('[data-cepi-person-id]').click();
+    assert.match(picker.querySelector('summary').textContent,/2 selecionada/);
+    document.getElementById('cepiTestForm').requestSubmit();
+    await waitFor(()=>document.querySelectorAll('.cepi-workspace-list > article').length===2);
+    const records=dom.window.eval('rows.cepi_tests');
+    assert.equal(records[1].assigned_teacher_ids.length,2);
+    assert.deepEqual(errors,[]);
   } finally { dom.window.close(); }
 });
 
@@ -73,7 +98,7 @@ test('cabeçalho mostra apenas dados fixos e a frase escolhida', async () => {
 test('falha do serviço aparece junto ao botão e permite nova tentativa', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1&testSaveError=1');
   try {
-    dom.window.document.querySelector('#cepiTestForm [name="teachers"]').checked=true;
+    dom.window.document.querySelector('#cepiTestForm [data-cepi-person-id]').click();
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
     await waitFor(() => /Falha simulada/.test(dom.window.document.getElementById('cepiTestSaveStatus')?.textContent || ''));
     assert.equal(dom.window.document.getElementById('cepiTestSaveStatus').dataset.state, 'error');

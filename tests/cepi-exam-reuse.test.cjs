@@ -36,7 +36,7 @@ test('reutilizar prova cria rascunho editável sem alterar a origem',async()=>{
     const document=dom.window.document;
     document.querySelector('[data-action="duplicate-test"]').click();
     await waitFor(()=>document.getElementById('cepiDuplicateForm'));
-    document.querySelector('#cepiDuplicateForm [name="teachers"]').checked=true;
+    document.querySelector('#cepiDuplicateForm [data-cepi-person-id]').click();
     document.getElementById('cepiDuplicateForm').requestSubmit();
     await waitFor(()=>/Cópia criada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
     assert.match(document.getElementById('cepiWorkspaceMessage').textContent,/Cópia criada/);
@@ -72,7 +72,7 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
     document.getElementById('cepiImportApplySubject').click();
     document.querySelectorAll('[data-answer]')[0].value='B';
     document.querySelectorAll('[data-answer]')[1].value='A';
-    document.querySelector('#cepiExamImportForm [name="teachers"]').checked=true;
+    document.querySelector('#cepiExamImportForm [data-cepi-person-id]').click();
     document.getElementById('cepiExamImportForm').requestSubmit();
     await waitFor(()=>/Prova importada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
     assert.ok(document.getElementById('cepiQuestionBack'));

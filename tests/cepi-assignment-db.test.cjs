@@ -71,6 +71,7 @@ test('professores escolhidos, primeira impressão e lixeira preservam a prova', 
       create policy cepi_results_insert on public.cepi_test_results for insert to authenticated with check (true);
     `);
     await db.exec(readFileSync(path.join(__dirname,'..','supabase','migrations','177_cepi_test_assignments_and_trash.sql'),'utf8'));
+    await db.exec(readFileSync(path.join(__dirname,'..','supabase','migrations','178_cepi_exam_responsible_people.sql'),'utf8'));
     await db.exec(`
       insert into public.classes values ('${classroom}','${school}',null);
       insert into public.school_members values
@@ -146,10 +147,28 @@ test('professores escolhidos, primeira impressão e lixeira preservam a prova', 
     await assert.rejects(db.query(`insert into public.cepi_test_questions(id,school_id,test_id,number,subject,statement,alternatives,correct_answer,created_by)
       values ($1,$2,$3,1,'Arte','Questão','{}','A',$4)`,['99999999-9999-4999-8999-999999999991',school,imported,other]),/row-level security policy/);
     await db.exec('reset role');
+    await db.query("select set_config('app.user_id',$1,false)",[coordinator]);
+    await db.exec('set role authenticated');
+    await assert.rejects(db.query(`insert into public.cepi_test_questions(id,school_id,test_id,number,subject,statement,alternatives,correct_answer,created_by)
+      values ($1,$2,$3,1,'Arte','Questão','{}','A',$4)`,['99999999-9999-4999-8999-999999999991',school,imported,coordinator]),/row-level security policy/);
+    await assert.rejects(db.query('insert into public.cepi_test_results(school_id,test_id,student_id,answers,reviewed_by) values ($1,$2,$3,array[\'A\',\'A\'],$4)',[school,exam,student,coordinator]),/row-level security policy/);
+    await db.exec('reset role');
+    const extraPeople=Array.from({length:4},(_,i)=>`aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa${i}`);
+    for(const id of extraPeople){
+      await db.query('insert into auth.users values ($1)',[id]);
+      await db.query("insert into public.school_members values ($1,$2,'teacher','active')",[school,id]);
+    }
+    await db.query('update public.cepi_tests set assigned_teacher_ids=$1::uuid[] where id=$2',[[teacher,coordinator,...extraPeople],imported]);
+    assert.equal((await db.query('select cardinality(assigned_teacher_ids) as n from public.cepi_tests where id=$1',[imported])).rows[0].n,6);
+    assert.equal((await db.query('select count(*)::int as n from public.user_notifications where target_id=$1 and recipient_id=$2',[imported,coordinator])).rows[0].n,1);
+    await db.exec('set role authenticated');
+    await db.query(`insert into public.cepi_test_questions(id,school_id,test_id,number,subject,statement,alternatives,correct_answer,created_by)
+      values ($1,$2,$3,1,'Arte','Questão','{}','A',$4)`,['99999999-9999-4999-8999-999999999991',school,imported,coordinator]);
+    await db.exec('reset role');
     await db.query("select set_config('app.user_id',$1,false)",[teacher]);
     await db.exec('set role authenticated');
     await db.query(`insert into public.cepi_test_questions(id,school_id,test_id,number,subject,statement,alternatives,correct_answer,created_by)
-      values ($1,$2,$3,1,'Arte','Questão','{}','A',$4)`,['99999999-9999-4999-8999-999999999991',school,imported,teacher]);
+      values ($1,$2,$3,2,'Arte','Questão','{}','A',$4)`,['99999999-9999-4999-8999-999999999992',school,imported,teacher]);
     await db.exec('reset role');
   } finally { await db.close(); }
 });
