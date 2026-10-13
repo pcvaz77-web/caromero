@@ -9,7 +9,7 @@ async function openFixture() {
   const file=path.join(__dirname,'cepi-question-flow-browser.html');
   const errors=[],console=new VirtualConsole();
   console.on('jsdomError',error=>errors.push(error.message));
-  const dom=await JSDOM.fromFile(file,{url:`${pathToFileURL(file).href}?reuse=1`,runScripts:'dangerously',resources:'usable',virtualConsole:console});
+  const dom=await JSDOM.fromFile(file,{url:`${pathToFileURL(file).href}?reuse=1&manager=1`,runScripts:'dangerously',resources:'usable',virtualConsole:console});
   const waitFor=async predicate=>{
     for(let attempt=0;attempt<80&&!predicate();attempt++)await new Promise(resolve=>setTimeout(resolve,25));
     assert.ok(predicate(),`Fluxo não avançou: ${errors.join('; ')}`);

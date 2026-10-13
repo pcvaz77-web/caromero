@@ -4,7 +4,7 @@ const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {JSDOM, VirtualConsole} = require('../services/siap-exam/node_modules/jsdom');
 
-async function fixture(query) {
+async function fixture(query, formExpected = true) {
   const file = path.join(__dirname, 'cepi-question-flow-browser.html');
   const errors = [];
   const console = new VirtualConsole();
@@ -19,23 +19,24 @@ async function fixture(query) {
     }
     assert.ok(predicate(), `O fluxo não avançou. Erros: ${errors.join('; ')}`);
   };
-  await waitFor(() => dom.window.document.getElementById('cepiTestForm'));
+  await waitFor(() => formExpected ? dom.window.document.getElementById('cepiTestForm') : dom.window.document.querySelector('.cepi-workspace-list'));
   return {dom, waitFor, errors};
 }
 
-test('cadastrar prova abre o cadastro de questões e confirma o salvamento', async () => {
+test('coordenação cadastra a prova e a deixa disponível para os professores', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {
     assert.equal(dom.window.document.querySelector('#cepiTestForm [name="status"]'), null);
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
-    await waitFor(() => dom.window.document.getElementById('cepiQuestionForm'));
+    await waitFor(() => dom.window.document.querySelectorAll('.cepi-workspace-list > article').length === 2);
     assert.match(dom.window.document.getElementById('cepiWorkspaceMessage').textContent, /Prova cadastrada/);
+    assert.equal(dom.window.document.getElementById('cepiQuestionForm'), null);
     assert.deepEqual(errors, []);
   } finally { dom.window.close(); }
 });
 
 test('etapa sugere o formato das alternativas e permite escolha manual', async () => {
-  const {dom, errors} = await fixture('');
+  const {dom, errors} = await fixture('manager=1');
   try {
     const form=dom.window.document.getElementById('cepiTestForm');
     assert.equal(form.elements.answer_format.value,'ABCD');
@@ -51,27 +52,25 @@ test('etapa sugere o formato das alternativas e permite escolha manual', async (
   } finally { dom.window.close(); }
 });
 
-test('editar cabeçalho mostra a orientação gerada para a prova escolhida', async () => {
+test('cabeçalho mostra apenas dados fixos e a frase escolhida', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {
     const document=dom.window.document;
     document.querySelector('[data-cepi-workspace="cabecalho"]').click();
-    await waitFor(()=>document.getElementById('cepiHeaderPreviewText'));
-    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa/);
+    await waitFor(()=>document.querySelector('[data-action="edit-header"]'));
+    assert.equal(document.getElementById('cepiHeaderPreviewTest'),null);
     document.querySelector('[data-action="edit-header"]').click();
-    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa/);
+    assert.equal(document.getElementById('cepiHeaderPreviewTest'),null);
     assert.match(document.getElementById('cepiHeaderForm').textContent,/não informe aqui disciplinas nem quantidade/i);
+    assert.match(document.getElementById('cepiHeaderForm').textContent,/frase escolhida/i);
     const message=document.getElementById('cepiHeaderInstructions');
     assert.match(message.value,/Leia atentamente cada questão/);
-    message.value='Confira o tempo disponível.';
-    message.dispatchEvent(new dom.window.Event('input'));
-    assert.match(document.getElementById('cepiHeaderPreviewText').textContent,/2 questões de Língua Portuguesa\. Confira o tempo disponível\.$/);
     assert.deepEqual(errors, []);
   } finally { dom.window.close(); }
 });
 
 test('falha do serviço aparece junto ao botão e permite nova tentativa', async () => {
-  const {dom, waitFor, errors} = await fixture('testSaveError=1');
+  const {dom, waitFor, errors} = await fixture('manager=1&testSaveError=1');
   try {
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
     await waitFor(() => /Falha simulada/.test(dom.window.document.getElementById('cepiTestSaveStatus')?.textContent || ''));
@@ -83,7 +82,7 @@ test('falha do serviço aparece junto ao botão e permite nova tentativa', async
 });
 
 test('prova sem turma mostra a causa junto ao botão', async () => {
-  const {dom, waitFor, errors} = await fixture('');
+  const {dom, waitFor, errors} = await fixture('manager=1');
   try {
     const document = dom.window.document;
     document.querySelectorAll('#cepiClassOptions input').forEach(input => { input.checked = false; });
@@ -91,5 +90,20 @@ test('prova sem turma mostra a causa junto ao botão', async () => {
     await waitFor(() => /Selecione ao menos uma turma ativa/.test(document.getElementById('cepiTestSaveStatus')?.textContent || ''));
     assert.ok(document.getElementById('cepiTestForm'));
     assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
+test('professor vê a prova cadastrada e adiciona questões sem cadastrar outra prova', async () => {
+  const {dom, errors} = await fixture('', false);
+  try {
+    const document=dom.window.document;
+    assert.ok(document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
+    assert.equal(document.getElementById('cepiImportExam'),null);
+    assert.equal(document.querySelector('[data-action="duplicate-test"]'),null);
+    assert.equal(document.querySelector('[data-action="edit-test"]'),null);
+    document.querySelector('[data-action="questions"]').click();
+    assert.ok(document.querySelector('[data-action="new-question"]'));
+    assert.ok(document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
+    assert.deepEqual(errors,[]);
   } finally { dom.window.close(); }
 });
