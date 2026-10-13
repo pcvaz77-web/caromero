@@ -10,7 +10,7 @@ async function fixture(query, formExpected = true) {
   const console = new VirtualConsole();
   console.on('jsdomError', error => errors.push(error.message));
   const dom = await JSDOM.fromFile(file, {
-    url: `${pathToFileURL(file).href}?form=1${query ? `&${query}` : ''}`,
+    url: `${pathToFileURL(file).href}?${formExpected?'form=1&':''}${query}`,
     runScripts: 'dangerously', resources: 'usable', virtualConsole: console
   });
   const waitFor = async predicate => {
@@ -27,6 +27,7 @@ test('coordenação cadastra a prova e a deixa disponível para os professores',
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {
     assert.equal(dom.window.document.querySelector('#cepiTestForm [name="status"]'), null);
+    dom.window.document.querySelector('#cepiTestForm [name="teachers"]').checked=true;
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
     await waitFor(() => dom.window.document.querySelectorAll('.cepi-workspace-list > article').length === 2);
     assert.match(dom.window.document.getElementById('cepiWorkspaceMessage').textContent, /Prova cadastrada/);
@@ -72,6 +73,7 @@ test('cabeçalho mostra apenas dados fixos e a frase escolhida', async () => {
 test('falha do serviço aparece junto ao botão e permite nova tentativa', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1&testSaveError=1');
   try {
+    dom.window.document.querySelector('#cepiTestForm [name="teachers"]').checked=true;
     dom.window.document.getElementById('cepiTestForm').requestSubmit();
     await waitFor(() => /Falha simulada/.test(dom.window.document.getElementById('cepiTestSaveStatus')?.textContent || ''));
     assert.equal(dom.window.document.getElementById('cepiTestSaveStatus').dataset.state, 'error');
@@ -133,4 +135,36 @@ test('professor pode abrir a correção de uma prova com questões completas', a
     assert.ok(dom.window.document.getElementById('cepiCorrectionClass'));
     assert.equal(dom.window.document.querySelector('[data-action="print-cards"]'),null);
   } finally { dom.window.close(); }
+});
+
+test('coordenação pode excluir e restaurar prova sem perder questões', async () => {
+  const {dom,waitFor,errors}=await fixture('manager=1&review=1',false);
+  try {
+    const document=dom.window.document;
+    dom.window.confirm=()=>true;
+    document.querySelector('[data-action="delete-test"]').click();
+    await waitFor(()=>document.querySelector('[data-action="restore-test"]'));
+    assert.equal(document.querySelector('[data-action="questions"]'),null);
+    assert.equal(dom.window.eval('rows.cepi_test_questions.length'),2);
+    document.querySelector('[data-action="restore-test"]').click();
+    await waitFor(()=>document.querySelector('[data-action="questions"]'));
+    assert.equal(dom.window.eval('rows.cepi_test_questions.length'),2);
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('questões completas podem ser editadas até a abertura da impressão', async () => {
+  const {dom,errors}=await fixture('manager=1&review=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    assert.equal(document.querySelector('[data-action="new-question"]'),null);
+    assert.ok(document.querySelector('[data-action="edit-question"]'));
+    assert.equal(document.querySelector('[data-action="remove-question"]'),null);
+    dom.window.eval('rows.cepi_tests[0].print_opened_at="2026-10-13T12:00:00Z"');
+    document.getElementById('cepiQuestionBack').click();
+    document.querySelector('[data-action="questions"]').click();
+    assert.equal(document.querySelector('[data-action="edit-question"]'),null);
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
 });

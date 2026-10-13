@@ -9,9 +9,10 @@ const blocksContext = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'cepi-blocks.js'), 'utf8'), blocksContext);
 const helperStart = source.indexOf('  const schoolHeaderExtra =');
 const helperEnd = source.indexOf('  const legacyRich =', helperStart);
+const lockStart = source.indexOf('  async function lockQuestionEditingForPrint(test,popup) {');
 const start = source.indexOf('  async function printTest(id) {');
 const end = source.indexOf('  function renderHeader()', start);
-assert.ok(helperStart >= 0 && helperEnd > helperStart && start >= 0 && end > start, 'Rotina de impressão não encontrada');
+assert.ok(helperStart >= 0 && helperEnd > helperStart && lockStart >= 0 && start > lockStart && end > start, 'Rotina de impressão não encontrada');
 
 function setup({coordinator = true, complete = true, header = true, mixedSubjects = false, applicationDate = null, headerSubtitle = '', headerInstructions = null} = {}) {
   let printed = false;
@@ -27,7 +28,7 @@ function setup({coordinator = true, complete = true, header = true, mixedSubject
   ];
   const popup = {
     document:{images:[],write(value){html=value;},close(){},getElementById:()=>printButton},
-    focus(){},print(){printed=true;}
+    focus(){},close(){},print(){printed=true;}
   };
   const context = {
     manager:()=>coordinator,ensureContext:()=>true,tests:[exam],questions:complete?rows:rows.slice(0,1),
@@ -37,7 +38,7 @@ function setup({coordinator = true, complete = true, header = true, mixedSubject
     rich:()=>({render:value=>`<p>${value}</p>`,hydrate:async()=>{}}),db:{},
     window:{CepiAnswerSheets:require('../cepi-answer-sheets.js'),CepiBlocks:blocksContext.window.CepiBlocks,open:()=>{popupCount++;return popup;}},Promise
   };
-  vm.runInNewContext(source.slice(helperStart,helperEnd)+source.slice(start,end)+'\nglobalThis.printTest = printTest;',context);
+  vm.runInNewContext(source.slice(helperStart,helperEnd)+source.slice(lockStart,source.indexOf('  async function printAnswerSheet(',lockStart))+source.slice(start,end)+'\nglobalThis.printTest = printTest;',context);
   return {print:()=>context.printTest(exam.id),clickPrint:()=>printButton.onclick(),result:()=>({printed,html,message,popupCount,headerFormOpened})};
 }
 
