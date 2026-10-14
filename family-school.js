@@ -71,7 +71,9 @@
     };
     dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => showView('home'));
     function refreshNav() {
-      const allowed = !app.classList.contains('hidden') && ['school_admin','coordinator'].includes(window.getActiveSchoolRole?.());
+      const role = window.getActiveSchoolRole?.();
+      const allowed = !app.classList.contains('hidden')
+        && ['school_admin','coordinator'].includes(role) && window.canManageFamilyPortal?.() === true;
       button.hidden = !allowed;
       button.classList.toggle('hidden', !allowed);
       button.setAttribute('aria-hidden', String(!allowed));
@@ -81,6 +83,7 @@
     }
     new MutationObserver(refreshNav).observe(app, { attributes:true, attributeFilter:['class'] });
     document.addEventListener('carometro:school-context-ready', refreshNav);
+    document.addEventListener('carometro:permission-refresh', refreshNav);
     refreshNav();
     function renderStudentChoices() {
       if (!get('familyInviteClass').value) {
@@ -303,7 +306,7 @@
         <button class="btn secondary" type="button" data-remove-guardian="${esc(row.link_id)}">Excluir responsável desta escola</button></article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
     }
     button.onclick = async () => {
-      if (button.hidden || !['school_admin','coordinator'].includes(window.getActiveSchoolRole?.())) return;
+      if (button.hidden || window.canManageFamilyPortal?.() !== true) return;
       error('');
       currentSchool = schoolId();
       if (!currentSchool) return;
@@ -326,7 +329,13 @@
       get('familyPublishForm').reset();
       resetOccurrenceFilters();
       const check = await db.rpc('family_school_manager', { p_school_id:currentSchool });
-      if (check.error || check.data !== true) { error('Apenas a administração desta escola pode gerenciar o portal.'); return; }
+      if (check.error || check.data !== true) {
+        if (typeof window.refreshCarometroSchoolPermission === 'function')
+          await window.refreshCarometroSchoolPermission().catch(() => {});
+        refreshNav();
+        if (typeof toast === 'function') toast('Você não tem permissão para gerenciar o Portal da Família nesta escola.');
+        return;
+      }
       dialog.classList.remove('hidden');
       showView('home');
       try {
