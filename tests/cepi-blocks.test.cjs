@@ -6,7 +6,7 @@ const {test} = require('node:test');
 
 const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
-const {plan,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+const {plan,subjectCapacity,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
 
 test('turmas são identificadas pela série da etapa escolhida', () => {
   for (const name of ['6A','7º B','8º Ano C','9D']) assert.equal(stageForClassName(name),'fundamental_ii',name);
@@ -41,6 +41,27 @@ test('os seis blocos de cada etapa têm a distribuição informada', () => {
     });
   }
   assert.equal(plan('medio',7),null);
+});
+
+test('cada componente de cada bloco trava na própria cota e libera o seguinte', () => {
+  for (const stage of ['fundamental_ii','medio']) {
+    for (let block=1;block<=6;block++) {
+      const subjectPlan=plan(stage,block);
+      const exam={id:`${stage}-${block}`,kind:'bloco',stage,block_number:block,subject_plan:subjectPlan};
+      let number=0;
+      const rows=[];
+      for (const entry of subjectPlan) {
+        const before=subjectCapacity(exam,rows,entry.subject);
+        assert.equal(before.full,false,`${stage}, bloco ${block}, ${entry.subject}`);
+        for(let index=0;index<entry.count;index++)rows.push({id:`${exam.id}-${++number}`,test_id:exam.id,number,subject:entry.subject});
+        const filled=subjectCapacity(exam,rows,entry.subject);
+        assert.equal(filled.full,true,`${stage}, bloco ${block}, ${entry.subject}`);
+        assert.equal(filled.lastNumber,number);
+        assert.equal(subjectCapacity(exam,rows,entry.subject,rows.at(-1).id).full,false,'edição da própria questão continua permitida');
+      }
+    }
+  }
+  assert.equal(subjectCapacity({kind:'simulado'},[],'Arte'),null);
 });
 
 test('orientação usa a quantidade e as disciplinas do bloco e da etapa escolhidos', () => {

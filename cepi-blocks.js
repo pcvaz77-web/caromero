@@ -25,6 +25,18 @@
     return entries ? entries.map(([subject, count]) => ({subject, count})) : null;
   }
 
+  function subjectCapacity(test, questions, subject, editingId = null) {
+    if (test?.kind !== 'bloco') return null;
+    const distribution = Array.isArray(test.subject_plan) && test.subject_plan.length
+      ? test.subject_plan : plan(test.stage, test.block_number);
+    const entry = distribution?.find(item => item.subject === subject);
+    if (!entry) return null;
+    const rows = questions.filter(item => item.test_id === test.id && item.subject === subject);
+    const used = rows.filter(item => item.id !== editingId).length;
+    const limit = Number(entry.count);
+    return {limit, used, full:used >= limit, lastNumber:Math.max(0,...rows.map(item => Number(item.number) || 0))};
+  }
+
   function stageForClassName(name) {
     const normalized = String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
     const grade = normalized.match(/^(?:ENSINO\s+MEDIO\s+)?([1-9])(?=\D|$)/);
@@ -123,5 +135,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,title,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
+  window.CepiBlocks = {plan,subjectCapacity,title,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
 })();
