@@ -7,6 +7,7 @@
     button.type = 'button';
     button.textContent = '⌂  Portal da Família';
     button.hidden = true;
+    button.classList.add('hidden');
     nav.append(button);
     const dialog = document.createElement('div');
     dialog.className = 'modal-bg hidden';
@@ -70,7 +71,13 @@
     };
     dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => showView('home'));
     function refreshNav() {
-      button.hidden = app.classList.contains('hidden') || !['school_admin','coordinator'].includes(window.getActiveSchoolRole?.());
+      const allowed = !app.classList.contains('hidden') && ['school_admin','coordinator'].includes(window.getActiveSchoolRole?.());
+      button.hidden = !allowed;
+      button.classList.toggle('hidden', !allowed);
+      button.setAttribute('aria-hidden', String(!allowed));
+      if (allowed) button.style.removeProperty('display');
+      else button.style.setProperty('display','none','important');
+      if (!allowed && !dialog.classList.contains('hidden')) close();
     }
     new MutationObserver(refreshNav).observe(app, { attributes:true, attributeFilter:['class'] });
     document.addEventListener('carometro:school-context-ready', refreshNav);
@@ -296,6 +303,7 @@
         <button class="btn secondary" type="button" data-remove-guardian="${esc(row.link_id)}">Excluir responsável desta escola</button></article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
     }
     button.onclick = async () => {
+      if (button.hidden || !['school_admin','coordinator'].includes(window.getActiveSchoolRole?.())) return;
       error('');
       currentSchool = schoolId();
       if (!currentSchool) return;
