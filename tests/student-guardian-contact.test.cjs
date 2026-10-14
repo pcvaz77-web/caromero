@@ -54,6 +54,6 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
 });
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
-  assert.match(index, /permissions-and-details\.js\?v=70/);
-  assert.match(index, /student-edit-improvements\.js\?v=114/);
+  assert.match(index, /permissions-and-details\.js\?v=71/);
+  assert.match(index, /student-edit-improvements\.js\?v=115/);
 });

@@ -458,6 +458,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const guardianContactFields = document.getElementById('guardianContactFields');
   const guardianName = document.getElementById('guardianName');
   const guardianPhone = document.getElementById('guardianPhone');
+  const guardianPhoneField = guardianPhone.closest('.field');
+  guardianPhoneField.classList.add('guardian-phone-field');
+  guardianPhoneField.insertAdjacentHTML('afterend', '<label class="check guardian-whatsapp-toggle"><input id="guardianHasWhatsapp" type="checkbox"> Este número tem WhatsApp</label>');
+  const guardianHasWhatsapp = document.getElementById('guardianHasWhatsapp');
+  const guardianWhatsappLink = document.createElement('a');
+  guardianWhatsappLink.className = 'guardian-whatsapp-link hidden';
+  guardianWhatsappLink.target = '_blank';
+  guardianWhatsappLink.rel = 'noopener noreferrer';
+  guardianWhatsappLink.setAttribute('aria-label', 'Abrir conversa com o responsável no WhatsApp');
+  guardianWhatsappLink.title = 'Abrir conversa no WhatsApp';
+  guardianWhatsappLink.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true" focusable="false"><path d="M16 3C8.8 3 3 8.8 3 16c0 2.3.6 4.5 1.8 6.5L3 29l6.7-1.8A13 13 0 1 0 16 3Zm0 2.6A10.4 10.4 0 0 1 26.4 16 10.4 10.4 0 0 1 16 26.4c-1.9 0-3.8-.5-5.4-1.5l-.5-.3-3.5.9.9-3.4-.4-.5a10.4 10.4 0 0 1-1.5-5.6A10.4 10.4 0 0 1 16 5.6Zm-5 4.7c-.3 0-.7.1-1 .5-.4.4-1.4 1.4-1.4 3.3 0 1.8 1.4 3.6 1.6 3.9.2.3 2.8 4.4 6.9 6 .9.4 1.6.6 2.2.8.9.3 1.7.2 2.3.1.7-.1 2-1 2.3-1.9.3-.9.3-1.7.2-1.9-.1-.2-.4-.3-.8-.5l-2.3-1.1c-.4-.2-.7-.2-.9.2l-1 1.2c-.2.2-.4.3-.8.1-.4-.2-1.6-.6-3-1.9-1.1-1-1.9-2.3-2.1-2.7-.2-.4 0-.6.2-.8l.6-.7.4-.6c.1-.2 0-.5 0-.7l-1-2.5c-.3-.8-.7-.7-1-.7H11Z"/></svg>';
+  guardianPhone.after(guardianWhatsappLink);
+  const guardianWhatsappNumber = value => {
+    const digits = String(value || '').replace(/\D/g, '');
+    if (/^[1-9][0-9]{9,10}$/.test(digits)) return `55${digits}`;
+    if (/^55[1-9][0-9]{9,10}$/.test(digits)) return digits;
+    return '';
+  };
+  const updateGuardianWhatsappLink = () => {
+    const number = guardianHasWhatsapp.checked ? guardianWhatsappNumber(guardianPhone.value) : '';
+    guardianWhatsappLink.classList.toggle('hidden', !number);
+    if (number) guardianWhatsappLink.href = `https://wa.me/${number}`;
+    else guardianWhatsappLink.removeAttribute('href');
+  };
+  guardianPhone.addEventListener('input', updateGuardianWhatsappLink);
+  guardianHasWhatsapp.addEventListener('change', updateGuardianWhatsappLink);
   const showGuardianOnCard = document.getElementById('showGuardianOnCard');
   classField.classList.add('move-target-class');
   const actions = form.querySelector('.actions');
@@ -651,6 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
       report: item.has_report === 'Sim' ? 'Laudo' : item.has_report === 'Não' ? '' : item.has_report,
       guardianName: item.guardian_name || '',
       guardianPhone: item.guardian_phone || '',
+      guardianHasWhatsapp: !!item.guardian_has_whatsapp,
       showGuardianOnCard: !!item.show_guardian_on_card,
       photoPath: item.photo_path,
       uniform_received: uniformStateById.get(item.id)?.uniform_received ?? item.uniform_received,
@@ -805,8 +832,14 @@ document.addEventListener('DOMContentLoaded', () => {
     .guardian-contact-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; margin-bottom:8px; padding:10px 11px 8px; border:1px solid #d0d5dd; border-radius:9px; background:#f8f9fb; }
     .guardian-contact-fields .field { min-width:0; margin-bottom:8px; }
     .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0; padding:5px 8px; border-radius:7px; background:#eaecf0; color:#475467; }
+    .guardian-whatsapp-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0 0 8px; padding:5px 8px; border-radius:7px; background:#e8f8ee; color:#12653a; }
     .guardian-contact-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:5px; padding:4px 8px; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
     .guardian-contact-pill span { margin-right:4px; color:#344054; font-weight:800; }
+    .guardian-phone-field { position:relative; }
+    .guardian-phone-field input { padding-right:53px; }
+    .guardian-phone-field .guardian-whatsapp-link { position:absolute; right:8px; bottom:16px; display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:50%; background:#128c4a; color:#fff; }
+    .guardian-phone-field .guardian-whatsapp-link:hover,.guardian-phone-field .guardian-whatsapp-link:focus-visible { background:#075e38; outline:2px solid #075e38; outline-offset:2px; }
+    .guardian-phone-field .guardian-whatsapp-link svg { display:block; width:23px; height:23px; fill:currentColor; }
     #studentDetails .guardian-contact-pill { display:flex; margin:3px 0 9px; }
     /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
@@ -943,6 +976,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fullName').value = student?.name || '';
     guardianName.value = student?.guardianName || '';
     guardianPhone.value = student?.guardianPhone || '';
+    guardianHasWhatsapp.checked = !!student?.guardianHasWhatsapp;
+    updateGuardianWhatsappLink();
     showGuardianOnCard.checked = !!student?.showGuardianOnCard;
     const currentObservations = decodeObservationValues(student?.report);
     currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({
@@ -959,6 +994,7 @@ document.addEventListener('DOMContentLoaded', () => {
     guardianContactFields.classList.toggle('hidden', !canEditGuardianContact);
     guardianName.disabled = !canEditGuardianContact;
     guardianPhone.disabled = !canEditGuardianContact;
+    guardianHasWhatsapp.disabled = !canEditGuardianContact;
     showGuardianOnCard.disabled = !canEditGuardianContact;
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
@@ -1179,6 +1215,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) { toast('Selecione uma turma.'); return; }
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { toast('Selecione uma escola antes de salvar o aluno.'); return; }
+    if (can('can_edit_guardian_contact') && guardianHasWhatsapp.checked && !guardianWhatsappNumber(guardianPhone.value)) {
+      toast('Para usar o WhatsApp, informe um número com DDD (e código do país, se necessário).');
+      guardianPhone.focus();
+      return;
+    }
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) { toast('Sua sessão expirou. Entre novamente para salvar o aluno.'); return; }
 
@@ -1206,6 +1247,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const normalizedGuardianPhone = guardianPhone.value.trim();
       row.guardian_name = normalizedGuardianName || null;
       row.guardian_phone = normalizedGuardianPhone || null;
+      row.guardian_has_whatsapp = guardianHasWhatsapp.checked && !!normalizedGuardianPhone;
       row.show_guardian_on_card = showGuardianOnCard.checked && !!(normalizedGuardianName || normalizedGuardianPhone);
     }
     let studentWrite = id ? db.from('students').update(row).eq('id', id) : db.from('students').insert(row);
