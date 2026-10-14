@@ -34,6 +34,14 @@ test('etiqueta cinza so aparece quando o aluno estiver marcado', () => {
   assert.doesNotMatch(editor, /card\.querySelector\('\.name'\)\?\.nextElementSibling/);
 });
 
+test('icone do WhatsApp fica apenas na etiqueta do card', () => {
+  assert.match(index, /guardianBadge=s=>[\s\S]*s\.guardianHasWhatsapp\?window\.guardianWhatsappNumber\?\.\(s\.guardianPhone\)/);
+  assert.match(index, /class="guardian-whatsapp-link" href="https:\/\/wa\.me\/\$\{number\}"/);
+  assert.match(editor, /id="guardianHasWhatsapp" type="checkbox"> Este número tem WhatsApp/);
+  assert.doesNotMatch(editor, /guardianPhone\.after\(guardianWhatsappLink\)/);
+  assert.match(editor, /#studentDetails \.guardian-contact-pill \.guardian-whatsapp-link/);
+});
+
 test('permissao especifica aparece para professor coordenacao secretaria e administrador', () => {
   assert.match(permissions, /permissionFields = \[[^\]]*'can_edit_guardian_contact'/);
   assert.match(permissions, /setGeneralPermission'[\s\S]{0,180}Editar dados do responsável|can_edit_guardian_contact','Editar dados do responsável'[^\n]*setGeneralPermission/);
@@ -55,5 +63,5 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
   assert.match(index, /permissions-and-details\.js\?v=71/);
-  assert.match(index, /student-edit-improvements\.js\?v=115/);
+  assert.match(index, /student-edit-improvements\.js\?v=116/);
 });
