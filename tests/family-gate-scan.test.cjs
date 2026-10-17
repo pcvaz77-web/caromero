@@ -20,7 +20,7 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
     return { add:value => values.add(value), remove:value => values.delete(value), contains:value => values.has(value), toggle(){} };
   };
   const node = () => ({ classList:classes(), style:{}, innerHTML:'', textContent:'', disabled:false, value:'', dataset:{},
-    append(){}, scrollIntoView(){}, querySelector(){return null;}, closest(){return null;} });
+    append(){}, reset(){}, replaceChildren(){}, scrollIntoView(){}, querySelector(){return null;}, closest(){return null;} });
   const get = id => { if (!nodes.has(id)) nodes.set(id,node()); return nodes.get(id); };
   const video = get('familyScanVideo');
   video.readyState = 2;
@@ -42,7 +42,7 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
       const track = { stop:()=>cameraStops++, getCapabilities:()=>({}), getSettings:()=>({}) };
       return { getTracks:()=>[track], getVideoTracks:()=>[track] };
     } } },
-    db: { rpc:async(name,args)=>{
+    db: { from:()=>({ select:()=>({ eq:()=>({ order:async()=>({ data:[],error:null }) }) }) }), rpc:async(name,args)=>{
       calls.push(name);
       if (name === 'family_recent_entries') return { data:[],error:null };
       if (name === 'family_lookup_card') return { data:[{ student_name:args.p_qr_token === firstToken ? 'Aluno 1' : 'Aluno 2', class_name:'6A', guardian_name:'Responsável' }],error:null };

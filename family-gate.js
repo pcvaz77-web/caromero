@@ -11,11 +11,12 @@
     cardsMount.append(cardsArea);
     const entryArea = document.createElement('div');
     entryArea.className = 'family-gate-area';
-    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><h5>Entradas recentes</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
+    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><form id="familyEntryHistoryForm" class="family-entry-filters"><label>Turma<select id="familyEntryClass"><option value="">Todas as turmas</option></select></label><label>Nome do aluno<input id="familyEntryName" type="search" list="familyEntryNameOptions" autocomplete="off" placeholder="Digite parte do nome"><datalist id="familyEntryNameOptions"></datalist></label><label>De<input id="familyEntryFrom" type="date"></label><label>Até<input id="familyEntryTo" type="date"></label><label>Situação<select id="familyEntryStatus"><option value="all">Todas</option><option value="published">Aviso publicado</option><option value="pending">Não publicado</option></select></label><button id="familySearchHistory" type="submit" class="btn primary">Buscar histórico</button><button id="familyClearHistory" type="button" class="btn secondary">Limpar filtros</button></form><p id="familyHistoryMessage" class="family-gate-message" role="status">Escolha uma turma, digite um nome ou informe um período para pesquisar o histórico.</p><h5 id="familyRecentTitle">Entradas recentes (últimos 7 dias)</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
     entryMount.append(entryArea);
     const css = document.createElement('style');
-    css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-digital-setting{margin-top:22px;padding:15px;border:1px solid #ccd9f2;border-radius:11px;background:#fff}.family-digital-setting label{display:flex!important;align-items:center;gap:10px;font-weight:750}.family-digital-setting input{width:19px!important;height:19px;min-height:0!important;margin:0!important;flex:none}.family-digital-setting p{margin:7px 0 0}.family-scan-stage{margin-top:14px;width:100%}.family-scan-stage video{display:block;width:100%;aspect-ratio:1/1;max-height:min(65dvh,640px);object-fit:cover;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}.family-recent-entries button{border:1px solid #ccd9f2;border-radius:7px;background:#eef3ff;color:#29468a;padding:6px 9px;font-weight:700;cursor:pointer}@media(max-width:600px){.family-gate-panel{padding:12px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-stage{margin-inline:-6px;width:calc(100% + 12px)}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}}`;
+    css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-digital-setting{margin-top:22px;padding:15px;border:1px solid #ccd9f2;border-radius:11px;background:#fff}.family-digital-setting label{display:flex!important;align-items:center;gap:10px;font-weight:750}.family-digital-setting input{width:19px!important;height:19px;min-height:0!important;margin:0!important;flex:none}.family-digital-setting p{margin:7px 0 0}.family-scan-stage{margin-top:14px;width:100%}.family-scan-stage video{display:block;width:100%;aspect-ratio:1/1;max-height:min(65dvh,640px);object-fit:cover;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}.family-recent-entries button{border:1px solid #ccd9f2;border-radius:7px;background:#eef3ff;color:#29468a;padding:6px 9px;font-weight:700;cursor:pointer}.family-entry-actions{display:flex;gap:8px;flex-wrap:wrap}.family-recent-entries .family-entry-delete{border-color:#f2cccc;background:#fff5f5;color:#9a2727}@media(max-width:600px){.family-gate-panel{padding:12px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-stage{margin-inline:-6px;width:calc(100% + 12px)}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}.family-entry-actions{width:100%;flex-direction:column}.family-entry-actions button{width:100%}}`;
     css.textContent += `.family-digital-school-share{display:grid;justify-items:start;gap:9px;margin-top:15px;padding:15px;border:1px solid #ccd9f2;border-radius:11px;background:#fff}.family-digital-school-share h5,.family-digital-school-share p{margin:0}.family-digital-school-share img{display:block;width:min(100%,800px);height:auto;border:1px solid #dce5f5}.family-digital-school-share button{max-width:100%}@media(max-width:600px){.family-digital-school-share{padding:12px}.family-digital-school-share button{width:100%}}`;
+    css.textContent += `.family-entry-filters{display:grid;grid-template-columns:minmax(105px,.9fr) minmax(150px,1.35fr) repeat(2,minmax(105px,.8fr)) minmax(130px,1fr) auto auto;align-items:end;gap:8px;margin-top:18px;padding:14px;border:1px solid #dce5f5;border-radius:11px;background:#fff}.family-entry-filters label{display:grid;gap:5px;min-width:0;font-size:12px;font-weight:700;color:#53627b}.family-entry-filters input,.family-entry-filters select{box-sizing:border-box;width:100%;min-width:0;height:42px;margin:0;padding:8px 9px;border:1px solid #cbd6e9;border-radius:7px;background:#fff;color:#17233a;font:inherit}.family-entry-filters button{min-height:42px;padding:9px 12px;white-space:nowrap}.family-entry-filters button:disabled{opacity:.65;cursor:wait}.family-entry-filters label:nth-child(3),.family-entry-filters label:nth-child(4){max-width:150px}.family-entry-filters #familyEntryStatus{font-size:12px}.family-recent-entries>div>span:first-child{display:grid;gap:3px}.family-recent-entries>div>span:first-child small{font-size:11px}.family-history-message{margin:8px 0 0}.family-gate-panel #familyHistoryMessage{margin:8px 0 0}@media(max-width:1100px){.family-entry-filters{grid-template-columns:minmax(120px,.9fr) minmax(180px,1.4fr) repeat(2,minmax(120px,.8fr));}.family-entry-filters label:nth-child(3),.family-entry-filters label:nth-child(4){max-width:none}.family-entry-filters label:nth-child(5){grid-column:1}.family-entry-filters button{grid-row:2}.family-entry-filters #familySearchHistory{grid-column:3}.family-entry-filters #familyClearHistory{grid-column:4}}@media(max-width:650px){.family-entry-filters{grid-template-columns:1fr 1fr;padding:11px}.family-entry-filters label:nth-child(2){grid-column:1/-1}.family-entry-filters label:nth-child(5){grid-column:auto}.family-entry-filters #familySearchHistory,.family-entry-filters #familyClearHistory{grid-column:auto;grid-row:auto;white-space:normal}.family-entry-filters button{width:100%;min-height:44px}.family-recent-entries>div>span:first-child{width:100%}}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const escape = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -40,6 +41,9 @@
     let currentEntry = null;
     let identityVerified = false;
     let qrReaderPromise = null;
+    let nameSuggestionTimer = null;
+    let historyMode = false;
+    let lastHistoryFilters = null;
     function ensureQrReader() {
       if (typeof window.jsQR === 'function') return Promise.resolve();
       if (!qrReaderPromise) qrReaderPromise = new Promise((resolve, reject) => {
@@ -83,15 +87,111 @@
     }
     document.addEventListener('carometro:family-school-closed', stopScan);
     document.addEventListener('carometro:family-entry-hidden', stopScan);
+    function renderEntries(rows, emptyMessage, showHistoryDetails = false) {
+      get('familyRecentEntries').innerHTML = rows?.length ? rows.map(row => {
+        const published = !!(row.published_at || row.family_message_id);
+        const details = showHistoryDetails
+          ? `${row.class_name ? `Turma ${escape(row.class_name)}` : 'Sem turma registrada'}${row.school_name ? ` · ${escape(row.school_name)}` : ''}`
+          : '';
+        const actions = published
+          ? '<small>Aviso no Portal da Família</small>'
+          : `<span class="family-entry-actions"><button type="button" data-publish-entry="${escape(row.entry_id)}">Publicar aviso</button><button type="button" class="family-entry-delete" data-delete-entry="${escape(row.entry_id)}" data-student-name="${escape(row.student_name)}" aria-label="Excluir entrada de ${escape(row.student_name)}">Excluir entrada</button></span>`;
+        return `<div><span><b>${escape(row.student_name)}</b><small>${escape(formatTime(row.arrived_at))}${details ? ` · ${details}` : ''}</small></span>${actions}</div>`;
+      }).join('') : `<p>${escape(emptyMessage)}</p>`;
+    }
     async function loadRecent() {
       if (!schoolId) return;
+      historyMode = false;
+      lastHistoryFilters = null;
+      get('familyRecentTitle').textContent = 'Entradas recentes (últimos 7 dias)';
       const activeSchool = schoolId;
       const { data, error } = await db.rpc('family_recent_entries', { p_school_id:activeSchool, p_limit:20 });
       if (activeSchool !== schoolId) return;
       if (error) { get('familyRecentEntries').textContent = 'Não foi possível consultar as entradas.'; return; }
-      get('familyRecentEntries').innerHTML = data?.length ? data.map(row => `<div><span><b>${escape(row.student_name)}</b> · ${escape(formatTime(row.arrived_at))}</span>${row.published_at ? '<small>Aviso no Portal da Família</small>' : `<button type="button" data-publish-entry="${escape(row.entry_id)}">Publicar aviso</button>`}</div>`).join('') : '<p>Nenhuma entrada registrada.</p>';
+      renderEntries(data, 'Nenhuma entrada nos últimos 7 dias. Use os filtros para consultar o histórico.');
     }
+    async function refreshEntryList() {
+      if (historyMode && lastHistoryFilters) await searchHistory(lastHistoryFilters);
+      else await loadRecent();
+    }
+    async function loadEntryClasses() {
+      const activeSchool = schoolId;
+      const select = get('familyEntryClass');
+      const { data, error } = await db.from('classes').select('id,name,archived_at')
+        .eq('school_id',activeSchool).order('name');
+      if (activeSchool !== schoolId) return;
+      if (error) { get('familyHistoryMessage').textContent = 'Não foi possível carregar as turmas para o filtro.'; return; }
+      select.innerHTML = '<option value="">Todas as turmas</option>' + (data || []).map(row => `<option value="${escape(row.id)}">${escape(row.name)}${row.archived_at ? ' (arquivada)' : ''}</option>`).join('');
+    }
+    async function suggestEntryNames() {
+      const activeSchool = schoolId;
+      const query = get('familyEntryName').value.trim();
+      const list = get('familyEntryNameOptions');
+      if (!activeSchool || query.length < 2) { list.replaceChildren(); return; }
+      const { data, error } = await db.rpc('family_entry_name_suggestions', {
+        p_school_id:activeSchool,
+        p_class_id:get('familyEntryClass').value || null,
+        p_query:query
+      });
+      if (activeSchool !== schoolId || query !== get('familyEntryName').value.trim()) return;
+      list.innerHTML = error ? '' : (data || []).map(row => `<option value="${escape(row.student_name)}"></option>`).join('');
+    }
+    function historyFilters() {
+      return {
+        p_school_id:schoolId,
+        p_class_id:get('familyEntryClass').value || null,
+        p_student_name:get('familyEntryName').value.trim() || null,
+        p_from:get('familyEntryFrom').value || null,
+        p_to:get('familyEntryTo').value || null,
+        p_status:get('familyEntryStatus').value,
+        p_limit:100
+      };
+    }
+    async function searchHistory(filters) {
+      if (!schoolId) return;
+      const activeSchool = schoolId;
+      get('familySearchHistory').disabled = true;
+      get('familyHistoryMessage').textContent = 'Buscando no histórico...';
+      const { data, error } = await db.rpc('family_entry_history', filters);
+      if (activeSchool !== schoolId) return;
+      get('familySearchHistory').disabled = false;
+      if (error) { get('familyHistoryMessage').textContent = error.message || 'Não foi possível buscar o histórico.'; return; }
+      historyMode = true;
+      lastHistoryFilters = filters;
+      get('familyRecentTitle').textContent = `Resultados do histórico (${Math.min(data?.length || 0,100)})`;
+      get('familyHistoryMessage').textContent = data?.length === 100 ? 'Exibindo até 100 resultados mais recentes. Refine os filtros para localizar uma entrada específica.' : `${data?.length || 0} entrada(s) encontrada(s), da mais recente para a mais antiga.`;
+      renderEntries(data, 'Nenhuma entrada encontrada com esses filtros.', true);
+    }
+    get('familyEntryHistoryForm').onsubmit = event => {
+      event.preventDefault();
+      const filters = historyFilters();
+      if (!filters.p_class_id && !filters.p_student_name && !filters.p_from && !filters.p_to && filters.p_status === 'all') {
+        get('familyHistoryMessage').textContent = 'Escolha uma turma, digite parte do nome ou informe um período para pesquisar o histórico.';
+        return;
+      }
+      if (filters.p_from && filters.p_to && filters.p_from > filters.p_to) {
+        get('familyHistoryMessage').textContent = 'A data inicial não pode ser posterior à data final.';
+        return;
+      }
+      searchHistory(filters);
+    };
+    get('familyClearHistory').onclick = () => {
+      get('familyEntryHistoryForm').reset();
+      get('familyEntryNameOptions').replaceChildren();
+      get('familyHistoryMessage').textContent = 'Escolha uma turma, digite um nome ou informe um período para pesquisar o histórico.';
+      loadRecent();
+    };
+    get('familyEntryName').oninput = () => {
+      clearTimeout(nameSuggestionTimer);
+      nameSuggestionTimer = setTimeout(suggestEntryNames,250);
+    };
+    get('familyEntryClass').onchange = () => {
+      clearTimeout(nameSuggestionTimer);
+      nameSuggestionTimer = setTimeout(suggestEntryNames,100);
+    };
     get('familyRecentEntries').onclick = event => {
+      const remove = event.target.closest('[data-delete-entry]');
+      if (remove) return deleteEntry(remove.dataset.deleteEntry, remove.dataset.studentName, remove);
       const button = event.target.closest('[data-publish-entry]');
       if (button) publishEntry(button.dataset.publishEntry, button);
     };
@@ -101,6 +201,10 @@
       currentStudent = null; currentEntry = null; detectedToken = null;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','');
+      get('familyEntryHistoryForm').reset();
+      get('familyHistoryMessage').textContent = 'Escolha uma turma, digite um nome ou informe um período para pesquisar o histórico.';
+      get('familyEntryNameOptions').replaceChildren();
+      await loadEntryClasses();
       await loadRecent();
     });
     document.addEventListener('carometro:family-cards-opened', async event => {
@@ -385,7 +489,21 @@
       if (error) { button.disabled = false; return setMessage('familyScanMessage',error.message || 'Não foi possível publicar o aviso.',true); }
       button.textContent = 'Aviso publicado';
       setMessage('familyScanMessage','O registro está disponível no Portal da Família dos responsáveis autorizados.');
-      loadRecent();
+      await refreshEntryList();
+    }
+    async function deleteEntry(entryId, studentName, button) {
+      if (!entryId || !schoolId || button.disabled) return;
+      if (!confirm(`Excluir a entrada ainda não publicada de ${studentName || 'este aluno'}? Esta ação remove somente o registro de chegada e não envia aviso aos responsáveis.`)) return;
+      button.disabled = true;
+      const activeSchool = schoolId;
+      const { error } = await db.rpc('family_delete_entry', { p_school_id:activeSchool, p_entry_id:entryId });
+      if (activeSchool !== schoolId) return;
+      if (error) {
+        button.disabled = false;
+        return setMessage('familyScanMessage',error.message || 'Não foi possível excluir a entrada.',true);
+      }
+      setMessage('familyScanMessage','Entrada não publicada excluída.');
+      await refreshEntryList();
     }
     function resumeScan() {
       if (!stream || dialog.classList.contains('hidden')) return;
