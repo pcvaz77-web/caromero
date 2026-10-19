@@ -14,7 +14,7 @@
   // O SVG é conteúdo impresso: a faixa continua azul mesmo quando o navegador
   // desativa a opção de imprimir imagens de fundo.
   const schoolHeader = name => `<div class="school"><svg aria-hidden="true" viewBox="0 0 100 20" preserveAspectRatio="none"><rect width="100" height="20" fill="#1d3b76"/></svg><span>${escape(name || 'Escola')}</span></div>`;
-  const watermark = name => `<div class="watermark" aria-hidden="true">${Array.from({ length: 6 }, () => `<span>${escape(name || 'Escola')}</span>`).join('')}</div>`;
+  const watermark = name => `<div class="watermark" aria-hidden="true">${Array.from({ length: 10 }, () => `<span>${escape(name || 'Escola')}</span>`).join('')}</div>`;
   function render(cards, schoolName, qrSvg) {
     if (!Array.isArray(cards) || !cards.length || typeof qrSvg !== 'function') throw new Error('Nenhuma carteirinha disponível.');
     const pages = [];
