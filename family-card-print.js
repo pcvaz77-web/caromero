@@ -18,7 +18,7 @@
     const label = String(name || 'Escola');
     let seed = [...label].reduce((value, character) => (Math.imul(value, 31) + character.charCodeAt(0)) >>> 0, 0);
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-    const anchors = [[8,8],[50,6],[92,10],[94,48],[7,52],[10,91],[51,95],[91,90]];
+    const anchors = [[7,7],[35,8],[66,6],[93,9],[94,34],[69,34],[34,37],[7,40],[12,68],[48,60],[88,66],[9,93],[51,93],[92,92]];
     const points = anchors.map(([x,y]) => [
       Math.max(2, Math.min(98, x + (random() - .5) * 8)),
       Math.max(2, Math.min(98, y + (random() - .5) * 8)),
