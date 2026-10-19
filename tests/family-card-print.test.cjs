@@ -50,15 +50,9 @@ test('faixa azul da escola integra frente e verso mesmo sem fundos de impressão
   assert.deepEqual(watermarks.map(mark => (mark.match(/<span style="--x:[^>]+>/g) || []).length), [14,14]);
   const positions = watermarks[0].matchAll(/style="--x:([\d.]+)%;--y:([\d.]+)%"/g);
   const points = [...positions].map(([,x,y]) => [Number(x), Number(y)]);
-  assert.ok(points.some(([x,y]) => x < 25 && y < 25));
-  assert.ok(points.some(([x,y]) => x > 75 && y < 25));
-  assert.ok(points.some(([x,y]) => x < 25 && y > 75));
-  assert.ok(points.some(([x,y]) => x > 75 && y > 75));
-  assert.ok(points.filter(([x,y]) => x > 20 && x < 80 && y > 20 && y < 80).length >= 3);
-  assert.ok(points.filter(([x,y]) => x < 50 && y < 50).length >= 3);
-  assert.ok(points.filter(([x,y]) => x > 50 && y < 50).length >= 3);
-  assert.ok(points.filter(([x,y]) => x < 50 && y > 50).length >= 3);
-  assert.ok(points.filter(([x,y]) => x > 50 && y > 50).length >= 3);
+  assert.deepEqual(watermarks[1].match(/style="--x:([\d.]+)%;--y:([\d.]+)%"/g), watermarks[0].match(/style="--x:([\d.]+)%;--y:([\d.]+)%"/g));
+  const normals = points.map(([x,y]) => x * Math.sin(24 * Math.PI / 180) + y * .7 * Math.cos(24 * Math.PI / 180)).sort((a,b) => a-b);
+  assert.ok(normals.slice(1).every((value,index) => value - normals[index] >= 7.4));
   assert.match(html, /left:var\(--x\);top:var\(--y\)/);
   assert.match(html, /translate\(-50%,-50%\) rotate\(-24deg\)/);
   assert.match(html, /rgba\(29,59,118,\.055\)/);

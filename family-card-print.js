@@ -18,11 +18,21 @@
     const label = String(name || 'Escola');
     let seed = [...label].reduce((value, character) => (Math.imul(value, 31) + character.charCodeAt(0)) >>> 0, 0);
     const random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
-    const anchors = [[7,7],[35,8],[66,6],[93,9],[94,34],[69,34],[34,37],[7,40],[12,68],[48,60],[88,66],[9,93],[51,93],[92,92]];
-    const points = anchors.map(([x,y]) => [
-      Math.max(2, Math.min(98, x + (random() - .5) * 8)),
-      Math.max(2, Math.min(98, y + (random() - .5) * 8)),
-    ]);
+    const radians = 24 * Math.PI / 180;
+    const cosine = Math.cos(radians);
+    const sine = Math.sin(radians);
+    const width = 100;
+    const height = 70;
+    const maxNormal = width * sine + height * cosine;
+    const points = Array.from({ length: 14 }, (_, index) => {
+      const normal = (index + .5) * maxNormal / 14;
+      const minAlong = Math.max(-normal * sine / cosine, (normal * cosine - height) / sine);
+      const maxAlong = Math.min((width - normal * sine) / cosine, normal * cosine / sine);
+      const along = minAlong + (maxAlong - minAlong) * random();
+      const x = along * cosine + normal * sine;
+      const y = -along * sine + normal * cosine;
+      return [x / width * 100, y / height * 100];
+    });
     return `<div class="watermark" aria-hidden="true">${points.map(([x,y]) => `<span style="--x:${x.toFixed(1)}%;--y:${y.toFixed(1)}%">${escape(label)}</span>`).join('')}</div>`;
   };
   function render(cards, schoolName, qrSvg) {
