@@ -3,7 +3,6 @@
   const DISMISSALS = 'platform_in_app_announcement_dismissals';
   const VIDEO_BUCKET = 'platform-announcement-videos';
   const MAX_VIDEO_BYTES = 45 * 1024 * 1024;
-  const MAX_VIDEO_SECONDS = 150;
   const byId = id => document.getElementById(id);
   const clean = value => String(value || '').trim();
   const escapeHtml = value => {
@@ -65,7 +64,7 @@
     if (!item) return;
     let info = videoInfo(item.video_url);
     if (item.video_storage_path) {
-      const { data, error } = await db.storage.from(VIDEO_BUCKET).createSignedUrl(item.video_storage_path, 600);
+      const { data, error } = await db.storage.from(VIDEO_BUCKET).createSignedUrl(item.video_storage_path, 3600);
       if (error || !data?.signedUrl) { toast('Não foi possível abrir o vídeo. Tente novamente.'); return; }
       info = { kind: 'mp4', src: data.signedUrl };
     }
@@ -81,9 +80,20 @@
       media.allowFullscreen = true;
     } else {
       media.controls = true;
-      media.autoplay = true;
+      media.preload = 'metadata';
+      media.playsInline = true;
+      media.setAttribute('playsinline', '');
+      media.setAttribute('webkit-playsinline', '');
     }
     content.append(media);
+    if (info.kind === 'mp4') {
+      const errorMessage = document.createElement('p');
+      errorMessage.className = 'platform-announcement-video-error hidden';
+      errorMessage.textContent = 'Não foi possível reproduzir este MP4. Verifique sua conexão ou tente um arquivo H.264 com áudio AAC.';
+      media.onerror = () => errorMessage.classList.remove('hidden');
+      content.append(errorMessage);
+      media.load();
+    }
     modal.classList.remove('hidden');
     byId('platformAnnouncementVideoClose').focus();
   }
@@ -174,8 +184,8 @@
         error ? reject(error) : resolve();
       };
       const timeout = setTimeout(() => finish(new Error('Não foi possível ler a duração do MP4. Escolha outro arquivo.')), 15000);
-      media.onloadedmetadata = () => finish(Number.isFinite(media.duration) && media.duration > 0 && media.duration <= MAX_VIDEO_SECONDS
-        ? null : new Error('O vídeo deve ter no máximo 2 minutos e 30 segundos.'));
+      media.onloadedmetadata = () => finish(Number.isFinite(media.duration) && media.duration > 0
+        ? null : new Error('Não foi possível confirmar a duração deste MP4. Escolha outro arquivo.'));
       media.onerror = () => finish(new Error('Não foi possível abrir este MP4. Escolha outro arquivo.'));
       media.preload = 'metadata';
       media.src = url;
@@ -382,7 +392,7 @@
             <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
             <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para todos."></textarea></div>
             <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
-            <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 2 min 30 s e 45 MB. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
+            <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 45 MB, sem limite de duração. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
             <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar para todos</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>

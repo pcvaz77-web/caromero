@@ -49,7 +49,7 @@ test('aviso global aparece no sino mesmo sem permissao de notificacoes da escola
   assert.match(h.get('notificationList').innerHTML, /Comunicado geral/);
 });
 
-test('MP4 local respeita duracao e tamanho antes do envio privado', async () => {
+test('MP4 local aceita duracao maior e respeita tamanho antes do envio privado', async () => {
   const h = harness('platform-in-app-announcements.js', {
     transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={validateVideoFile,prepareVideo};})();')
   });
@@ -66,7 +66,9 @@ test('MP4 local respeita duracao e tamanho antes do envio privado', async () => 
   await h.context.window.testAnnouncements.validateVideoFile(video);
   assert.deepEqual(removed, ['blob:test']);
   duration = 151;
-  await assert.rejects(h.context.window.testAnnouncements.validateVideoFile(video), /2 minutos e 30 segundos/);
+  await h.context.window.testAnnouncements.validateVideoFile(video);
+  duration = 0;
+  await assert.rejects(h.context.window.testAnnouncements.validateVideoFile(video), /confirmar a duração/);
   await assert.rejects(async () => h.context.window.testAnnouncements.validateVideoFile({ ...video, size: video.size + 1 }), /45 MB/);
   await assert.rejects(async () => h.context.window.testAnnouncements.validateVideoFile({ ...video, type: 'video/quicktime' }), /MP4/);
 
