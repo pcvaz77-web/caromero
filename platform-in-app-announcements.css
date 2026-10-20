@@ -8,9 +8,11 @@
 .platform-announcement-video-dialog{width:min(780px,100%);background:#fff;border-radius:14px;padding:18px;box-shadow:0 25px 60px #0006}
 .platform-announcement-video-dialog>button{display:block;margin:0 0 10px auto;background:#edf2f4;border-radius:8px;width:34px;height:34px;font-size:25px}
 #platformAnnouncementVideoContent iframe,#platformAnnouncementVideoContent video{display:block;width:100%;aspect-ratio:16/9;border:0;border-radius:8px;background:#101828}
-.platform-announcement-tabs{display:flex;gap:8px;flex-wrap:wrap;padding:6px;background:#eaf0f7;border-radius:12px;margin-bottom:20px}
-.platform-announcement-tabs button{padding:11px 17px;border-radius:9px;background:transparent;color:#344054;font-weight:800}
-.platform-announcement-tabs button.active{background:#fff;color:#0d6945;box-shadow:0 2px 8px #17233a19}
+.platform-announcement-tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+.platform-announcement-tabs button{min-height:46px;padding:11px 17px;border:1px solid #2858cf;border-radius:9px;background:#356ae6;color:#fff;font-weight:800;box-shadow:0 3px 8px #1d4ab425;transition:background .15s,box-shadow .15s,transform .15s}
+.platform-announcement-tabs button:hover{background:#2858cf;box-shadow:0 5px 12px #1d4ab438;transform:translateY(-1px)}
+.platform-announcement-tabs button.active{border-color:#153b9e;background:#173f9d;color:#fff;box-shadow:0 0 0 3px #356ae62b,0 4px 10px #173f9d38}
+.platform-announcement-tabs button:focus-visible{outline:3px solid #8eb0ff;outline-offset:3px}
 .platform-announcement-intro{color:#475467;line-height:1.5;margin:0 0 17px}
 .platform-announcement-placeholder{padding:24px}
 .platform-announcement-placeholder h4{margin:0 0 8px}
