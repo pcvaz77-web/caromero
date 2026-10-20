@@ -192,6 +192,68 @@
     });
   }
 
+  async function prepareMp4ForStreaming(file) {
+    const boxes = [];
+    for (let offset = 0; offset < file.size;) {
+      const header = new DataView(await file.slice(offset, offset + 16).arrayBuffer());
+      if (header.byteLength < 8) throw new Error('Este MP4 está incompleto. Escolha outro arquivo.');
+      let size = header.getUint32(0);
+      const type = String.fromCharCode(...new Uint8Array(header.buffer, 4, 4));
+      const headerSize = size === 1 ? 16 : 8;
+      if (size === 1 && header.byteLength >= 16) size = Number(header.getBigUint64(8));
+      else if (size === 0) size = file.size - offset;
+      if (!Number.isSafeInteger(size) || size < headerSize || offset + size > file.size) {
+        throw new Error('Este MP4 está incompleto. Escolha outro arquivo.');
+      }
+      boxes.push({ type, offset, size, headerSize });
+      offset += size;
+    }
+    const ftyp = boxes[0];
+    const moov = boxes.find(box => box.type === 'moov');
+    const mdat = boxes.find(box => box.type === 'mdat');
+    if (!ftyp || ftyp.type !== 'ftyp' || !moov || !mdat) throw new Error('Formato MP4 não reconhecido. Exporte novamente o vídeo.');
+    if (moov.offset < mdat.offset) return file;
+    if (boxes.at(-1) !== moov) throw new Error('Este MP4 precisa ser exportado com “início rápido” para funcionar no celular.');
+
+    const moovBytes = new Uint8Array(await file.slice(moov.offset, moov.offset + moov.size).arrayBuffer());
+    const view = new DataView(moovBytes.buffer);
+    let chunkTables = 0;
+    function visit(start, end) {
+      for (let offset = start; offset < end;) {
+        if (offset + 8 > end) throw new Error('Índice do MP4 inválido. Exporte novamente o vídeo.');
+        let size = view.getUint32(offset);
+        const type = String.fromCharCode(...moovBytes.subarray(offset + 4, offset + 8));
+        const headerSize = size === 1 ? 16 : 8;
+        if (size === 1 && offset + 16 <= end) size = Number(view.getBigUint64(offset + 8));
+        else if (size === 0) size = end - offset;
+        if (!Number.isSafeInteger(size) || size < headerSize || offset + size > end) throw new Error('Índice do MP4 inválido. Exporte novamente o vídeo.');
+        if (type === 'stco' || type === 'co64') {
+          const count = view.getUint32(offset + headerSize + 4);
+          const width = type === 'stco' ? 4 : 8;
+          const entries = offset + headerSize + 8;
+          if (entries + count * width > offset + size) throw new Error('Índice do MP4 inválido. Exporte novamente o vídeo.');
+          chunkTables++;
+          for (let i = 0; i < count; i++) {
+            const at = entries + i * width;
+            const oldOffset = width === 4 ? view.getUint32(at) : Number(view.getBigUint64(at));
+            const nextOffset = oldOffset + moov.size;
+            if (oldOffset < ftyp.size || oldOffset >= moov.offset || !Number.isSafeInteger(nextOffset) || (width === 4 && nextOffset > 0xffffffff)) {
+              throw new Error('Índice do MP4 incompatível. Exporte com “início rápido”.');
+            }
+            if (width === 4) view.setUint32(at, nextOffset);
+            else view.setBigUint64(at, BigInt(nextOffset));
+          }
+        } else if (['moov', 'trak', 'mdia', 'minf', 'stbl'].includes(type)) {
+          visit(offset + headerSize, offset + size);
+        }
+        offset += size;
+      }
+    }
+    visit(0, moovBytes.length);
+    if (!chunkTables) throw new Error('Este MP4 precisa ser exportado com “início rápido” para funcionar no celular.');
+    return new File([file.slice(0, ftyp.size), moovBytes, file.slice(ftyp.size, moov.offset)], file.name, { type: 'video/mp4' });
+  }
+
   function updateVideoChoice() {
     const file = byId('platformAnnouncementVideoFile').files?.[0];
     const label = byId('platformAnnouncementVideoChoice');
@@ -213,11 +275,14 @@
   async function prepareVideo(input) {
     if (!input.file) return { values: input.values, uploadedPath: null };
     await validateVideoFile(input.file);
+    ownerStatus('Preparando MP4 para computador e celular...');
+    const uploadFile = await prepareMp4ForStreaming(input.file);
+    if (uploadFile !== input.file) await validateVideoFile(uploadFile);
     const { data: { user: signedInUser }, error: authError } = await db.auth.getUser();
     if (authError || !signedInUser || signedInUser.id !== (viewerId || user?.id)) throw new Error('Sua sessão expirou. Entre novamente.');
     const path = `${signedInUser.id}/${crypto.randomUUID()}.mp4`;
     ownerStatus('Enviando vídeo MP4...');
-    const { error } = await db.storage.from(VIDEO_BUCKET).upload(path, input.file, { contentType: 'video/mp4', upsert: false });
+    const { error } = await db.storage.from(VIDEO_BUCKET).upload(path, uploadFile, { contentType: 'video/mp4', upsert: false });
     if (error) throw new Error(`Não foi possível enviar o MP4: ${error.message}`);
     return { values: { ...input.values, video_storage_path: path }, uploadedPath: path };
   }

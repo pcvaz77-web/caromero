@@ -51,8 +51,9 @@ test('aviso global aparece no sino mesmo sem permissao de notificacoes da escola
 
 test('MP4 local aceita duracao maior e respeita tamanho antes do envio privado', async () => {
   const h = harness('platform-in-app-announcements.js', {
-    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={validateVideoFile,prepareVideo};})();')
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={validateVideoFile,prepareVideo,prepareMp4ForStreaming};})();')
   });
+  h.context.File = File;
   const removed = [];
   let duration = 150;
   h.context.URL = { createObjectURL: () => 'blob:test', revokeObjectURL: url => removed.push(url) };
@@ -78,8 +79,15 @@ test('MP4 local aceita duracao maior e respeita tamanho antes do envio privado',
     uploads.push({ bucket, path, file, options });
     return { error: null };
   } }) };
+  const box = type => {
+    const bytes = Buffer.alloc(8);
+    bytes.writeUInt32BE(8, 0);
+    bytes.write(type, 4);
+    return bytes;
+  };
+  const uploadVideo = new File([box('ftyp'), box('moov'), box('mdat')], 'tutorial.mp4', { type: 'video/mp4' });
   const result = await h.context.window.testAnnouncements.prepareVideo({
-    file: video, values: { title: 'Tutorial', message_body: 'Veja o vídeo.', video_url: null, video_storage_path: null }
+    file: uploadVideo, values: { title: 'Tutorial', message_body: 'Veja o vídeo.', video_url: null, video_storage_path: null }
   });
   assert.equal(uploads.length, 1);
   assert.equal(uploads[0].bucket, 'platform-announcement-videos');
@@ -87,4 +95,29 @@ test('MP4 local aceita duracao maior e respeita tamanho antes do envio privado',
   assert.equal(uploads[0].options.contentType, 'video/mp4');
   assert.equal(result.values.video_url, null);
   assert.equal(result.values.video_storage_path, uploads[0].path);
+});
+
+test('MP4 com indice no fim e preparado para reproducao progressiva', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={prepareMp4ForStreaming};})();')
+  });
+  h.context.File = File;
+  await h.ready();
+  const box = (type, payload = Buffer.alloc(0)) => {
+    const bytes = Buffer.alloc(8 + payload.length);
+    bytes.writeUInt32BE(bytes.length, 0);
+    bytes.write(type, 4);
+    payload.copy(bytes, 8);
+    return bytes;
+  };
+  const chunk = Buffer.alloc(12);
+  chunk.writeUInt32BE(1, 4);
+  chunk.writeUInt32BE(16, 8);
+  const moov = box('moov', box('trak', box('mdia', box('minf', box('stbl', box('stco', chunk))))));
+  const source = new File([box('ftyp'), box('mdat', Buffer.alloc(4)), moov], 'tutorial.mp4', { type: 'video/mp4' });
+  const result = await h.context.window.testAnnouncements.prepareMp4ForStreaming(source);
+  const bytes = Buffer.from(await result.arrayBuffer());
+  assert.equal(bytes.toString('ascii', 12, 16), 'moov');
+  assert.equal(bytes.toString('ascii', 8 + moov.length + 4, 8 + moov.length + 8), 'mdat');
+  assert.equal(bytes.readUInt32BE(8 + moov.length - 4), 16 + moov.length);
 });
