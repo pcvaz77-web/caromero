@@ -29,6 +29,7 @@ test('registro recusa alunos de outra turma, duplicações e marcações incerta
   const exam={question_count:2,answer_format:'ABCD'};
   const item=(id,studentId,answers)=>({id,kind:'student',status:'ready',review:{studentId,answers,reviewed:true}});
   assert.deepEqual(correction.reviewedItems({items:[item('foto-1','aluno-1',['A','-'])]},['aluno-1'],exam),[{capture_ref:'foto-1',student_id:'aluno-1',answers:['A','-']}]);
+  assert.deepEqual(correction.reviewedItems({items:[item('foto-multipla','aluno-1',['*','B'])]},['aluno-1'],exam),[{capture_ref:'foto-multipla',student_id:'aluno-1',answers:['*','B']}]);
   assert.throws(()=>correction.reviewedItems({items:[item('foto-1','outro',['A','B'])]},['aluno-1'],exam),/outra turma/);
   assert.throws(()=>correction.reviewedItems({items:[item('foto-1','aluno-1',['A','B']),item('foto-2','aluno-1',['A','B'])]},['aluno-1'],exam),/dois cartões/);
   assert.throws(()=>correction.reviewedItems({items:[item('foto-1','aluno-1',['?','B'])]},['aluno-1'],exam),/ambígua/);

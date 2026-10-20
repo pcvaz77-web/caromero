@@ -33,7 +33,10 @@
       if(seen.has(id)) throw new Error('Há dois cartões do mesmo aluno. Descarte um deles no celular.');
       seen.add(id);
       const answers=item.review.answers;
-      const choices=test.answer_format==='VF'?['V','F','-']:[...test.answer_format,'-'];
+      // The mobile reviewer permits '*' for a question with multiple marked
+      // alternatives. Keep that reviewed response: it counts as incorrect,
+      // but must not block saving the other answers from the card.
+      const choices=test.answer_format==='VF'?['V','F','-','*']:[...test.answer_format,'-','*'];
       if(!Array.isArray(answers)||answers.length!==test.question_count||answers.some(value=>!choices.includes(value))) throw new Error('Há marcação ambígua ou quantidade incorreta. Corrija no celular antes de registrar.');
       entries.push({capture_ref:item.id,student_id:id,answers:[...answers]});
     }
