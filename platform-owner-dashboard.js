@@ -27,6 +27,7 @@
 
   const AUDIT_LABELS = {
     school_provisioned: 'Escola criada',
+    school_name_changed: 'Nome da escola alterado',
     school_status_changed: 'Status da escola alterado',
     subscription_status_changed: 'Status da assinatura alterado',
     subscription_plan_changed: 'Plano da assinatura alterado',
@@ -974,6 +975,61 @@
     }
   }
 
+  function createSchoolNameModal() {
+    let modal = document.getElementById('platformSchoolNameModal');
+    if (modal) return modal;
+
+    modal = document.createElement('div');
+    modal.id = 'platformSchoolNameModal';
+    modal.className = 'modal-bg hidden';
+    modal.innerHTML = `
+      <div class="modal platform-billing-modal">
+        <div class="modal-head"><h3>Editar nome da escola</h3><button class="close" type="button">×</button></div>
+        <form id="platformSchoolNameForm" class="form">
+          <div class="field"><label for="platformSchoolNameInput">Nome da escola</label><input id="platformSchoolNameInput" maxlength="160" required autocomplete="off"></div>
+          <button id="platformSchoolNameSubmit" class="btn primary full" type="submit">Salvar nome</button>
+        </form>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
+    modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
+    modal.querySelector('#platformSchoolNameForm').onsubmit = saveSchoolName;
+    return modal;
+  }
+
+  function openSchoolNameModal(button) {
+    const modal = createSchoolNameModal();
+    modal.dataset.schoolId = button.dataset.schoolId;
+    modal.dataset.schoolName = button.dataset.schoolName;
+    document.getElementById('platformSchoolNameInput').value = button.dataset.schoolName;
+    modal.classList.remove('hidden');
+    document.getElementById('platformSchoolNameInput').focus();
+  }
+
+  async function saveSchoolName(event) {
+    event.preventDefault();
+    const modal = document.getElementById('platformSchoolNameModal');
+    const button = document.getElementById('platformSchoolNameSubmit');
+    const newName = document.getElementById('platformSchoolNameInput').value.trim();
+    if (newName.length < 3 || newName.length > 160) { toast('Informe um nome entre 3 e 160 caracteres.'); return; }
+    if (newName === modal.dataset.schoolName) { modal.classList.add('hidden'); return; }
+
+    button.disabled = true;
+    try {
+      const { error } = await db.rpc('platform_rename_school', {
+        p_school_id: modal.dataset.schoolId,
+        p_expected_name: modal.dataset.schoolName,
+        p_new_name: newName
+      });
+      if (error) { toast(error.message); return; }
+      modal.classList.add('hidden');
+      toast('Nome da escola atualizado.');
+      await openDashboard();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function createBillingContactModal() {
     let modal = document.getElementById('platformBillingContactModal');
     if (modal) return modal;
@@ -1710,7 +1766,7 @@
           <td data-label="Assinatura"><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td data-label="Usuários">${esc(school.user_count ?? 0)}</td>
           <td data-label="Alunos">${esc(school.student_count ?? 0)}</td>
-          <td data-label="Ações" class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td data-label="Ações" class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn secondary" type="button" data-edit-school-name data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Editar nome</button> ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
@@ -1724,6 +1780,9 @@
       });
       body.querySelectorAll('[data-billing-contact]').forEach(button => {
         button.onclick = () => openBillingContactModal(button, billingContacts[button.dataset.schoolId] || null);
+      });
+      body.querySelectorAll('[data-edit-school-name]').forEach(button => {
+        button.onclick = () => openSchoolNameModal(button);
       });
       body.querySelectorAll('[data-manage-plan]').forEach(button => {
         button.onclick = () => openPlanModal(button);
