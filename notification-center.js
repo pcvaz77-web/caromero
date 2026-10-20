@@ -65,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.head.appendChild(style);
 
   let notifications = [];
+  let platformAnnouncements = [];
+  let schoolUnreadCount = 0;
   let channel = null;
   const canUseNotifications = () => !permission?.is_secretary || !!permission?.can_receive_notifications;
   let dataGeneration = 0;
@@ -97,8 +99,11 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderCount(unreadTotal) {
     const countEl = document.getElementById('notificationUnreadCount');
     if (!countEl) return;
-    countEl.textContent = unreadTotal > 99 ? '99+' : String(unreadTotal);
-    countEl.classList.toggle('hidden', unreadTotal === 0);
+    schoolUnreadCount = unreadTotal;
+    const total = schoolUnreadCount + platformAnnouncements.length;
+    countEl.textContent = total > 99 ? '99+' : String(total);
+    countEl.classList.toggle('hidden', total === 0);
+    bell.classList.toggle('hidden', document.getElementById('app').classList.contains('hidden') || (stopped && platformAnnouncements.length === 0));
   }
 
   async function refreshUnreadCount() {
@@ -132,14 +137,22 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderList() {
     const list = document.getElementById('notificationList');
     if (!list) return;
-    list.innerHTML = notifications.length
+    const globalItems = platformAnnouncements.map(item => `<article class="notification-item unread platform-announcement-notification" data-platform-announcement="${item.id}"><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.published_at)}</span></div><p>${esc(item.message_body)}</p><button type="button" class="link platform-announcement-notification-close" data-platform-announcement-close="${item.id}">Fechar aviso</button></article>`).join('');
+    const schoolItems = notifications.length
       ? notifications.map(item => {
           const clickable = isNotificationClickable(item);
           return `<article class="notification-item ${item.read_at ? '' : 'unread'} ${clickable ? 'notification-item-clickable' : ''}" data-id="${item.id}" ${clickable ? 'data-clickable="1"' : ''}><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.created_at)}</span></div><p>${esc(item.body)}</p>${item.read_at ? '' : `<button type="button" class="link notification-mark-read" data-id="${item.id}">Marcar como lida</button>`}</article>`;
         }).join('')
-      : '<div class="notification-empty">Nenhuma notificação por enquanto.</div>';
+      : '';
+    list.innerHTML = globalItems + schoolItems || '<div class="notification-empty">Nenhuma notificação por enquanto.</div>';
     document.getElementById('clearNotifications')?.classList.toggle('hidden', notifications.length === 0);
   }
+
+  document.addEventListener('carometro:platform-announcements', event => {
+    platformAnnouncements = Array.isArray(event.detail?.announcements) ? event.detail.announcements : [];
+    renderList();
+    renderCount(schoolUnreadCount);
+  });
 
   async function loadNotifications() {
     const scope = captureScope(), request = ++listRequest;
@@ -344,6 +357,17 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   document.getElementById('notificationList').onclick = event => {
+    const globalClose = event.target.closest('[data-platform-announcement-close]');
+    if (globalClose) {
+      document.dispatchEvent(new CustomEvent('carometro:dismiss-platform-announcement', { detail: { id: globalClose.dataset.platformAnnouncementClose } }));
+      return;
+    }
+    const globalItem = event.target.closest('[data-platform-announcement]');
+    if (globalItem) {
+      panel.classList.add('hidden');
+      document.dispatchEvent(new CustomEvent('carometro:show-platform-announcement', { detail: { id: globalItem.dataset.platformAnnouncement } }));
+      return;
+    }
     const button = event.target.closest('.notification-mark-read');
     if (button) { markRead(button.dataset.id); return; }
     const article = event.target.closest('.notification-item[data-clickable="1"]');
@@ -433,7 +457,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (stopped || !isCurrentScope(initialScope) || signedInUser?.id !== initialScope.userId) return;
     const schoolId = window.getActiveSchoolId?.();
-    if (!signedInUser || !schoolId) { bell.classList.add('hidden'); return; }
+    if (!signedInUser || !schoolId) { bell.classList.toggle('hidden', platformAnnouncements.length === 0); return; }
     bell.classList.remove('hidden');
     const scope = `${signedInUser.id}:${schoolId}`;
     if (!force && channel && activeScope === scope) return;
@@ -521,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
     hasConnectedBefore = false;
     activeScope = null;
     channelGeneration += 1;
-    bell.classList.add('hidden');
+    bell.classList.toggle('hidden', platformAnnouncements.length === 0);
     panel.classList.add('hidden');
     if (channel) {
       const oldChannel = channel;

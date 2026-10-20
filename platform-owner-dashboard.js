@@ -153,7 +153,7 @@
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
             </section>
             <section class="platform-page" data-platform-section="communications">
-              <div class="platform-page-heading"><div><h3>Comunicações</h3><p>Crie qualquer comunicado do Carômetro, revise o público e acompanhe os envios.</p></div></div>
+              <div class="platform-page-heading"><div><h3>Comunicações</h3><p>Escolha o canal. Os avisos no Carômetro já podem ser preparados aqui.</p></div></div>
               <div id="platformCommunicationsRoot"></div>
             </section>
             <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><div class="platform-sales-actions"><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button><button id="platformCopyPublicPlansLink" class="btn secondary platform-copy-sales-link" type="button"><span aria-hidden="true">⧉</span>Copiar link</button></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
