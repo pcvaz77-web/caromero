@@ -276,7 +276,7 @@
     applications: ['Novos clientes', 'Analise solicitações recebidas pela página de planos.'],
     subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
     siap: ['Assistente SIAP', 'Prepare e acompanhe o produto independente.'],
-    communications: ['Comunicações', 'Crie comunicados e envie somente para pessoas que aceitaram recebê-los.'],
+    communications: ['Comunicações', 'Escolha como deseja se comunicar com os usuários do Carômetro.'],
     plans: ['Planos', 'Configure o catálogo comercial da plataforma.'],
     contacts: ['Responsáveis pela assinatura', 'Gerencie os contatos comerciais das escolas.'],
     audit: ['Auditoria', 'Consulte as operações administrativas recentes.'],

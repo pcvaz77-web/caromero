@@ -21,6 +21,7 @@
 .platform-announcement-form textarea{min-height:130px}
 .platform-announcement-form small{font-size:12px;color:#667085}
 .platform-announcement-actions,.platform-announcement-row-actions{display:flex;gap:8px;flex-wrap:wrap}
+#platformAnnouncementNew{white-space:nowrap}
 .platform-announcement-preview{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:18px;background:#138052;color:#fff;padding:18px;border-radius:10px}
 .platform-announcement-preview div{display:grid;gap:7px;min-width:0}
 .platform-announcement-preview small{font-size:12px;font-weight:700}
