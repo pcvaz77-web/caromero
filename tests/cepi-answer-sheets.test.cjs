@@ -24,10 +24,10 @@ for (const count of [15,20,30]) test(`cartão do aluno imprime exatamente ${coun
   assert.match(html,/@page\{size:A4;margin:0/);
 });
 
-test('quantidade solicitada é exata e imprime um cartão por folha',()=>{
+test('quantidade solicitada é exata e imprime até quatro cartões por folha',()=>{
   const {exam,questions}=fixture(20);
   const html=sheets.studentHtml(sheets.prepare(exam,questions),'Escola Exemplo',7);
-  assert.equal((html.match(/class="card-page"/g)||[]).length,7);
+  assert.equal((html.match(/class="card-page"/g)||[]).length,2);
   assert.equal((html.match(/class="student-card"/g)||[]).length,7);
 });
 
