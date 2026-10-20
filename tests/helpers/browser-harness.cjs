@@ -11,7 +11,7 @@ function element() {
     querySelector:()=>element(),querySelectorAll:()=>[], closest:()=>element()
   };
 }
-function harness(file, { permission='default', storage=new Map(), query, rpc }={}) {
+function harness(file, { permission='default', storage=new Map(), query, rpc, transform }={}) {
   const nodes=new Map(), events=new Map(), windowEvents=new Map(), channels=[], observers=[], calls=[], messages=[];
   const get=id=>{if(!nodes.has(id))nodes.set(id,element());return nodes.get(id);};
   const on=(map,name,fn)=>map.set(name,[...(map.get(name)||[]),fn]);
@@ -42,6 +42,7 @@ function harness(file, { permission='default', storage=new Map(), query, rpc }={
   vm.createContext(context);
   let source=fs.readFileSync(path.join(__dirname,'../..',file),'utf8');
   if(file==='notification-center.js')source=source.replace(/\}\);\s*$/, 'window.testCenter={loadNotifications,refreshUnreadCount,startNotificationCenter,stopNotificationCenter,openNotificationById,getItems:()=>notifications};\n});');
+  if(transform)source=transform(source);
   vm.runInContext(source,context,{filename:file});
   return {context,get,events,windowEvents,channels,observers,calls,messages,storage,registration,emit,ready:()=>emit(events,'DOMContentLoaded'),setSubscription:value=>{subscription=value;}};
 }

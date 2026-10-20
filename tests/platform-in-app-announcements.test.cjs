@@ -48,3 +48,41 @@ test('aviso global aparece no sino mesmo sem permissao de notificacoes da escola
   assert.equal(h.get('notificationUnreadCount').textContent, '1');
   assert.match(h.get('notificationList').innerHTML, /Comunicado geral/);
 });
+
+test('MP4 local respeita duracao e tamanho antes do envio privado', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={validateVideoFile,prepareVideo};})();')
+  });
+  const removed = [];
+  let duration = 150;
+  h.context.URL = { createObjectURL: () => 'blob:test', revokeObjectURL: url => removed.push(url) };
+  h.context.crypto = { randomUUID: () => '00000000-0000-0000-0000-000000000001' };
+  await h.ready();
+  h.context.document.createElement = tag => {
+    assert.equal(tag, 'video');
+    return { duration, load() {}, removeAttribute() {}, set src(value) { if (value) queueMicrotask(() => this.onloadedmetadata()); } };
+  };
+  const video = { name: 'tutorial.mp4', type: 'video/mp4', size: 45 * 1024 * 1024 };
+  await h.context.window.testAnnouncements.validateVideoFile(video);
+  assert.deepEqual(removed, ['blob:test']);
+  duration = 151;
+  await assert.rejects(h.context.window.testAnnouncements.validateVideoFile(video), /2 minutos e 30 segundos/);
+  await assert.rejects(async () => h.context.window.testAnnouncements.validateVideoFile({ ...video, size: video.size + 1 }), /45 MB/);
+  await assert.rejects(async () => h.context.window.testAnnouncements.validateVideoFile({ ...video, type: 'video/quicktime' }), /MP4/);
+
+  duration = 150;
+  const uploads = [];
+  h.context.db.storage = { from: bucket => ({ upload: async (path, file, options) => {
+    uploads.push({ bucket, path, file, options });
+    return { error: null };
+  } }) };
+  const result = await h.context.window.testAnnouncements.prepareVideo({
+    file: video, values: { title: 'Tutorial', message_body: 'Veja o vídeo.', video_url: null, video_storage_path: null }
+  });
+  assert.equal(uploads.length, 1);
+  assert.equal(uploads[0].bucket, 'platform-announcement-videos');
+  assert.match(uploads[0].path, /^user-a\/[0-9a-f-]+\.mp4$/);
+  assert.equal(uploads[0].options.contentType, 'video/mp4');
+  assert.equal(result.values.video_url, null);
+  assert.equal(result.values.video_storage_path, uploads[0].path);
+});

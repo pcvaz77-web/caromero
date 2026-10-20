@@ -1,6 +1,9 @@
 (() => {
   const TABLE = 'platform_in_app_announcements';
   const DISMISSALS = 'platform_in_app_announcement_dismissals';
+  const VIDEO_BUCKET = 'platform-announcement-videos';
+  const MAX_VIDEO_BYTES = 45 * 1024 * 1024;
+  const MAX_VIDEO_SECONDS = 150;
   const byId = id => document.getElementById(id);
   const clean = value => String(value || '').trim();
   const escapeHtml = value => {
@@ -33,6 +36,8 @@
   let channelUserId = null;
   let ownerRows = [];
   let selectedId = null;
+  let selectedVideoPath = null;
+  let videoChoiceVersion = 0;
   let ownerMounted = false;
 
   function emitAnnouncements() {
@@ -56,8 +61,14 @@
       .subscribe();
   }
 
-  function showVideo(url) {
-    const info = videoInfo(url);
+  async function showVideo(item) {
+    if (!item) return;
+    let info = videoInfo(item.video_url);
+    if (item.video_storage_path) {
+      const { data, error } = await db.storage.from(VIDEO_BUCKET).createSignedUrl(item.video_storage_path, 600);
+      if (error || !data?.signedUrl) { toast('Não foi possível abrir o vídeo. Tente novamente.'); return; }
+      info = { kind: 'mp4', src: data.signedUrl };
+    }
     if (!info) return;
     const modal = byId('platformAnnouncementVideoModal');
     const content = byId('platformAnnouncementVideoContent');
@@ -85,7 +96,7 @@
     if (!item) return;
     byId('platformAnnouncementBannerTitle').textContent = item.title;
     byId('platformAnnouncementBannerBody').textContent = item.message_body;
-    byId('platformAnnouncementBannerVideo').classList.toggle('hidden', !videoInfo(item.video_url));
+    byId('platformAnnouncementBannerVideo').classList.toggle('hidden', !item.video_storage_path && !videoInfo(item.video_url));
     banner.dataset.announcementId = item.id;
   }
 
@@ -112,7 +123,7 @@
     }
     viewerId = signedInUser.id;
     startChannel(signedInUser.id);
-    const announcementsResult = await db.from(TABLE).select('id,title,message_body,video_url,published_at').eq('status', 'published').order('published_at', { ascending: false });
+    const announcementsResult = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,published_at').eq('status', 'published').order('published_at', { ascending: false });
     if (generation !== viewerGeneration || viewerId !== signedInUser.id || app.classList.contains('hidden')) return;
     if (announcementsResult.error) return;
     const published = announcementsResult.data || [];
@@ -146,29 +157,87 @@
     output.classList.toggle('error', error);
   }
 
+  function validateVideoFile(file) {
+    if (file.type !== 'video/mp4' || !/\.mp4$/i.test(file.name)) throw new Error('Escolha um arquivo MP4.');
+    if (!file.size || file.size > MAX_VIDEO_BYTES) throw new Error('O MP4 deve ter até 45 MB. Comprima o vídeo antes de enviar.');
+    return new Promise((resolve, reject) => {
+      const media = document.createElement('video');
+      const url = URL.createObjectURL(file);
+      let done = false;
+      const finish = error => {
+        if (done) return;
+        done = true;
+        clearTimeout(timeout);
+        media.removeAttribute('src');
+        media.load();
+        URL.revokeObjectURL(url);
+        error ? reject(error) : resolve();
+      };
+      const timeout = setTimeout(() => finish(new Error('Não foi possível ler a duração do MP4. Escolha outro arquivo.')), 15000);
+      media.onloadedmetadata = () => finish(Number.isFinite(media.duration) && media.duration > 0 && media.duration <= MAX_VIDEO_SECONDS
+        ? null : new Error('O vídeo deve ter no máximo 2 minutos e 30 segundos.'));
+      media.onerror = () => finish(new Error('Não foi possível abrir este MP4. Escolha outro arquivo.'));
+      media.preload = 'metadata';
+      media.src = url;
+    });
+  }
+
+  function updateVideoChoice() {
+    const file = byId('platformAnnouncementVideoFile').files?.[0];
+    const label = byId('platformAnnouncementVideoChoice');
+    label.textContent = file ? `Arquivo selecionado: ${file.name}` : selectedVideoPath ? 'MP4 já enviado para este aviso.' : 'Nenhum arquivo selecionado.';
+    byId('platformAnnouncementRemoveVideo').classList.toggle('hidden', !file && !selectedVideoPath && !clean(byId('platformAnnouncementVideoUrl').value));
+  }
+
   function ownerFormData() {
     const title = clean(byId('platformAnnouncementTitle').value);
     const message_body = clean(byId('platformAnnouncementMessage').value);
     const video_url = clean(byId('platformAnnouncementVideoUrl').value) || null;
+    const file = byId('platformAnnouncementVideoFile').files?.[0] || null;
     if (title.length < 3 || message_body.length < 3) throw new Error('Informe um título e uma mensagem com pelo menos 3 caracteres.');
     if (video_url && !videoInfo(video_url)) throw new Error('Use um link HTTPS do YouTube ou de um arquivo MP4 público.');
-    return { title, message_body, video_url };
+    if (file && video_url) throw new Error('Escolha um link ou um arquivo MP4, não os dois.');
+    return { values: { title, message_body, video_url, video_storage_path: file || video_url ? null : selectedVideoPath }, file };
+  }
+
+  async function prepareVideo(input) {
+    if (!input.file) return { values: input.values, uploadedPath: null };
+    await validateVideoFile(input.file);
+    const { data: { user: signedInUser }, error: authError } = await db.auth.getUser();
+    if (authError || !signedInUser || signedInUser.id !== (viewerId || user?.id)) throw new Error('Sua sessão expirou. Entre novamente.');
+    const path = `${signedInUser.id}/${crypto.randomUUID()}.mp4`;
+    ownerStatus('Enviando vídeo MP4...');
+    const { error } = await db.storage.from(VIDEO_BUCKET).upload(path, input.file, { contentType: 'video/mp4', upsert: false });
+    if (error) throw new Error(`Não foi possível enviar o MP4: ${error.message}`);
+    return { values: { ...input.values, video_storage_path: path }, uploadedPath: path };
+  }
+
+  async function removeUnusedVideo(path) {
+    if (!path) return;
+    try {
+      const { error } = await db.storage.from(VIDEO_BUCKET).remove([path]);
+      if (error) console.warn('Não foi possível remover MP4 sem uso:', error.message);
+    } catch (error) { console.warn('Não foi possível remover MP4 sem uso:', error); }
   }
 
   function renderOwnerPreview() {
     byId('platformAnnouncementPreviewTitle').textContent = clean(byId('platformAnnouncementTitle').value) || 'Título do aviso';
     byId('platformAnnouncementPreviewBody').textContent = clean(byId('platformAnnouncementMessage').value) || 'A mensagem aparecerá aqui para todos os usuários.';
-    byId('platformAnnouncementPreviewVideo').classList.toggle('hidden', !videoInfo(clean(byId('platformAnnouncementVideoUrl').value)));
+    byId('platformAnnouncementPreviewVideo').classList.toggle('hidden', !selectedVideoPath && !byId('platformAnnouncementVideoFile').files?.length && !videoInfo(clean(byId('platformAnnouncementVideoUrl').value)));
   }
 
   function resetOwnerForm() {
     selectedId = null;
+    selectedVideoPath = null;
+    videoChoiceVersion++;
     byId('platformAnnouncementForm').reset();
     byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = false; });
     byId('platformAnnouncementSave').disabled = false;
     byId('platformAnnouncementPublish').disabled = false;
     byId('platformAnnouncementPublish').textContent = 'Publicar para todos';
+    byId('platformAnnouncementRemoveVideo').disabled = false;
     ownerStatus('Novo aviso. Salve um rascunho ou publique quando estiver pronto.');
+    updateVideoChoice();
     renderOwnerPreview();
   }
 
@@ -176,14 +245,19 @@
     const row = ownerRows.find(item => item.id === id);
     if (!row) return;
     selectedId = row.status === 'draft' ? id : null;
+    selectedVideoPath = row.video_storage_path || null;
+    videoChoiceVersion++;
     byId('platformAnnouncementTitle').value = row.title;
     byId('platformAnnouncementMessage').value = row.message_body;
     byId('platformAnnouncementVideoUrl').value = row.video_url || '';
+    byId('platformAnnouncementVideoFile').value = '';
     byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = row.status !== 'draft'; });
     byId('platformAnnouncementSave').disabled = row.status !== 'draft';
     byId('platformAnnouncementPublish').disabled = row.status !== 'draft';
     byId('platformAnnouncementPublish').textContent = 'Publicar rascunho para todos';
     ownerStatus(row.status === 'draft' ? 'Rascunho carregado para edição.' : 'Prévia do aviso. Clique em Novo aviso para escrever outro.');
+    byId('platformAnnouncementRemoveVideo').disabled = row.status !== 'draft';
+    updateVideoChoice();
     renderOwnerPreview();
   }
 
@@ -198,50 +272,86 @@
   }
 
   async function loadOwnerRows() {
-    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,status,created_at,published_at').order('created_at', { ascending: false }).limit(100);
+    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,status,created_at,published_at').order('created_at', { ascending: false }).limit(100);
     if (error) { ownerStatus(`Não foi possível carregar avisos: ${error.message}`, true); return; }
     ownerRows = data || [];
     renderOwnerList();
   }
 
   async function saveDraft() {
-    let values;
-    try { values = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
+    let input;
+    try { input = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
     const row = ownerRows.find(item => item.id === selectedId);
     if (selectedId && row?.status !== 'draft') { ownerStatus('Só rascunhos podem ser editados.', true); return; }
     byId('platformAnnouncementSave').disabled = true;
+    byId('platformAnnouncementPublish').disabled = true;
     const createdBy = viewerId || user?.id;
-    if (!createdBy) { ownerStatus('Sua sessão expirou. Entre novamente.', true); byId('platformAnnouncementSave').disabled = false; return; }
-    const result = selectedId
-      ? await db.from(TABLE).update(values).eq('id', selectedId).eq('status', 'draft').select('id').single()
-      : await db.from(TABLE).insert({ ...values, created_by: createdBy, status: 'draft' }).select('id').single();
-    byId('platformAnnouncementSave').disabled = false;
-    if (result.error) { ownerStatus(result.error.message, true); return; }
-    selectedId = result.data.id;
-    ownerStatus('Rascunho salvo. Ainda não está visível aos usuários.');
-    await loadOwnerRows();
+    let uploadedPath = null;
+    let persisted = false;
+    try {
+      if (!createdBy) throw new Error('Sua sessão expirou. Entre novamente.');
+      const prepared = await prepareVideo(input);
+      uploadedPath = prepared.uploadedPath;
+      const result = selectedId
+        ? await db.from(TABLE).update(prepared.values).eq('id', selectedId).eq('status', 'draft').select('id').single()
+        : await db.from(TABLE).insert({ ...prepared.values, created_by: createdBy, status: 'draft' }).select('id').single();
+      if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível salvar o rascunho.');
+      persisted = true;
+      selectedId = result.data.id;
+      selectedVideoPath = prepared.values.video_storage_path;
+      byId('platformAnnouncementVideoFile').value = '';
+      videoChoiceVersion++;
+      if (row?.video_storage_path && row.video_storage_path !== selectedVideoPath) await removeUnusedVideo(row.video_storage_path);
+      updateVideoChoice();
+      renderOwnerPreview();
+      ownerStatus('Rascunho salvo. Ainda não está visível aos usuários.');
+      await loadOwnerRows();
+    } catch (error) {
+      if (!persisted && uploadedPath) await removeUnusedVideo(uploadedPath);
+      ownerStatus(persisted ? 'Rascunho salvo, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : error.message, true);
+    } finally {
+      byId('platformAnnouncementSave').disabled = false;
+      byId('platformAnnouncementPublish').disabled = false;
+    }
   }
 
   async function publish() {
-    let values;
-    try { values = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
+    let input;
+    try { input = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
     if (!confirm('Publicar este aviso para todos os usuários do Carômetro? Ele aparecerá no topo da tela e no sino até cada pessoa fechar o aviso ou você encerrá-lo.')) return;
     byId('platformAnnouncementPublish').disabled = true;
+    byId('platformAnnouncementSave').disabled = true;
     const createdBy = viewerId || user?.id;
-    if (!createdBy) { ownerStatus('Sua sessão expirou. Entre novamente.', true); byId('platformAnnouncementPublish').disabled = false; return; }
-    let error;
-    if (selectedId) {
-      ({ error } = await db.from(TABLE).update({ ...values, status: 'published', published_at: new Date().toISOString() }).eq('id', selectedId).eq('status', 'draft').select('id').single());
-    } else {
-      const created = await db.from(TABLE).insert({ ...values, created_by: createdBy, status: 'draft' }).select('id').single();
-      if (created.error) error = created.error;
-      else ({ error } = await db.from(TABLE).update({ status: 'published', published_at: new Date().toISOString() }).eq('id', created.data.id).eq('status', 'draft').select('id').single());
+    let uploadedPath = null;
+    let published = false;
+    try {
+      if (!createdBy) throw new Error('Sua sessão expirou. Entre novamente.');
+      const prepared = await prepareVideo(input);
+      uploadedPath = prepared.uploadedPath;
+      if (selectedId) {
+        const result = await db.from(TABLE).update({ ...prepared.values, status: 'published', published_at: new Date().toISOString() }).eq('id', selectedId).eq('status', 'draft').select('id').single();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível publicar o rascunho.');
+        published = true;
+      } else {
+        const created = await db.from(TABLE).insert({ ...prepared.values, created_by: createdBy, status: 'draft' }).select('id').single();
+        if (created.error || !created.data) throw new Error(created.error?.message || 'Não foi possível criar o aviso.');
+        const result = await db.from(TABLE).update({ status: 'published', published_at: new Date().toISOString() }).eq('id', created.data.id).eq('status', 'draft').select('id').single();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'O aviso foi salvo como rascunho, mas não foi publicado.');
+        published = true;
+      }
+      const oldPath = ownerRows.find(item => item.id === selectedId)?.video_storage_path;
+      if (oldPath && oldPath !== prepared.values.video_storage_path) await removeUnusedVideo(oldPath);
+      resetOwnerForm();
+      ownerStatus('Aviso publicado para todos os usuários.');
+      await Promise.all([loadOwnerRows(), refreshViewer()]);
+    } catch (error) {
+      if (!published && uploadedPath) await removeUnusedVideo(uploadedPath);
+      ownerStatus(published ? 'Aviso publicado, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : `Não foi possível publicar: ${error.message}`, true);
+      await loadOwnerRows();
+    } finally {
+      byId('platformAnnouncementPublish').disabled = false;
+      byId('platformAnnouncementSave').disabled = false;
     }
-    byId('platformAnnouncementPublish').disabled = false;
-    if (error) { ownerStatus(`Não foi possível publicar: ${error.message}`, true); await loadOwnerRows(); return; }
-    resetOwnerForm();
-    ownerStatus('Aviso publicado para todos os usuários.');
-    await Promise.all([loadOwnerRows(), refreshViewer()]);
   }
 
   async function archive(id) {
@@ -271,7 +381,8 @@
           <form id="platformAnnouncementForm" class="platform-announcement-form">
             <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
             <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para todos."></textarea></div>
-            <div class="field"><label for="platformAnnouncementVideoUrl">Vídeo curto (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link público do YouTube ou de um MP4"><small>O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small></div>
+            <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
+            <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 2 min 30 s e 45 MB. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
             <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar para todos</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>
@@ -293,6 +404,37 @@
     });
     byId('platformAnnouncementForm').onsubmit = event => { event.preventDefault(); saveDraft(); };
     byId('platformAnnouncementForm').addEventListener('input', renderOwnerPreview);
+    byId('platformAnnouncementVideoUrl').addEventListener('input', () => {
+      if (clean(byId('platformAnnouncementVideoUrl').value)) {
+        byId('platformAnnouncementVideoFile').value = '';
+        selectedVideoPath = null;
+        videoChoiceVersion++;
+      }
+      updateVideoChoice();
+      renderOwnerPreview();
+    });
+    byId('platformAnnouncementVideoFile').addEventListener('change', () => {
+      const file = byId('platformAnnouncementVideoFile').files?.[0];
+      if (file) {
+        byId('platformAnnouncementVideoUrl').value = '';
+        selectedVideoPath = null;
+        const version = ++videoChoiceVersion;
+        Promise.resolve().then(() => validateVideoFile(file)).then(
+          () => { if (version === videoChoiceVersion) ownerStatus('MP4 pronto para enviar. Salve o rascunho ou publique o aviso.'); },
+          error => { if (version === videoChoiceVersion) ownerStatus(error.message, true); }
+        );
+      } else videoChoiceVersion++;
+      updateVideoChoice();
+      renderOwnerPreview();
+    });
+    byId('platformAnnouncementRemoveVideo').onclick = () => {
+      byId('platformAnnouncementVideoUrl').value = '';
+      byId('platformAnnouncementVideoFile').value = '';
+      selectedVideoPath = null;
+      videoChoiceVersion++;
+      updateVideoChoice();
+      renderOwnerPreview();
+    };
     byId('platformAnnouncementNew').onclick = resetOwnerForm;
     byId('platformAnnouncementPublish').onclick = publish;
     byId('platformAnnouncementList').onclick = event => {
@@ -322,7 +464,7 @@
     document.body.append(modal);
     byId('platformAnnouncementDismiss').onclick = () => dismissAnnouncement(banner.dataset.announcementId);
     document.addEventListener('carometro:dismiss-platform-announcement', event => dismissAnnouncement(event.detail?.id));
-    byId('platformAnnouncementBannerVideo').onclick = () => showVideo(visibleAnnouncements.find(row => row.id === banner.dataset.announcementId)?.video_url);
+    byId('platformAnnouncementBannerVideo').onclick = () => showVideo(visibleAnnouncements.find(row => row.id === banner.dataset.announcementId));
     document.addEventListener('carometro:show-platform-announcement', event => {
       if (!visibleAnnouncements.some(row => row.id === event.detail?.id)) return;
       featuredId = event.detail.id;
