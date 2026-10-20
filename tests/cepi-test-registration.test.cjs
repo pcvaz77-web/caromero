@@ -135,6 +135,34 @@ test('professor vê a prova cadastrada e adiciona questões sem cadastrar outra 
   } finally { dom.window.close(); }
 });
 
+test('formulário mostra QUESTÃO com o número sem impedir a edição da ordem', async () => {
+  const {dom, errors}=await fixture('', false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="new-question"]').click();
+    const label=document.querySelector('#cepiQuestionForm .cepi-question-number-label');
+    assert.equal(label.textContent.trim(),'QUESTÃO');
+    assert.equal(label.querySelector('[name="number"]').value,'1');
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('prova do aluno imprime QUESTÃO 1 e QUESTÃO 2 acima dos enunciados', async () => {
+  const {dom, waitFor, errors}=await fixture('manager=1&review=1',false);
+  const popup=new JSDOM('',{url:'https://example.test/'});
+  try {
+    dom.window.open=()=>({document:popup.window.document,focus(){},print(){},close(){},closed:false});
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="print-student"]').click();
+    await waitFor(()=>popup.window.document.querySelectorAll('.question-number').length===2);
+    assert.deepEqual([...popup.window.document.querySelectorAll('.question-number')].map(node=>node.textContent),['QUESTÃO 1','QUESTÃO 2']);
+    assert.match(popup.window.document.querySelector('.question').textContent,/QUESTÃO 1Leia o texto/);
+    assert.deepEqual(errors,[]);
+  } finally {popup.window.close();dom.window.close();}
+});
+
 test('questões completas liberam impressão e correção sem confirmação manual', async () => {
   const file = path.join(__dirname, 'cepi-question-flow-browser.html');
   const dom = await JSDOM.fromFile(file, {
