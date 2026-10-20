@@ -19,7 +19,7 @@ test('bloco misto conserva 30 respostas e o gabarito vem das questões',()=>{
   const key=correction.key(prepared);
   assert.equal(key.firstQuestion,1);
   assert.equal(key.answers.length,30);
-  assert.deepEqual(key.ranges,[{subject:'Prova CEPI',from:1,to:30}]);
+  assert.deepEqual(key.ranges,[{subject:'Língua Inglesa',from:1,to:10},{subject:'Arte',from:11,to:20},{subject:'Educação Física',from:21,to:30}]);
   assert.match(card,/Língua Inglesa: 10 · Arte: 10 · Educação Física: 10/);
   assert.equal((card.match(/class="answer-row"/g)||[]).length,120);
   assert.doesNotMatch(card,/bubble filled/);

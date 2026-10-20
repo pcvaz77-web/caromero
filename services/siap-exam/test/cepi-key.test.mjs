@@ -5,6 +5,8 @@ import { ExamSession } from '../worker.mjs';
 
 const require=createRequire(import.meta.url);
 const CepiCorrection=require('../../../cepi-correction.js');
+await import('../public/exam-core.js');
+const Core=globalThis.SiapExamCore;
 
 class Storage {
   map=new Map();
@@ -24,7 +26,8 @@ test('QR do CEPI disponibiliza gabarito salvo e turma ao celular sem foto oficia
   };
   const created=await call('init',{context:'Bloco 4 · 1A',sessionId:crypto.randomUUID(),mobileWorkflow:true});
   const answers=Array.from({length:30},(_,index)=>'ABCDE'[index%5]);
-  const key=CepiCorrection.key({test:{answer_format:'ABCDE'},answers});
+  const rows=Array.from({length:30},(_,index)=>({number:index+1,subject:index<15?'Física':'Química'}));
+  const key=CepiCorrection.key({test:{answer_format:'ABCDE'},answers,rows});
   assert.equal((await call('key',{key},created.desktop)).status,200);
   assert.equal((await call('roster',{binding:'escola:bloco:turma',roster:[{id:'aluno-1',name:'Aluno Exemplo'}]},created.desktop)).status,200);
   const mobile=await call('status',{},created.mobile);
@@ -32,4 +35,6 @@ test('QR do CEPI disponibiliza gabarito salvo e turma ao celular sem foto oficia
   assert.deepEqual(mobile.roster,[{id:'aluno-1',name:'Aluno Exemplo'}]);
   assert.equal(mobile.mobileWorkflow,true);
   assert.equal(mobile.items.length,0);
+  assert.deepEqual(mobile.key.ranges,[{subject:'Física',from:1,to:15},{subject:'Química',from:16,to:30}]);
+  assert.deepEqual(Core.score(mobile.key,answers).map(item=>[item.subject,item.total]),[['Física',15],['Química',15]]);
 });

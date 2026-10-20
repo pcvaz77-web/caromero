@@ -14,7 +14,15 @@
     return true;
   }
   function key(prepared) {
-    return {firstQuestion:1,alphabet:prepared.test.answer_format,answers:[...prepared.answers],ranges:[{subject:'Prova CEPI',from:1,to:prepared.answers.length}]};
+    const rows=Array.isArray(prepared?.rows)?prepared.rows:[];
+    if(rows.length!==prepared?.answers?.length||rows.some((row,index)=>row.number!==index+1||!String(row.subject||'').trim()))throw new Error('A prova precisa ter todas as questões numeradas e vinculadas à disciplina antes de gerar o QR Code.');
+    const ranges=[];
+    for(const row of rows){
+      const subject=String(row.subject).trim(),last=ranges.at(-1);
+      if(last?.subject===subject)last.to=row.number;
+      else ranges.push({subject,from:row.number,to:row.number});
+    }
+    return {firstQuestion:1,alphabet:prepared.test.answer_format,answers:[...prepared.answers],ranges};
   }
   function reviewedItems(status, studentIds, test) {
     const allowed=new Set(studentIds), seen=new Set(), entries=[];
