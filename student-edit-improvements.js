@@ -830,8 +830,7 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentModal .modal { max-height:calc(100dvh - 24px); overflow:hidden; }
     #studentModal .observation-choices { overscroll-behavior:contain; touch-action:pan-y; }
     @media (min-width:801px) {
-      /* Em computadores a janela também permanece fixa: somente as opções
-         de observação usam a área de rolagem, sem esconder os botões finais. */
+      /* A janela e os botões permanecem fixos. */
       #studentModal { padding:12px; align-items:center; }
       #studentModal .modal { width:min(720px, 100%); height:min(760px, calc(100dvh - 24px)); max-height:none; display:flex; flex-direction:column; }
       #studentModal .modal-head { flex:none; }
@@ -854,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .observation-manager-overlay .photo-picker-card.observation-manager { width:100%; max-height:calc(100dvh - 24px); margin:0; }
       .observation-manager-overlay .custom-observation-list { max-height:42dvh; }
 
-      /* Formulário compacto: só a lista de observações rola. */
+      /* Formulário compacto em telas menores. */
       #studentModal { padding:12px; align-items:center; }
       #studentModal .modal { width:100%; height:calc(100dvh - 24px); max-height:none; display:flex; flex-direction:column; }
       #studentModal .modal-head { flex:none; padding:15px 20px 13px; }
@@ -882,23 +881,43 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal .actions { flex:none; padding-top:9px; }
       #studentModal .actions .btn { min-height:39px; padding:8px 11px; }
     }
-    /* Espaço de trabalho fixo: a janela não se move e a lista de observações
-       recebe a altura disponível em qualquer computador, tablet ou celular. */
-    #studentModal .photo .preview { width:clamp(72px, 12vw, 82px) !important; height:clamp(72px, 12vw, 82px) !important; }
+    /* Campos superiores compactos deixam a lista de observações utilizável. */
+    #studentModal .modal-head { padding:8px 20px; }
+    #studentModal .form { padding:8px 20px 10px !important; }
+    #studentModal .photo { margin-bottom:6px; }
+    #studentModal .photo .preview { width:54px !important; height:54px !important; }
     #studentModal .photo .meta, #studentModal .move-class .meta { display:none !important; }
-    #studentModal .form, #studentModal .grid, #studentModal .student-observations-field { min-height:0 !important; overflow:hidden !important; }
-    #studentModal .observation-choices { flex:1 1 auto !important; min-height:0 !important; max-height:none !important; overflow-y:auto !important; }
-    #studentModal .actions { position:relative; z-index:2; flex:none; margin-top:8px; padding-top:8px; background:#fff; }
-    #studentModal .move-class { min-height:36px; padding:5px 8px; }
+    #studentModal .form, #studentModal .student-observations-field { min-height:0 !important; overflow:hidden !important; }
+    #studentModal .grid { overflow-y:auto !important; }
+    #studentModal .grid > .field:first-child { margin-bottom:6px; }
+    #studentModal .field label { margin-bottom:4px; }
+    #studentModal #fullName, #studentModal #guardianName, #studentModal #guardianPhone { min-height:38px; padding:7px 10px; }
+    #studentModal .guardian-contact-fields { margin-bottom:6px; padding:7px 10px; gap:0 10px; }
+    #studentModal .guardian-contact-fields .field { margin-bottom:4px; }
+    #studentModal .guardian-whatsapp-toggle, #studentModal .guardian-card-toggle { grid-column:auto; padding:3px 6px; font-size:12px; }
+    #studentModal .guardian-whatsapp-toggle { margin-bottom:0; }
+    #studentModal .observation-choices { flex:1 1 auto !important; min-height:95px !important; max-height:none !important; overflow-y:auto !important; overscroll-behavior:auto; }
+    #studentModal .actions { position:relative; z-index:2; flex:none; margin-top:6px; padding-top:6px; background:#fff; }
+    #studentModal .move-class { min-height:32px; padding:4px 8px; }
     #studentModal .move-class .check { gap:6px; font-size:12px; }
     @media (min-width:801px) {
       /* Ao transferir, a turma escolhida ocupa a mesma linha da confirmação. */
-      #studentModal .grid { display:grid !important; grid-template-columns:minmax(0, 1fr) 220px; align-content:start; gap:0 10px; }
+      #studentModal .grid { display:grid !important; grid-template-columns:minmax(0, 1fr) 220px; grid-template-rows:auto auto auto minmax(140px, 1fr); align-content:stretch; gap:0 10px; }
+      #studentModal .grid:has(> .guardian-contact-fields.hidden),
+      #studentModal .grid:has(> .move-class.hidden):has(> .move-target-class.hidden) { grid-template-rows:auto auto minmax(140px, 1fr); }
+      #studentModal .grid:has(> .guardian-contact-fields.hidden):has(> .move-class.hidden):has(> .move-target-class.hidden) { grid-template-rows:auto minmax(140px, 1fr); }
       #studentModal .grid > .span, #studentModal .grid > .student-observations-field { grid-column:1 / -1; }
       #studentModal .move-class { grid-column:1; align-self:center; margin-bottom:6px; padding:5px 8px; }
       #studentModal .move-target-class { grid-column:2; align-self:center; margin:0 0 6px; }
       #studentModal .move-target-class.move-target-active label { display:none; }
       #studentModal .move-target-class.move-target-active select { min-height:38px; padding:7px 9px; }
+    }
+    @media (max-width:800px) {
+      #studentModal .student-observations-field { flex:1 0 140px; }
+    }
+    @media (max-width:560px) {
+      #studentModal .guardian-whatsapp-toggle, #studentModal .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; }
+      #studentModal .guardian-whatsapp-toggle { margin-bottom:4px; }
     }
   `;
   document.head.appendChild(style);
