@@ -8,8 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
   bar.className = 'quick-filters';
   bar.innerHTML = `
     <div class="quick-filters-row" id="quickFiltersRow">
-      <button type="button" class="quick-filter-chip active" data-quick-filter="all">Todos <span class="quick-filter-count" id="qfCountAll">0</span></button>
-      <span class="quick-favorite-filters" id="quickFavoriteFilters"></span>
+      <div class="quick-filters-scroll" id="quickFiltersScroll">
+        <button type="button" class="quick-filter-chip active" data-quick-filter="all">Todos <span class="quick-filter-count" id="qfCountAll">0</span></button>
+        <span class="quick-favorite-filters" id="quickFavoriteFilters"></span>
+      </div>
       <button type="button" class="quick-filter-chip quick-filter-more" id="moreFiltersButton" aria-expanded="false">Mais filtros <span class="quick-filter-arrow">⌄</span></button>
     </div>
     <div id="moreFiltersPanel" class="more-filters-panel hidden"></div>
@@ -20,12 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .quick-filters { padding:0 22px 14px; }
-    .quick-filters-row { display:flex; flex-wrap:nowrap; gap:8px; align-items:center; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
+    .quick-filters-row { display:flex; flex-wrap:nowrap; gap:8px; align-items:flex-start; min-width:0; }
+    .quick-filters-scroll { display:flex; flex:0 1 auto; flex-wrap:nowrap; gap:8px; align-items:center; min-width:0; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
     .quick-filter-chip { flex:none; min-height:36px; padding:7px 13px; border-radius:99px; border:1px solid var(--line); background:#fff; color:#344054; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
     .quick-filter-chip:hover { border-color:#c3cee0; }
     .quick-filter-chip.active { background:var(--navy); border-color:var(--navy); color:#fff; }
     .quick-filter-count { font-size:11px; font-weight:800; opacity:.75; }
-    .quick-filter-more { position:sticky; right:0; z-index:1; background:#f4f7ff; border-color:#dbe4f5; color:var(--blue); }
+    .quick-filter-more { background:#f4f7ff; border-color:#dbe4f5; color:var(--blue); }
     .quick-filter-more[aria-expanded="true"] { background:var(--blue); border-color:var(--blue); color:#fff; }
     .quick-filter-more .quick-filter-arrow { transition:transform .15s ease; }
     .quick-favorite-filters { display:contents; }
@@ -52,8 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .student-load-more span { color:var(--muted); font-size:11px; }
     @media(max-width:800px) {
       .quick-filters { padding:0 17px 12px; }
-      .quick-filters-row { scrollbar-width:none; }
-      .quick-filters-row::-webkit-scrollbar { display:none; }
+      .quick-filters-scroll { scrollbar-width:none; }
+      .quick-filters-scroll::-webkit-scrollbar { display:none; }
     }
     @media(max-width:600px) {
       .more-filters-panel { min-width:0; }
@@ -68,8 +71,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let observationCatalog = [];
   let observationCatalogLoaded = false;
   let catalogLoadToken = 0;
+  const FAVORITE_LIMIT = 5;
   const FAVORITE_COLUMNS = ['favorite_1','favorite_2','favorite_3','favorite_4','favorite_5','favorite_6'];
-  const DEFAULT_FAVORITE_KEYS = ['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search','observation:any'];
+  const DEFAULT_FAVORITE_KEYS = ['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search'];
   let favoriteStoredKeys = [...DEFAULT_FAVORITE_KEYS];
   // Apenas um filtro rápido (ou uma observação de "Mais filtros") ativo por
   // vez — selecionar um novo sempre substitui o anterior, nunca combina com
@@ -175,10 +179,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const visibleFilter = option => !!option && (!option.requiresOccurrences || !!window.canViewOccurrences?.());
   const visibleFavoriteOptions = () => availableFavoriteFilters().filter(visibleFilter);
-  const favoriteLimit = () => Math.min(FAVORITE_COLUMNS.length,visibleFavoriteOptions().length);
+  const favoriteLimit = () => Math.min(FAVORITE_LIMIT,visibleFavoriteOptions().length);
   const resolvedFavoriteKeys = savedKeys => {
     const available=new Set(availableFavoriteFilters().map(option=>option.storedKey));
-    return [...new Set([...savedKeys,...DEFAULT_FAVORITE_KEYS,...available].filter(key=>available.has(key)))].slice(0,FAVORITE_COLUMNS.length);
+    return [...new Set([...savedKeys,...DEFAULT_FAVORITE_KEYS,...available].filter(key=>available.has(key)))].slice(0,FAVORITE_LIMIT);
+  };
+  const displayFavoriteOptions = () => {
+    const selected=favoriteStoredKeys.map(resolvedFilter).filter(visibleFilter);
+    const chosen=new Set(selected.map(option=>option.storedKey));
+    return [...selected,...visibleFavoriteOptions().filter(option=>!chosen.has(option.storedKey))].slice(0,favoriteLimit());
   };
   const filterCount = (option,scope) => scope.filter(student=>studentMatchesKey(student,option.key)).length;
   const canConfigureFavorites = () => permission?.role==='admin' || !!permission?.is_coordinator;
@@ -186,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderFavoriteFilters(scope) {
     const target=document.getElementById('quickFavoriteFilters');
     if(!target)return;
-    const favorites=favoriteStoredKeys.map(resolvedFilter).filter(visibleFilter);
+    const favorites=displayFavoriteOptions();
     target.innerHTML=favorites.map((option,index)=>
       `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-favorite-position="${index+1}" data-quick-filter="${esc(option.key)}">${esc(option.quickLabel||option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
     ).join('');
@@ -199,7 +208,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const scope = scopedStudents();
     if (!observationCatalogLoaded) { panel.innerHTML = '<span class="more-filters-empty">Carregando observações…</span>'; return; }
     const available=visibleFavoriteOptions();
-    const favoriteSet=new Set(favoriteStoredKeys.filter(key=>available.some(option=>option.storedKey===key)));
+    const favoriteSet=new Set(displayFavoriteOptions().map(option=>option.storedKey));
     const limit=favoriteLimit();
     const remaining=available.filter(option=>visibleFilter(option)&&!favoriteSet.has(option.storedKey));
     const filtersHtml=remaining.map(option=>

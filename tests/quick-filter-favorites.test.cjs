@@ -8,7 +8,8 @@ const migration=fs.readFileSync(path.join(root,'supabase','migrations','119_scho
 const extension=fs.readFileSync(path.join(root,'supabase','migrations','186_school_quick_filter_favorites_six_slots.sql'),'utf8');
 const index=fs.readFileSync(path.join(root,'index.html'),'utf8');
 
-assert.match(source,/DEFAULT_FAVORITE_KEYS = \['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search','observation:any'\]/);
+assert.match(source,/FAVORITE_LIMIT = 5/);
+assert.match(source,/DEFAULT_FAVORITE_KEYS = \['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search'\]/);
 assert.match(source,/obsid:\$\{option\.id\}/);
 assert.match(source,/Configurar filtros favoritos/);
 assert.match(source,/data-favorite-position="\$\{index\+1\}"/);
@@ -29,7 +30,7 @@ assert.match(extension,/add column if not exists favorite_4 text/);
 assert.match(extension,/add column if not exists favorite_5 text/);
 assert.match(extension,/add column if not exists favorite_6 text/);
 assert.match(extension,/favorite_6 <> favorite_5/);
-assert.match(index,/student-search-filters\.js\?v=10/);
+assert.match(index,/student-search-filters\.js\?v=11/);
 assert.match(index,/realtime-sync\.js\?v=16/);
 
-console.log('Até seis filtros favoritos configuráveis permanecem isolados por escola e sincronizados em tempo real.');
+console.log('Cinco filtros favoritos configuráveis permanecem isolados por escola e sincronizados em tempo real.');

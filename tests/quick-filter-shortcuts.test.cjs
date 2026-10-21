@@ -36,38 +36,42 @@ async function page(savedFavorites, canSeeOccurrences=true) {
     await new Promise(resolve=>window.document.addEventListener('DOMContentLoaded',resolve,{once:true}));
   window.eval(source);
   window.document.dispatchEvent(new window.Event('DOMContentLoaded'));
-  for(let i=0;i<40&&window.document.querySelectorAll('#quickFavoriteFilters button').length<(canSeeOccurrences?6:5);i++)
+  for(let i=0;i<40&&window.document.querySelectorAll('#quickFavoriteFilters button').length<5;i++)
     await new Promise(resolve=>setTimeout(resolve,10));
   return dom;
 }
 
-test('preferências antigas são completadas até seis filtros e Mais filtros fica por último',async()=>{
+test('preferências antigas são completadas até cinco filtros e Mais filtros fica por último',async()=>{
   const dom=await page({favorite_1:'laudo',favorite_2:'ocorrencia',favorite_3:'obsid:missing'});
   try {
     const {document}=dom.window;
     const labels=[...document.querySelectorAll('#quickFavoriteFilters button')].map(button=>button.textContent.replace(/\d+/g,'').trim());
-    assert.deepEqual(labels,['Com laudo','Com ocorrência','Não alfabetizado','Faltoso','Busca ativa','Com observação']);
+    assert.deepEqual(labels,['Com laudo','Com ocorrência','Não alfabetizado','Faltoso','Busca ativa']);
     assert.equal(document.querySelector('#quickFiltersRow').lastElementChild.id,'moreFiltersButton');
-    assert.match(document.querySelector('style').textContent,/\.quick-filters-row \{ display:flex; flex-wrap:nowrap/);
+    assert.equal(document.querySelector('#quickFiltersScroll').contains(document.querySelector('#quickFavoriteFilters')),true);
+    assert.equal(document.querySelector('#quickFiltersScroll').contains(document.querySelector('#moreFiltersButton')),false);
+    assert.match(document.querySelector('style').textContent,/\.quick-filters-scroll \{[^}]*overflow-x:auto/);
+    assert.doesNotMatch(document.querySelector('style').textContent,/\.quick-filter-more \{[^}]*position:sticky/);
     document.querySelector('[data-quick-filter="attendance:absent"]').click();
     assert.equal(document.querySelector('[data-quick-filter="attendance:absent"]').classList.contains('active'),true);
     assert.equal(dom.window.matchesQuickFilters(dom.window.students[0]),true);
     assert.equal(dom.window.matchesQuickFilters(dom.window.students[1]),false);
     document.getElementById('moreFiltersButton').click();
     assert.equal(document.querySelector('#moreFiltersPanel [data-filter-key="attendance:absent"]'),null);
+    assert.ok(document.querySelector('#moreFiltersPanel [data-filter-key="observation:any"]'));
   } finally {dom.window.close();}
 });
 
-test('favoritos padrão incluem seis atalhos sem duplicatas',async()=>{
+test('favoritos padrão incluem cinco atalhos sem duplicatas',async()=>{
   const dom=await page(null);
   try {
     const keys=[...dom.window.document.querySelectorAll('#quickFavoriteFilters button')].map(button=>button.dataset.quickFilter);
-    assert.deepEqual(keys,['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search','observation:any']);
+    assert.deepEqual(keys,['laudo','nao_alfabetizado','ocorrencia','attendance:absent','attendance:active_search']);
     assert.equal(new Set(keys).size,keys.length);
   } finally {dom.window.close();}
 });
 
-test('configuração salva seis escolhas e oferece controles empilhados no celular',async()=>{
+test('configuração salva cinco escolhas e oferece controles empilhados no celular',async()=>{
   const dom=await page(null);
   try {
     const {document}=dom.window;
@@ -75,7 +79,7 @@ test('configuração salva seis escolhas e oferece controles empilhados no celul
     assert.match(document.querySelector('.quick-filter-settings summary').textContent,/Configurar filtros favoritos/);
     assert.match(document.querySelector('style').textContent,/@media\(max-width:600px\)/);
     assert.match(document.querySelector('style').textContent,/\.quick-filter-settings-actions \{ display:grid; grid-template-columns:minmax\(0,1fr\)/);
-    const remove=document.querySelector('[data-favorite-choice="observation:any"]');
+    const remove=document.querySelector('[data-favorite-choice="attendance:active_search"]');
     remove.checked=false;
     remove.dispatchEvent(new dom.window.Event('change',{bubbles:true}));
     const add=document.querySelector('[data-favorite-choice="obsid:obs-1"]');
@@ -88,21 +92,24 @@ test('configuração salva seis escolhas e oferece controles empilhados no celul
     for(let i=0;i<20&&!document.querySelector('[data-quick-filter="obs:Outra observação"]');i++)
       await new Promise(resolve=>setTimeout(resolve,10));
     assert.equal(dom.window.savedFavoritePayload.favorite_1,'laudo');
-    assert.equal(dom.window.savedFavoritePayload.favorite_6,'obsid:obs-1');
+    assert.equal(dom.window.savedFavoritePayload.favorite_5,'obsid:obs-1');
+    assert.equal(dom.window.savedFavoritePayload.favorite_6,null);
     assert.ok(document.querySelector('[data-quick-filter="obs:Outra observação"]'));
-    assert.equal(document.querySelectorAll('#quickFavoriteFilters button').length,6);
+    assert.equal(document.querySelectorAll('#quickFavoriteFilters button').length,5);
   } finally {dom.window.close();}
 });
 
 test('filtro de ocorrência salvo reaparece quando a permissão é restaurada',async()=>{
-  const dom=await page({favorite_1:'laudo',favorite_2:'nao_alfabetizado',favorite_3:'attendance:absent',favorite_4:'attendance:active_search',favorite_5:'observation:any',favorite_6:'ocorrencia'},false);
+  const dom=await page({favorite_1:'laudo',favorite_2:'nao_alfabetizado',favorite_3:'attendance:absent',favorite_4:'attendance:active_search',favorite_5:'ocorrencia',favorite_6:'observation:any'},false);
   try {
     const {document}=dom.window;
     assert.equal(document.querySelector('[data-quick-filter="ocorrencia"]'),null);
     assert.equal(document.querySelectorAll('#quickFavoriteFilters button').length,5);
+    assert.ok(document.querySelector('[data-quick-filter="observation:any"]'));
     dom.window.canViewOccurrences=()=>true;
     document.dispatchEvent(new dom.window.Event('carometro:permission-refresh'));
     assert.ok(document.querySelector('[data-quick-filter="ocorrencia"]'));
-    assert.equal(document.querySelectorAll('#quickFavoriteFilters button').length,6);
+    assert.equal(document.querySelectorAll('#quickFavoriteFilters button').length,5);
+    assert.equal(document.querySelector('[data-quick-filter="observation:any"]'),null);
   } finally {dom.window.close();}
 });
