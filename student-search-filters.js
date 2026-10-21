@@ -7,11 +7,9 @@ document.addEventListener('DOMContentLoaded', () => {
   bar.id = 'quickFilters';
   bar.className = 'quick-filters';
   bar.innerHTML = `
-    <div class="quick-filters-row" id="quickFiltersRow">
-      <div class="quick-filters-scroll" id="quickFiltersScroll">
-        <button type="button" class="quick-filter-chip active" data-quick-filter="all">Todos <span class="quick-filter-count" id="qfCountAll">0</span></button>
-        <span class="quick-favorite-filters" id="quickFavoriteFilters"></span>
-      </div>
+    <div class="quick-filters-row" id="quickFiltersRow" role="group" aria-label="Filtros rápidos, deslize para ver os demais" tabindex="0">
+      <button type="button" class="quick-filter-chip active" data-quick-filter="all">Todos <span class="quick-filter-count" id="qfCountAll">0</span></button>
+      <span class="quick-favorite-filters" id="quickFavoriteFilters"></span>
       <button type="button" class="quick-filter-chip quick-filter-more" id="moreFiltersButton" aria-expanded="false">Mais filtros <span class="quick-filter-arrow">⌄</span></button>
     </div>
     <div id="moreFiltersPanel" class="more-filters-panel hidden"></div>
@@ -22,8 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .quick-filters { padding:0 22px 14px; }
-    .quick-filters-row { display:flex; flex-wrap:nowrap; gap:8px; align-items:flex-start; min-width:0; }
-    .quick-filters-scroll { display:flex; flex:0 1 auto; flex-wrap:nowrap; gap:8px; align-items:center; min-width:0; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
+    .quick-filters-row { display:flex; flex-wrap:nowrap; gap:8px; align-items:center; min-width:0; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; -webkit-overflow-scrolling:touch; overscroll-behavior-x:contain; touch-action:pan-x; }
     .quick-filter-chip { flex:none; min-height:36px; padding:7px 13px; border-radius:99px; border:1px solid var(--line); background:#fff; color:#344054; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
     .quick-filter-chip:hover { border-color:#c3cee0; }
     .quick-filter-chip.active { background:var(--navy); border-color:var(--navy); color:#fff; }
@@ -55,8 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .student-load-more span { color:var(--muted); font-size:11px; }
     @media(max-width:800px) {
       .quick-filters { padding:0 17px 12px; }
-      .quick-filters-scroll { scrollbar-width:none; }
-      .quick-filters-scroll::-webkit-scrollbar { display:none; }
+      .quick-filters-row { scrollbar-width:none; }
+      .quick-filters-row::-webkit-scrollbar { display:none; }
     }
     @media(max-width:600px) {
       .more-filters-panel { min-width:0; }

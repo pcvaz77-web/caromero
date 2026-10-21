@@ -48,9 +48,9 @@ test('preferências antigas são completadas até cinco filtros e Mais filtros f
     const labels=[...document.querySelectorAll('#quickFavoriteFilters button')].map(button=>button.textContent.replace(/\d+/g,'').trim());
     assert.deepEqual(labels,['Com laudo','Com ocorrência','Não alfabetizado','Faltoso','Busca ativa']);
     assert.equal(document.querySelector('#quickFiltersRow').lastElementChild.id,'moreFiltersButton');
-    assert.equal(document.querySelector('#quickFiltersScroll').contains(document.querySelector('#quickFavoriteFilters')),true);
-    assert.equal(document.querySelector('#quickFiltersScroll').contains(document.querySelector('#moreFiltersButton')),false);
-    assert.match(document.querySelector('style').textContent,/\.quick-filters-scroll \{[^}]*overflow-x:auto/);
+    assert.equal(document.querySelector('#quickFiltersRow').contains(document.querySelector('#quickFavoriteFilters')),true);
+    assert.match(document.querySelector('style').textContent,/\.quick-filters-row \{[^}]*overflow-x:auto/);
+    assert.match(document.querySelector('style').textContent,/\.quick-filters-row \{[^}]*touch-action:pan-x/);
     assert.doesNotMatch(document.querySelector('style').textContent,/\.quick-filter-more \{[^}]*position:sticky/);
     document.querySelector('[data-quick-filter="attendance:absent"]').click();
     assert.equal(document.querySelector('[data-quick-filter="attendance:absent"]').classList.contains('active'),true);

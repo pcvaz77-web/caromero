@@ -30,7 +30,7 @@ assert.match(extension,/add column if not exists favorite_4 text/);
 assert.match(extension,/add column if not exists favorite_5 text/);
 assert.match(extension,/add column if not exists favorite_6 text/);
 assert.match(extension,/favorite_6 <> favorite_5/);
-assert.match(index,/student-search-filters\.js\?v=11/);
+assert.match(index,/student-search-filters\.js\?v=12/);
 assert.match(index,/realtime-sync\.js\?v=16/);
 
 console.log('Cinco filtros favoritos configuráveis permanecem isolados por escola e sincronizados em tempo real.');
