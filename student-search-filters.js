@@ -20,18 +20,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const style = document.createElement('style');
   style.textContent = `
     .quick-filters { padding:0 22px 14px; }
-    .quick-filters-row { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-    .quick-filter-chip { min-height:36px; padding:7px 13px; border-radius:99px; border:1px solid var(--line); background:#fff; color:#344054; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; }
+    .quick-filters-row { display:flex; flex-wrap:nowrap; gap:8px; align-items:center; overflow-x:auto; padding-bottom:2px; scrollbar-width:thin; }
+    .quick-filter-chip { flex:none; min-height:36px; padding:7px 13px; border-radius:99px; border:1px solid var(--line); background:#fff; color:#344054; font-size:13px; font-weight:700; display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
     .quick-filter-chip:hover { border-color:#c3cee0; }
     .quick-filter-chip.active { background:var(--navy); border-color:var(--navy); color:#fff; }
     .quick-filter-count { font-size:11px; font-weight:800; opacity:.75; }
-    .quick-filter-more { background:#f4f7ff; border-color:#dbe4f5; color:var(--blue); }
+    .quick-filter-more { position:sticky; right:0; z-index:1; background:#f4f7ff; border-color:#dbe4f5; color:var(--blue); }
     .quick-filter-more[aria-expanded="true"] { background:var(--blue); border-color:var(--blue); color:#fff; }
     .quick-filter-more .quick-filter-arrow { transition:transform .15s ease; }
     .quick-favorite-filters { display:contents; }
     body #quickFilters [data-favorite-position="1"] { border-color:#c8e6d6!important; background:#f1faf5!important; color:#286e51!important; }
     body #quickFilters [data-favorite-position="2"] { border-color:#eadfbd!important; background:#fffaf0!important; color:#80632f!important; }
     body #quickFilters [data-favorite-position="3"] { border-color:#ecd2d8!important; background:#fff4f6!important; color:#944858!important; }
+    body #quickFilters [data-favorite-position="4"] { border-color:#cddcf2!important; background:#f2f7ff!important; color:#31598c!important; }
+    body #quickFilters [data-favorite-position="5"] { border-color:#d9d1ee!important; background:#f7f4ff!important; color:#694b98!important; }
+    body #quickFilters [data-favorite-position="6"] { border-color:#d3e3d0!important; background:#f4faf2!important; color:#477243!important; }
+    body #quickFilters [data-favorite-position].active { border-color:var(--navy)!important; background:var(--navy)!important; color:#fff!important; }
     .quick-filter-more[aria-expanded="true"] .quick-filter-arrow { transform:rotate(180deg); }
     .more-filters-panel { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#f8faff; }
     .more-filters-empty { color:var(--muted); font-size:13px; }
@@ -48,9 +52,8 @@ document.addEventListener('DOMContentLoaded', () => {
     .student-load-more span { color:var(--muted); font-size:11px; }
     @media(max-width:800px) {
       .quick-filters { padding:0 17px 12px; }
-      .quick-filters-row { flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; scrollbar-width:none; }
+      .quick-filters-row { scrollbar-width:none; }
       .quick-filters-row::-webkit-scrollbar { display:none; }
-      .quick-filter-chip { flex:none; white-space:nowrap; }
     }
   `;
   document.head.appendChild(style);
@@ -62,6 +65,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let catalogLoadToken = 0;
   const DEFAULT_FAVORITE_KEYS = ['laudo','nao_alfabetizado','ocorrencia'];
   let favoriteStoredKeys = [...DEFAULT_FAVORITE_KEYS];
+  let extraQuickStoredKeys = [];
+  const EXTRA_QUICK_FILTER_KEYS = ['nao_alfabetizado','attendance:absent','attendance:active_search','observation:any','laudo','ocorrencia'];
   // Apenas um filtro rápido (ou uma observação de "Mais filtros") ativo por
   // vez — selecionar um novo sempre substitui o anterior, nunca combina com
   // ele. Continua combinando normalmente com escopo (turma/turno) e busca
@@ -87,7 +92,8 @@ document.addEventListener('DOMContentLoaded', () => {
     { key:'nao_alfabetizado', label:'Não alfabetizado' },
     { key:'ocorrencia', label:'Com ocorrência', requiresOccurrences:true },
     { key:'attendance:absent', status:'absent', label:'Faltoso' },
-    { key:'attendance:active_search', status:'active_search', label:'Necessita de Busca Ativa' }
+    { key:'attendance:active_search', status:'active_search', label:'Necessita de Busca Ativa', quickLabel:'Busca ativa' },
+    { key:'observation:any', label:'Com observação' }
   ];
 
   const studentMatchesKey = (student, key) => {
@@ -95,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (key === 'nao_alfabetizado') return observationValuesOf(student).includes('Não alfabetizado');
     if (key === 'ocorrencia') return !!window.occurrenceStudentIds?.has(student.id);
     if (key.startsWith('attendance:')) return window.getSiapAttendanceStatus?.(student.id) === key.slice(11);
+    if (key === 'observation:any') return observationValuesOf(student).length > 0;
     if (key.startsWith('obs:')) return observationValuesOf(student).includes(key.slice(4));
     return true;
   };
@@ -138,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     // Indica no próprio botão "Mais filtros" que a seleção ativa veio de lá,
     // mesmo com o painel fechado.
-    const activeIsFavorite=favoriteStoredKeys.map(resolvedFilter).some(option=>option?.key===activeQuickFilter);
+    const activeIsFavorite=chipButtons().some(button=>button.dataset.quickFilter===activeQuickFilter);
     document.getElementById('moreFiltersButton')?.classList.toggle('active', !!activeQuickFilter&&!activeIsFavorite);
   }
 
@@ -171,8 +178,12 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderFavoriteFilters(scope) {
     const target=document.getElementById('quickFavoriteFilters');
     if(!target)return;
-    target.innerHTML=favoriteStoredKeys.map((storedKey,index)=>({option:resolvedFilter(storedKey),position:index+1})).filter(item=>visibleFilter(item.option)).map(({option,position})=>
-      `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-favorite-position="${position}" data-quick-filter="${esc(option.key)}">${esc(option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
+    const favorites=favoriteStoredKeys.map(resolvedFilter).filter(visibleFilter);
+    const chosen=new Set(favorites.map(option=>option.key));
+    const extras=EXTRA_QUICK_FILTER_KEYS.map(resolvedFilter).filter(option=>visibleFilter(option)&&!chosen.has(option.key)).slice(0,3);
+    extraQuickStoredKeys=extras.map(option=>option.storedKey);
+    target.innerHTML=[...favorites,...extras].map((option,index)=>
+      `<button type="button" class="quick-filter-chip ${activeQuickFilter===option.key?'active':''}" data-favorite-position="${index+1}" data-quick-filter="${esc(option.key)}">${esc(extras.includes(option)&&option.quickLabel||option.label)} <span class="quick-filter-count">${filterCount(option,scope)}</span></button>`
     ).join('');
   }
 
@@ -181,7 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!panel) return;
     const scope = scopedStudents();
     if (!observationCatalogLoaded) { panel.innerHTML = '<span class="more-filters-empty">Carregando observações…</span>'; return; }
-    const favoriteSet=new Set(favoriteStoredKeys);
+    const favoriteSet=new Set([...favoriteStoredKeys,...extraQuickStoredKeys]);
     const available=availableFavoriteFilters();
     const remaining=available.filter(option=>visibleFilter(option)&&!favoriteSet.has(option.storedKey));
     const filtersHtml=remaining.map(option=>
