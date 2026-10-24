@@ -161,3 +161,41 @@ body.platform-workspace-open { overflow:hidden; }
 
 /* Cabeçalho e busca das concessões com leitura mais confortável. */
 .platform-page[data-platform-section="siap"] .platform-siap-school-access .platform-panel-head h4{font-size:18px}.platform-page[data-platform-section="siap"] .platform-siap-school-access .platform-panel-head p{font-size:13px;line-height:1.55}.platform-siap-search{min-width:min(100%,330px);font-size:12px;font-weight:850}.platform-siap-search input{min-height:44px;padding:10px 13px;font-size:14px}.platform-siap-school summary{min-height:78px;padding:17px}.platform-siap-school summary strong{font-size:16px;font-weight:850}.platform-siap-school summary small{font-size:12px;line-height:1.45}.platform-siap-school summary>b{font-size:12px;font-weight:850}@media(max-width:620px){.platform-siap-search{width:100%;min-width:0}.platform-siap-school summary{min-height:74px;padding:15px}.platform-siap-school summary strong{font-size:15px}.platform-siap-school summary small,.platform-siap-school summary>b{font-size:12px}}
+
+/* Comunicado do Assistente SIAP no painel do dono. */
+.platform-siap-announcement{margin-bottom:18px}
+.platform-siap-announcement-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(280px,.9fr);gap:18px;padding:18px}
+.platform-siap-announcement form,.platform-siap-announcement form label{display:grid;gap:7px}
+.platform-siap-announcement form{align-content:start;gap:14px}
+.platform-siap-announcement form label{font-size:12px;font-weight:800;color:#30486b}
+.platform-siap-announcement input,.platform-siap-announcement textarea,.platform-siap-announcement select{width:100%;box-sizing:border-box;border:1px solid #cad6e8;border-radius:9px;padding:11px;font:inherit;background:#fff;color:#142c52}
+.platform-siap-announcement-media{display:grid;grid-template-columns:170px minmax(0,1fr);gap:10px}
+.platform-siap-announcement [hidden]{display:none!important}
+.platform-siap-announcement [data-announcement-file]{display:grid;gap:5px}
+.platform-siap-announcement [data-announcement-file] small{color:#667085;font-size:11px}
+.platform-siap-announcement input[type=file]{cursor:pointer}
+.platform-siap-announcement-actions{display:flex;flex-wrap:wrap;gap:8px}
+.platform-siap-announcement-preview{padding:18px;border:1px solid #84cda5;border-radius:14px;background:linear-gradient(145deg,#f0fff5,#daf5e5);overflow-wrap:anywhere}
+.platform-siap-announcement-preview .platform-siap-notice-preview-label{color:#166534;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.06em;margin-bottom:9px}
+.platform-siap-announcement-preview strong{display:block;color:#14532d;font-size:18px}
+.platform-siap-announcement-preview p{white-space:normal;line-height:1.55;color:#20523b}
+.platform-siap-announcement-preview img,.platform-siap-announcement-preview video,.platform-siap-announcement-preview iframe{display:block;width:100%;max-height:300px;aspect-ratio:16/9;object-fit:contain;border:0;border-radius:10px;background:#d2efde}
+.platform-siap-announcement-preview a{display:inline-block;margin-top:8px;font-weight:800;color:#08784b}
+.platform-siap-announcement-preview .platform-siap-announcement-action{display:inline-flex;align-items:center;justify-content:center;max-width:100%;box-sizing:border-box;margin-top:14px;padding:10px 15px;border-radius:9px;background:#168553;color:#fff;text-decoration:none;text-align:center;box-shadow:0 4px 10px #14532d24}
+@media(max-width:850px){.platform-siap-announcement-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.platform-siap-announcement-media{grid-template-columns:1fr}}
+
+/* A comunicação ocupa espaço apenas quando o dono abre o editor. */
+.platform-siap-hero{min-height:105px;padding:18px 28px;margin-bottom:14px;border-radius:16px}
+.platform-siap-hero h3{margin:4px 0;font-size:clamp(24px,2.6vw,31px)}
+.platform-siap-hero p{font-size:12px;line-height:1.4}
+.platform-siap-hero .btn{min-height:40px;padding:8px 14px}
+.platform-siap-announcement-disclosure{margin:0 0 18px}
+.platform-siap-announcement-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;padding:13px 18px;border:1px solid #cbd9f4;border-radius:11px;background:#edf3ff;color:#173e83;font-size:14px;font-weight:800;cursor:pointer;list-style:none}
+.platform-siap-announcement-disclosure>summary::-webkit-details-marker{display:none}
+.platform-siap-announcement-disclosure>summary:hover,.platform-siap-announcement-disclosure>summary:focus-visible{background:#e0ebff;border-color:#8caaeb}
+.platform-siap-announcement-disclosure>summary span{font-size:20px;line-height:1;transition:transform .2s}
+.platform-siap-announcement-disclosure[open]>summary span{transform:rotate(180deg)}
+.platform-siap-announcement-disclosure[open]>summary{border-radius:11px 11px 0 0}
+.platform-siap-announcement-disclosure .platform-siap-announcement{margin:0;border-top:0;border-radius:0 0 11px 11px}
+@media(max-width:620px){.platform-siap-hero{min-height:0;padding:17px 19px}.platform-siap-hero h3{font-size:25px}.platform-siap-hero .btn{min-height:38px}}

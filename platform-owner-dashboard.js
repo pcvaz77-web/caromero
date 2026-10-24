@@ -138,6 +138,7 @@
             <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos online</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
             <section class="platform-page" data-platform-section="siap">
               <section class="platform-siap-hero"><div><span>Central de gestão</span><h3>Assistente SIAP</h3><p>Controle acessos, acompanhe clientes e mantenha a operação comercial da extensão em um só lugar.</p></div><a class="btn primary" href="assistente-siap.html" target="_blank" rel="noopener">Ver página pública <span aria-hidden="true">↗</span></a></section>
+              <details class="platform-siap-announcement-disclosure"><summary>Comunicação do Assistente <span aria-hidden="true">⌄</span></summary><div id="platformSiapAnnouncementRoot"></div></details>
               <div class="platform-siap-section-kicker"><span>Visão geral</span><p>Situação atual dos pontos principais do produto.</p></div>
               <div class="platform-siap-readiness">
                 <article><span>1</span><div><h4>Página comercial</h4><p>Apresentação pública com recursos, formas de acesso e planos disponíveis.</p></div><b class="platform-badge active">Publicada</b></article>
@@ -310,6 +311,7 @@
     if (!window.matchMedia('(max-width: 800px)').matches) workspace?.classList.add('menu-collapsed');
     modal.querySelector('.platform-content')?.scrollTo({ top:0, behavior:'smooth' });
     if (page === 'communications') window.openPlatformCommunications?.();
+    if (page === 'siap') window.openPlatformSiapAnnouncement?.();
   }
 
   function currency(value) {
