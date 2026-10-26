@@ -455,12 +455,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const siapActions = window.getSiapPanelActions?.({ permission, canManageClass:activeCanEdit }) || '';
     const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
     const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
-    const panelActions = `${siapActions}${attendanceAction}${gradeAction}`;
+    const classExamAction = window.getClassExamPanelAction?.(actionContext) || '';
+    const panelActions = `${siapActions}${attendanceAction}${gradeAction}${classExamAction}`;
     document.getElementById('classroomInstallAction').innerHTML = window.getAttendanceCaptureInstallPanelAction?.(actionContext) || '';
     const bindPanelActions = () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
       window.bindSiapGradePanelAction?.(actionContext);
+      window.bindClassExamPanelAction?.(actionContext);
       window.mountSiapGradePanel?.(actionContext);
       window.mountFamilyEntryAttendancePanel?.(actionContext);
     };
