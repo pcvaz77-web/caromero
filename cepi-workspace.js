@@ -937,6 +937,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!test || test.status==='draft') return;
     try { window.CepiAnswerSheets.prepare(test,questions); }
     catch(error) { message(error.message); return; }
+    if (test.kind==='bloco') {
+      const eligible=classes.filter(item=>test.class_ids?.includes(item.id));
+      $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiCardForm"><h4>Imprimir cartões-resposta · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Selecione a turma. Será impresso um cartão com nome para cada aluno ativo, em ordem alfabética. Cada folha A4 terá até quatro cartões para recortar.</p><label>Turma<select name="class_id" required><option value="">Selecione a turma</option>${eligible.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Quantos cartões não nominais<input type="number" name="unnamed_count" min="0" max="600" step="1" required value="0"></label><div class="cepi-workspace-grid"><label>Quantidade de cartões<input type="number" name="quantity" readonly value="0"></label><label>Quantidade de folhas<input type="number" name="sheets" readonly value="0"></label></div><div class="actions"><button type="button" class="btn secondary" id="cepiCardCancel">Voltar</button><button type="submit" class="btn primary">Gerar para impressão</button></div></form>`;
+      const form=$('cepiCardForm');
+      $('cepiCardCancel').onclick=renderTests;
+      const updateCount=()=>{const classId=form.elements.class_id.value;const named=students.filter(student=>student.class_id===classId&&student.enrollment_status==='active'&&student.full_name?.trim()).length;const unnamed=Math.max(0,Number(form.elements.unnamed_count.value)||0);const total=classId?named+unnamed:0;form.elements.quantity.value=total;form.elements.sheets.value=Math.ceil(total/4);};
+      form.elements.class_id.onchange=updateCount;
+      form.elements.unnamed_count.oninput=updateCount;
+      form.onsubmit=event=>{event.preventDefault();const classId=form.elements.class_id.value,unnamedCount=Number(form.elements.unnamed_count.value);if(!test.class_ids?.includes(classId)||!Number.isInteger(unnamedCount)||unnamedCount<0||unnamedCount>600){message('Selecione a turma e informe de 0 a 600 cartões não nominais.');return;}printAnswerSheet(id,false,{classId,unnamedCount});};
+      return;
+    }
     const count=students.filter(student=>student.enrollment_status==='active' && test.class_ids?.includes(student.class_id)).length;
     $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiCardForm"><h4>Imprimir cartões-resposta · ${esc(test.title)}</h4><p class="cepi-workspace-hint">Cada folha A4 terá até quatro cartões para recortar, com bolhas ampliadas e gabarito oculto. O aluno preenche o nome e as respostas.</p><p>${count} aluno(s) ativo(s) nas turmas desta prova.</p><label>Quantidade de cartões<input type="number" name="quantity" min="1" max="600" required value="${Math.max(1,count)}"></label><div class="actions"><button type="button" class="btn secondary" id="cepiCardCancel">Voltar</button><button type="submit" class="btn primary">Gerar para impressão</button></div></form>`;
     $('cepiCardCancel').onclick=renderTests;
@@ -957,10 +968,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function printAnswerSheet(id, official, quantity = 4) {
     if (!manager() || !ensureContext()) return;
+    const requestedSchool=schoolId;
     const test = tests.find(item => item.id === id);
     if (!test || test.deleted_at || test.status==='draft') return;
+    if (!official && test.kind==='bloco' && (!quantity || typeof quantity!=='object' || !test.class_ids?.includes(quantity.classId) || !classes.some(item=>item.id===quantity.classId) || !Number.isInteger(quantity.unnamedCount) || quantity.unnamedCount<0 || quantity.unnamedCount>600)) return message('Selecione a turma e confira a quantidade de cartões não nominais.');
     const popup = window.open('','_blank');
     if (!popup) { message('Permita a janela de impressão para esta ação.'); return; }
+    let studentCards=null;
+    if (!official && test.kind==='bloco') {
+      try {
+        const roster=await fetchAll(()=>db.from('students').select('id,school_id,full_name,class_id,enrollment_status').eq('school_id',requestedSchool).eq('class_id',quantity.classId).eq('enrollment_status','active').order('full_name').order('id'));
+        if(roster.error)throw roster.error;
+        if(!ensureContext()||schoolId!==requestedSchool)throw new Error('A escola ativa mudou. Abra Meu CEPI novamente.');
+        studentCards=window.CepiAnswerSheets.nominalCards(roster.data||[],{schoolId:requestedSchool,classId:quantity.classId,unnamedCount:quantity.unnamedCount});
+      } catch(error) {popup.close();fail(error);return;}
+    }
     if(!await lockQuestionEditingForPrint(test,popup))return;
     let printQuestions=questions;
     if(test.status==='ready'){
@@ -973,7 +995,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let prepared;
     try { prepared = window.CepiAnswerSheets.prepare(test,printQuestions); }
     catch(error) { popup.close();message(error.message); return; }
-    const html = official ? window.CepiAnswerSheets.officialHtml(prepared,examHeader?.school_name) : window.CepiAnswerSheets.studentHtml(prepared,examHeader?.school_name,quantity);
+    const html = official ? window.CepiAnswerSheets.officialHtml(prepared,examHeader?.school_name) : window.CepiAnswerSheets.studentHtml(prepared,examHeader?.school_name,studentCards||quantity);
     popup.document.write(html); popup.document.close(); popup.focus();
   }
   async function printTest(id) {

@@ -13,7 +13,7 @@ function fixture(count=15, alphabet='ABCDE') {
 for (const count of [15,20,30]) test(`cartão do aluno imprime exatamente ${count} questões sem revelar o gabarito`,()=>{
   const {exam,questions}=fixture(count);
   const html=sheets.studentHtml(sheets.prepare(exam,questions),'Escola Exemplo',4);
-  assert.equal((html.match(/class="student-card"/g)||[]).length,4);
+  assert.equal((html.match(/class="student-card format-/g)||[]).length,4);
   assert.equal((html.match(/class="answer-row"/g)||[]).length,count*4);
   assert.equal((html.match(/class="bubble"/g)||[]).length,count*5*4);
   assert.doesNotMatch(html,/bubble filled|GABARITO OFICIAL/);
@@ -28,7 +28,36 @@ test('quantidade solicitada é exata e imprime até quatro cartões por folha',(
   const {exam,questions}=fixture(20);
   const html=sheets.studentHtml(sheets.prepare(exam,questions),'Escola Exemplo',7);
   assert.equal((html.match(/class="card-page"/g)||[]).length,2);
-  assert.equal((html.match(/class="student-card"/g)||[]).length,7);
+  assert.equal((html.match(/class="student-card format-/g)||[]).length,7);
+});
+
+test('cartões nominais mantêm quatro por folha e só avulsos têm assinatura',()=>{
+  const {exam,questions}=fixture(30);
+  const cards=[{name:'Ana Maria'},{name:'Bruno & Caio'},{name:'Dora'},{unnamed:true},{unnamed:true}];
+  const html=sheets.studentHtml(sheets.prepare(exam,questions),'Escola Exemplo',cards);
+  assert.equal((html.match(/class="card-page"/g)||[]).length,2);
+  assert.equal((html.match(/class="student-card format-/g)||[]).length,5);
+  assert.equal((html.match(/class="signature-line"/g)||[]).length,2);
+  assert.equal((html.match(/Nome do aluno: <span class="line"/g)||[]).length,2);
+  assert.match(html,/Nome do aluno: <strong>Ana Maria<\/strong>/);
+  assert.match(html,/Bruno &amp; Caio/);
+  assert.doesNotMatch(html,/Bruno & Caio/);
+  assert.equal((html.match(/class="answer-row"/g)||[]).length,150);
+});
+
+test('nomes vêm apenas dos alunos ativos da escola e turma selecionadas',()=>{
+  const students=[
+    {id:'2',school_id:'escola-1',class_id:'turma-1',full_name:'Bruno',enrollment_status:'active'},
+    {id:'1',school_id:'escola-1',class_id:'turma-1',full_name:'Ana',enrollment_status:'active'},
+    {id:'3',school_id:'escola-1',class_id:'turma-1',full_name:'Caio',enrollment_status:'transferred'},
+    {id:'4',school_id:'escola-1',class_id:'turma-2',full_name:'Dora',enrollment_status:'active'},
+    {id:'5',school_id:'escola-2',class_id:'turma-1',full_name:'Eva',enrollment_status:'active'}
+  ];
+  assert.deepEqual(sheets.nominalCards(students,{schoolId:'escola-1',classId:'turma-1',unnamedCount:1}),[
+    {name:'Ana'},{name:'Bruno'},{unnamed:true}
+  ]);
+  assert.deepEqual(sheets.nominalCards([], {schoolId:'escola-1',classId:'turma-1',unnamedCount:1}),[{unnamed:true}]);
+  assert.throws(()=>sheets.nominalCards([], {schoolId:'escola-1',classId:'turma-1',unnamedCount:0}),/1 a 600/);
 });
 
 test('gabarito oficial usa as respostas salvas, na ordem, com acesso separado',()=>{
