@@ -6,7 +6,23 @@ const {test} = require('node:test');
 
 const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
-const {plan,subjectCapacity,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+const {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+
+test('modelos ENEM do GPA preservam totais, ordem e ano letivo', () => {
+  assert.equal(enemPlan('caderno_1').reduce((sum,item)=>sum+item.count,0),45);
+  assert.equal(enemPlan('caderno_2').reduce((sum,item)=>sum+item.count,0),45);
+  assert.equal(enemPlan('simuladao').reduce((sum,item)=>sum+item.count,0),90);
+  assert.equal(title({kind:'simulado',stage:'medio',bimester:4,enemModel:'simuladao',academicYear:2026}),'SIMULADÃO ENEM 2026');
+  assert.equal(title({kind:'simulado',stage:'medio',bimester:4,enemModel:'caderno_1',academicYear:2026}),'SIMULA - ENEM - CADERNO 1 - 4º BIM');
+  const caderno={kind:'simulado',stage:'medio',title:'SIMULA - ENEM - CADERNO 1 - 4º BIM',question_count:45};
+  assert.equal(enemModel(caderno),'caderno_1');
+  assert.equal(subjectForNumber(caderno,1),'Química');
+  assert.equal(subjectForNumber(caderno,9),'Física');
+  assert.equal(subjectForNumber(caderno,45),'Sociologia');
+  assert.equal(subjectForNumber(caderno,46),null);
+  assert.equal(examPlan(caderno).length,7);
+  assert.match(instructions(caderno),/8 questões de Química/);
+});
 
 test('turmas são identificadas pela série da etapa escolhida', () => {
   for (const name of ['6A','7º B','8º Ano C','9D']) assert.equal(stageForClassName(name),'fundamental_ii',name);

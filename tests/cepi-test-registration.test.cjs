@@ -78,6 +78,42 @@ test('etapa sugere o formato das alternativas e permite escolha manual', async (
   } finally { dom.window.close(); }
 });
 
+test('cadastro ENEM usa 3ª série, 45 questões e ano atual sem alterar o simulado comum', async () => {
+  const {dom,waitFor,errors}=await fixture('manager=1');
+  try{
+    const document=dom.window.document,form=document.getElementById('cepiTestForm');
+    dom.window.eval("rows.classes.push({id:'55555555-5555-4555-8555-555555555555',school_id:school,name:'3A'})");
+    form.elements.kind.value='enem';
+    form.elements.kind.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(dom.window.document.getElementById('cepiEnemModelField').hidden,false);
+    assert.equal(form.elements.question_count.readOnly,false);
+    form.elements.enem_model.value='caderno_1';
+    form.elements.enem_model.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.stage.value,'medio');
+    assert.equal(form.elements.question_count.value,'45');
+    assert.equal(form.elements.answer_format.value,'ABCDE');
+    assert.equal(document.querySelectorAll('#cepiClassOptions input').length,1);
+    assert.match(document.getElementById('cepiTestIdentity').textContent,/CADERNO 1/);
+    form.querySelector('[data-cepi-person-id]').click();
+    form.requestSubmit();
+    await waitFor(()=>document.querySelectorAll('.cepi-workspace-list > article').length===2);
+    const saved=dom.window.eval('rows.cepi_tests[1]');
+    assert.equal(saved.question_count,45);
+    assert.equal(saved.title,'SIMULA - ENEM - CADERNO 1 - 4º BIM');
+    assert.deepEqual(JSON.parse(JSON.stringify(saved.subjects)),['Química','Física','Biologia','História','Geografia','Filosofia','Sociologia']);
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
+test('prova bimestral não aparece como opção para novos cadastros', async () => {
+  const {dom,errors}=await fixture('manager=1');
+  try{
+    const options=[...dom.window.document.querySelectorAll('#cepiTestForm [name="kind"] option')];
+    assert.deepEqual(options.map(option=>option.textContent),['Prova de Bloco','Simulado comum','Simulado do ENEM']);
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
 test('cabeçalho mostra apenas dados fixos e a frase escolhida', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {

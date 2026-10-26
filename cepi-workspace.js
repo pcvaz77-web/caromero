@@ -78,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     : error?.message || 'Não foi possível concluir a operação.');
   const manager = () => access?.enabled === true && ['school_admin','coordinator'].includes(memberRole);
   const editor = () => access?.enabled === true && ['school_admin','coordinator','teacher'].includes(memberRole);
-  const activeTests = () => tests.filter(test => !test.deleted_at);
+  const activeTests = () => tests.filter(test => !test.deleted_at && test.kind !== 'bimestral');
   const canEditTest = test => manager() && !test.deleted_at && test.status === 'draft';
   const assignedToTest = test => editor() && test?.assigned_teacher_ids?.includes(userId);
   const canEditQuestion = test => editor() && !test.deleted_at && assignedToTest(test) && (test.status === 'draft' || (test.status === 'ready' && !test.print_opened_at));
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
       $('cepiWorkspaceContent').querySelector('.cepi-test-filters').insertAdjacentHTML('beforebegin','<section class="cepi-import-entry"><div><h4>Trazer uma prova de fora</h4><p>Use um arquivo Word, PDF com texto selecionável ou TXT.</p></div><button class="btn" type="button" id="cepiImportExam">＋ Importar prova</button></section>');
       $('cepiImportExam').onclick=importExamForm;
       $('cepiWorkspaceContent').querySelectorAll('.cepi-workspace-list > article').forEach((card,index)=>card.querySelector('.cepi-workspace-actions')?.insertAdjacentHTML('beforeend',actionButton('Reutilizar esta prova','duplicate-test',visible[index].id)));
-      const deleted=tests.filter(test=>test.deleted_at);
+      const deleted=tests.filter(test=>test.deleted_at && test.kind!=='bimestral');
       if(deleted.length)$('cepiWorkspaceContent').insertAdjacentHTML('beforeend',`<details class="cepi-workspace-item"><summary>Provas excluídas (${deleted.length})</summary><div class="cepi-workspace-list">${deleted.map(test=>`<article class="cepi-workspace-item"><h4>${esc(test.title)}</h4><p>Questões e correções preservadas · excluída em ${esc(new Date(test.deleted_at).toLocaleDateString('pt-BR'))}</p>${actionButton('Restaurar prova','restore-test',test.id)}</article>`).join('')}</div></details>`);
     }
     $('cepiWorkspaceContent').querySelector('[data-test-query]').oninput=event=>{testFilters.query=event.target.value;const position=event.target.selectionStart;renderTests();const next=$('cepiWorkspaceContent').querySelector('[data-test-query]');next.focus();next.setSelectionRange(position,position);};
@@ -320,12 +320,15 @@ document.addEventListener('DOMContentLoaded', () => {
     try { await loadClubTeachers(); } catch(error) { fail(error); return; }
     if (!ensureContext()) return;
     const values = test || {kind:'bloco',academic_year:year,bimester:1,stage:'fundamental_ii',question_count:15,answer_format:'ABCD',status:'draft',subjects:[]};
+    const savedEnemModel=window.CepiBlocks.enemModel(values)||'';
+    const selectedKind=savedEnemModel?'enem':values.kind;
     const option = (value,label,selected) => `<option value="${value}" ${selected === value ? 'selected' : ''}>${label}</option>`;
     $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiTestForm">
       <div class="cepi-test-heading"><h4>${test?'Editar prova':'Cadastrar prova'}</h4><p>Defina tipo, etapa, bloco e turmas. A identificação será preenchida automaticamente no cabeçalho da prova.</p></div>
       <p id="cepiTestIdentity" class="cepi-workspace-hint" aria-live="polite"></p>
       <div class="cepi-workspace-grid">
-        <label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',bimestral:'Prova Bimestral',simulado:'Simulado'}).map(([key,label]) => option(key,label,values.kind)).join('')}</select></label>
+        <label>Tipo<select name="kind">${Object.entries({bloco:'Prova de Bloco',simulado:'Simulado comum',enem:'Simulado do ENEM',...(test?.kind==='bimestral'?{bimestral:'Prova bimestral (registro antigo)'}:{})}).map(([key,label]) => option(key,label,selectedKind)).join('')}</select></label>
+        <label id="cepiEnemModelField" hidden>Caderno<select name="enem_model">${option('','Escolha o caderno',savedEnemModel)}${option('caderno_1','Caderno 1 · 45 questões',savedEnemModel)}${option('caderno_2','Caderno 2 · 45 questões',savedEnemModel)}${option('simuladao',`Simuladão ENEM · 90 questões`,savedEnemModel)}</select><small>Estrutura da 3ª série conforme o GPA. As questões e os gabaritos serão inseridos nesta prova depois do cadastro.</small></label>
         <label id="cepiBlockField">Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>option(n,`Bloco ${n}`,Number(values.block_number)||1)).join('')}</select><small id="cepiBlockPlan" class="meta"></small></label>
         <label>Etapa<select name="stage">${option('fundamental_ii','Ensino Fundamental Anos Finais',values.stage)}${option('medio','Ensino Médio',values.stage)}</select></label>
         <fieldset class="cepi-test-classes"><legend>Turmas que farão esta prova</legend><div id="cepiClassOptions" class="cepi-class-options"></div><small id="cepiClassHelp"></small></fieldset>
@@ -356,9 +359,11 @@ document.addEventListener('DOMContentLoaded', () => {
       showSaveStatus(`Confira o campo ${event.target.closest('label')?.firstChild?.textContent?.trim() || 'obrigatório'} antes de salvar.`);
     }, true);
     const blockField = $('cepiBlockField');
+    const enemField = $('cepiEnemModelField');
     const syncClasses = (preserveSelection = false) => {
       const selected = preserveSelection ? new Set(values.class_ids || []) : new Set();
-      const eligible = classes.filter(item => !item.archived_at && window.CepiBlocks.stageForClassName(item.name) === testFormElement.elements.stage.value);
+      const isEnem=testFormElement.elements.kind.value==='enem'&&!!testFormElement.elements.enem_model.value;
+      const eligible = classes.filter(item => !item.archived_at && window.CepiBlocks.stageForClassName(item.name) === testFormElement.elements.stage.value && (!isEnem || /^(?:ENSINO\s+MEDIO\s+)?3(?=\D|$)/.test(String(item.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase())));
       $('cepiClassOptions').innerHTML = eligible.length
         ? eligible.map(item => `<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${(!test || !preserveSelection || selected.has(item.id))?'checked':''}>${esc(item.name)}</label>`).join('')
         : '<span class="cepi-test-empty">Nenhuma turma desta etapa foi encontrada na escola.</span>';
@@ -369,25 +374,43 @@ document.addEventListener('DOMContentLoaded', () => {
     syncClasses(true);
     const syncBlock = () => {
       const isBlock = testFormElement.elements.kind.value === 'bloco';
+      const isEnem = testFormElement.elements.kind.value === 'enem';
+      const chosenEnemModel=isEnem?testFormElement.elements.enem_model.value:'';
+      const enemPlan=window.CepiBlocks.enemPlan(chosenEnemModel);
       blockField.hidden = !isBlock;
-      testFormElement.elements.question_count.readOnly = isBlock;
-      testFormElement.elements.subjects.readOnly = isBlock;
+      enemField.hidden=!isEnem;
+      testFormElement.elements.enem_model.disabled=!isEnem;
+      testFormElement.elements.enem_model.required=isEnem;
+      testFormElement.elements.stage.disabled=!!enemPlan;
+      testFormElement.elements.question_count.readOnly = isBlock || !!enemPlan;
+      testFormElement.elements.subjects.readOnly = isBlock || !!enemPlan;
+      testFormElement.elements.answer_format.disabled=!!enemPlan;
       if (isBlock) {
         const plan = window.CepiBlocks.plan(testFormElement.elements.stage.value, Number(testFormElement.elements.block_number.value));
         testFormElement.elements.question_count.value = plan.reduce((total,item)=>total+item.count,0);
         testFormElement.elements.subjects.value = plan.map(item=>item.subject).join(', ');
         $('cepiBlockPlan').textContent = plan.map(item=>`${item.subject}: ${item.count} questões`).join(' · ');
       }
-      const generatedTitle=window.CepiBlocks.title({kind:testFormElement.elements.kind.value,stage:testFormElement.elements.stage.value,bimester:testFormElement.elements.bimester.value,blockNumber:testFormElement.elements.block_number.value,subjects:testFormElement.elements.subjects.value.split(',')});
+      if(enemPlan){
+        testFormElement.elements.stage.value='medio';
+        testFormElement.elements.answer_format.value='ABCDE';
+        testFormElement.elements.question_count.value=String(enemPlan.reduce((sum,item)=>sum+item.count,0));
+        testFormElement.elements.subjects.value=enemPlan.map(item=>item.subject).join(', ');
+        $('cepiBlockPlan').textContent='';
+      }
+      const generatedTitle=chosenEnemModel||!isEnem?window.CepiBlocks.title({kind:isEnem?'simulado':testFormElement.elements.kind.value,stage:testFormElement.elements.stage.value,bimester:testFormElement.elements.bimester.value,blockNumber:testFormElement.elements.block_number.value,subjects:testFormElement.elements.subjects.value.split(','),enemModel:chosenEnemModel,academicYear:testFormElement.elements.academic_year.value}):null;
       $('cepiTestIdentity').textContent=generatedTitle?`Teste: ${generatedTitle}`:'Escolha um teste válido.';
     };
     testFormElement.elements.kind.onchange=()=>{
       if(testFormElement.elements.kind.value!=='bloco')testFormElement.elements.subjects.value='';
+      if(testFormElement.elements.kind.value!=='enem')testFormElement.elements.enem_model.value='';
       syncBlock();
     };
+    testFormElement.elements.enem_model.onchange=()=>{if(testFormElement.elements.enem_model.value){testFormElement.elements.bimester.value='4';testFormElement.elements.stage.value='medio';syncClasses();}syncBlock();};
     testFormElement.elements.stage.onchange=()=>{testFormElement.elements.answer_format.value=testFormElement.elements.stage.value==='medio'?'ABCDE':'ABCD';syncClasses();syncBlock();};
     testFormElement.elements.block_number.onchange=syncBlock;
     testFormElement.elements.bimester.onchange=syncBlock;
+    testFormElement.elements.academic_year.oninput=syncBlock;
     testFormElement.elements.subjects.oninput=syncBlock;
     syncBlock();
     $('cepiCancelForm').onclick = render;
@@ -399,10 +422,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!classIds.length){showSaveStatus('Selecione ao menos uma turma ativa para a prova.');return;}
       const teacherIds=selectedTeacherIds(testFormElement);
       if(!validTeacherSelection(teacherIds)){showSaveStatus('Escolha ao menos uma pessoa responsável pelas questões.');return;}
-      const title=window.CepiBlocks.title({kind:data.kind,stage:data.stage,bimester:data.bimester,blockNumber:data.block_number,subjects:data.subjects.split(',')});
+      const chosenEnemModel=data.kind==='enem'?data.enem_model:'';
+      const enemPlan=window.CepiBlocks.enemPlan(chosenEnemModel);
+      if(data.kind==='enem'&&!enemPlan){showSaveStatus('Escolha Caderno 1, Caderno 2 ou Simuladão ENEM.');return;}
+      const storedKind=data.kind==='enem'?'simulado':data.kind;
+      const title=window.CepiBlocks.title({kind:storedKind,stage:enemPlan?'medio':data.stage,bimester:data.bimester,blockNumber:data.block_number,subjects:data.subjects.split(','),enemModel:chosenEnemModel,academicYear:data.academic_year});
       if(!title){showSaveStatus('Confira a etapa, o bloco e o bimestre da prova.');return;}
-      const payload = {school_id:schoolId,title,kind:data.kind,class_ids:classIds,block_number:data.kind==='bloco'?Number(data.block_number):null,subject_plan:plan,stage:data.stage,academic_year:Number(data.academic_year),bimester:Number(data.bimester),scheduled_on:data.scheduled_on || null,question_count:Number(data.question_count),answer_format:data.answer_format,status:test?.status||'draft',subjects:data.subjects.split(',').map(s=>s.trim()).filter(Boolean),assigned_teacher_ids:teacherIds,notes:data.notes.trim() || null};
+      const payload = {school_id:schoolId,title,kind:storedKind,class_ids:classIds,block_number:data.kind==='bloco'?Number(data.block_number):null,subject_plan:plan,stage:enemPlan?'medio':data.stage,academic_year:Number(data.academic_year),bimester:Number(data.bimester),scheduled_on:data.scheduled_on || null,question_count:enemPlan?enemPlan.reduce((sum,item)=>sum+item.count,0):Number(data.question_count),answer_format:enemPlan?'ABCDE':data.answer_format,status:test?.status||'draft',subjects:enemPlan?enemPlan.map(item=>item.subject):data.subjects.split(',').map(s=>s.trim()).filter(Boolean),assigned_teacher_ids:teacherIds,notes:data.notes.trim() || null};
       if (test && questions.some(q => q.test_id === test.id && (q.number > payload.question_count || !(payload.answer_format === 'VF' ? ['V','F'] : [...payload.answer_format]).includes(q.correct_answer)))) { showSaveStatus('A nova configuração conflita com questões já cadastradas. Ajuste as questões antes.'); return; }
+      if(test && enemPlan && questions.some(q=>q.test_id===test.id && window.CepiBlocks.subjectForNumber({...payload},q.number)!==q.subject)) {showSaveStatus('O modelo ENEM escolhido conflita com a disciplina de questões já cadastradas.');return;}
       saveButton.disabled = true;
       showSaveStatus('Salvando prova…', 'loading');
       let saved = false;
@@ -432,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiWorkspaceNew').classList.add('hidden');
     message('');
     const originals=new Set((source.class_ids||[]).map(id=>classes.find(item=>item.id===id)?.name).filter(Boolean));
-    const eligible=activeStageClasses(source.stage);
+    const eligible=activeStageClasses(source.stage).filter(item=>!window.CepiBlocks.enemModel(source)||/^(?:ENSINO\s+MEDIO\s+)?3(?=\D|$)/.test(String(item.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase()));
     $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiDuplicateForm"><h4>Reutilizar prova anterior</h4><p class="cepi-workspace-hint">Origem: ${esc(source.title)} · ${testQuestions(source).length} questão(ões). A nova prova será independente. A original e os resultados dos alunos não serão alterados.</p><div class="cepi-workspace-grid"><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>`<option value="${n}" ${n===source.bimester?'selected':''}>${n}º bimestre</option>`).join('')}</select></label><label>Data de aplicação (opcional)<input name="scheduled_on" type="date"><small>Se informada, aparecerá na prova e no cartão-resposta.</small></label></div><fieldset class="cepi-test-classes"><legend>Turmas ativas da nova prova</legend><div class="cepi-class-options">${eligible.map(item=>`<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${originals.has(item.name)?'checked':''}>${esc(item.name)}</label>`).join('') || 'Nenhuma turma ativa desta etapa. Cadastre uma turma antes de reutilizar a prova.'}</div></fieldset>${testTeacherFields(source.assigned_teacher_ids||[])}<p id="cepiDuplicateStatus" class="cepi-workspace-hint" role="status" aria-live="polite" hidden></p><div class="actions"><button class="btn secondary" type="button" id="cepiDuplicateCancel">Cancelar</button><button class="btn primary" type="submit" id="cepiDuplicateSave">Criar cópia</button></div></form>`;
     const form=$('cepiDuplicateForm'),status=$('cepiDuplicateStatus'),button=$('cepiDuplicateSave');
     $('cepiDuplicateCancel').onclick=renderTests;
@@ -443,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const show=value=>{status.hidden=false;status.textContent=value;message(value);};
       if(!classIds.length){show('Escolha ao menos uma turma ativa para a cópia.');return;}
       if(!validTeacherSelection(teacherIds)){show('Escolha ao menos uma pessoa responsável pelas questões.');return;}
-      const title=window.CepiBlocks.title({kind:source.kind,stage:source.stage,bimester:values.get('bimester'),blockNumber:source.block_number,subjects:source.subjects||[]});
+      const title=window.CepiBlocks.title({kind:source.kind,stage:source.stage,bimester:values.get('bimester'),blockNumber:source.block_number,subjects:source.subjects||[],enemModel:window.CepiBlocks.enemModel(source),academicYear:values.get('academic_year')});
       if(!title){show('Não foi possível gerar o nome da nova prova.');return;}
       button.disabled=true;show('Copiando a prova e as questões…');
       let saved=false;
@@ -469,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!ensureContext())return;
     $('cepiWorkspaceNew').classList.add('hidden');message('');
     const state={questions:[],parsedSource:'',fileReadId:0};
-    $('cepiWorkspaceContent').innerHTML=`<form id="cepiExamImportForm" class="cepi-workspace-form"><h4>Importar prova de fora</h4><p class="cepi-workspace-hint">Escolha um Word (.docx), PDF com texto selecionável ou TXT. A extração acontece neste navegador. Revise o texto e informe o gabarito de cada questão antes de salvar. Imagens do arquivo devem ser adicionadas depois no editor de questões.</p><label>Arquivo da prova<input id="cepiExamImportFile" type="file" accept=".docx,.pdf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"></label><label>Texto extraído ou colado<textarea id="cepiExamImportRaw" placeholder="Você também pode colar aqui o texto da prova. Separe cada questão com Questão 1, Questão 2… ou 1., 2.…"></textarea></label><button class="btn secondary" type="button" id="cepiExamImportParse">Separar questões</button><div class="cepi-workspace-grid"><label>Tipo<select name="kind"><option value="bimestral">Prova bimestral</option><option value="bloco">Prova de bloco</option><option value="simulado">Simulado</option></select></label><label id="cepiExamImportBlockField" hidden>Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>`<option value="${n}">Bloco ${n}</option>`).join('')}</select></label><label>Etapa<select name="stage"><option value="fundamental_ii">Ensino Fundamental Anos Finais</option><option value="medio">Ensino Médio</option></select></label><label>Alternativas<select name="answer_format"><option>ABCD</option><option>ABCDE</option><option>VF</option></select><small>Preenchido conforme a etapa; você pode alterar.</small></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>`<option value="${n}">${n}º bimestre</option>`).join('')}</select></label><label>Data de aplicação (opcional)<input name="scheduled_on" type="date"><small>Se informada, aparecerá na prova e no cartão-resposta.</small></label><label>Disciplina inicial<input name="default_subject" maxlength="100" placeholder="Ex.: Língua Portuguesa"></label></div><button class="btn secondary" type="button" id="cepiImportApplySubject">Aplicar disciplina a todas as questões</button><fieldset class="cepi-test-classes"><legend>Turmas ativas que farão a prova</legend><div id="cepiImportClasses" class="cepi-class-options"></div></fieldset><p id="cepiImportCount" class="cepi-workspace-hint">Selecione um arquivo ou cole o texto e separe as questões.</p><div id="cepiImportReview"></div><label><input type="checkbox" name="save_to_bank" style="width:auto;min-height:0"> Guardar também cada questão no banco de questões</label><p id="cepiImportStatus" class="cepi-workspace-hint" role="status" aria-live="polite" hidden></p><div class="actions"><button class="btn secondary" type="button" id="cepiImportCancel">Cancelar</button><button class="btn primary" type="submit" id="cepiImportSave">Salvar prova e questões revisadas</button></div></form>`;
+    $('cepiWorkspaceContent').innerHTML=`<form id="cepiExamImportForm" class="cepi-workspace-form"><h4>Importar prova de fora</h4><p class="cepi-workspace-hint">Escolha um Word (.docx), PDF com texto selecionável ou TXT. A extração acontece neste navegador. Revise o texto e informe o gabarito de cada questão antes de salvar. Imagens do arquivo devem ser adicionadas depois no editor de questões.</p><label>Arquivo da prova<input id="cepiExamImportFile" type="file" accept=".docx,.pdf,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"></label><label>Texto extraído ou colado<textarea id="cepiExamImportRaw" placeholder="Você também pode colar aqui o texto da prova. Separe cada questão com Questão 1, Questão 2… ou 1., 2.…"></textarea></label><button class="btn secondary" type="button" id="cepiExamImportParse">Separar questões</button><div class="cepi-workspace-grid"><label>Tipo<select name="kind"><option value="simulado">Simulado comum</option><option value="bloco">Prova de bloco</option></select></label><label id="cepiExamImportBlockField" hidden>Bloco<select name="block_number">${[1,2,3,4,5,6].map(n=>`<option value="${n}">Bloco ${n}</option>`).join('')}</select></label><label>Etapa<select name="stage"><option value="fundamental_ii">Ensino Fundamental Anos Finais</option><option value="medio">Ensino Médio</option></select></label><label>Alternativas<select name="answer_format"><option>ABCD</option><option>ABCDE</option><option>VF</option></select><small>Preenchido conforme a etapa; você pode alterar.</small></label><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" required value="${year}"></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(n=>`<option value="${n}">${n}º bimestre</option>`).join('')}</select></label><label>Data de aplicação (opcional)<input name="scheduled_on" type="date"><small>Se informada, aparecerá na prova e no cartão-resposta.</small></label><label>Disciplina inicial<input name="default_subject" maxlength="100" placeholder="Ex.: Língua Portuguesa"></label></div><button class="btn secondary" type="button" id="cepiImportApplySubject">Aplicar disciplina a todas as questões</button><fieldset class="cepi-test-classes"><legend>Turmas ativas que farão a prova</legend><div id="cepiImportClasses" class="cepi-class-options"></div></fieldset><p id="cepiImportCount" class="cepi-workspace-hint">Selecione um arquivo ou cole o texto e separe as questões.</p><div id="cepiImportReview"></div><label><input type="checkbox" name="save_to_bank" style="width:auto;min-height:0"> Guardar também cada questão no banco de questões</label><p id="cepiImportStatus" class="cepi-workspace-hint" role="status" aria-live="polite" hidden></p><div class="actions"><button class="btn secondary" type="button" id="cepiImportCancel">Cancelar</button><button class="btn primary" type="submit" id="cepiImportSave">Salvar prova e questões revisadas</button></div></form>`;
     const form=$('cepiExamImportForm'),status=$('cepiImportStatus'),review=$('cepiImportReview'),save=$('cepiImportSave');
     $('cepiImportCount').insertAdjacentHTML('beforebegin',testTeacherFields([]));
     const fileInput=$('cepiExamImportFile'),raw=$('cepiExamImportRaw'),parse=$('cepiExamImportParse');
@@ -789,11 +817,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const occupied=new Set(questions.filter(item=>item.test_id===test.id).map(item=>item.number));
     const next = q?.number || Array.from({length:test.question_count},(_,index)=>index+1).find(number=>!occupied.has(number));
     if(!next){message('Todas as questões desta prova já foram cadastradas.');return renderQuestions(test.id);}
-    const selectedSubject=q?.subject || preferredSubject || test.subjects?.[0] || '';
+    const selectedSubject=window.CepiBlocks.subjectForNumber(test,next) || q?.subject || preferredSubject || test.subjects?.[0] || '';
     const initialCapacity=window.CepiBlocks.subjectCapacity(test,questions,selectedSubject,q?.id);
     const initialNumber=!q && initialCapacity?.full ? initialCapacity.lastNumber || next : next;
     $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiQuestionForm"><h4>${q?'Editar':'Nova'} questão ${initialNumber} · ${esc(test.title)}</h4><div class="cepi-workspace-grid"><label class="cepi-question-number-label">QUESTÃO<input name="number" type="number" aria-label="Número da questão" min="1" max="${test.question_count}" required value="${initialNumber}"></label><label>Componente curricular<input name="subject" maxlength="100" required value="${esc(selectedSubject)}"></label></div><div><div class="cepi-question-editor-label" id="cepiQuestionEditorLabel">Enunciado e alternativas *</div><p class="cepi-rich-hint">Cole a questão completa do Word ou de outro lugar. Imagens coladas ou inseridas aparecem no topo; depois você pode movê-las.</p>${richTools('cepiQuestionEditor')}<div id="cepiQuestionEditor" class="cepi-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="cepiQuestionEditorLabel" data-placeholder="Cole ou escreva aqui o texto de apoio, a pergunta e as alternativas..."></div></div><label>Gabarito<select name="correct_answer" required><option value="">Selecione</option>${answerFormat.map(letter=>`<option value="${letter}" ${q?.correct_answer===letter?'selected':''}>${letter}</option>`).join('')}</select></label><p id="cepiQuestionSaveStatus" role="status" aria-live="polite"></p><div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">${q?'Salvar alterações':'Salvar e ir para a próxima'}</button></div></form>`;
     const form=$('cepiQuestionForm'),editorArea=$('cepiQuestionEditor');
+    if(window.CepiBlocks.enemModel(test))form.elements.subject.readOnly=true;
     editorArea.innerHTML=rich().sanitize(legacyRich(q),{schoolId});
     rich().hydrate(editorArea,db,schoolId).catch(fail);
     const richControl=bindRichTools(form,editorArea);
@@ -827,6 +856,10 @@ document.addEventListener('DOMContentLoaded', () => {
       return blocked;
     };
     if(test.kind==='bloco')form.elements.subject.onchange=()=>applySubjectCapacity(true);
+    if(window.CepiBlocks.enemModel(test))form.elements.number.onchange=()=>{
+      form.elements.subject.value=window.CepiBlocks.subjectForNumber(test,form.elements.number.value)||'';
+      heading.textContent=`${q?'Editar':'Nova'} questão ${form.elements.number.value} · ${test.title}`;
+    };
     applySubjectCapacity(true);
     $('cepiCancelForm').onclick = async () => {
       if(unsavedUploads.size)await richControl.rollback([...unsavedUploads]).catch(()=>{});
@@ -838,6 +871,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if(!ensureContext()){$('cepiQuestionSaveStatus').textContent='A escola ativa mudou. Abra Meu CEPI novamente.';return;}
       if(applySubjectCapacity())return;
       const saveStatus=$('cepiQuestionSaveStatus');
+      if(window.CepiBlocks.enemModel(test)&&form.elements.subject.value!==window.CepiBlocks.subjectForNumber(test,form.elements.number.value)){
+        saveStatus.textContent='A disciplina desta questão não corresponde à posição prevista no caderno ENEM.';return;
+      }
       submit.disabled=true;
       saveStatus.textContent='Salvando questão…';
       const data = Object.fromEntries(new FormData(event.currentTarget));
@@ -929,7 +965,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!next){message('A prova já tem todas as questões previstas.');return;}
     $('cepiWorkspaceContent').innerHTML=`<form id="cepiImportForm" class="cepi-workspace-form"><h4>Usar questão do banco · ${esc(test.title)}</h4><p>A prova recebe uma cópia. Alterações posteriores no banco não modificam uma prova já montada.</p><label>Questão<select name="question_id" required><option value="">Selecione</option>${available.map(q=>`<option value="${esc(q.id)}">${esc(q.subject)} · ${esc(rich().plain(q.statement).slice(0,130))}</option>`).join('')}</select></label><label>Número na prova<input name="number" type="number" min="1" max="${test.question_count}" value="${next}" required></label><div class="actions"><button type="button" class="btn secondary" id="cepiImportCancel">Cancelar</button><button class="btn primary">Adicionar à prova</button></div></form>`;
     $('cepiImportCancel').onclick=()=>renderQuestions(test.id);
-    $('cepiImportForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const data=new FormData(event.currentTarget),q=available.find(item=>item.id===data.get('question_id'));if(!q){message('Selecione uma questão.');return;}if(test.kind==='bloco'&&window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full){message(`A quantidade de questões de ${q.subject} já foi atingida.`);return;}const result=await db.from('cepi_test_questions').insert({school_id:schoolId,test_id:test.id,number:Number(data.get('number')),subject:q.subject,statement:q.statement,alternatives:q.alternatives,correct_answer:q.correct_answer,bank_question_id:q.id,created_by:userId});if(result.error)return fail(result.error);await load().then(()=>renderQuestions(test.id)).catch(fail);};
+    $('cepiImportForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const data=new FormData(event.currentTarget),q=available.find(item=>item.id===data.get('question_id'));if(!q){message('Selecione uma questão.');return;}if(test.kind==='bloco'&&window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full){message(`A quantidade de questões de ${q.subject} já foi atingida.`);return;}if(window.CepiBlocks.enemModel(test)&&window.CepiBlocks.subjectForNumber(test,Number(data.get('number')))!==q.subject){message('Escolha uma questão da disciplina prevista para esta posição do caderno ENEM.');return;}const result=await db.from('cepi_test_questions').insert({school_id:schoolId,test_id:test.id,number:Number(data.get('number')),subject:q.subject,statement:q.statement,alternatives:q.alternatives,correct_answer:q.correct_answer,bank_question_id:q.id,created_by:userId});if(result.error)return fail(result.error);await load().then(()=>renderQuestions(test.id)).catch(fail);};
   }
   function answerSheetForm(id) {
     if (!manager() || !ensureContext()) return;
@@ -1024,7 +1060,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const applicationDate = window.CepiAnswerSheets.formatApplicationDate(test.scheduled_on);
     const headerExtra = schoolHeaderExtra(examHeader);
     const examInstructions = window.CepiBlocks.instructions(test, rows, instructionTail(examHeader));
-    const html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>${esc(test.title)}</title><style>body{font:12pt Arial;margin:18mm;color:#111}.print-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:-8mm 0 12mm;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;background:#f5f7ff;font:14px Arial}.print-actions button{padding:9px 15px;border:0;border-radius:7px;background:#5149dc;color:#fff;font-weight:700;cursor:pointer}.brand-row{display:grid;grid-template-columns:1fr 1fr;align-items:start;min-height:26mm}.logo{display:block;object-fit:contain}.logo-school{width:26mm;height:26mm;justify-self:start}.logo-state{width:55mm;height:26mm;justify-self:end}.state-fallback{display:grid;gap:3px;align-self:center;justify-self:end;text-align:right;font-size:10pt}.school-name{text-align:center;margin:5mm 0 4mm;font-size:12pt}h1{font-size:12pt;font-weight:400;text-align:center;margin:0 0 3mm}.meta{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(0,1fr);gap:8px;margin:22px 0;border-bottom:1px solid #333;padding-bottom:10px}.meta.has-date{grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto}.meta-field.date-fixed::after{display:none}.meta-field{display:flex;gap:4px;white-space:nowrap}.meta-field::after{content:"";border-bottom:1px solid #111;flex:1;min-width:12px;margin-bottom:2px}.exam-instructions{margin:12px 0 20px;line-height:1.4}.question{margin:22px 0}.question-number{display:block;margin-bottom:7px;break-after:avoid}.question-subject{font-weight:700;margin:20px 0 8px;break-after:avoid}.question .cepi-rich-plain{white-space:pre-wrap}.question .cepi-rich-content img{max-width:100%;max-height:150mm;display:block;margin:8px auto}.question table{border-collapse:collapse}.question td,.question th{border:1px solid #555;padding:5px}.answer{margin:8px 0}@page{margin:18mm}@media print{body{margin:0}.print-actions{display:none}}</style><div class="print-actions"><strong>Prévia da prova do aluno</strong><button id="cepiPrintNow" type="button">Imprimir / salvar PDF</button></div><header class="brand-row">${logo(examHeader.school_logo_data,'logo-school','Logo da escola')}${stateMark}</header><div class="school-name">${esc(examHeader.school_name)}${headerExtra?`<div>${esc(headerExtra)}</div>`:''}</div><h1>${esc(test.title)}</h1><div class="meta${applicationDate?' has-date':''}"><span class="meta-field">Nome:</span><span class="meta-field">Turma:</span>${applicationDate?`<span class="meta-field date-fixed">Data: ${esc(applicationDate)}</span>`:''}</div><p class="exam-instructions">${esc(examInstructions)}</p>${rows.map((q,index)=>`<div class="question">${multipleSubjects && (index===0 || q.subject!==rows[index-1].subject)?`<div class="question-subject">${esc(q.subject)}</div>`:''}<strong class="question-number">QUESTÃO ${q.number}</strong>${rich().render(q.statement,schoolId)}${Object.entries(q.alternatives||{}).filter(([,v])=>v).map(([letter,value])=>`<div class="answer">${letter}) ${esc(value)}</div>`).join('')}</div>`).join('')}</html>`;
+    let html = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>${esc(test.title)}</title><style>body{font:12pt Arial;margin:18mm;color:#111}.print-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:-8mm 0 12mm;padding:10px 14px;border:1px solid #cbd5e1;border-radius:8px;background:#f5f7ff;font:14px Arial}.print-actions button{padding:9px 15px;border:0;border-radius:7px;background:#5149dc;color:#fff;font-weight:700;cursor:pointer}.brand-row{display:grid;grid-template-columns:1fr 1fr;align-items:start;min-height:26mm}.logo{display:block;object-fit:contain}.logo-school{width:26mm;height:26mm;justify-self:start}.logo-state{width:55mm;height:26mm;justify-self:end}.state-fallback{display:grid;gap:3px;align-self:center;justify-self:end;text-align:right;font-size:10pt}.school-name{text-align:center;margin:5mm 0 4mm;font-size:12pt}h1{font-size:12pt;font-weight:400;text-align:center;margin:0 0 3mm}.meta{display:grid;grid-template-columns:minmax(0,2.5fr) minmax(0,1fr);gap:8px;margin:22px 0;border-bottom:1px solid #333;padding-bottom:10px}.meta.has-date{grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto}.meta-field.date-fixed::after{display:none}.meta-field{display:flex;gap:4px;white-space:nowrap}.meta-field::after{content:"";border-bottom:1px solid #111;flex:1;min-width:12px;margin-bottom:2px}.exam-instructions{margin:12px 0 20px;line-height:1.4}.question{margin:22px 0}.question-number{display:block;margin-bottom:7px;break-after:avoid}.question-subject{font-weight:700;margin:20px 0 8px;break-after:avoid}.question .cepi-rich-plain{white-space:pre-wrap}.question .cepi-rich-content img{max-width:100%;max-height:150mm;display:block;margin:8px auto}.question table{border-collapse:collapse}.question td,.question th{border:1px solid #555;padding:5px}.answer{margin:8px 0}@page{margin:18mm}@media print{body{margin:0}.print-actions{display:none}}</style><div class="print-actions"><strong>Prévia da prova do aluno</strong><button id="cepiPrintNow" type="button">Imprimir / salvar PDF</button></div><header class="brand-row">${logo(examHeader.school_logo_data,'logo-school','Logo da escola')}${stateMark}</header><div class="school-name">${esc(examHeader.school_name)}${headerExtra?`<div>${esc(headerExtra)}</div>`:''}</div><h1>${esc(test.title)}</h1><div class="meta${applicationDate?' has-date':''}"><span class="meta-field">Nome:</span><span class="meta-field">Turma:</span>${applicationDate?`<span class="meta-field date-fixed">Data: ${esc(applicationDate)}</span>`:''}</div><p class="exam-instructions">${esc(examInstructions)}</p>${rows.map((q,index)=>`<div class="question">${multipleSubjects && (index===0 || q.subject!==rows[index-1].subject)?`<div class="question-subject">${esc(q.subject)}</div>`:''}<strong class="question-number">QUESTÃO ${q.number}</strong>${rich().render(q.statement,schoolId)}${Object.entries(q.alternatives||{}).filter(([,v])=>v).map(([letter,value])=>`<div class="answer">${letter}) ${esc(value)}</div>`).join('')}</div>`).join('')}</html>`;
+    if(window.CepiBlocks.enemModel(test)){
+      html=html.replace('</style>', '.enem-series{text-align:center;font-size:10pt;margin:0 0 5mm;font-weight:700;letter-spacing:.04em}.enem-skills{border-bottom:1px solid #333;min-height:11mm;margin:-12px 0 13px;font-size:10pt}.school-name{font-weight:700}h1{font-size:14pt;font-weight:700}</style>');
+      html=html.replace(`<h1>${esc(test.title)}</h1>`,`<h1>${esc(test.title)}</h1><p class="enem-series">3ª SÉRIE DO ENSINO MÉDIO · ${esc(test.academic_year)}</p>`);
+      html=html.replace('<p class="exam-instructions">','<div class="enem-skills"><strong>Habilidades:</strong></div><p class="exam-instructions">');
+    }
     popup.document.write(html); popup.document.close();
     popup.document.getElementById('cepiPrintNow').onclick=()=>popup.print();
     popup.focus();
@@ -1046,6 +1087,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const h=examHeader||{};
     const headerExtra=schoolHeaderExtra(h);
     $('cepiWorkspaceContent').innerHTML=`<form id="cepiHeaderForm" class="cepi-workspace-form"><h4>Cabeçalho da escola</h4><p class="cepi-workspace-hint">Os dados da escola são comuns a todas as provas. Tipo, bloco, etapa, total e disciplinas vêm automaticamente de cada prova. Use imagens PNG, JPG ou WebP de até 300 KB.</p><label>Estado<input name="state_name" maxlength="160" required value="${esc(h.state_name||'')}"></label><label>Secretaria de Educação ou órgão<input name="department_name" maxlength="160" value="${esc(h.department_name||'')}"></label><label>Nome da escola<input name="school_name" maxlength="160" required value="${esc(h.school_name||'')}"></label><label>Complemento fixo da escola (opcional)<input name="subtitle" maxlength="240" value="${esc(headerExtra)}"><small>Não informe aqui disciplinas nem quantidade de questões.</small></label><label>Frase escolhida para as provas<textarea id="cepiHeaderInstructions" name="instructions" maxlength="500">${esc(instructionTail(h))}</textarea><small>Esta frase aparece após a composição automática da prova.</small></label><div class="cepi-workspace-grid"><label>Logo do estado<input name="state_logo" type="file" accept="image/png,image/jpeg,image/webp"></label><label>Logo da escola<input name="school_logo" type="file" accept="image/png,image/jpeg,image/webp"></label></div><div class="actions"><button type="button" id="cepiHeaderCancel" class="btn secondary">Cancelar</button><button class="btn primary" type="submit">Salvar cabeçalho</button></div></form>`;
+    const form=$('cepiHeaderForm');
+    const preview=document.createElement('section');
+    preview.className='cepi-workspace-item cepi-enem-header-preview';
+    preview.innerHTML=`<h4>Prévia do cabeçalho · Simulado do ENEM</h4><p class="cepi-workspace-hint">Usa os logotipos e o nome da escola configurados acima. Caderno, série, ano e distribuição vêm do cadastro da prova.</p><div style="display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:72px">${h.school_logo_data?`<img src="${esc(h.school_logo_data)}" alt="Logo da escola" style="max-width:72px;max-height:72px">`:'<span>Logo da escola</span>'}${h.state_logo_data?`<img src="${esc(h.state_logo_data)}" alt="Logo do estado" style="max-width:120px;max-height:72px">`:`<span>${esc(h.state_name||'Estado')}</span>`}</div><p style="text-align:center;font-weight:700">${esc(h.school_name||'Nome da escola')}</p><p style="text-align:center;font-weight:700">SIMULADÃO ENEM ${year}</p><p style="text-align:center">3ª SÉRIE DO ENSINO MÉDIO · ${year}</p><p>Aluno: ______________________________ &nbsp; Turma: __________</p><p>Habilidades: _________________________________________________</p>`;
+    form.querySelector('.actions').before(preview);
     $('cepiHeaderCancel').onclick=()=>returnToTests?renderTests():renderHeader();
     $('cepiHeaderForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const form=event.currentTarget,data=new FormData(form);const readLogo=async(name,existing)=>{const file=form.elements[name].files?.[0];if(!file)return existing||null;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>300000)throw new Error('Use uma imagem PNG, JPG ou WebP de até 300 KB.');return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Não foi possível ler a imagem.'));reader.readAsDataURL(file);});};try{const payload={school_id:schoolId,state_name:String(data.get('state_name')).trim(),department_name:String(data.get('department_name')).trim(),school_name:String(data.get('school_name')).trim(),subtitle:String(data.get('subtitle')).trim(),instructions:String(data.get('instructions') ?? '').trim(),state_logo_data:await readLogo('state_logo',h.state_logo_data),school_logo_data:await readLogo('school_logo',h.school_logo_data),updated_by:userId};const result=await db.from('cepi_exam_headers').upsert(payload,{onConflict:'school_id'});if(result.error)return fail(result.error);await load().then(()=>{returnToTests?renderTests():renderHeader();if(returnToTests)message('Cabeçalho salvo. Agora clique em Imprimir prova do aluno.');}).catch(fail);}catch(error){fail(error);}};
   }
