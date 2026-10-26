@@ -8,7 +8,7 @@ const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
 const {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
 
-test('modelos ENEM do GPA preservam totais, ordem e ano letivo', () => {
+test('modelos ENEM preservam totais, ordem e ano letivo', () => {
   assert.equal(enemPlan('caderno_1').reduce((sum,item)=>sum+item.count,0),45);
   assert.equal(enemPlan('caderno_2').reduce((sum,item)=>sum+item.count,0),45);
   assert.equal(enemPlan('simuladao').reduce((sum,item)=>sum+item.count,0),90);

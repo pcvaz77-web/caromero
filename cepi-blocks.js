@@ -53,7 +53,7 @@
   };
   const defaultInstructionTail = 'Leia atentamente cada questão, assinale a única alternativa correta e, em seguida, transcreva suas respostas para o cartão-resposta. Boa prova!';
 
-  // Distribuições observadas nos testes 301, 302 e 303 do GPA (3ª série).
+  // Distribuições dos modelos de simulado para a 3ª série.
   const enemTemplates = Object.freeze({
     caderno_1: [['Química',8],['Física',7],['Biologia',8],['História',6],['Geografia',6],['Filosofia',5],['Sociologia',5]],
     caderno_2: [['Inglês',10],['Língua Portuguesa',5],['Arte',4],['Educação Física',4],['Matemática',22]],
