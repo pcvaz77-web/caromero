@@ -471,6 +471,7 @@
       if (activeSchool !== schoolId) return;
       if (error || !data?.[0]) { button.disabled = false; return setMessage('familyScanMessage',error?.message || 'Não foi possível registrar a entrada.',true); }
       currentEntry = data[0];
+      if (!currentEntry.duplicate) document.dispatchEvent(new CustomEvent('carometro:family-entry-recorded', { detail:{ schoolId:activeSchool } }));
       setMessage('familyScanMessage',`${currentEntry.duplicate ? 'Entrada já registrada' : 'Entrada registrada'} às ${formatTime(currentEntry.arrived_at)}. Aponte a próxima carteirinha.`);
       button.textContent = 'Publicar aviso no Portal da Família';
       button.disabled = false;

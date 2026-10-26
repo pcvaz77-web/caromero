@@ -61,7 +61,7 @@ test('professor ganha botao de ocorrencias quando permissoes carregam depois da 
   vm.runInContext(between(source,'  const get =','  const escape ='),context);
   vm.runInContext(between(source,'  const syncOccurrenceNavigation =','  occurrenceButton.onclick'),context);
   vm.runInContext(between(source,"  document.addEventListener('carometro:data-loaded'",'  new MutationObserver(syncOccurrenceNavigation)'),context);
-  vm.runInContext(between(source,"  new MutationObserver(() => {\n    if (!get('app')","  document.addEventListener('carometro:occurrences-changed'"),context);
+  vm.runInContext(between(source,"  new MutationObserver(() => {","  document.addEventListener('carometro:occurrences-changed'"),context);
   await context.refreshOccurrenceMembership();vm.runInContext('syncOccurrenceNavigation()',context);
   assert.equal(context.occurrenceButton.hidden,true);
   get('app').classList.remove('hidden');await events.get('carometro:data-loaded')();

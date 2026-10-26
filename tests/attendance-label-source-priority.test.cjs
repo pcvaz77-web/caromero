@@ -53,7 +53,8 @@ test('card fechado mostra somente a etiqueta e perfil aberto informa origem, per
   assert.match(daily, /percentage:item\.percentage/);
   assert.match(core, /attendancePercentageChart/);
   assert.match(core, /attendance-source-layout/);
-  assert.match(core, /aria-label="Frequência de \$\{percentage\}%"/);
+  assert.match(core, /Taxa de entradas registradas/);
+  assert.match(core, /'Frequência'\} de \$\{percentage\}%"/);
   assert.doesNotMatch(daily, /\[\s*\{ source:'Secretaria'[\s\S]*\{ source:'Professor'/);
   assert.match(core, /<strong>Fonte:<\/strong>/);
   assert.match(core, /<strong>Período:<\/strong>/);
