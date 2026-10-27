@@ -3,6 +3,7 @@
   const DISMISSALS = 'platform_in_app_announcement_dismissals';
   const VIDEO_BUCKET = 'platform-announcement-videos';
   const MAX_VIDEO_BYTES = 45 * 1024 * 1024;
+  const ROLE_LABELS = { teacher: 'Professor', coordinator: 'Coordenador', secretary: 'Secretário', school_admin: 'Administrador' };
   const byId = id => document.getElementById(id);
   const clean = value => String(value || '').trim();
   const escapeHtml = value => {
@@ -266,10 +267,27 @@
     const message_body = clean(byId('platformAnnouncementMessage').value);
     const video_url = clean(byId('platformAnnouncementVideoUrl').value) || null;
     const file = byId('platformAnnouncementVideoFile').files?.[0] || null;
+    const target_roles = selectedOwnerRoles();
     if (title.length < 3 || message_body.length < 3) throw new Error('Informe um título e uma mensagem com pelo menos 3 caracteres.');
     if (video_url && !videoInfo(video_url)) throw new Error('Use um link HTTPS do YouTube ou de um arquivo MP4 público.');
     if (file && video_url) throw new Error('Escolha um link ou um arquivo MP4, não os dois.');
-    return { values: { title, message_body, video_url, video_storage_path: file || video_url ? null : selectedVideoPath }, file };
+    if (target_roles?.length === 0) throw new Error('Selecione ao menos um perfil ou Todos.');
+    return { values: { title, message_body, video_url, video_storage_path: file || video_url ? null : selectedVideoPath, target_roles }, file };
+  }
+
+  function selectedOwnerRoles() {
+    if (byId('platformAnnouncementRoleAll').checked) return null;
+    return Object.keys(ROLE_LABELS).filter(role => byId(`platformAnnouncementRole-${role}`).checked);
+  }
+
+  function audienceLabel(roles) {
+    return roles === null || roles === undefined ? 'Todos' : roles.map(role => ROLE_LABELS[role]).filter(Boolean).join(', ') || 'Nenhum perfil';
+  }
+
+  function updateOwnerAudience() {
+    const label = audienceLabel(selectedOwnerRoles());
+    byId('platformAnnouncementPreviewAudience').textContent = `Visível para: ${label}`;
+    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
   }
 
   async function prepareVideo(input) {
@@ -297,7 +315,8 @@
 
   function renderOwnerPreview() {
     byId('platformAnnouncementPreviewTitle').textContent = clean(byId('platformAnnouncementTitle').value) || 'Título do aviso';
-    byId('platformAnnouncementPreviewBody').textContent = clean(byId('platformAnnouncementMessage').value) || 'A mensagem aparecerá aqui para todos os usuários.';
+    byId('platformAnnouncementPreviewBody').textContent = clean(byId('platformAnnouncementMessage').value) || 'A mensagem aparecerá aqui para os perfis escolhidos.';
+    updateOwnerAudience();
     byId('platformAnnouncementPreviewVideo').classList.toggle('hidden', !selectedVideoPath && !byId('platformAnnouncementVideoFile').files?.length && !videoInfo(clean(byId('platformAnnouncementVideoUrl').value)));
   }
 
@@ -309,7 +328,7 @@
     byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = false; });
     byId('platformAnnouncementSave').disabled = false;
     byId('platformAnnouncementPublish').disabled = false;
-    byId('platformAnnouncementPublish').textContent = 'Publicar para todos';
+    byId('platformAnnouncementRoleAll').checked = true;
     byId('platformAnnouncementRemoveVideo').disabled = false;
     ownerStatus('Novo aviso. Salve um rascunho ou publique quando estiver pronto.');
     updateVideoChoice();
@@ -326,10 +345,12 @@
     byId('platformAnnouncementMessage').value = row.message_body;
     byId('platformAnnouncementVideoUrl').value = row.video_url || '';
     byId('platformAnnouncementVideoFile').value = '';
+    byId('platformAnnouncementRoleAll').checked = !row.target_roles;
+    Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = !!row.target_roles?.includes(role); });
     byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = row.status !== 'draft'; });
     byId('platformAnnouncementSave').disabled = row.status !== 'draft';
     byId('platformAnnouncementPublish').disabled = row.status !== 'draft';
-    byId('platformAnnouncementPublish').textContent = 'Publicar rascunho para todos';
+    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
     ownerStatus(row.status === 'draft' ? 'Rascunho carregado para edição.' : 'Prévia do aviso. Clique em Novo aviso para escrever outro.');
     byId('platformAnnouncementRemoveVideo').disabled = row.status !== 'draft';
     updateVideoChoice();
@@ -341,13 +362,13 @@
     if (!container) return;
     container.innerHTML = ownerRows.length ? ownerRows.map(row => `
       <div class="platform-announcement-row">
-        <div><strong>${escapeHtml(row.title)}</strong><small>${row.status === 'published' ? 'Publicado para todos' : row.status === 'archived' ? 'Encerrado' : 'Rascunho'} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
+        <div><strong>${escapeHtml(row.title)}</strong><small>${row.status === 'published' ? 'Publicado' : row.status === 'archived' ? 'Encerrado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
         <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-archive="${row.id}">Encerrar</button>` : ''}</div>
       </div>`).join('') : '<p class="meta">Nenhum aviso criado.</p>';
   }
 
   async function loadOwnerRows() {
-    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,status,created_at,published_at').order('created_at', { ascending: false }).limit(100);
+    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,target_roles,status,created_at,published_at').order('created_at', { ascending: false }).limit(100);
     if (error) { ownerStatus(`Não foi possível carregar avisos: ${error.message}`, true); return; }
     ownerRows = data || [];
     renderOwnerList();
@@ -393,7 +414,7 @@
   async function publish() {
     let input;
     try { input = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
-    if (!confirm('Publicar este aviso para todos os usuários do Carômetro? Ele aparecerá no topo da tela e no sino até cada pessoa fechar o aviso ou você encerrá-lo.')) return;
+    if (!confirm(`Publicar este aviso para: ${audienceLabel(input.values.target_roles)}? Ele aparecerá no topo da tela e no sino até cada pessoa fechar o aviso ou você encerrá-lo.`)) return;
     byId('platformAnnouncementPublish').disabled = true;
     byId('platformAnnouncementSave').disabled = true;
     const createdBy = viewerId || user?.id;
@@ -417,7 +438,7 @@
       const oldPath = ownerRows.find(item => item.id === selectedId)?.video_storage_path;
       if (oldPath && oldPath !== prepared.values.video_storage_path) await removeUnusedVideo(oldPath);
       resetOwnerForm();
-      ownerStatus('Aviso publicado para todos os usuários.');
+      ownerStatus(`Aviso publicado para: ${audienceLabel(input.values.target_roles)}.`);
       await Promise.all([loadOwnerRows(), refreshViewer()]);
     } catch (error) {
       if (!published && uploadedPath) await removeUnusedVideo(uploadedPath);
@@ -431,10 +452,10 @@
 
   async function archive(id) {
     const row = ownerRows.find(item => item.id === id && item.status === 'published');
-    if (!row || !confirm(`Encerrar o aviso “${row.title}” para todos os usuários?`)) return;
+    if (!row || !confirm(`Encerrar o aviso “${row.title}”?`)) return;
     const { error } = await db.from(TABLE).update({ status: 'archived', archived_at: new Date().toISOString() }).eq('id', id).eq('status', 'published').select('id').single();
     if (error) { ownerStatus(error.message, true); return; }
-    ownerStatus('Aviso encerrado para todos.');
+    ownerStatus('Aviso encerrado.');
     await Promise.all([loadOwnerRows(), refreshViewer()]);
   }
 
@@ -451,17 +472,18 @@
         <button type="button" data-channel="email" aria-selected="false">Campanhas por e-mail</button>
       </nav>
       <div id="platformAnnouncementOwnerArea">
-        <p class="platform-announcement-intro">Publique uma mensagem para todas as pessoas com acesso ao Carômetro. Ela aparece no topo da tela e no sino; cada pessoa pode fechá-la individualmente.</p>
-        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Novo aviso para todos</h4><p>Título, mensagem e vídeo opcional. Nenhuma ação adicional é exigida de quem receber.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
+        <p class="platform-announcement-intro">Publique uma mensagem para os perfis escolhidos no Carômetro. Ela aparece no topo da tela e no sino; cada pessoa pode fechá-la individualmente.</p>
+        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Novo aviso</h4><p>Título, mensagem e vídeo opcional. Nenhuma ação adicional é exigida de quem receber.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
           <form id="platformAnnouncementForm" class="platform-announcement-form">
             <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
-            <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para todos."></textarea></div>
+            <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
+            <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
             <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
             <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 45 MB, sem limite de duração. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
-            <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar para todos</button></div>
+            <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar aviso</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>
-          <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><div class="platform-announcement-preview"><div><small id="platformAnnouncementPreviewTitle">Título do aviso</small><strong id="platformAnnouncementPreviewBody">A mensagem aparecerá aqui para todos os usuários.</strong><span id="platformAnnouncementPreviewVideo" class="hidden">▶ Ver vídeo</span></div><span aria-hidden="true">×</span></div></section>
+          <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><p id="platformAnnouncementPreviewAudience" class="platform-announcement-audience">Visível para: Todos</p><div class="platform-announcement-preview"><div><small id="platformAnnouncementPreviewTitle">Título do aviso</small><strong id="platformAnnouncementPreviewBody">A mensagem aparecerá aqui para os perfis escolhidos.</strong><span id="platformAnnouncementPreviewVideo" class="hidden">▶ Ver vídeo</span></div><span aria-hidden="true">×</span></div></section>
           <section class="platform-panel platform-announcement-history"><div class="platform-panel-head"><h4>Avisos criados</h4></div><div id="platformAnnouncementList" class="platform-announcement-list"></div></section></div></div>
       </div>
       <section id="platformAnnouncementWhatsAppArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Mensagens pelo WhatsApp</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>
@@ -479,6 +501,14 @@
     });
     byId('platformAnnouncementForm').onsubmit = event => { event.preventDefault(); saveDraft(); };
     byId('platformAnnouncementForm').addEventListener('input', renderOwnerPreview);
+    byId('platformAnnouncementRoleAll').addEventListener('change', () => {
+      if (byId('platformAnnouncementRoleAll').checked) Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = false; });
+      renderOwnerPreview();
+    });
+    Object.keys(ROLE_LABELS).forEach(role => byId(`platformAnnouncementRole-${role}`).addEventListener('change', () => {
+      if (byId(`platformAnnouncementRole-${role}`).checked) byId('platformAnnouncementRoleAll').checked = false;
+      renderOwnerPreview();
+    }));
     byId('platformAnnouncementVideoUrl').addEventListener('input', () => {
       if (clean(byId('platformAnnouncementVideoUrl').value)) {
         byId('platformAnnouncementVideoFile').value = '';

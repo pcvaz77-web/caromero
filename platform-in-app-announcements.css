@@ -21,6 +21,12 @@
 .platform-announcement-owner-grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,1fr);gap:18px}
 .platform-announcement-form{padding:20px}
 .platform-announcement-form .field{display:grid;gap:5px}
+.platform-announcement-roles{margin:0;padding:13px;border:1px solid #d5def0;border-radius:9px}
+.platform-announcement-roles legend{padding:0 5px;font-weight:700}
+.platform-announcement-role-options{display:flex;flex-wrap:wrap;gap:8px 15px;margin-bottom:7px}
+.platform-announcement-role-options label{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.platform-announcement-role-options input{width:auto;min-height:0;margin:0}
+.platform-announcement-audience{margin:12px 18px 0;color:#52617b;font-size:13px;font-weight:700}
 .platform-announcement-file-field{margin-top:2px;padding:14px;border:1px dashed #bacaf0;border-radius:10px;background:#f7faff}
 .platform-announcement-file-field input[type=file]{min-height:0;padding:10px;background:#fff;font-size:13px}
 .platform-announcement-file-field input[type=file]::file-selector-button{margin-right:12px;padding:9px 13px;border:0;border-radius:7px;background:#356ae6;color:#fff;font:inherit;font-weight:800;cursor:pointer}

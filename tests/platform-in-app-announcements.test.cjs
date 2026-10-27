@@ -2,6 +2,30 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { harness, flush } = require('./helpers/browser-harness.cjs');
 
+test('aviso direto exige destinatarios e prepara os perfis escolhidos', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,audienceLabel};})();')
+  });
+  await h.ready();
+  h.get('platformAnnouncementTitle').value = 'Novo recurso';
+  h.get('platformAnnouncementMessage').value = 'Confira a novidade.';
+  h.get('platformAnnouncementRoleAll').checked = true;
+  let input = h.context.window.testAnnouncements.ownerFormData();
+  assert.equal(input.values.target_roles, null);
+  assert.equal(h.context.window.testAnnouncements.audienceLabel(input.values.target_roles), 'Todos');
+
+  h.get('platformAnnouncementRoleAll').checked = false;
+  h.get('platformAnnouncementRole-teacher').checked = true;
+  h.get('platformAnnouncementRole-coordinator').checked = true;
+  input = h.context.window.testAnnouncements.ownerFormData();
+  assert.deepEqual([...input.values.target_roles], ['teacher', 'coordinator']);
+  assert.equal(h.context.window.testAnnouncements.audienceLabel(input.values.target_roles), 'Professor, Coordenador');
+
+  h.get('platformAnnouncementRole-teacher').checked = false;
+  h.get('platformAnnouncementRole-coordinator').checked = false;
+  assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /Selecione ao menos um perfil/);
+});
+
 test('aviso global permanece para outra conta apos fechamento individual', async () => {
   const dismissed = new Set();
   const announcement = {
