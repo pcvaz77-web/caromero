@@ -234,3 +234,43 @@ test('falha ao limpar imagem mantém pendência para nova tentativa',async()=>{
     assert.deepEqual(env.removedPaths,[path]);
   }finally{env.dom.window.close();}
 });
+
+test('resposta escrita fica no gabarito e fora da prova do aluno',async()=>{
+  const env=setup();const {window,rows}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="regular"]').click();
+    window.document.querySelector('#cxeNew').click();
+    const examForm=window.document.querySelector('#cxeForm');
+    examForm.elements.exam_type.value='mensal';
+    examForm.elements.subject.value='Ciências';
+    examForm.elements.title.value='Prova escrita';
+    examForm.elements.answer_format.value='LIVRE';
+    examForm.dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    window.document.querySelector('#cxeAdd').click();
+    const questionForm=window.document.querySelector('#cxeQuestionForm');
+    assert.ok(questionForm.elements.model_answer);
+    window.document.querySelector('#cxeEditor').innerHTML='<p>Explique o fenômeno.</p>';
+    questionForm.elements.model_answer.value='';
+    questionForm.dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    assert.match(window.document.querySelector('#cxeQuestionStatus').textContent,/resposta correta/);
+    questionForm.elements.model_answer.value='A água ferve a 100 °C.\nAceitar explicação <equivalente>.';
+    questionForm.dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    assert.equal(rows[0].questions[0].model_answer,questionForm.elements.model_answer.value);
+    window.document.querySelector('#cxeBack').click();
+    assert.match(window.document.querySelector('.cxe-question').textContent,/A água ferve/);
+    window.document.querySelector('[data-edit-question]').click();
+    assert.equal(window.document.querySelector('[name="model_answer"]').value,rows[0].questions[0].model_answer);
+    window.document.querySelector('#cxeBack').click();
+    window.document.querySelector('#cxeFinalize').click();await tick();
+    assert.ok(rows[0].finalized_at);
+    window.document.querySelector('#cxePrint').click();await tick();
+    window.document.querySelector('#cxePrintForm').dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    assert.doesNotMatch(env.getPrinted(),/A água ferve|equivalente/);
+    window.document.querySelector('#cxePrintBack').click();
+    window.document.querySelector('#cxeKey').click();await tick();
+    assert.match(env.getPrinted(),/Questão 1/);
+    assert.match(env.getPrinted(),/A água ferve a 100 °C/);
+    assert.match(env.getPrinted(),/Aceitar explicação &lt;equivalente&gt;/);
+    assert.match(env.getPrinted(),/white-space:pre-wrap/);
+  }finally{env.dom.window.close();}
+});
