@@ -4,101 +4,110 @@ const {readFileSync} = require('node:fs');
 const path = require('node:path');
 const {JSDOM} = require('../services/siap-exam/node_modules/jsdom');
 
-test('professor cria a prova da turma com cabeçalho e questões próprios', async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {runScripts:'dangerously'});
-  const {window} = dom;
-  const schoolId = '11111111-1111-4111-8111-111111111111';
-  const teacherId = '22222222-2222-4222-8222-222222222222';
-  const rows = [];
-  const calls = [];
-  const query = (operation, payload) => {
-    const q = {
-      eq() { return q; }, order() { return q; }, select() { return q; },
-      async single() { if (operation === 'insert') rows.push({...payload,id:'exam-1'}); calls.push(operation); return {data:{id:'exam-1'},error:null}; },
-      then(resolve) { resolve({data:rows,error:null}); }
+const source = name => readFileSync(path.join(__dirname,'..',name),'utf8');
+const tick = () => new Promise(resolve => setTimeout(resolve,20));
+
+function setup({role='teacher',className='1A'}={}) {
+  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'dangerously'});
+  const {window} = dom, rows=[], students=[{id:'student-1',full_name:'Aluno Exemplo'}];
+  let header=null,printed='';
+  const query=(table,operation,payload)=>{
+    const q={
+      eq(){return q;},is(){return q;},order(){return q;},range(){return Promise.resolve({data:students,error:null});},select(){return q;},
+      maybeSingle:async()=>({data:header,error:null}),
+      single:async()=>{
+        if(table==='class_exam_headers'){header={...payload};return {data:{school_id:'school-1'},error:null};}
+        if(operation==='insert'){const row={...payload,id:`exam-${rows.length+1}`,questions:[],finalized_at:null};rows.push(row);return {data:{id:row.id},error:null};}
+        if(operation==='update'){const row=rows.find(item=>item.id===currentId);Object.assign(row,payload);return {data:{id:row.id},error:null};}
+        return {data:null,error:null};
+      },
+      then(resolve){resolve({data:table==='class_exams'?rows:students,error:null});}
     };
     return q;
   };
-  window.getActiveSchoolRole = () => 'teacher';
-  window.getActiveSchoolId = () => schoolId;
-  window.db = { auth:{getUser:async () => ({data:{user:{id:teacherId}},error:null})}, from:table => {
-    assert.equal(table,'class_exams');
-    return { select:() => query('read'), insert:payload => query('insert',payload), update:payload => query('update',payload) };
-  }};
-  try {
-    window.eval(readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'));
-    window.eval(readFileSync(path.join(__dirname,'..','class-exams.js'),'utf8'));
-    assert.match(window.getClassExamPanelAction(),/Provas da turma/);
-    window.document.body.innerHTML = window.getClassExamPanelAction();
-    window.bindClassExamPanelAction({classId:'class-1',className:'1º A'});
-    window.document.querySelector('#classExamAction').click();
-    await new Promise(resolve => setTimeout(resolve,10));
-    assert.equal(window.document.querySelectorAll('[data-type]').length,1,'ENEM aparece apenas na 3ª série');
-    window.document.querySelector('[data-type="bimestral"]').click();
+  let currentId=null;
+  const from=table=>({
+    select:()=>query(table,'read'),
+    insert:payload=>query(table,'insert',payload),
+    update:payload=>{const q=query(table,'update',payload),eq=q.eq;q.eq=(column,value)=>{if(column==='id')currentId=value;return eq.call(q,column,value);};return q;},
+    upsert:payload=>query(table,'upsert',payload)
+  });
+  window.db={auth:{getUser:async()=>({data:{user:{id:'teacher-1'}},error:null})},from,storage:{from:()=>({createSignedUrl:async()=>({data:null,error:null}),upload:async()=>({error:null}),remove:async()=>({error:null})})}};
+  window.getActiveSchoolRole=()=>role;window.getActiveSchoolId=()=> 'school-1';window.confirm=()=>true;
+  window.open=()=>({document:{write:html=>{printed=html;},close(){},querySelectorAll:()=>[],images:[]},focus(){},print(){}});
+  window.CepiRichText={marker:'<!--cepi-rich-v1-->',sanitize:value=>value,hydrate:async()=>{},render:value=>String(value).startsWith('<!--cepi-rich-v1-->')?`<div class="cepi-rich-content">${value.slice(19)}</div>`:`<div>${value}</div>`,mount:editor=>({serialize:async()=>({value:'<!--cepi-rich-v1-->'+editor.innerHTML,uploaded:[]}),rollback:async()=>{},dispose(){},insertImage:async()=>{},setImageWidth(){},setImageAlign(){},moveImage(){},removeImage(){}})};
+  window.eval(source('cepi-blocks.js'));window.eval(source('class-exams.js'));
+  window.document.body.innerHTML=window.getClassExamPanelAction();
+  window.bindClassExamPanelAction({classId:'class-1',className});window.document.querySelector('#classExamAction').click();
+  return {dom,window,rows,students,getHeader:()=>header,getPrinted:()=>printed};
+}
+
+test('professor cria prova mensal com editor rico, finaliza e imprime nominal',async()=>{
+  const env=setup();const {window,rows}=env;
+  try{
+    await tick();
+    assert.equal(window.document.querySelectorAll('[data-type]').length,1);
+    assert.equal(window.document.querySelector('#cxeHeader'),null);
+    window.document.querySelector('[data-type="regular"]').click();
     window.document.querySelector('#cxeNew').click();
-    const form = window.document.querySelector('#cxeForm');
-    form.elements.subject.value = 'Ciências';
-    form.elements.header_school_name.value = 'Escola Exemplo';
-    form.elements.header_subtitle.value = 'Avaliação do 4º bimestre';
-    form.elements.bimester.value = '4';
-    form.querySelector('.cxeStatement').value = 'Qual é a resposta?';
-    form.querySelector('[data-choice="A"]').value = 'Uma';
-    form.querySelector('[data-choice="B"]').value = 'Outra';
-    form.querySelector('.cxeAnswer').value = 'B';
-    form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
-    await new Promise(resolve => setTimeout(resolve,10));
-    assert.equal(rows.length,1);
-    assert.equal(rows[0].school_id,schoolId);
-    assert.equal(rows[0].class_id,'class-1');
-    assert.equal(rows[0].created_by,teacherId);
-    assert.equal(rows[0].header_school_name,'Escola Exemplo');
-    assert.equal(rows[0].exam_type,'bimestral');
-    assert.equal(rows[0].questions[0].correct_answer,'B');
-    assert.deepEqual(calls,['insert']);
-    let printed = '';
-    window.open = () => ({ document:{write:html => { printed = html; },close() {}},focus() {},print() {} });
-    window.document.querySelector('[data-print="exam-1"]').click();
-    assert.match(printed,/Escola Exemplo/);
-    assert.match(printed,/Avaliação do 4º bimestre/);
-    assert.match(printed,/1º A/);
-    assert.match(printed,/Qual é a resposta/);
-    assert.doesNotMatch(printed,/Gabarito/);
-  } finally { dom.window.close(); }
+    const form=window.document.querySelector('#cxeForm');
+    assert.equal(form.elements.exam_type.value,'mensal');
+    form.elements.subject.value='Ciências';form.elements.title.value='Prova mensal de Ciências';
+    form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(rows.length,1);assert.equal(rows[0].created_by,'teacher-1');assert.equal(rows[0].class_id,'class-1');
+    window.document.querySelector('#cxeAdd').click();
+    const editor=window.document.querySelector('#cxeEditor');
+    editor.innerHTML='<p><b>Qual é a resposta?</b></p><p>A) Uma</p><p>B) Outra</p>';
+    assert.ok(window.document.querySelector('[data-command="bold"]'));
+    assert.ok(window.document.querySelector('[data-image="1"]'));
+    window.document.querySelector('[name="correct_answer"]').value='B';
+    window.document.querySelector('#cxeQuestionForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.match(rows[0].questions[0].statement,/<!--cepi-rich-v1-->/);
+    assert.match(rows[0].questions[0].statement,/B\) Outra/);
+    assert.equal(Object.keys(rows[0].questions[0].alternatives).length,0);
+    assert.match(window.document.querySelector('#cxeQuestionForm h4').textContent,/questão 2/);
+    window.document.querySelector('#cxeBack').click();
+    window.document.querySelector('#cxeFinalize').click();await tick();
+    assert.ok(rows[0].finalized_at);
+    window.document.querySelector('#cxePrint').click();await tick();
+    assert.match(env.getPrinted(),/Aluno Exemplo/);
+    assert.match(env.getPrinted(),/Cartão-resposta/);
+    assert.match(env.getPrinted(),/class="front"/);
+    assert.match(env.getPrinted(),/Qual é a resposta/);
+    window.document.querySelector('#cxeKey').click();await tick();
+    assert.match(env.getPrinted(),/Gabarito oficial/);
+  }finally{env.dom.window.close();}
 });
 
-test('3ª série recebe menu ENEM com modelo, cotas e disciplina da primeira questão', async () => {
-  const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>', {runScripts:'dangerously'});
-  const {window} = dom;
-  const rows = [];
-  window.getActiveSchoolRole = () => 'teacher';
-  window.getActiveSchoolId = () => 'school-1';
-  window.db = { auth:{getUser:async () => ({data:{user:{id:'teacher-1'}},error:null})},from:() => ({
-    select:() => ({eq() {return this;},order:async () => ({data:rows,error:null})}),
-    insert:payload => ({select:() => ({single:async () => { rows.push({...payload,id:'exam-1'}); return {data:{id:'exam-1'},error:null}; }})})
-  })};
-  try {
-    window.eval(readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'));
-    window.eval(readFileSync(path.join(__dirname,'..','class-exams.js'),'utf8'));
-    window.document.body.innerHTML = window.getClassExamPanelAction();
-    window.bindClassExamPanelAction({classId:'class-3',className:'3º A'});
-    window.document.querySelector('#classExamAction').click();
-    await new Promise(resolve => setTimeout(resolve,10));
-    window.document.querySelector('[data-type="enem"]').click();
+test('coordenação edita cabeçalho geral e 3ª série mantém plano ENEM',async()=>{
+  const env=setup({role:'coordinator',className:'3A'});const {window}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="enem"]').click();
+    assert.ok(window.document.querySelector('#cxeHeader'));
+    window.document.querySelector('#cxeHeader').click();
+    const headerForm=window.document.querySelector('#cxeHeaderForm');
+    headerForm.elements.school_name.value='Escola Exemplo';
+    headerForm.elements.subtitle.value='Leia cada questão com atenção.';
+    headerForm.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(env.getHeader().school_id,'school-1');
+    assert.equal(env.getHeader().school_name,'Escola Exemplo');
     window.document.querySelector('#cxeNew').click();
-    const form = window.document.querySelector('#cxeForm');
-    assert.equal(form.elements.title.value,'SIMULA - ENEM - CADERNO 1 - 4º BIM');
+    const examForm=window.document.querySelector('#cxeForm');
+    assert.equal(examForm.elements.title.value,'SIMULA - ENEM - CADERNO 1 - 4º BIM');
     assert.match(window.document.querySelector('#cxePlan').textContent,/Química: 8/);
-    assert.match(form.querySelector('.cxe-question strong').textContent,/Química/);
-    form.querySelector('.cxeStatement').value = 'Qual substância representa a resposta?';
-    for (const choice of ['A','B','C','D','E']) form.querySelector(`[data-choice="${choice}"]`).value = `Alternativa ${choice}`;
-    form.querySelector('.cxeAnswer').value = 'C';
-    form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
-    await new Promise(resolve => setTimeout(resolve,10));
-    assert.equal(rows.length,1);
-    assert.equal(rows[0].exam_type,'enem');
-    assert.equal(rows[0].enem_model,'caderno_1');
-    assert.equal(rows[0].questions[0].subject,'Química');
-    assert.equal(rows[0].questions[0].correct_answer,'C');
-    assert.equal(window.document.querySelector('[data-print="exam-1"]'),null,'simulado incompleto não é imprimível');
-  } finally { dom.window.close(); }
+  }finally{env.dom.window.close();}
+});
+
+test('editor rico busca imagens da prova da turma no bucket próprio',async()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'dangerously'});
+  try{
+    const {window}=dom;window.eval(source('cepi-rich-text.js'));
+    const schoolId='11111111-1111-4111-8111-111111111111';
+    const path=`${schoolId}/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png`;
+    const root=window.document.createElement('div');root.innerHTML=`<img data-cepi-path="${path}">`;
+    let selectedBucket='';
+    await window.CepiRichText.hydrate(root,{storage:{from:bucket=>{selectedBucket=bucket;return {createSignedUrl:async()=>({data:{signedUrl:'https://example.com/image.png'},error:null})};}}},schoolId,'class-exam-images');
+    assert.equal(selectedBucket,'class-exam-images');
+    assert.equal(root.querySelector('img').src,'https://example.com/image.png');
+  }finally{dom.window.close();}
 });

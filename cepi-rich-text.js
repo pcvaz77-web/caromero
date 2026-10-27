@@ -84,18 +84,18 @@
       : `<div class="cepi-rich-content cepi-rich-plain">${escape(text)}</div>`;
   }
 
-  async function hydrate(root, db, schoolId) {
+  async function hydrate(root, db, schoolId, imageBucket=bucket) {
     const images = [...root.querySelectorAll('img[data-cepi-path]')];
     await Promise.all(images.map(async image => {
       const path = image.dataset.cepiPath;
       if (!path.startsWith(`${schoolId}/`)) return;
-      const {data,error} = await db.storage.from(bucket).createSignedUrl(path,900);
+      const {data,error} = await db.storage.from(imageBucket).createSignedUrl(path,900);
       if (!error && data?.signedUrl) image.src = data.signedUrl;
       else image.replaceWith(document.createTextNode('[Imagem indisponível]'));
     }));
   }
 
-  function mount(editor, {db,schoolId,onError,onImageSelection}) {
+  function mount(editor, {db,schoolId,onError,onImageSelection,imageBucket=bucket}) {
     const pending = new Map();
     const notify = error => onError?.(error.message || String(error));
     let lastRange = null;
@@ -262,16 +262,16 @@
             const auth=await db.auth.getUser();
             if(auth.error || !auth.data.user?.id)throw new Error('Entre novamente para salvar a imagem.');
             const path = `${schoolId}/${auth.data.user.id}/${crypto.randomUUID()}.${entry.file.type==='image/jpeg'?'jpg':entry.file.type.split('/')[1]}`;
-            const {error} = await db.storage.from(bucket).upload(path,entry.file,{contentType:entry.file.type,upsert:false});
+            const {error} = await db.storage.from(imageBucket).upload(path,entry.file,{contentType:entry.file.type,upsert:false});
             if (error) throw error;
             uploaded.push(path); image.dataset.cepiPath=path; image.removeAttribute('data-cepi-temp'); image.removeAttribute('src');
           }
           const result = marker + sanitize(holder.innerHTML,{schoolId});
           if (result.length > 30000) throw new Error('A questão ultrapassou 30 mil caracteres. Reduza o texto.');
           return {value:result,uploaded};
-        } catch(error) { if(uploaded.length)await db.storage.from(bucket).remove(uploaded); throw error; }
+        } catch(error) { if(uploaded.length)await db.storage.from(imageBucket).remove(uploaded); throw error; }
       },
-      async rollback(paths) { if(paths?.length) await db.storage.from(bucket).remove(paths); },
+      async rollback(paths) { if(paths?.length) await db.storage.from(imageBucket).remove(paths); },
       dispose() { for (const entry of pending.values()) URL.revokeObjectURL(entry.url); pending.clear(); }
     };
   }
