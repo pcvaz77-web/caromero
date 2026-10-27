@@ -9,17 +9,18 @@
   const labels = {mensal:'Prova mensal',bimestral:'Prova bimestral',enem:'Simulado do ENEM'};
   const models = {caderno_1:'Caderno 1 · 45 questões',caderno_2:'Caderno 2 · 45 questões',simuladao:'Simuladão ENEM · 90 questões'};
   const displayTitle = value => window.CepiBlocks.displayTitle(value);
-  let modal, body, context, schoolId, userId, exams=[], header=null, cepiEnabled=false, viewType=null, current=null, richControl=null, pendingUploads=[], correctionSession=null, correctionPoll=null;
+  let modal, body, context, schoolId, userId, exams=[], header=null, pendingMedia=[], cepiEnabled=false, viewType=null, current=null, richControl=null, pendingUploads=[], correctionSession=null, correctionPoll=null;
 
   const style = document.createElement('style');
   style.textContent = `#classExamModal{z-index:225}#classExamModal .modal{width:min(980px,100%)}#classExamModal .form{max-height:calc(94vh - 75px);overflow:auto}.cxe-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.cxe-row.three{grid-template-columns:repeat(3,minmax(0,1fr))}.cxe-item,.cxe-menu-card,.cxe-question{border:1px solid #dce4f3;border-radius:10px;padding:14px;margin:12px 0}.cxe-toolbar{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin:15px 0}.cxe-toolbar .btn{width:auto}.cxe-item{display:flex;align-items:center;justify-content:space-between;gap:15px}.cxe-item p{margin:5px 0;color:#667085;font-size:13px}.cxe-note{font-size:13px;color:#53627e}.cxe-error{color:#b42318;font-weight:700}.cxe-plan{background:#f3f6fc;border-radius:9px;padding:12px;margin:12px 0;font-size:13px}.cxe-question .cepi-rich-content{margin:8px 0}.cxe-logo-preview{max-width:120px;max-height:70px;object-fit:contain;display:block;margin:6px 0}.cxe-rich-toolbar{display:flex;flex-wrap:wrap;gap:5px;padding:8px;border:1px solid #cbd5e1;border-bottom:0;border-radius:10px 10px 0 0;background:#f8faff}.cxe-rich-toolbar button{min-width:34px;padding:6px 9px;border:1px solid #d7dfec;border-radius:6px;background:white;color:#26385d;cursor:pointer}.cxe-rich-editor{min-height:300px;padding:18px;border:1px solid #cbd5e1;border-radius:0 0 10px 10px;background:white;line-height:1.55;outline:none;overflow:auto}.cxe-rich-editor:empty:before{content:attr(data-placeholder);color:#7c89a3}.cxe-rich-editor img,.cepi-rich-content img{display:block;max-width:100%;max-height:540px;object-fit:contain;margin:12px auto}.cxe-rich-editor img.cepi-image-selected{outline:3px solid #6255db}.cxe-rich-editor table,.cepi-rich-content table{border-collapse:collapse;max-width:100%}.cxe-rich-editor td,.cxe-rich-editor th,.cepi-rich-content td,.cepi-rich-content th{border:1px solid #b8c3d6;padding:5px}.cxe-image-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;width:100%;padding-top:8px;border-top:1px solid #d7dfec}.cxe-image-tools[hidden]{display:none}.cxe-image-tools input[type=range]{width:130px;min-height:auto}.cxe-image-tools button[aria-pressed=true]{background:#dedaff}.cxe-rich-toolbar .cxe-image-tools button{font-size:12px}@media(max-width:650px){.cxe-row,.cxe-row.three{grid-template-columns:1fr}.cxe-item{display:block}}`;
-  style.textContent += `.cxe-delete{color:#b42318;border-color:#f1c0c0}.cxe-deleted{margin-top:18px;padding:10px 14px;border:1px solid #dce4f3;border-radius:10px}.cxe-deleted summary{cursor:pointer;font-weight:700}`;
+  style.textContent += `.cxe-delete{color:#b42318;border-color:#f1c0c0}.cxe-deleted{margin-top:18px;padding:10px 14px;border:1px solid #dce4f3;border-radius:10px}.cxe-deleted summary{cursor:pointer;font-weight:700}.cxe-print-count{max-width:440px}.cxe-print-count input{max-width:160px}`;
   document.head.appendChild(style);
 
   const rich = () => window.CepiRichText;
   const role = () => window.getActiveSchoolRole?.();
   const canEdit = exam => exam?.created_by === userId && !exam.finalized_at && !exam.deleted_at;
   const canManageExam = exam => !!exam && (managers.has(role()) || exam.created_by === userId);
+  const canPurgeExam = exam => !!exam?.deleted_at && role()==='school_admin';
   const plan = model => window.CepiBlocks?.enemPlan(model) || [];
   const total = model => plan(model).reduce((sum,item)=>sum+item.count,0);
   function subjectAt(model,index) { let end=0; for(const item of plan(model)){end+=item.count;if(index<end)return item.subject;}return ''; }
@@ -35,12 +36,13 @@
   function close() {dispose();endCorrection();modal?.classList.add('hidden');current=null;}
   function isThirdClass() {return /^(?:ENSINO\s+MEDIO\s+)?3(?=\D|$)/.test(String(context?.className||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase());}
   async function load() {
-    const [proofs,heading]=await Promise.all([
+    const [proofs,heading,media]=await Promise.all([
       db.from('class_exams').select('*').eq('school_id',schoolId).eq('class_id',context.classId).order('updated_at',{ascending:false}),
-      db.from('class_exam_headers').select('*').eq('school_id',schoolId).maybeSingle()
+      db.from('class_exam_headers').select('*').eq('school_id',schoolId).maybeSingle(),
+      role()==='school_admin'?db.rpc('class_exam_purge_media_pending',{p_school_id:schoolId}):Promise.resolve({data:[],error:null})
     ]);
-    if(proofs.error)throw proofs.error;if(heading.error)throw heading.error;
-    exams=proofs.data||[];header=heading.data||null;
+    if(proofs.error)throw proofs.error;if(heading.error)throw heading.error;if(media.error)throw media.error;
+    exams=proofs.data||[];header=heading.data||null;pendingMedia=media.data||[];
   }
   async function open(nextContext) {
     if(!roles.has(role())||!nextContext?.classId)return;
@@ -77,9 +79,14 @@
     });
     if(deleted.length){
       const box=document.createElement('details');box.className='cxe-deleted';
-      box.innerHTML=`<summary>Provas excluídas (${deleted.length})</summary>${deleted.map(exam=>`<div class="cxe-item"><div><strong>${esc(displayTitle(exam.title))}</strong><p>${esc(labels[exam.exam_type]||'Prova')} · ${esc(exam.subject)} · questões e correções preservadas</p></div><button type="button" class="btn secondary" data-restore="${esc(exam.id)}">Restaurar prova</button></div>`).join('')}`;
+      box.innerHTML=`<summary>Provas excluídas (${deleted.length})</summary>${deleted.map(exam=>`<div class="cxe-item"><div><strong>${esc(displayTitle(exam.title))}</strong><p>${esc(labels[exam.exam_type]||'Prova')} · ${esc(exam.subject)} · questões e correções preservadas</p></div><div class="cxe-toolbar"><button type="button" class="btn secondary" data-restore="${esc(exam.id)}">Restaurar prova</button>${canPurgeExam(exam)?`<button type="button" class="btn secondary cxe-delete" data-purge="${esc(exam.id)}">Excluir definitivamente</button>`:''}</div></div>`).join('')}`;
       body.append(box);
       box.querySelectorAll('[data-restore]').forEach(button=>button.onclick=()=>setExamDeleted(deleted.find(exam=>exam.id===button.dataset.restore),true,button));
+      box.querySelectorAll('[data-purge]').forEach(button=>button.onclick=()=>purgeExam(deleted.find(exam=>exam.id===button.dataset.purge),button));
+    }
+    if(pendingMedia.length){
+      body.insertAdjacentHTML('beforeend',`<div class="cxe-deleted"><p class="cxe-note">${pendingMedia.length} imagem(ns) de provas já excluídas aguardam limpeza.</p><button type="button" class="btn secondary" id="cxeCleanMedia">Concluir limpeza de imagens</button></div>`);
+      body.querySelector('#cxeCleanMedia').onclick=()=>cleanupPurgedMedia();
     }
     body.insertAdjacentHTML('beforeend','<p id="cxeListStatus" class="cxe-note" role="status"></p>');
   }
@@ -96,6 +103,39 @@
       body.querySelector('#cxeListStatus').textContent=restore?'Prova restaurada.':'Prova excluída das listas. Ela pode ser restaurada.';
     }catch(reason){if(status?.isConnected){status.className='cxe-error';status.textContent=message(reason);}}
     finally{if(button.isConnected)button.disabled=false;}
+  }
+  async function purgeExam(exam,button){
+    if(!canPurgeExam(exam)||window.getActiveSchoolId?.()!==schoolId)return;
+    const answer=window.prompt(`Excluir definitivamente a prova “${displayTitle(exam.title)}”? A prova, as questões, o gabarito e todas as correções serão apagados sem possibilidade de restauração. Digite EXCLUIR para confirmar.`);
+    if(answer!=='EXCLUIR')return;
+    button.disabled=true;
+    const status=body.querySelector('#cxeListStatus');
+    try{
+      const {data,error}=await db.rpc('purge_class_exam',{p_school_id:schoolId,p_class_id:context.classId,p_exam_id:exam.id});
+      if(error||!data)throw error||new Error('Não foi possível excluir a prova.');
+      await load();renderList(viewType);
+      const next=body.querySelector('#cxeListStatus');
+      next.textContent=`Prova excluída definitivamente. ${data.results_deleted||0} correção(ões) apagada(s).`;
+      if(pendingMedia.length)await cleanupPurgedMedia();
+    }catch(reason){if(status?.isConnected){status.className='cxe-error';status.textContent=message(reason);}}
+    finally{if(button.isConnected)button.disabled=false;}
+  }
+  async function cleanupPurgedMedia(){
+    if(role()!=='school_admin'||window.getActiveSchoolId?.()!==schoolId)return;
+    const status=body.querySelector('#cxeListStatus');
+    try{
+      for(let offset=0;offset<pendingMedia.length;offset+=100){
+        const paths=pendingMedia.slice(offset,offset+100);
+        const removed=await db.storage.from(imageBucket).remove(paths);
+        if(removed.error)throw removed.error;
+        const acknowledged=await db.rpc('class_exam_purge_media_ack',{p_school_id:schoolId,p_paths:paths});
+        if(acknowledged.error||acknowledged.data!==paths.length)throw acknowledged.error||new Error('A limpeza das imagens ainda está pendente.');
+      }
+      await load();renderList(viewType);
+      body.querySelector('#cxeListStatus').textContent='Imagens da prova removidas. A exclusão definitiva foi concluída.';
+    }catch(reason){
+      if(status?.isConnected){status.className='cxe-error';status.textContent=`A prova foi excluída, mas a limpeza das imagens ficou pendente: ${message(reason)} Use “Concluir limpeza de imagens” para tentar novamente.`;}
+    }
   }
   function renderExamForm(exam=null,type=viewType) {
     dispose();if(exam&&!canEdit(exam))return renderExam(exam);if(type==='enem'&&(cepiEnabled||!isThirdClass()))return;
@@ -310,10 +350,28 @@
   }
   async function printProof(exam) {
     if(!exam?.finalized_at||exam.deleted_at)return;
+    const fromExam=current?.id===exam.id;
+    body.innerHTML='<p class="cxe-note">Contando alunos ativos da turma…</p>';
+    try{
+      const students=await studentRoster();
+      const suggested=Math.max(1,students.length);
+      body.innerHTML=`<div class="cxe-toolbar"><button type="button" class="btn secondary" id="cxePrintBack">← Voltar às provas</button></div><h4>Imprimir prova · ${esc(displayTitle(exam.title))}</h4><p class="cxe-note">Alunos ativos na turma: <strong>${students.length}</strong>.</p><form id="cxePrintForm"><label class="cxe-print-count">Quantidade de cópias da prova<input name="copies" type="number" min="1" max="500" step="1" required value="${suggested}"></label><p id="cxePrintHint" class="cxe-note"></p><p id="cxePrintError" class="cxe-error" role="alert"></p><button type="submit" class="btn primary">Imprimir prova</button></form>`;
+      body.querySelector('#cxePrintBack').onclick=()=>fromExam?renderExam(exam):renderList(viewType);
+      const form=body.querySelector('#cxePrintForm'),input=form.elements.copies,hint=body.querySelector('#cxePrintHint');
+      const updateHint=()=>{hint.textContent=Number(input.value)===students.length&&students.length?'Será impressa uma prova nominal para cada aluno ativo.':'A quantidade é diferente do total de alunos. As cópias serão impressas sem nome.';};
+      input.addEventListener('input',updateHint);updateHint();
+      form.onsubmit=event=>{
+        event.preventDefault();const quantity=Number(input.value),status=body.querySelector('#cxePrintError');status.textContent='';
+        if(!Number.isInteger(quantity)||quantity<1||quantity>500){status.textContent='Informe de 1 a 500 cópias.';return;}
+        if(window.getActiveSchoolId?.()!==schoolId){status.textContent='A escola ativa mudou. Abra a turma novamente.';return;}
+        printProofCopies(exam,quantity===students.length?students:Array.from({length:quantity},()=>({full_name:'__________________________________'}))).catch(reason=>{status.textContent=message(reason);});
+      };
+    }catch(reason){showError(message(reason));}
+  }
+  async function printProofCopies(exam,students) {
     const popup=window.open('','_blank');
     if(!popup){window.alert('Permita a abertura da janela de impressão.');return;}
     try{
-      const students=await studentRoster();if(!students.length){popup.close?.();window.alert('Não há alunos ativos nesta turma para imprimir provas nominais.');return;}
       if(exam.exam_type==='enem'){
         if(!header?.school_name)throw new Error('A coordenação precisa configurar o cabeçalho da escola antes de imprimir o Simulado do ENEM.');
         const print=window.CarometroEnemPrint;
@@ -324,7 +382,7 @@
       const choices=answers(exam.answer_format),date=exam.scheduled_on?String(exam.scheduled_on).split('-').reverse().join('/'):'____/____/________';
       const content=students.map(student=>`<section class="student-copy"><div class="front">${identity(exam)}<h1 class="exam-title">${esc(displayTitle(exam.title))}</h1><div class="student-line"><strong>Aluno(a): ${esc(student.full_name)}</strong></div><div class="student-line">Turma: ${esc(context.className)} · Disciplina: ${esc(exam.subject)} · Data: ${date}</div>${header?.instructions?`<p class="instructions">${esc(header.instructions)}</p>`:''}<h2 class="answer-title">Cartão-resposta</h2>${choices.length?`<div class="answer-grid${exam.questions.length>60?' compact':''}">${exam.questions.map((_,index)=>`<div class="answer-row"><strong>${String(index+1).padStart(2,'0')}</strong> ${choices.map(letter=>`${letter}<i class="bubble"></i>`).join(' ')}</div>`).join('')}</div>`:'<p>Responda às questões no espaço indicado em cada uma delas.</p>'}</div><div class="questions">${exam.questions.map((question,index)=>`<div class="question"><strong>QUESTÃO ${index+1}${question.subject?` · ${esc(question.subject)}`:''}</strong>${rich().render(question.statement,schoolId)}${!String(question.statement).startsWith(rich().marker)?Object.entries(question.alternatives||{}).filter(([,text])=>text).map(([letter,text])=>`<p>${esc(letter)}) ${esc(text)}</p>`).join(''):''}${exam.answer_format==='LIVRE'?'<div class="answer-space"></div>':''}</div>`).join('')}</div></section>`).join('');
       await openPrint(shell(exam.title,content),popup);
-    }catch(reason){popup.close?.();window.alert(message(reason));}
+    }catch(reason){popup.close?.();throw reason;}
   }
   async function printKey(exam) {
     if(!exam?.finalized_at||exam.deleted_at)return;const content=`<section class="key">${identity(exam)}<h1 class="exam-title">Gabarito oficial · ${esc(displayTitle(exam.title))}</h1><p>${esc(context.className)} · ${esc(exam.subject)} · ${exam.academic_year}</p>${exam.answer_format==='LIVRE'?'<p>Prova de resposta escrita. Corrija pelas respostas elaboradas pelos alunos.</p>':`<div class="key-grid">${exam.questions.map((question,index)=>`<div class="key-cell">${index+1}<br><strong>${esc(question.correct_answer)}</strong></div>`).join('')}</div>`}</section>`;try{await openPrint(shell(`Gabarito · ${displayTitle(exam.title)}`,content));}catch(reason){window.alert(message(reason));}
