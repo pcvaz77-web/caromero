@@ -34,7 +34,7 @@ function setup({coordinator = true, complete = true, header = true, mixedSubject
     manager:()=>coordinator,ensureContext:()=>true,tests:[exam],questions:complete?rows:rows.slice(0,1),
     examHeader:header?{school_name:'Escola Exemplo',state_name:'Estado Exemplo',subtitle:headerSubtitle,instructions:headerInstructions,school_logo_data:'data:image/png;base64,ESCOLA',state_logo_data:'data:image/png;base64,ESTADO'}:null,schoolId:'escola-1',
     headerForm:()=>{headerFormOpened=true;},
-    message:value=>{message=value;},esc:value=>String(value ?? ''),
+    message:value=>{message=value;},esc:value=>String(value ?? ''),displayTitle:value=>value,
     rich:()=>({render:value=>`<p>${value}</p>`,hydrate:async()=>{}}),db:{},
     window:{CepiAnswerSheets:require('../cepi-answer-sheets.js'),CepiBlocks:blocksContext.window.CepiBlocks,open:()=>{popupCount++;return popup;}},Promise
   };
@@ -54,14 +54,14 @@ test('a prova do aluno inclui questões e alternativas sem o gabarito interno',a
   assert.match(result.html,/Leia o texto/);
   assert.match(result.html,/A\) Casa/);
   assert.match(result.html,/B\) Escola/);
-  assert.match(result.html,/<b>1\.<\/b>/);
-  assert.match(result.html,/<b>2\.<\/b>/);
+  assert.match(result.html,/<strong class="question-number">QUESTÃO 1<\/strong>/);
+  assert.match(result.html,/<strong class="question-number">QUESTÃO 2<\/strong>/);
   assert.doesNotMatch(result.html,/class="question-subject"/);
   assert.doesNotMatch(result.html,/<b>\d+\. Português<\/b>/);
   assert.match(result.html,/\.logo-school\{width:26mm;height:26mm/);
   assert.match(result.html,/\.logo-state\{width:55mm;height:26mm/);
   assert.match(result.html,/@page\{margin:18mm\}@media print\{body\{margin:0\}/);
-  assert.doesNotMatch(result.html,/\.question\{break-inside:avoid/);
+  assert.match(result.html,/<main class="questions">[\s\S]*<\/main>/);
   assert.doesNotMatch(result.html,/\.brand-row\{[^}]*padding-right/);
   assert.ok(result.html.indexOf('base64,ESCOLA') < result.html.indexOf('base64,ESTADO'));
   assert.ok(result.html.indexOf('base64,ESTADO') < result.html.indexOf('Escola Exemplo'));
@@ -95,8 +95,8 @@ test('bloco com disciplinas diferentes mostra cada componente só no início da 
   await fixture.print();
   const html=fixture.result().html;
   assert.equal((html.match(/class="question-subject"/g)||[]).length,2);
-  assert.match(html,/<div class="question-subject">Português<\/div><b>1\.<\/b>/);
-  assert.match(html,/<div class="question-subject">Ciências<\/div><b>2\.<\/b>/);
+  assert.match(html,/<div class="question-subject">Português<\/div><strong class="question-number">QUESTÃO 1<\/strong>/);
+  assert.match(html,/<div class="question-subject">Ciências<\/div><strong class="question-number">QUESTÃO 2<\/strong>/);
 });
 
 test('a impressão fica restrita à coordenação e à prova completa',async()=>{

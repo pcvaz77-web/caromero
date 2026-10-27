@@ -7,9 +7,9 @@ const {JSDOM} = require('../services/siap-exam/node_modules/jsdom');
 const source = name => readFileSync(path.join(__dirname,'..',name),'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve,20));
 
-function setup({role='teacher',className='1A'}={}) {
+function setup({role='teacher',className='1A',seed=[]}={}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'dangerously'});
-  const {window} = dom, rows=[], students=[{id:'student-1',full_name:'Aluno Exemplo'}];
+  const {window} = dom, rows=[...seed], students=[{id:'student-1',full_name:'Aluno Exemplo'}];
   let header=null,printed='';
   const query=(table,operation,payload)=>{
     const q={
@@ -32,7 +32,17 @@ function setup({role='teacher',className='1A'}={}) {
     update:payload=>{const q=query(table,'update',payload),eq=q.eq;q.eq=(column,value)=>{if(column==='id')currentId=value;return eq.call(q,column,value);};return q;},
     upsert:payload=>query(table,'upsert',payload)
   });
-  window.db={auth:{getUser:async()=>({data:{user:{id:'teacher-1'}},error:null})},from,storage:{from:()=>({createSignedUrl:async()=>({data:null,error:null}),upload:async()=>({error:null}),remove:async()=>({error:null})})}};
+  window.db={auth:{getUser:async()=>({data:{user:{id:'teacher-1'}},error:null})},from,rpc:async(name,args)=>{
+    if(name==='get_cepi_access_context')return {data:{enabled:false},error:null};
+    if(name==='set_class_exam_deleted'){
+      const exam=rows.find(row=>row.id===args.p_exam_id);
+      if(!exam||exam.school_id!==args.p_school_id||exam.class_id!==args.p_class_id||
+        (role==='teacher'&&exam.created_by!=='teacher-1'))return {data:null,error:new Error('Sem permissão')};
+      exam.deleted_at=args.p_restore?null:new Date().toISOString();
+      return {data:true,error:null};
+    }
+    return {data:null,error:new Error('RPC desconhecida')};
+  },storage:{from:()=>({createSignedUrl:async()=>({data:null,error:null}),upload:async()=>({error:null}),remove:async()=>({error:null})})}};
   window.getActiveSchoolRole=()=>role;window.getActiveSchoolId=()=> 'school-1';window.confirm=()=>true;
   window.open=()=>({document:{write:html=>{printed=html;},close(){},querySelectorAll:()=>[],images:[]},focus(){},print(){}});
   window.CepiRichText={marker:'<!--cepi-rich-v1-->',sanitize:value=>value,hydrate:async()=>{},render:value=>String(value).startsWith('<!--cepi-rich-v1-->')?`<div class="cepi-rich-content">${value.slice(19)}</div>`:`<div>${value}</div>`,mount:editor=>({serialize:async()=>({value:'<!--cepi-rich-v1-->'+editor.innerHTML,uploaded:[]}),rollback:async()=>{},dispose(){},insertImage:async()=>{},setImageWidth(){},setImageAlign(){},moveImage(){},removeImage(){}})};
@@ -93,7 +103,7 @@ test('coordenação edita cabeçalho geral e 3ª série mantém plano ENEM',asyn
     assert.equal(env.getHeader().school_name,'Escola Exemplo');
     window.document.querySelector('#cxeNew').click();
     const examForm=window.document.querySelector('#cxeForm');
-    assert.equal(examForm.elements.title.value,'SIMULA - ENEM - CADERNO 1 - 4º BIM');
+    assert.equal(examForm.elements.title.value,'SIMULADO ENEM - CADERNO 1 - 4º BIM');
     assert.match(window.document.querySelector('#cxePlan').textContent,/Química: 8/);
   }finally{env.dom.window.close();}
 });
@@ -110,4 +120,37 @@ test('editor rico busca imagens da prova da turma no bucket próprio',async()=>{
     assert.equal(selectedBucket,'class-exam-images');
     assert.equal(root.querySelector('img').src,'https://example.com/image.png');
   }finally{dom.window.close();}
+});
+
+test('botão exclui prova finalizada na linha e permite restaurar',async()=>{
+  const exam={id:'exam-1',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',
+    exam_type:'mensal',title:'RECUPERAÇÃO',subject:'Matemática',academic_year:2026,
+    questions:[{statement:'Questão de exemplo',correct_answer:'A'}],finalized_at:'2026-10-27T10:00:00Z'};
+  const env=setup({seed:[exam]});const {window}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="regular"]').click();
+    const item=window.document.querySelector('.cxe-item');
+    assert.deepEqual([...item.querySelectorAll('button')].map(button=>button.textContent),
+      ['Abrir','Imprimir prova','Imprimir gabarito','Excluir prova']);
+    item.querySelector('.cxe-delete').click();await tick();
+    assert.ok(exam.deleted_at);
+    assert.equal(window.document.querySelector('[data-open]'),null);
+    assert.match(window.document.querySelector('.cxe-deleted').textContent,/Restaurar prova/);
+    window.document.querySelector('[data-restore]').click();await tick();
+    assert.equal(exam.deleted_at,null);
+    assert.ok(window.document.querySelector('[data-open]'));
+  }finally{env.dom.window.close();}
+});
+
+test('coordenação pode excluir prova de outro professor, professor não',async()=>{
+  const exam={id:'exam-2',school_id:'school-1',class_id:'class-1',created_by:'teacher-2',
+    exam_type:'mensal',title:'PROVA',subject:'Geografia',academic_year:2026,
+    questions:[],finalized_at:'2026-10-27T10:00:00Z'};
+  for(const role of ['teacher','coordinator']){
+    const env=setup({role,seed:[exam]});
+    try{
+      await tick();env.window.document.querySelector('[data-type="regular"]').click();
+      assert.equal(Boolean(env.window.document.querySelector('.cxe-delete')),role==='coordinator');
+    }finally{env.dom.window.close();}
+  }
 });

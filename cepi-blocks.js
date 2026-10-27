@@ -62,11 +62,12 @@
   function enemPlan(model) {
     return enemTemplates[model]?.map(([subject,count])=>({subject,count})) || null;
   }
+  const displayTitle=value=>String(value||'').replace(/^SIMULA - ENEM - CADERNO ([12]) - (\dº BIM)$/i,'SIMULADO ENEM - CADERNO $1 - $2');
   function enemModel(test) {
     if (test?.kind !== 'simulado' || test.stage !== 'medio') return null;
     const name=String(test.title||'').toLocaleUpperCase('pt-BR');
-    const model=/^SIMULA - ENEM - CADERNO 1 - \dº BIM$/.test(name)?'caderno_1'
-      :/^SIMULA - ENEM - CADERNO 2 - \dº BIM$/.test(name)?'caderno_2'
+    const model=/^(?:SIMULA - ENEM|SIMULADO ENEM) - CADERNO 1 - \dº BIM$/.test(name)?'caderno_1'
+      :/^(?:SIMULA - ENEM|SIMULADO ENEM) - CADERNO 2 - \dº BIM$/.test(name)?'caderno_2'
       :/^SIMULADÃO ENEM \d{4}$/.test(name)?'simuladao':null;
     if(!model)return null;
     const distribution=enemPlan(model);
@@ -98,7 +99,7 @@
     if(kind==='simulado' && chosenEnemModel && stage==='medio') {
       if(!enemPlan(chosenEnemModel))return null;
       if(chosenEnemModel==='simuladao')return Number.isInteger(Number(academicYear))&&Number(academicYear)>=2000&&Number(academicYear)<=2100?`SIMULADÃO ENEM ${Number(academicYear)}`:null;
-      return `SIMULA - ENEM - CADERNO ${chosenEnemModel==='caderno_1'?1:2} - ${period}º BIM`;
+      return `SIMULADO ENEM - CADERNO ${chosenEnemModel==='caderno_1'?1:2} - ${period}º BIM`;
     }
     if (!['bimestral','simulado'].includes(kind)) return null;
     const subject = subjects.map(value => String(value).trim()).filter(Boolean).join(' / ').toLocaleUpperCase('pt-BR');
@@ -172,5 +173,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
+  window.CepiBlocks = {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,displayTitle,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
 })();
