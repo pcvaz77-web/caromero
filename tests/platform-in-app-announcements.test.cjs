@@ -26,6 +26,56 @@ test('aviso direto exige destinatarios e prepara os perfis escolhidos', async ()
   assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /Selecione ao menos um perfil/);
 });
 
+for (const rpcFails of [false, true]) test(`publicacao ${rpcFails ? 'preserva o anterior se falhar' : 'substitui o anterior e limpa seus videos'}`, async () => {
+  const records = [
+    { id: 'old', status: 'published', video_storage_path: 'old.mp4', title: 'Anterior', message_body: 'Mensagem anterior', published_at: '2026-10-20T12:00:00Z' },
+    { id: 'archived', status: 'archived', video_storage_path: 'archived.mp4', title: 'Antigo', message_body: 'Mensagem antiga', published_at: '2026-10-19T12:00:00Z' }
+  ];
+  const removed = [];
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={publish};})();'),
+    query: (table, operations) => {
+      if (table === 'platform_in_app_announcement_dismissals') return { data: [], error: null };
+      const insertion = operations.find(([method]) => method === 'insert');
+      if (insertion) {
+        records.push({ ...insertion[1], id: 'new' });
+        return { data: { id: 'new' }, error: null };
+      }
+      const status = operations.find(([method, key]) => method === 'eq' && key === 'status')?.[2];
+      const allowed = operations.find(([method, key]) => method === 'in' && key === 'status')?.[2];
+      return { data: records.filter(row => status ? row.status === status : allowed ? allowed.includes(row.status) : true), error: null };
+    },
+    rpc: (name, args) => {
+      assert.equal(name, 'platform_publish_in_app_announcement');
+      assert.equal(args.p_announcement_id, 'new');
+      if (rpcFails) return { error: { message: 'Falha simulada' } };
+      const oldRows = records.filter(row => row.status === 'published');
+      for (const row of oldRows) records.splice(records.indexOf(row), 1);
+      records.find(row => row.id === 'new').status = 'published';
+      return { data: oldRows.map(row => row.video_storage_path), error: null };
+    }
+  });
+  h.context.db.storage = { from: () => ({ remove: async paths => { removed.push(...paths); return { error: null }; } }) };
+  h.get('platformAnnouncementForm').reset = () => {};
+  await h.ready();
+  h.get('platformAnnouncementTitle').value = 'Aviso novo';
+  h.get('platformAnnouncementMessage').value = 'Nova mensagem para todos.';
+  h.get('platformAnnouncementRoleAll').checked = true;
+  await h.context.window.testAnnouncements.publish();
+
+  if (rpcFails) {
+    assert.equal(records.find(row => row.id === 'old').status, 'published');
+    assert.equal(records.find(row => row.id === 'new').status, 'draft');
+    assert.match(h.get('platformAnnouncementStatus').textContent, /aviso anterior foi preservado/);
+    assert.deepEqual(removed, []);
+  } else {
+    assert.deepEqual(records.map(row => row.id), ['archived', 'new']);
+    assert.equal(records[1].status, 'published');
+    assert.deepEqual(removed, ['old.mp4']);
+    assert.match(h.get('platformAnnouncementStatus').textContent, /anterior foi excluído/);
+  }
+});
+
 test('aviso global permanece para outra conta apos fechamento individual', async () => {
   const dismissed = new Set();
   const announcement = {

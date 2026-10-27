@@ -306,11 +306,21 @@
   }
 
   async function removeUnusedVideo(path) {
-    if (!path) return;
+    if (!path) return true;
     try {
       const { error } = await db.storage.from(VIDEO_BUCKET).remove([path]);
-      if (error) console.warn('Não foi possível remover MP4 sem uso:', error.message);
-    } catch (error) { console.warn('Não foi possível remover MP4 sem uso:', error); }
+      if (error) throw error;
+      return true;
+    } catch (error) { console.warn('Não foi possível remover MP4 sem uso:', error); return false; }
+  }
+
+  async function removeReplacedVideos(paths) {
+    if (!paths?.length) return true;
+    try {
+      const { error } = await db.storage.from(VIDEO_BUCKET).remove(paths);
+      if (error) throw error;
+      return true;
+    } catch (error) { console.warn('Não foi possível remover os MP4s substituídos:', error); return false; }
   }
 
   function renderOwnerPreview() {
@@ -362,13 +372,13 @@
     if (!container) return;
     container.innerHTML = ownerRows.length ? ownerRows.map(row => `
       <div class="platform-announcement-row">
-        <div><strong>${escapeHtml(row.title)}</strong><small>${row.status === 'published' ? 'Publicado' : row.status === 'archived' ? 'Encerrado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
-        <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-archive="${row.id}">Encerrar</button>` : ''}</div>
+        <div><strong>${escapeHtml(row.title)}</strong><small>${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
+        <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-delete="${row.id}">Excluir aviso</button>` : ''}</div>
       </div>`).join('') : '<p class="meta">Nenhum aviso criado.</p>';
   }
 
   async function loadOwnerRows() {
-    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,target_roles,status,created_at,published_at').order('created_at', { ascending: false }).limit(100);
+    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,target_roles,status,created_at,published_at').in('status', ['draft', 'published']).order('created_at', { ascending: false }).limit(100);
     if (error) { ownerStatus(`Não foi possível carregar avisos: ${error.message}`, true); return; }
     ownerRows = data || [];
     renderOwnerList();
@@ -414,35 +424,42 @@
   async function publish() {
     let input;
     try { input = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
-    if (!confirm(`Publicar este aviso para: ${audienceLabel(input.values.target_roles)}? Ele aparecerá no topo da tela e no sino até cada pessoa fechar o aviso ou você encerrá-lo.`)) return;
+    if (!confirm(`Publicar este aviso para: ${audienceLabel(input.values.target_roles)}? O aviso publicado anteriormente será excluído definitivamente.`)) return;
     byId('platformAnnouncementPublish').disabled = true;
     byId('platformAnnouncementSave').disabled = true;
     const createdBy = viewerId || user?.id;
     let uploadedPath = null;
+    let persisted = false;
     let published = false;
     try {
       if (!createdBy) throw new Error('Sua sessão expirou. Entre novamente.');
+      const draft = ownerRows.find(item => item.id === selectedId);
+      if (selectedId && draft?.status !== 'draft') throw new Error('Só rascunhos podem ser publicados.');
       const prepared = await prepareVideo(input);
       uploadedPath = prepared.uploadedPath;
       if (selectedId) {
-        const result = await db.from(TABLE).update({ ...prepared.values, status: 'published', published_at: new Date().toISOString() }).eq('id', selectedId).eq('status', 'draft').select('id').single();
-        if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível publicar o rascunho.');
-        published = true;
+        const result = await db.from(TABLE).update(prepared.values).eq('id', selectedId).eq('status', 'draft').select('id').single();
+        if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível salvar o rascunho.');
       } else {
         const created = await db.from(TABLE).insert({ ...prepared.values, created_by: createdBy, status: 'draft' }).select('id').single();
         if (created.error || !created.data) throw new Error(created.error?.message || 'Não foi possível criar o aviso.');
-        const result = await db.from(TABLE).update({ status: 'published', published_at: new Date().toISOString() }).eq('id', created.data.id).eq('status', 'draft').select('id').single();
-        if (result.error || !result.data) throw new Error(result.error?.message || 'O aviso foi salvo como rascunho, mas não foi publicado.');
-        published = true;
+        selectedId = created.data.id;
       }
-      const oldPath = ownerRows.find(item => item.id === selectedId)?.video_storage_path;
-      if (oldPath && oldPath !== prepared.values.video_storage_path) await removeUnusedVideo(oldPath);
+      persisted = true;
+      selectedVideoPath = prepared.values.video_storage_path;
+      byId('platformAnnouncementVideoFile').value = '';
+      const oldPath = draft?.video_storage_path;
+      if (oldPath && oldPath !== selectedVideoPath) await removeUnusedVideo(oldPath);
+      const { data: replacedPaths, error: publishError } = await db.rpc('platform_publish_in_app_announcement', { p_announcement_id: selectedId });
+      if (publishError) throw publishError;
+      published = true;
+      const videosRemoved = await removeReplacedVideos(replacedPaths);
       resetOwnerForm();
-      ownerStatus(`Aviso publicado para: ${audienceLabel(input.values.target_roles)}.`);
+      ownerStatus(videosRemoved ? `Aviso publicado para: ${audienceLabel(input.values.target_roles)}. O aviso anterior foi excluído.` : 'Aviso publicado e anterior excluído, mas não foi possível remover o MP4 antigo do armazenamento.', !videosRemoved);
       await Promise.all([loadOwnerRows(), refreshViewer()]);
     } catch (error) {
-      if (!published && uploadedPath) await removeUnusedVideo(uploadedPath);
-      ownerStatus(published ? 'Aviso publicado, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : `Não foi possível publicar: ${error.message}`, true);
+      if (!persisted && uploadedPath) await removeUnusedVideo(uploadedPath);
+      ownerStatus(published ? 'Aviso publicado, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : persisted ? `Rascunho salvo, mas a publicação falhou; o aviso anterior foi preservado. ${error.message}` : `Não foi possível publicar: ${error.message}`, true);
       await loadOwnerRows();
     } finally {
       byId('platformAnnouncementPublish').disabled = false;
@@ -450,12 +467,15 @@
     }
   }
 
-  async function archive(id) {
+  async function deletePublished(id) {
     const row = ownerRows.find(item => item.id === id && item.status === 'published');
-    if (!row || !confirm(`Encerrar o aviso “${row.title}”?`)) return;
-    const { error } = await db.from(TABLE).update({ status: 'archived', archived_at: new Date().toISOString() }).eq('id', id).eq('status', 'published').select('id').single();
-    if (error) { ownerStatus(error.message, true); return; }
-    ownerStatus('Aviso encerrado.');
+    if (!row || !confirm(`Excluir definitivamente o aviso “${row.title}”? Ele deixará de aparecer para todos.`)) return;
+    const { data, error } = await db.from(TABLE).delete().eq('id', id).eq('status', 'published').select('id,video_storage_path').single();
+    if (error || !data) { ownerStatus(error?.message || 'Não foi possível excluir o aviso.', true); return; }
+    const videoRemoved = await removeUnusedVideo(data.video_storage_path);
+    resetOwnerForm();
+    ownerStatus(videoRemoved ? 'Aviso excluído definitivamente.' : 'Aviso excluído, mas não foi possível remover o MP4 do armazenamento.', !videoRemoved);
+    if (featuredId === id) featuredId = null;
     await Promise.all([loadOwnerRows(), refreshViewer()]);
   }
 
@@ -472,7 +492,7 @@
         <button type="button" data-channel="email" aria-selected="false">Campanhas por e-mail</button>
       </nav>
       <div id="platformAnnouncementOwnerArea">
-        <p class="platform-announcement-intro">Publique uma mensagem para os perfis escolhidos no Carômetro. Ela aparece no topo da tela e no sino; cada pessoa pode fechá-la individualmente.</p>
+        <p class="platform-announcement-intro">Publique uma mensagem para os perfis escolhidos no Carômetro. A publicação substitui e exclui definitivamente o aviso anterior. Cada pessoa pode fechar o aviso individualmente.</p>
         <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Novo aviso</h4><p>Título, mensagem e vídeo opcional. Nenhuma ação adicional é exigida de quem receber.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
           <form id="platformAnnouncementForm" class="platform-announcement-form">
             <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
@@ -484,7 +504,7 @@
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>
           <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><p id="platformAnnouncementPreviewAudience" class="platform-announcement-audience">Visível para: Todos</p><div class="platform-announcement-preview"><div><small id="platformAnnouncementPreviewTitle">Título do aviso</small><strong id="platformAnnouncementPreviewBody">A mensagem aparecerá aqui para os perfis escolhidos.</strong><span id="platformAnnouncementPreviewVideo" class="hidden">▶ Ver vídeo</span></div><span aria-hidden="true">×</span></div></section>
-          <section class="platform-panel platform-announcement-history"><div class="platform-panel-head"><h4>Avisos criados</h4></div><div id="platformAnnouncementList" class="platform-announcement-list"></div></section></div></div>
+          <section class="platform-panel platform-announcement-history"><div class="platform-panel-head"><h4>Aviso atual e rascunhos</h4></div><div id="platformAnnouncementList" class="platform-announcement-list"></div></section></div></div>
       </div>
       <section id="platformAnnouncementWhatsAppArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Mensagens pelo WhatsApp</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>
       <section id="platformAnnouncementEmailArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Campanhas por e-mail</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>`;
@@ -544,9 +564,9 @@
     byId('platformAnnouncementPublish').onclick = publish;
     byId('platformAnnouncementList').onclick = event => {
       const preview = event.target.closest('[data-preview]');
-      const end = event.target.closest('[data-archive]');
+      const remove = event.target.closest('[data-delete]');
       if (preview) selectOwnerRow(preview.dataset.preview);
-      if (end) archive(end.dataset.archive);
+      if (remove) deletePublished(remove.dataset.delete);
     };
   }
 
