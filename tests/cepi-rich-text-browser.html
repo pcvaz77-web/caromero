@@ -4,7 +4,7 @@
 <title>Teste local do editor CEPI</title>
 <style>body{font:16px Arial;margin:32px;max-width:900px}#editor{border:1px solid #bbb;min-height:160px;padding:16px}#results p{margin:6px 0}.pass{color:#087448}.fail{color:#b10024}</style>
 <h1>Teste local do editor de questões CEPI</h1>
-<div id="editor" contenteditable="true"></div>
+<form id="editorForm"><div id="toolbarHost"></div><div id="editor" contenteditable="true"></div></form>
 <div id="results"></div>
 <script src="../cepi-rich-text.js"></script>
 <script>
@@ -15,21 +15,33 @@
     const uploaded=[];
     const db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},storage:{from:()=>({upload:async(path,blob)=>{uploaded.push({path,blob});return {error:null};},remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:'data:image/png;base64,iVBORw0KGgo='},error:null})})}};
     const rich=window.CepiRichText,editor=document.getElementById('editor');
+    document.getElementById('toolbarHost').innerHTML=rich.toolbar('editor','cepi-rich-toolbar');
     const unsafe=rich.sanitize('<p style="text-align:center;position:absolute" onclick="alert(1)"><strong>Olá</strong><script>alert(2)<\/script><img src="https://other.example/a.png"></p>',{schoolId:school});
     check('Colagem mantém texto e negrito',unsafe.includes('<strong>Olá</strong>'));
     check('HTML perigoso e imagem remota são removidos',!unsafe.includes('script')&&!unsafe.includes('onclick')&&!unsafe.includes('https://')&&!unsafe.includes('position:'));
     check('Questão antiga não executa HTML',rich.render('<b>Texto antigo</b>',school).includes('&lt;b&gt;Texto antigo&lt;/b&gt;'));
-    const control=rich.mount(editor,{db,schoolId:school,onError:error=>check(`Erro: ${error}`,false)});
+    const control=rich.bindToolbar(document.getElementById('editorForm'),editor,{db,schoolId:school,onError:error=>check(`Erro: ${error}`,false)});
     const paste=new Event('paste',{bubbles:true,cancelable:true});
     Object.defineProperty(paste,'clipboardData',{value:{items:[],getData:type=>type==='text/html'?'<p>Leia o <strong>texto</strong>.</p><p>A) Casa<br>B) Escola</p>':''}});
     editor.dispatchEvent(paste);
     await new Promise(resolve=>setTimeout(resolve,0));
     check('Colagem do Word conserva parágrafos e alternativas',editor.innerHTML.includes('<strong>texto</strong>')&&editor.textContent.includes('B) Escola'));
+    const selectedWord=editor.querySelector('strong').firstChild;
+    const wordRange=document.createRange();wordRange.selectNodeContents(selectedWord);
+    window.getSelection().removeAllRanges();window.getSelection().addRange(wordRange);
+    control.applyTextStyle('font-size','16pt');
+    control.applyTextStyle('color','#a12635');
+    control.applyTextStyle('background-color','#fff2a8');
+    check('Tamanho, cor e marca-texto afetam só a palavra escolhida',editor.querySelector('[style*="font-size"]')?.textContent==='texto'&&editor.querySelector('[style*="color"]')?.textContent==='texto'&&editor.querySelector('[style*="background-color"]')?.textContent==='texto'&&!editor.querySelector('p')?.getAttribute('style'));
+    check('Sanitização preserva apenas estilos seguros',rich.sanitize('<span style="font-size:16pt;color:#a12635;background-color:#fff2a8;position:absolute">A</span><span style="font-size:999pt;color:red">B</span>').includes('font-size:16pt')&&!rich.sanitize('<span style="font-size:999pt;color:red;position:absolute">B</span>').includes('999pt'));
+    check('Sobrescrito e subscrito persistem no conteúdo',rich.sanitize('<p>x<sup>2</sup> e H<sub>2</sub>O</p>').includes('<sup>2</sup>')&&rich.sanitize('<p>x<sup>2</sup> e H<sub>2</sub>O</p>').includes('<sub>2</sub>'));
     await control.insertImage(new File(['fake-image'],'figura.png',{type:'image/png'}));
     check('Imagem escolhida pelo botão aparece no topo da questão',editor.firstElementChild?.tagName==='IMG'&&editor.textContent.includes('B) Escola'));
     control.setImageWidth(35);
     control.setImageAlign('left');
+    control.rotateImage(90);
     check('Tamanho e alinhamento alteram a imagem selecionada',editor.querySelector('img')?.dataset.cepiWidth==='35'&&editor.querySelector('img')?.dataset.cepiAlign==='left');
+    check('Imagem gira sem alterar o restante da questão',editor.querySelector('img')?.dataset.cepiRotation==='90'&&editor.querySelector('img')?.style.transform==='rotate(90deg)');
     control.moveImage(1);
     check('Professor pode levar a imagem para o meio',editor.innerHTML.indexOf('<img')>editor.innerHTML.indexOf('Leia o')&&editor.innerHTML.indexOf('<img')<editor.innerHTML.indexOf('B) Escola'));
     control.moveImage(-1);
@@ -37,13 +49,43 @@
     const saved=await control.serialize();
     check('Imagem fica no armazenamento da escola',uploaded.length===1&&uploaded[0].path.startsWith(`${school}/${user}/`));
     check('Questão salva sem imagem incorporada no campo de texto',saved.value.includes('data-cepi-path=')&&!saved.value.includes('blob:')&&!saved.value.includes('data-cepi-temp'));
-    check('Posição, tamanho e alinhamento persistem ao salvar',saved.value.includes('data-cepi-width="35"')&&saved.value.includes('data-cepi-align="left"')&&saved.value.indexOf('<img')<saved.value.indexOf('B) Escola'));
+    check('Posição, tamanho, alinhamento e rotação persistem ao salvar',saved.value.includes('data-cepi-width="35"')&&saved.value.includes('data-cepi-align="left"')&&saved.value.includes('data-cepi-rotation="90"')&&saved.value.indexOf('<img')<saved.value.indexOf('B) Escola'));
+    check('Formatação pontual persiste na prova',saved.value.includes('font-size:16pt')&&saved.value.includes('background-color:#fff2a8'));
     check('Tamanho e alinhamento inválidos são descartados',!rich.sanitize(`<img data-cepi-path="${school}/${user}/33333333-3333-4333-8333-333333333333.png" data-cepi-width="999" data-cepi-align="evil">`,{schoolId:school}).includes('999'));
     const shown=rich.render(saved.value,school);
-    check('Questão salva pode ser exibida',shown.includes('<strong>texto</strong>')&&shown.includes('data-cepi-path='));
+    check('Questão salva pode ser exibida',shown.includes('texto')&&shown.includes('data-cepi-path=')&&shown.includes('font-size:16pt'));
     const display=document.createElement('div');display.innerHTML=shown;
     await rich.hydrate(display,db,school);
     check('Imagem privada recebe endereço temporário para visualização e impressão',display.querySelector('img')?.src.startsWith('data:image/png'));
+    display.style.font='9.5pt Arial';document.body.appendChild(display);
+    const selectedSize=parseFloat(getComputedStyle(display.querySelector('[style*="font-size"]')).fontSize);
+    const regularSize=parseFloat(getComputedStyle(display.querySelector('p')).fontSize);
+    check('Na impressão o restante mantém o tamanho padrão',selectedSize>regularSize&&regularSize>0&&display.querySelector('img')?.style.transform==='rotate(90deg)');
+    display.remove();
+    const tableEditor=document.createElement('div');tableEditor.contentEditable='true';document.body.appendChild(tableEditor);
+    const tableControl=rich.mount(tableEditor,{db,schoolId:school});
+    tableControl.insertTable(3,4);
+    tableControl.tableAction('row-below');tableControl.tableAction('column-right');tableControl.setTableWidth(75);
+    check('Tabela permite escolher tamanho e ampliar linhas e colunas',tableEditor.querySelector('table')?.rows.length===4&&tableEditor.querySelector('table')?.rows[0].cells.length===5&&tableEditor.querySelector('table')?.style.width==='75%');
+    tableControl.tableAction('merge-right');
+    check('Células vizinhas podem ser mescladas',tableEditor.querySelector('td')?.colSpan===2);
+    check('Largura e mesclagem permanecem ao salvar',rich.sanitize(tableEditor.innerHTML).includes('width:75%')&&rich.sanitize(tableEditor.innerHTML).includes('colspan="2"'));
+    tableControl.dispose();tableEditor.remove();
+    const form=document.createElement('form');form.innerHTML=rich.toolbar('toolsEditor','cxe-rich-toolbar')+'<div id="toolsEditor" contenteditable="true">Uma palavra</div>';document.body.appendChild(form);
+    const toolsEditor=form.querySelector('#toolsEditor'),toolsControl=rich.bindToolbar(form,toolsEditor,{db,schoolId:school});
+    const toolsRange=document.createRange();toolsRange.setStart(toolsEditor.firstChild,4);toolsRange.setEnd(toolsEditor.firstChild,11);
+    window.getSelection().removeAllRanges();window.getSelection().addRange(toolsRange);toolsEditor.dispatchEvent(new Event('mouseup'));
+    const sizeChoice=form.querySelector('[data-text-size]');sizeChoice.value='14pt';sizeChoice.dispatchEvent(new Event('change'));
+    check('Barra compartilhada altera apenas o trecho selecionado',toolsEditor.querySelector('span')?.textContent==='palavra'&&toolsEditor.querySelector('span')?.style.fontSize==='14pt'&&toolsEditor.textContent==='Uma palavra');
+    const colorChoice=form.querySelector('[data-text-color]');colorChoice.value='#a12635';colorChoice.dispatchEvent(new Event('change'));
+    const highlightChoice=form.querySelector('[data-text-highlight]');highlightChoice.value='#fff2a8';highlightChoice.dispatchEvent(new Event('change'));
+    check('Cores da letra e do fundo ficam só no trecho escolhido',toolsEditor.querySelector('[style*="color"]')?.textContent==='palavra'&&toolsEditor.querySelector('[style*="background-color"]')?.textContent==='palavra'&&toolsEditor.textContent==='Uma palavra');
+    check('Barra moderna reúne tabela, imagem e matemática',!!form.querySelector('[data-table-insert]')&&!!form.querySelector('[data-image-rotate]')&&!!form.querySelector('[data-symbol]'));
+    toolsControl.clearTextStyle();
+    check('Limpar retira a formatação apenas do trecho selecionado',toolsEditor.textContent==='Uma palavra'&&!toolsEditor.querySelector('[style*="font-size"]'));
+    form.querySelector('[data-table-rows]').value='2';form.querySelector('[data-table-columns]').value='3';form.querySelector('[data-table-insert]').click();
+    check('Controles visuais inserem tabela do tamanho escolhido',toolsEditor.querySelector('table')?.rows.length===2&&toolsEditor.querySelector('table')?.rows[0].cells.length===3);
+    toolsControl.dispose();form.remove();
     check('Imagem de outra escola não aparece',!rich.render('<!--cepi-rich-v1--><img data-cepi-path="99999999-9999-4999-8999-999999999999/22222222-2222-4222-8222-222222222222/33333333-3333-4333-8333-333333333333.png">',school).includes('<img'));
     control.removeImage();
     const withoutImage=await control.serialize();

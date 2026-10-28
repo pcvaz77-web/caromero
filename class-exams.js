@@ -213,19 +213,9 @@
     body.querySelectorAll('[data-remove-question]').forEach(button=>button.onclick=()=>removeQuestion(exam,Number(button.dataset.removeQuestion)));
     body.querySelectorAll('.cxe-question-content').forEach(element=>rich().hydrate(element,db,schoolId,imageBucket).catch(()=>{}));
   }
-  function toolbar() {return `<div class="cxe-rich-toolbar" aria-label="Formatação da questão"><button type="button" data-command="undo" title="Desfazer">↶</button><button type="button" data-command="redo" title="Refazer">↷</button><button type="button" data-command="bold" title="Negrito"><b>B</b></button><button type="button" data-command="italic" title="Itálico"><i>I</i></button><button type="button" data-command="underline" title="Sublinhado"><u>S</u></button><button type="button" data-command="justifyLeft" title="Alinhar à esquerda">☰</button><button type="button" data-command="justifyCenter" title="Centralizar">≡</button><button type="button" data-command="justifyRight" title="Alinhar à direita">☷</button><button type="button" data-command="insertUnorderedList">• Lista</button><button type="button" data-command="insertOrderedList">1. Lista</button><button type="button" data-table="1">▦ Tabela</button><button type="button" data-image="1">▧ Imagem</button><input type="file" accept="image/png,image/jpeg,image/webp" hidden><div class="cxe-image-tools" hidden><strong>Imagem selecionada</strong><label>Tamanho <input type="range" min="10" max="100" step="5" aria-label="Tamanho da imagem"><output>100%</output></label><button type="button" data-image-align="left">Esquerda</button><button type="button" data-image-align="center">Centro</button><button type="button" data-image-align="right">Direita</button><button type="button" data-image-move="-1">↑ Subir</button><button type="button" data-image-move="1">↓ Descer</button><button type="button" data-image-remove="1">Excluir imagem</button><small>Ou arraste a imagem para outra posição no texto.</small></div></div>`;}
-  function bindToolbar(form,editor,status) {
-    const tools=form.querySelector('.cxe-rich-toolbar'),picker=tools.querySelector('input[type=file]'),imageTools=tools.querySelector('.cxe-image-tools'),widthInput=imageTools.querySelector('input[type=range]');
-    richControl=rich().mount(editor,{db,schoolId,imageBucket,onError:text=>status.textContent=text,onImageSelection:image=>{imageTools.hidden=!image;if(image){widthInput.value=String(image.width);imageTools.querySelector('output').textContent=`${image.width}%`;imageTools.querySelectorAll('[data-image-align]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.imageAlign===image.align)));}}});
-    tools.querySelectorAll('[data-command]').forEach(button=>{button.onmousedown=event=>event.preventDefault();button.onclick=()=>{editor.focus();document.execCommand(button.dataset.command,false,null);};});
-    tools.querySelector('[data-table]').onclick=()=>{editor.focus();document.execCommand('insertHTML',false,'<table><tbody><tr><td> </td><td> </td></tr><tr><td> </td><td> </td></tr></tbody></table><p><br></p>');};
-    tools.querySelector('[data-image]').onclick=()=>picker.click();picker.onchange=async()=>{if(picker.files?.[0])await richControl.insertImage(picker.files[0]);picker.value='';};
-    widthInput.oninput=()=>richControl.setImageWidth(Number(widthInput.value));
-    imageTools.querySelectorAll('button').forEach(button=>button.onmousedown=event=>event.preventDefault());
-    imageTools.querySelectorAll('[data-image-align]').forEach(button=>button.onclick=()=>richControl.setImageAlign(button.dataset.imageAlign));
-    imageTools.querySelectorAll('[data-image-move]').forEach(button=>button.onclick=()=>richControl.moveImage(Number(button.dataset.imageMove)));
-    imageTools.querySelector('[data-image-remove]').onclick=()=>richControl.removeImage();
-  }
+  function toolbar() { return rich().toolbar('cxeEditor', 'cxe-rich-toolbar'); }
+  function bindToolbar(form, editor, status) { richControl=rich().bindToolbar(form, editor, { db, schoolId, imageBucket, onError:text=>status.textContent=text }); }
+
   async function openSubjectPicker(exam){
     if(!canContribute(exam)||window.getActiveSchoolId?.()!==schoolId)return;
     try{await load();const updated=exams.find(item=>item.id===exam.id);if(!updated||!canContribute(updated))throw new Error('Este simulado não recebe mais questões.');renderSubjectPicker(updated);}

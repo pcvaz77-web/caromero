@@ -62,7 +62,7 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
   },storage:{from:()=>({createSignedUrl:async()=>({data:null,error:null}),upload:async()=>({error:null}),remove:async paths=>{if(removeError)return {error:new Error('Falha no Storage')};removedPaths.push(...paths);return {error:null};}})}};
   window.getActiveSchoolRole=()=>role;window.getActiveSchoolId=()=> 'school-1';window.confirm=()=>true;window.prompt=()=> 'EXCLUIR';
   window.open=()=>({document:{write:html=>{printed=html;},close(){},querySelectorAll:()=>[],images:[]},focus(){},print(){}});
-  window.CepiRichText={marker:'<!--cepi-rich-v1-->',sanitize:value=>value,hydrate:async()=>{},render:value=>String(value).startsWith('<!--cepi-rich-v1-->')?`<div class="cepi-rich-content">${value.slice(19)}</div>`:`<div>${value}</div>`,mount:editor=>({serialize:async()=>({value:'<!--cepi-rich-v1-->'+editor.innerHTML,uploaded:[]}),rollback:async()=>{},dispose(){},insertImage:async()=>{},setImageWidth(){},setImageAlign(){},moveImage(){},removeImage(){}})};
+  window.CepiRichText={marker:'<!--cepi-rich-v1-->',sanitize:value=>value,hydrate:async()=>{},render:value=>String(value).startsWith('<!--cepi-rich-v1-->')?`<div class="cepi-rich-content">${value.slice(19)}</div>`:`<div>${value}</div>`,toolbar:()=>'<div class="rich-toolbar-modern"><button data-command="bold"></button><button data-image></button></div>',bindToolbar:(_form,editor)=>window.CepiRichText.mount(editor),mount:editor=>({serialize:async()=>({value:'<!--cepi-rich-v1-->'+editor.innerHTML,uploaded:[]}),rollback:async()=>{},dispose(){},insertImage:async()=>{},setImageWidth(){},setImageAlign(){},moveImage(){},removeImage(){}})};
   window.eval(source('cepi-blocks.js'));window.eval(source('class-exams.js'));
   window.document.body.innerHTML=window.getClassExamPanelAction();
   window.bindClassExamPanelAction({classId,className});window.document.querySelector('#classExamAction').click();
@@ -86,7 +86,7 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     const editor=window.document.querySelector('#cxeEditor');
     editor.innerHTML='<p><b>Qual é a resposta?</b></p><p>A) Uma</p><p>B) Outra</p>';
     assert.ok(window.document.querySelector('[data-command="bold"]'));
-    assert.ok(window.document.querySelector('[data-image="1"]'));
+    assert.ok(window.document.querySelector('[data-image]'));
     window.document.querySelector('[name="correct_answer"]').value='B';
     window.document.querySelector('#cxeQuestionForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
     assert.match(rows[0].questions[0].statement,/<!--cepi-rich-v1-->/);

@@ -102,31 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const paragraph = value => `<p>${esc(value).replace(/\r?\n/g,'<br>')}</p>`;
     return paragraph(item.statement||'') + Object.entries(item.alternatives||{}).filter(([,value])=>value).map(([letter,value])=>paragraph(`${letter}) ${value}`)).join('');
   };
-  const richTools = id => `<div class="cepi-rich-toolbar" data-editor="${id}" aria-label="Formatação da questão"><button type="button" data-command="undo" title="Desfazer">↶</button><button type="button" data-command="redo" title="Refazer">↷</button><button type="button" data-command="bold" title="Negrito"><b>B</b></button><button type="button" data-command="italic" title="Itálico"><i>I</i></button><button type="button" data-command="underline" title="Sublinhado"><u>S</u></button><button type="button" data-command="justifyLeft" title="Alinhar à esquerda">☰</button><button type="button" data-command="justifyCenter" title="Centralizar">≡</button><button type="button" data-command="justifyRight" title="Alinhar à direita">☷</button><button type="button" data-command="insertUnorderedList" title="Lista com marcadores">• Lista</button><button type="button" data-command="insertOrderedList" title="Lista numerada">1. Lista</button><button type="button" data-table="1" title="Inserir tabela 2 por 2">▦ Tabela</button><button type="button" data-image="1">▧ Imagem</button><input type="file" accept="image/png,image/jpeg,image/webp" hidden><div class="cepi-image-tools" hidden><strong>Imagem selecionada</strong><label>Tamanho <input type="range" min="10" max="100" step="5" aria-label="Tamanho da imagem"><output>100%</output></label><button type="button" data-image-align="left">Esquerda</button><button type="button" data-image-align="center">Centro</button><button type="button" data-image-align="right">Direita</button><button type="button" data-image-move="-1">↑ Subir</button><button type="button" data-image-move="1">↓ Descer</button><button type="button" data-image-remove="1">Excluir imagem</button><small>Ou arraste a imagem para outra posição no texto.</small></div></div>`;
-  const bindRichTools = (form,editor) => {
-    const tools=form.querySelector(`[data-editor="${editor.id}"]`);
-    const picker=tools.querySelector('input[type="file"]');
-    const imageTools=tools.querySelector('.cepi-image-tools');
-    const widthInput=imageTools.querySelector('input[type="range"]');
-    const control=rich().mount(editor,{db,schoolId,onError:message,onImageSelection:image=>{
-      imageTools.hidden=!image;
-      if(!image)return;
-      widthInput.value=String(image.width);
-      imageTools.querySelector('output').textContent=`${image.width}%`;
-      imageTools.querySelectorAll('[data-image-align]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.imageAlign===image.align)));
-    }});
-    tools.querySelectorAll('[data-command]').forEach(button=>{button.onmousedown=event=>event.preventDefault();button.onclick=()=>{editor.focus();document.execCommand(button.dataset.command,false,null);};});
-    tools.querySelector('[data-table]').onmousedown=event=>event.preventDefault();
-    tools.querySelector('[data-table]').onclick=()=>{editor.focus();document.execCommand('insertHTML',false,'<table><tbody><tr><td> </td><td> </td></tr><tr><td> </td><td> </td></tr></tbody></table><p><br></p>');};
-    tools.querySelector('[data-image]').onclick=()=>picker.click();
-    picker.onchange=async()=>{const file=picker.files?.[0];if(file)await control.insertImage(file);picker.value='';};
-    widthInput.oninput=()=>control.setImageWidth(Number(widthInput.value));
-    imageTools.querySelectorAll('button').forEach(button=>button.onmousedown=event=>event.preventDefault());
-    imageTools.querySelectorAll('[data-image-align]').forEach(button=>button.onclick=()=>control.setImageAlign(button.dataset.imageAlign));
-    imageTools.querySelectorAll('[data-image-move]').forEach(button=>button.onclick=()=>control.moveImage(Number(button.dataset.imageMove)));
-    imageTools.querySelector('[data-image-remove]').onclick=()=>control.removeImage();
-    return control;
-  };
+  const richTools = id => rich().toolbar(id, 'cepi-rich-toolbar');
+  const bindRichTools = (form, editor) => rich().bindToolbar(form, editor, { db, schoolId, onError:message });
 
   async function fetchAll(buildQuery) {
     const data=[];
@@ -851,7 +828,9 @@ document.addEventListener('DOMContentLoaded', () => {
         heading.textContent=`Nova questão ${numberInput.value} · ${displayTitle(test.title)}`;
         editorArea.contentEditable=String(!blocked);
         editorArea.setAttribute('aria-disabled',String(blocked));
-        toolbar.querySelectorAll('button,input').forEach(control=>{control.disabled=blocked;});
+        toolbar.inert=blocked;
+        toolbar.setAttribute('aria-disabled',String(blocked));
+        toolbar.querySelectorAll('button,input,select').forEach(control=>{control.disabled=blocked;});
         form.elements.correct_answer.disabled=blocked;
       }
       submit.disabled=blocked;
