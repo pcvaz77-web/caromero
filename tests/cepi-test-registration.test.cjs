@@ -199,9 +199,38 @@ test('salvar questão da prova também a registra no banco com a disciplina', as
     assert.equal(bank.subject,'Língua Portuguesa');
     assert.equal(bank.stage,'fundamental_ii');
     assert.equal(bank.correct_answer,'B');
+    assert.deepEqual(JSON.parse(JSON.stringify(bank.target_grades)),['6']);
     assert.equal(saved.bank_question_id,bank.id);
     assert.deepEqual(errors,[]);
   } finally {dom.window.close();}
+});
+
+test('banco oferece somente anos e séries presentes na escola, sem repetir turmas', async () => {
+  const {dom,waitFor,errors}=await fixture('manager=1');
+  try{
+    const document=dom.window.document;
+    document.querySelector('[data-cepi-workspace="banco"]').click();
+    await waitFor(()=>!!document.getElementById('cepiWorkspaceNew'));
+    document.getElementById('cepiWorkspaceNew').click();
+    const form=document.getElementById('cepiBankForm');
+    const options=()=>[...form.querySelectorAll('[name="target_grades"]')];
+    assert.deepEqual(options().map(input=>input.value),['6','7','8','9']);
+    assert.equal(options().filter(input=>input.value==='6').length,1);
+    form.elements.stage.value='medio';form.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    assert.deepEqual(options().map(input=>input.value),['medio_1','medio_2','medio_3']);
+    form.elements.stage.value='fundamental_ii';form.elements.stage.dispatchEvent(new dom.window.Event('change'));
+    options().filter(input=>['6','7'].includes(input.value)).forEach(input=>{input.checked=true;input.dispatchEvent(new dom.window.Event('change'));});
+    form.elements.subject.value='Educação Física';
+    document.getElementById('cepiBankEditor').innerHTML='<p>Qual é o movimento?</p>';
+    form.elements.correct_answer.value='A';
+    form.requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_question_bank.length')===1);
+    await waitFor(()=>!!document.querySelector('.cepi-question-card'));
+    const saved=dom.window.eval('rows.cepi_question_bank[0]');
+    assert.deepEqual(JSON.parse(JSON.stringify(saved.target_grades)),['6','7']);
+    assert.match(document.querySelector('.cepi-question-card').textContent,/6º ano, 7º ano/);
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
 });
 
 test('prova do aluno imprime QUESTÃO 1 e QUESTÃO 2 acima dos enunciados', async () => {
