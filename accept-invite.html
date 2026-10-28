@@ -12,15 +12,22 @@
         const urlToken = url.searchParams.get('token');
         const storedToken = sessionStorage.getItem('carometroInviteToken');
         const token = urlToken || storedToken;
+        const fragment = new URLSearchParams(url.hash.slice(1));
+        const fragmentAuthHash = fragment.get('auth_token_hash');
         if (urlToken) sessionStorage.setItem('carometroInviteToken', urlToken);
         window.CAROMETRO_INVITE_BOOT = Object.freeze({
           token,
-          authTokenHash: url.searchParams.get('auth_token_hash'),
-          type: url.searchParams.get('type')
+          authTokenHash: url.searchParams.get('auth_token_hash') || fragmentAuthHash,
+          type: url.searchParams.get('type') || (fragmentAuthHash ? fragment.get('type') : null)
         });
         url.searchParams.delete('token');
         url.searchParams.delete('auth_token_hash');
         url.searchParams.delete('type');
+        if (fragmentAuthHash) {
+          fragment.delete('auth_token_hash');
+          fragment.delete('type');
+          url.hash = fragment.toString() ? `#${fragment}` : '';
+        }
         history.replaceState(null, '', url.pathname + url.search + url.hash);
       } catch { window.CAROMETRO_INVITE_BOOT = Object.freeze({}); }
     })();
@@ -85,7 +92,7 @@
   </main>
   <script>
     if (window.CAROMETRO_RUNTIME_CONFIG?.backendConfigured) {
-      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=10"><\/script>');
+      document.write('<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"><\/script><script src="accept-invite.js?v=11"><\/script>');
     } else {
       document.getElementById('fatal').textContent = 'O ambiente comercial ainda está em preparação.';
       document.getElementById('fatal').classList.remove('hidden');

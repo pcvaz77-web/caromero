@@ -118,9 +118,21 @@ async function requireInvitedEmail(email) {
   return false;
 }
 
-async function showCurrentSession(user) {
-  const matches = await emailMatchesInvitation(user?.email);
-  showSession(user?.email, matches);
+async function showCurrentSession() {
+  const { data, error } = await db.auth.getUser();
+  const currentUser = data?.user;
+  if (error || !currentUser) {
+    showAuth();
+    showError('formError', 'Sua sessão não pôde ser confirmada. Abra novamente o link mais recente do convite.');
+    return false;
+  }
+  if (!currentUser.email_confirmed_at) {
+    showAuth();
+    showError('formError', 'Confirme seu e-mail pelo link mais recente antes de criar nome e senha.');
+    return false;
+  }
+  const matches = await emailMatchesInvitation(currentUser.email);
+  showSession(currentUser.email, matches);
   if (matches) await refreshOnboarding();
   return matches;
 }
@@ -150,7 +162,14 @@ async function acceptInvitationIfReady() {
     showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.');
     return;
   }
-  if (state !== 'ready') return;
+  if (state !== 'ready') {
+    showError('sessionError', state === 'needs_name'
+      ? 'Seu nome ainda não foi salvo. Informe-o e tente novamente.'
+      : state === 'needs_password'
+        ? 'Sua senha ainda não foi confirmada. Defina-a e tente novamente.'
+        : 'Seu nome e sua senha ainda não foram confirmados. Confira os dados e tente novamente.');
+    return;
+  }
   await acceptInvitation();
 }
 
@@ -175,13 +194,21 @@ async function requestAuthenticationEmail() {
 }
 
 async function verifyAuthenticationEmail() {
-  // O hash one-time é consumido somente após este clique e nunca é persistido.
+  // O hash one-time é usado somente após este clique e nunca é persistido.
+  // Uma falha de rede não deve descartá-lo antes de sabermos se foi consumido.
   const tokenHash = authTokenHash;
+  if (!tokenHash || !authTokenType) throw new Error('Este link de autenticação não está mais disponível. Solicite um novo envio.');
+  let result;
+  try { result = await db.auth.verifyOtp({ token_hash: tokenHash, type: authTokenType }); }
+  catch { throw new Error('Não foi possível confirmar o link agora. Confira sua conexão e tente novamente.'); }
+  const { data, error } = result || {};
+  if (error || !data?.user) {
+    authTokenHash = null;
+    $('emailContinueBtn').textContent = 'Continuar com meu e-mail';
+    throw new Error('Este link de autenticação expirou ou já foi utilizado. Solicite um novo envio.');
+  }
   authTokenHash = null;
   $('emailContinueBtn').textContent = 'Continuar com meu e-mail';
-  if (!tokenHash || !authTokenType) throw new Error('Este link de autenticação não está mais disponível. Solicite um novo envio.');
-  const { data, error } = await db.auth.verifyOtp({ token_hash: tokenHash, type: authTokenType });
-  if (error) throw new Error('Este link de autenticação expirou ou já foi utilizado. Solicite um novo envio.');
   return data.user;
 }
 
@@ -202,8 +229,9 @@ async function boot() {
   $('role').textContent = `Papel: ${roleLabel(invitation.role)}`;
   $('email').textContent = `E-mail: ${invitation.masked_email || ''}`;
   $('content').classList.remove('hidden');
+  if (authTokenHash && authTokenType) { showAuth(); return; }
   const { data: { session } } = await db.auth.getSession();
-  if (session?.user) await showCurrentSession(session.user);
+  if (session?.user) await showCurrentSession();
   else showAuth();
 }
 
@@ -211,8 +239,8 @@ $('emailContinueBtn').onclick = async () => {
   clearErrors(); busy(true);
   try {
     if (authTokenHash && authTokenType) {
-      const user = await verifyAuthenticationEmail();
-      if (await showCurrentSession(user)) await acceptInvitationIfReady();
+      await verifyAuthenticationEmail();
+      if (await showCurrentSession()) await acceptInvitationIfReady();
       return;
     }
     await requestAuthenticationEmail();
@@ -235,12 +263,11 @@ $('loginForm').onsubmit = async event => {
   const email = normalizeEmail($('loginEmail').value); busy(true);
   try {
     if (!await requireInvitedEmail(email)) return;
-    const { data, error } = await db.auth.signInWithPassword({ email, password: $('loginPassword').value });
+    const { error } = await db.auth.signInWithPassword({ email, password: $('loginPassword').value });
     if (error) { showError('formError', 'Não foi possível entrar. Confira o e-mail e a senha.'); return; }
     const { error: markError } = await db.rpc('mark_current_user_password_set');
     if (markError) { showError('formError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.'); return; }
-    await showCurrentSession(data.user);
-    await acceptInvitationIfReady();
+    if (await showCurrentSession()) await acceptInvitationIfReady();
   } catch (error) { showError('formError', error.message || 'Não foi possível validar o convite.'); }
   finally { busy(false); }
 };
@@ -261,44 +288,47 @@ $('forgotBtn').onclick = async () => {
   finally { busy(false); }
 };
 
-$('continueBtn').onclick = acceptInvitationIfReady;
-$('retryStatusBtn').onclick = async () => { busy(true); try { await refreshOnboarding(); } finally { busy(false); } };
+$('continueBtn').onclick = async () => {
+  clearErrors(); busy(true);
+  try { await acceptInvitationIfReady(); }
+  catch { showError('sessionError', 'Não foi possível aceitar o convite agora. Confira sua conexão e tente novamente.'); }
+  finally { busy(false); }
+};
+$('retryStatusBtn').onclick = async () => {
+  clearErrors(); busy(true);
+  try { await acceptInvitationIfReady(); }
+  catch { showError('sessionError', 'Não foi possível consultar sua conta agora. Confira sua conexão e tente novamente.'); }
+  finally { busy(false); }
+};
 
 $('onboardingForm').onsubmit = async event => {
-  event.preventDefault(); clearErrors();
-  const state = await loadOnboardingStatus();
-  renderOnboarding(state);
-  if (state === 'unknown') { showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.'); return; }
-  if (state === 'ready') return;
-  const needsName = state === 'needs_both' || state === 'needs_name';
-  const needsPassword = state === 'needs_both' || state === 'needs_password';
-  const name = $('onboardingName').value.trim();
-  if (needsName && !validName(name)) { showError('sessionError', 'Informe um nome completo válido.'); return; }
-  if (needsPassword && $('onboardingPassword').value.length < 8) {
-    showError('sessionError', 'A senha precisa ter pelo menos 8 caracteres.'); return;
-  }
-  if (needsPassword && $('onboardingPassword').value !== $('onboardingPasswordConfirm').value) {
-    showError('sessionError', 'As duas senhas precisam ser iguais.'); return;
-  }
-  const phoneInput = $('onboardingWhatsApp').value.trim();
-  const phone = normalizeWhatsApp(phoneInput);
-  const emailUpdates = $('onboardingEmailUpdates').checked;
-  const whatsappUpdates = $('onboardingWhatsAppUpdates').checked;
-  if (phoneInput && !phone) { showError('sessionError', 'Informe um WhatsApp válido com DDD.'); return; }
-  if (whatsappUpdates && !phone) { showError('sessionError', 'Informe seu WhatsApp para receber novidades por esse canal.'); return; }
-  busy(true);
+  event.preventDefault(); clearErrors(); busy(true);
   try {
-    if (phone || emailUpdates || whatsappUpdates) {
-      const { data: { user } } = await db.auth.getUser();
-      if (!user) { showError('sessionError', 'Sua sessão expirou. Entre novamente.'); return; }
-      const { error: preferencesError } = await db.from('platform_communication_preferences').upsert({
-        user_id: user.id,
-        whatsapp_e164: phone,
-        email_updates: emailUpdates,
-        whatsapp_updates: whatsappUpdates
-      }, { onConflict: 'user_id' });
-      if (preferencesError) { showError('sessionError', 'Não foi possível salvar suas escolhas de comunicação. Tente novamente.'); return; }
+    const state = await loadOnboardingStatus();
+    renderOnboarding(state);
+    if (state === 'unknown') { showError('sessionError', 'Não foi possível confirmar o estado da sua conta. Tente novamente.'); return; }
+    if (state === 'ready') { await acceptInvitationIfReady(); return; }
+    const needsName = state === 'needs_both' || state === 'needs_name';
+    const needsPassword = state === 'needs_both' || state === 'needs_password';
+    const name = $('onboardingName').value.trim();
+    if (needsName && !validName(name)) { showError('sessionError', 'Informe um nome completo válido.'); return; }
+    if (needsPassword && $('onboardingPassword').value.length < 8) {
+      showError('sessionError', 'A senha precisa ter pelo menos 8 caracteres.'); return;
     }
+    if (needsPassword && $('onboardingPassword').value !== $('onboardingPasswordConfirm').value) {
+      showError('sessionError', 'As duas senhas precisam ser iguais.'); return;
+    }
+    const phoneInput = $('onboardingWhatsApp').value.trim();
+    const phone = normalizeWhatsApp(phoneInput);
+    const emailUpdates = $('onboardingEmailUpdates').checked;
+    const whatsappUpdates = $('onboardingWhatsAppUpdates').checked;
+    if (phoneInput && !phone) { showError('sessionError', 'Informe um WhatsApp válido com DDD.'); return; }
+    if (whatsappUpdates && !phone) { showError('sessionError', 'Informe seu WhatsApp para receber novidades por esse canal.'); return; }
+    const { data: authData, error: sessionError } = await db.auth.getUser();
+    const user = authData?.user;
+    if (sessionError || !user) { showError('sessionError', 'Sua sessão expirou. Abra novamente o link mais recente do convite.'); return; }
+    if (!user.email_confirmed_at) { showError('sessionError', 'Confirme seu e-mail pelo link mais recente antes de concluir o cadastro.'); return; }
+    if (!await emailMatchesInvitation(user.email)) { showError('sessionError', 'Esta conta não corresponde ao e-mail convidado.'); return; }
     const update = {};
     if (needsPassword) update.password = $('onboardingPassword').value;
     if (needsName) update.data = { full_name: name };
@@ -309,12 +339,28 @@ $('onboardingForm').onsubmit = async event => {
       if (markError) { showError('sessionError', 'Não foi possível confirmar sua senha agora. Tente novamente.'); await refreshOnboarding(); return; }
     }
     if (needsName) {
-      const { data: { user } } = await db.auth.getUser();
       const { error: profileError } = await db.from('profiles')
         .upsert({ id: user.id, full_name: name, email: user.email }, { onConflict: 'id' });
       if (profileError) { showError('sessionError', 'Não foi possível salvar seu nome. Tente novamente.'); await refreshOnboarding(); return; }
     }
+    let preferencesFailed = false;
+    if (phone || emailUpdates || whatsappUpdates) {
+      try {
+        const { error: preferencesError } = await db.from('platform_communication_preferences').upsert({
+          user_id: user.id,
+          whatsapp_e164: phone,
+          email_updates: emailUpdates,
+          whatsapp_updates: whatsappUpdates
+        }, { onConflict: 'user_id' });
+        preferencesFailed = Boolean(preferencesError);
+      } catch { preferencesFailed = true; }
+    }
     await acceptInvitationIfReady();
+    if (preferencesFailed && !$('success').classList.contains('hidden')) {
+      $('success').textContent = 'Convite aceito! Suas preferências de comunicação não foram salvas; você pode ajustá-las depois de entrar. Redirecionando…';
+    }
+  } catch {
+    showError('sessionError', 'Não foi possível concluir o cadastro agora. Confira sua conexão e tente novamente. Os dados que já tiverem sido salvos serão preservados.');
   } finally { busy(false); }
 };
 
