@@ -251,11 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
     select.innerHTML = observations.map(option => `<option value="${option.value}">${observationDisplayLabel(option.label)}</option>`).join('');
   };
   configureObservationField('report');
-  configureObservationField('bulkReport');
   const reportField = document.getElementById('report').closest('.field');
   reportField.classList.add('student-observations-field');
-  const bulkReport = document.getElementById('bulkReport');
-  const bulkReportField = bulkReport.closest('.field');
   const manageObservations = document.createElement('button');
   manageObservations.id = 'observationsNav';
   manageObservations.type = 'button';
@@ -342,7 +339,6 @@ document.addEventListener('DOMContentLoaded', () => {
       observationOptionsLoaded = true;
       const selected = selectedObservationValues();
       configureObservationField('report');
-      configureObservationField('bulkReport');
       renderObservationChoices(selected);
       renderCustomObservations();
       syncStudentCardLaudoLabels();
@@ -1015,13 +1011,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('moveStudent').onchange = setClassVisibility;
-  document.getElementById('newBulk').addEventListener('click', async () => {
-    await loadObservationOptions();
-    const canEditObservations = can('can_edit_report');
-    bulkReportField.classList.toggle('hidden', !canEditObservations);
-    bulkReport.disabled = !canEditObservations;
-    if (!canEditObservations) bulkReport.value = '';
-  });
   let bulkSaving = false;
   document.getElementById('bulkForm').onsubmit = async event => {
     event.preventDefault();
@@ -1052,7 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
         full_name: fullName,
         class_id: classId,
         class_name: cls.name,
-        has_report: bulkReport.disabled ? '' : bulkReport.value,
+        has_report: '',
         photo_path: null
       }));
       const { data, error } = await db.from('students').insert(rows).select('id,class_id');
@@ -1098,7 +1087,6 @@ document.addEventListener('DOMContentLoaded', () => {
     topPriorityObservationLabels = new Set(observations.filter(option => option.isTopPriority).map(option => option.value));
     const selected = selectedObservationValues();
     configureObservationField('report');
-    configureObservationField('bulkReport');
     renderObservationChoices(selected);
     renderCustomObservations();
     input.value = '';
@@ -1153,7 +1141,6 @@ document.addEventListener('DOMContentLoaded', () => {
     topPriorityObservationLabels = new Set(observations.filter(item => item.isTopPriority).map(item => item.value));
     const selected = selectedObservationValues().filter(value => value !== option.value);
     configureObservationField('report');
-    configureObservationField('bulkReport');
     renderObservationChoices(selected);
     renderCustomObservations();
     render();
