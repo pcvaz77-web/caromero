@@ -68,3 +68,20 @@ test('Realtime e consulta simultanea nao duplicam a notificacao',async()=>{
   await channel.handlers.find(x=>x.filter.event==='INSERT').fn({new:{...row,id:2}});
   assert.equal(h.context.window.testCenter.getItems().length,1);
 });
+
+test('notificacao de colaboracao abre o simulado compartilhado da escola',async()=>{
+  const opened=[];
+  const h=harness('notification-center.js',{
+    transform:source=>source.replace('window.testCenter={loadNotifications,','window.testCenter={resolveNotificationTarget,loadNotifications,'),
+    query:table=>table==='class_exams'
+      ? {data:{id:'exam-1',class_id:'class-1',deleted_at:null},error:null}
+      : table==='classes' ? {data:{id:'class-1',name:'3A'},error:null} : {data:[],error:null,count:0}
+  });
+  h.context.window.openClassExamById=target=>opened.push(target);
+  await h.ready();
+  const navigate=await h.context.window.testCenter.resolveNotificationTarget({target_type:'class_exam',target_id:'exam-1'});
+  assert.equal(typeof navigate,'function');navigate();
+  assert.equal(opened[0].examId,'exam-1');
+  assert.equal(opened[0].classId,'class-1');
+  assert.equal(opened[0].className,'3A');
+});

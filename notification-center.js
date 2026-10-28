@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // destino que já sabemos resolver hoje; qualquer outro target_type (ou um
   // item sem o id/turma necessário) fica sem indicação de link — continua
   // uma notificação normal, só não clicável.
-  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor', 'classroom_map', 'cepi_test']);
+  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor', 'classroom_map', 'cepi_test', 'class_exam']);
   function isNotificationClickable(item) {
     if (!CLICKABLE_TARGET_TYPES.has(item.target_type)) return false;
     if (item.target_type === 'class_counselor') return !!item.class_id;
@@ -234,6 +234,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const { data, error } = await db.from('cepi_tests').select('id').eq('id',item.target_id).eq('school_id',schoolId).maybeSingle();
         if (error || !data || typeof window.openCepiTest !== 'function') return null;
         return () => window.openCepiTest(data.id);
+      }
+      if (item.target_type === 'class_exam') {
+        if (!item.target_id || typeof window.openClassExamById !== 'function') return null;
+        const { data: exam, error } = await db.from('class_exams').select('id,class_id,deleted_at').eq('id',item.target_id).eq('school_id',schoolId).maybeSingle();
+        if (error || !exam || exam.deleted_at) return null;
+        const { data: examClass, error: classError } = await db.from('classes').select('id,name').eq('id',exam.class_id).eq('school_id',schoolId).maybeSingle();
+        if (classError || !examClass) return null;
+        return () => window.openClassExamById({ examId: exam.id, classId: examClass.id, className: examClass.name });
       }
       return null;
     } catch {

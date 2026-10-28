@@ -7,13 +7,14 @@ const {JSDOM} = require('../services/siap-exam/node_modules/jsdom');
 const source = name => readFileSync(path.join(__dirname,'..',name),'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve,20));
 
-function setup({role='teacher',className='1A',seed=[],studentSeed=[{id:'student-1',full_name:'Aluno Exemplo'}]}={}) {
+function setup({role='teacher',className='1A',classId='class-1',userId='teacher-1',seed=[],studentSeed=[{id:'student-1',full_name:'Aluno Exemplo'}],addEnemQuestions}={}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'dangerously'});
   const {window} = dom, rows=[...seed], students=studentSeed, pendingMedia=[], removedPaths=[];
   let header=null,printed='',removeError=false;
   const query=(table,operation,payload)=>{
+    const filters=[];
     const q={
-      eq(){return q;},is(){return q;},order(){return q;},range(){return Promise.resolve({data:students,error:null});},select(){return q;},
+      eq(column,value){filters.push([column,value]);return q;},is(){return q;},order(){return q;},range(){return Promise.resolve({data:students,error:null});},select(){return q;},
       maybeSingle:async()=>({data:header,error:null}),
       single:async()=>{
         if(table==='class_exam_headers'){header={...payload};return {data:{school_id:'school-1'},error:null};}
@@ -21,7 +22,7 @@ function setup({role='teacher',className='1A',seed=[],studentSeed=[{id:'student-
         if(operation==='update'){const row=rows.find(item=>item.id===currentId);Object.assign(row,payload);return {data:{id:row.id},error:null};}
         return {data:null,error:null};
       },
-      then(resolve){resolve({data:table==='class_exams'?rows:students,error:null});}
+      then(resolve){resolve({data:table==='class_exams'?rows.filter(row=>filters.every(([column,value])=>row[column]===value)):students,error:null});}
     };
     return q;
   };
@@ -32,9 +33,10 @@ function setup({role='teacher',className='1A',seed=[],studentSeed=[{id:'student-
     update:payload=>{const q=query(table,'update',payload),eq=q.eq;q.eq=(column,value)=>{if(column==='id')currentId=value;return eq.call(q,column,value);};return q;},
     upsert:payload=>query(table,'upsert',payload)
   });
-  window.db={auth:{getUser:async()=>({data:{user:{id:'teacher-1'}},error:null})},from,rpc:async(name,args)=>{
+  window.db={auth:{getUser:async()=>({data:{user:{id:userId}},error:null})},from,rpc:async(name,args)=>{
     if(name==='get_cepi_access_context')return {data:{enabled:false},error:null};
     if(name==='class_exam_purge_media_pending')return {data:[...pendingMedia],error:null};
+    if(name==='class_exam_add_enem_questions')return addEnemQuestions?.(args,rows) || {data:null,error:new Error('RPC não simulada')};
     if(name==='class_exam_purge_media_ack'){
       pendingMedia.splice(0,pendingMedia.length,...pendingMedia.filter(path=>!args.p_paths.includes(path)));
       return {data:args.p_paths.length,error:null};
@@ -63,7 +65,7 @@ function setup({role='teacher',className='1A',seed=[],studentSeed=[{id:'student-
   window.CepiRichText={marker:'<!--cepi-rich-v1-->',sanitize:value=>value,hydrate:async()=>{},render:value=>String(value).startsWith('<!--cepi-rich-v1-->')?`<div class="cepi-rich-content">${value.slice(19)}</div>`:`<div>${value}</div>`,mount:editor=>({serialize:async()=>({value:'<!--cepi-rich-v1-->'+editor.innerHTML,uploaded:[]}),rollback:async()=>{},dispose(){},insertImage:async()=>{},setImageWidth(){},setImageAlign(){},moveImage(){},removeImage(){}})};
   window.eval(source('cepi-blocks.js'));window.eval(source('class-exams.js'));
   window.document.body.innerHTML=window.getClassExamPanelAction();
-  window.bindClassExamPanelAction({classId:'class-1',className});window.document.querySelector('#classExamAction').click();
+  window.bindClassExamPanelAction({classId,className});window.document.querySelector('#classExamAction').click();
   return {dom,window,rows,students,pendingMedia,removedPaths,setRemoveError:value=>{removeError=value;},getHeader:()=>header,getPrinted:()=>printed};
 }
 
@@ -104,6 +106,56 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     window.document.querySelector('#cxePrintBack').click();
     window.document.querySelector('#cxeKey').click();await tick();
     assert.match(env.getPrinted(),/Gabarito oficial/);
+  }finally{env.dom.window.close();}
+});
+
+test('professor de outra turma da 3ª série contribui no mesmo simulado por disciplina',async()=>{
+  const exam={id:'enem-shared',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',
+    exam_type:'enem',enem_model:'caderno_1',subject:'Simulado do ENEM',title:'SIMULA - ENEM - CADERNO 1 - 4º BIM',
+    academic_year:2026,bimester:4,answer_format:'ABCDE',questions:[],finalized_at:null,deleted_at:null};
+  const calls=[];
+  const env=setup({classId:'class-2',className:'3B',userId:'teacher-2',seed:[exam],addEnemQuestions:(args,rows)=>{
+    calls.push(args);
+    rows[0].questions.push(...args.p_questions.map(question=>({...question,subject:args.p_subject,created_by:'teacher-2'})));
+    return {data:args.p_questions.length,error:null};
+  }});
+  const {window}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="enem"]').click();
+    assert.equal(window.document.querySelectorAll('[data-open]').length,1);
+    window.document.querySelector('[data-open]').click();
+    assert.ok(window.document.querySelector('#cxeAdd'));
+    assert.equal(window.document.querySelector('#cxeEdit'),null);
+    window.document.querySelector('#cxeAdd').click();await tick();
+    const chemistry=window.document.querySelector('[data-subject="Química"]');
+    assert.equal(chemistry.disabled,false);
+    chemistry.click();
+    window.document.querySelector('#cxeEditor').innerHTML='<p>Qual é o elemento? A) H B) He C) Li D) Be E) B</p>';
+    window.document.querySelector('[name="correct_answer"]').value='A';
+    window.document.querySelector('#cxeContributionForm').dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    assert.equal(exam.questions.length,0,'preparo local não altera a prova antes do envio');
+    window.document.querySelector('#cxeSendSubject').click();await tick();
+    assert.equal(calls.length,1);
+    assert.equal(calls[0].p_exam_id,exam.id);
+    assert.equal(calls[0].p_subject,'Química');
+    assert.equal(calls[0].p_questions.length,1);
+    assert.equal(exam.questions[0].subject,'Química');
+    assert.match(window.document.querySelector('[data-subject="Química"]').textContent,/1\/8/);
+  }finally{env.dom.window.close();}
+});
+
+test('disciplina completa bloqueia novas questões e permite escolher outra',async()=>{
+  const chemistry=Array.from({length:8},(_,index)=>({subject:'Química',statement:`Questão de Química ${index+1}`,correct_answer:'A',alternatives:{}}));
+  const exam={id:'enem-full-subject',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',
+    exam_type:'enem',enem_model:'caderno_1',subject:'Simulado do ENEM',title:'SIMULA - ENEM - CADERNO 1 - 4º BIM',
+    academic_year:2026,bimester:4,answer_format:'ABCDE',questions:chemistry,finalized_at:null,deleted_at:null};
+  const env=setup({classId:'class-2',className:'3B',userId:'teacher-2',seed:[exam]});
+  try{
+    await tick();env.window.document.querySelector('[data-type="enem"]').click();
+    env.window.document.querySelector('[data-open]').click();
+    env.window.document.querySelector('#cxeAdd').click();await tick();
+    assert.equal(env.window.document.querySelector('[data-subject="Química"]').disabled,true);
+    assert.equal(env.window.document.querySelector('[data-subject="Física"]').disabled,false);
   }finally{env.dom.window.close();}
 });
 
