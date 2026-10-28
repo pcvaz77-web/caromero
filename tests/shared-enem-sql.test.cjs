@@ -28,7 +28,8 @@ test('simulado ENEM compartilhado salva lotes, respeita disciplinas e notifica o
       create table public.class_exams(
         id uuid primary key,school_id uuid,class_id uuid,created_by uuid,
         exam_type text,enem_model text,subject text,title text,academic_year integer,bimester smallint,
-        answer_format text,questions jsonb not null default '[]',finalized_at timestamptz,
+        answer_format text check (answer_format in ('ABCD','ABCDE','VF','LIVRE')),
+        questions jsonb not null default '[]',finalized_at timestamptz,
         deleted_at timestamptz,deleted_by uuid,updated_at timestamptz default now()
       );
       create table public.students(id uuid primary key,school_id uuid,class_id uuid,enrollment_status text);
@@ -46,6 +47,7 @@ test('simulado ENEM compartilhado salva lotes, respeita disciplinas e notifica o
     `);
     const migration = readFileSync(path.join(__dirname,'../supabase/migrations/196_shared_class_enem_exams.sql'),'utf8');
     await db.exec(migration);
+    await db.exec(readFileSync(path.join(__dirname,'../supabase/migrations/197_mixed_class_exam_answers.sql'),'utf8'));
     await db.exec(`
       create trigger class_exam_scope before insert or update on public.class_exams
         for each row execute function public.validate_class_exam();
@@ -92,6 +94,21 @@ test('simulado ENEM compartilhado salva lotes, respeita disciplinas e notifica o
     assert.equal(result.rows[0].correct_count,3);
     await assert.rejects(db.exec(`insert into public.class_exam_results(school_id,exam_id,student_id,reviewed_by,answers)
       values ('${school}','${examId}','00000000-0000-0000-0000-000000000042','${creator}',array['A','C','B']);`),/3ª série/);
+    const mixedId='00000000-0000-0000-0000-000000000060';
+    const mixedQuestion=(format,answer,modelAnswer='')=>({statement:'Questão de teste',answer_format:format,alternatives:{},correct_answer:answer,model_answer:modelAnswer});
+    await db.query(`insert into public.class_exams(id,school_id,class_id,created_by,exam_type,subject,title,academic_year,bimester,answer_format,questions)
+      values ($1,$2,$3,$4,'mensal','Ciências','Prova mista',2026,4,'MISTA',$5::jsonb)`,
+      [mixedId,school,classA,creator,JSON.stringify([
+        mixedQuestion('ABCDE','E'),mixedQuestion('ABCD','D'),mixedQuestion('VF','V'),mixedQuestion('LIVRE','','Resposta esperada')
+      ])]);
+    await db.query('update public.class_exams set finalized_at=now() where id=$1',[mixedId]);
+    assert.equal((await db.query('select jsonb_array_length(questions) as count from public.class_exams where id=$1',[mixedId])).rows[0].count,4);
+    await assert.rejects(db.query(`insert into public.class_exams(id,school_id,class_id,created_by,exam_type,subject,title,academic_year,bimester,answer_format,questions)
+      values ($1,$2,$3,$4,'mensal','Ciências','Prova inválida',2026,4,'MISTA',$5::jsonb)`,
+      ['00000000-0000-0000-0000-000000000061',school,classA,creator,JSON.stringify([mixedQuestion('VF','E')])]),/Gabarito incompatível/);
+    await assert.rejects(db.query(`insert into public.class_exams(id,school_id,class_id,created_by,exam_type,subject,title,academic_year,bimester,answer_format,questions)
+      values ($1,$2,$3,$4,'mensal','Ciências','Prova inválida',2026,4,'MISTA',$5::jsonb)`,
+      ['00000000-0000-0000-0000-000000000062',school,classA,creator,JSON.stringify([mixedQuestion('LIVRE','')])]),/resposta escrita correta/);
     await db.exec(`
       insert into public.class_exams(id,school_id,class_id,created_by,exam_type,subject,title,academic_year,bimester,answer_format)
         values ('00000000-0000-0000-0000-000000000050','${school}','${classA}','${creator}','mensal','Matemática','Prova mensal',2026,4,'ABCDE');

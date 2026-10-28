@@ -326,3 +326,52 @@ test('resposta escrita fica no gabarito e fora da prova do aluno',async()=>{
     assert.match(env.getPrinted(),/white-space:pre-wrap/);
   }finally{env.dom.window.close();}
 });
+
+test('prova mista guarda formato e gabarito por questão e imprime cada resposta corretamente',async()=>{
+  const env=setup();const {window,rows}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="regular"]').click();
+    window.document.querySelector('#cxeNew').click();
+    const examForm=window.document.querySelector('#cxeForm');
+    examForm.elements.subject.value='Ciências';examForm.elements.title.value='Prova mista';
+    examForm.elements.answer_format.value='MISTA';
+    examForm.dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    window.document.querySelector('#cxeAdd').click();
+    const entries=[['ABCDE','E'],['ABCD','D'],['VF','V'],['LIVRE','A resposta esperada é 42.']];
+    for(const [index,[format,answer]] of entries.entries()){
+      const form=window.document.querySelector('#cxeQuestionForm');
+      form.elements.question_format.value=format;
+      form.elements.question_format.dispatchEvent(new window.Event('change'));
+      window.document.querySelector('#cxeEditor').innerHTML=`<p>Enunciado ${index+1}</p>`;
+      if(format==='LIVRE')form.elements.model_answer.value=answer;
+      else form.elements.correct_answer.value=answer;
+      form.dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    }
+    assert.deepEqual(Array.from(rows[0].questions,question=>question.answer_format),entries.map(entry=>entry[0]));
+    assert.deepEqual(Array.from(rows[0].questions,question=>question.correct_answer),['E','D','V','']);
+    assert.equal(rows[0].questions[3].model_answer,'A resposta esperada é 42.');
+    window.document.querySelector('#cxeBack').click();
+    assert.match(window.document.querySelectorAll('.cxe-question')[2].textContent,/V ou F: V/);
+    window.document.querySelectorAll('[data-edit-question]')[2].click();
+    assert.equal(window.document.querySelector('[name="question_format"]').value,'VF');
+    assert.equal(window.document.querySelector('[name="correct_answer"]').value,'V');
+    window.document.querySelector('#cxeBack').click();
+    window.document.querySelectorAll('[data-edit-question]')[3].click();
+    assert.equal(window.document.querySelector('[name="question_format"]').value,'LIVRE');
+    assert.equal(window.document.querySelector('[name="model_answer"]').value,'A resposta esperada é 42.');
+    window.document.querySelector('#cxeBack').click();
+    window.document.querySelector('#cxeFinalize').click();await tick();
+    assert.ok(rows[0].finalized_at);
+    window.document.querySelector('#cxePrint').click();await tick();
+    window.document.querySelector('#cxePrintForm').dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
+    assert.equal((env.getPrinted().match(/class="answer-row(?: written)?"/g)||[]).length,4);
+    assert.equal((env.getPrinted().match(/class="answer-space"/g)||[]).length,1);
+    assert.match(env.getPrinted(),/Resposta escrita: responda na questão/);
+    assert.doesNotMatch(env.getPrinted(),/A resposta esperada é 42/);
+    window.document.querySelector('#cxePrintBack').click();
+    window.document.querySelector('#cxeKey').click();await tick();
+    assert.match(env.getPrinted(),/Questão 2 · A, B, C, D/);
+    assert.match(env.getPrinted(),/Questão 3 · V ou F/);
+    assert.match(env.getPrinted(),/A resposta esperada é 42/);
+  }finally{env.dom.window.close();}
+});
