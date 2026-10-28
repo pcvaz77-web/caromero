@@ -7,9 +7,9 @@ const {JSDOM} = require('../services/siap-exam/node_modules/jsdom');
 const source = name => readFileSync(path.join(__dirname,'..',name),'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve,20));
 
-function setup({role='teacher',className='1A',classId='class-1',userId='teacher-1',seed=[],studentSeed=[{id:'student-1',full_name:'Aluno Exemplo'}],addEnemQuestions}={}) {
+function setup({role='teacher',className='1A',classId='class-1',userId='teacher-1',seed=[],bankSeed=[],studentSeed=[{id:'student-1',full_name:'Aluno Exemplo'}],addEnemQuestions}={}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'dangerously'});
-  const {window} = dom, rows=[...seed], students=studentSeed, pendingMedia=[], removedPaths=[];
+  const {window} = dom, rows=[...seed], bankRows=[...bankSeed], students=studentSeed, pendingMedia=[], removedPaths=[];
   let header=null,printed='',removeError=false;
   const query=(table,operation,payload)=>{
     const filters=[];
@@ -27,7 +27,10 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
     return q;
   };
   let currentId=null;
-  const from=table=>({
+  const from=table=>table==='class_exam_question_bank'?{
+    select:()=>{const filters=[];const q={eq:(column,value)=>{filters.push([column,value]);return q;},range:async()=>({data:bankRows.filter(row=>filters.every(([column,value])=>row[column]===value)),error:null}),order:async()=>({data:bankRows,error:null})};return q;},
+    insert:async payload=>{bankRows.push({...payload,id:`bank-${bankRows.length+1}`,active:true});return {data:null,error:null};}
+  }:({
     select:()=>query(table,'read'),
     insert:payload=>query(table,'insert',payload),
     update:payload=>{const q=query(table,'update',payload),eq=q.eq;q.eq=(column,value)=>{if(column==='id')currentId=value;return eq.call(q,column,value);};return q;},
@@ -66,7 +69,7 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
   window.eval(source('cepi-blocks.js'));window.eval(source('class-exams.js'));
   window.document.body.innerHTML=window.getClassExamPanelAction();
   window.bindClassExamPanelAction({classId,className});window.document.querySelector('#classExamAction').click();
-  return {dom,window,rows,students,pendingMedia,removedPaths,setRemoveError:value=>{removeError=value;},getHeader:()=>header,getPrinted:()=>printed};
+  return {dom,window,rows,bankRows,students,pendingMedia,removedPaths,setRemoveError:value=>{removeError=value;},getHeader:()=>header,getPrinted:()=>printed};
 }
 
 test('professor cria prova mensal com editor rico, finaliza e imprime nominal',async()=>{
@@ -92,6 +95,10 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     assert.match(rows[0].questions[0].statement,/<!--cepi-rich-v1-->/);
     assert.match(rows[0].questions[0].statement,/B\) Outra/);
     assert.equal(Object.keys(rows[0].questions[0].alternatives).length,0);
+    assert.equal(env.bankRows.length,1);
+    assert.equal(env.bankRows[0].subject,'Ciências');
+    assert.equal(env.bankRows[0].correct_answer,'B');
+    assert.equal(rows[0].questions[0].bank_saved,true);
     assert.match(window.document.querySelector('#cxeQuestionForm h4').textContent,/questão 2/);
     window.document.querySelector('#cxeBack').click();
     window.document.querySelector('#cxeFinalize').click();await tick();
@@ -106,6 +113,23 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     window.document.querySelector('#cxePrintBack').click();
     window.document.querySelector('#cxeKey').click();await tick();
     assert.match(env.getPrinted(),/Gabarito oficial/);
+  }finally{env.dom.window.close();}
+});
+
+test('banco da escola reutiliza questão compatível na prova da turma',async()=>{
+  const exam={id:'exam-bank',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',exam_type:'mensal',title:'Prova de Ciências',subject:'Ciências',academic_year:2026,bimester:4,answer_format:'ABCD',questions:[],finalized_at:null};
+  const bank={id:'bank-1',school_id:'school-1',subject:'Ciências',stage:'medio',answer_format:'ABCD',statement:'<!--cepi-rich-v1--><p>Qual é a resposta?</p>',correct_answer:'B',model_answer:'',active:true};
+  const env=setup({seed:[exam],bankSeed:[bank]});
+  try{
+    await tick();env.window.document.querySelector('[data-type="regular"]').click();
+    env.window.document.querySelector('[data-open]').click();
+    [...env.window.document.querySelectorAll('button')].find(button=>button.textContent==='Usar banco de questões').click();
+    await tick();
+    env.window.document.querySelector('[data-bank-question]').click();
+    await tick();
+    assert.equal(exam.questions.length,1);
+    assert.equal(exam.questions[0].correct_answer,'B');
+    assert.equal(exam.questions[0].statement,bank.statement);
   }finally{env.dom.window.close();}
 });
 
@@ -133,7 +157,9 @@ test('professor de outra turma da 3ª série contribui no mesmo simulado por dis
     window.document.querySelector('#cxeEditor').innerHTML='<p>Qual é o elemento? A) H B) He C) Li D) Be E) B</p>';
     window.document.querySelector('[name="correct_answer"]').value='A';
     window.document.querySelector('#cxeContributionForm').dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
-    assert.equal(exam.questions.length,0,'preparo local não altera a prova antes do envio');
+    assert.equal(exam.questions.length,0,'salvar no banco não altera a prova antes do envio');
+    assert.equal(env.bankRows[0].subject,'Química');
+    assert.equal(env.bankRows[0].correct_answer,'A');
     window.document.querySelector('#cxeSendSubject').click();await tick();
     assert.equal(calls.length,1);
     assert.equal(calls[0].p_exam_id,exam.id);
@@ -189,6 +215,21 @@ test('editor rico busca imagens da prova da turma no bucket próprio',async()=>{
     await window.CepiRichText.hydrate(root,{storage:{from:bucket=>{selectedBucket=bucket;return {createSignedUrl:async()=>({data:{signedUrl:'https://example.com/image.png'},error:null})};}}},schoolId,'class-exam-images');
     assert.equal(selectedBucket,'class-exam-images');
     assert.equal(root.querySelector('img').src,'https://example.com/image.png');
+  }finally{dom.window.close();}
+});
+
+test('limpar formatação sem seleção restaura o texto e preserva objetos',()=>{
+  const dom=new JSDOM('<!doctype html><html><body><div id="editor" contenteditable="true"><p><span style="font-size:18pt;color:#ff0000;background-color:#ffff00"><strong>Texto colorido</strong></span></p><table><tbody><tr><td>1</td></tr></tbody></table></div></body></html>',{runScripts:'dangerously'});
+  try{
+    const {window}=dom;window.eval(source('cepi-rich-text.js'));
+    window.document.execCommand=()=>true;
+    const editor=window.document.getElementById('editor');
+    const control=window.CepiRichText.mount(editor,{db:{},schoolId:'school-1'});
+    control.clearTextStyle();
+    assert.match(editor.textContent,/Texto colorido/);
+    assert.equal(editor.querySelector('strong,span,[style*="font-size"],[style*="background-color"]'),null);
+    assert.ok(editor.querySelector('table td'));
+    control.dispose();
   }finally{dom.window.close();}
 });
 

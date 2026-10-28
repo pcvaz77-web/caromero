@@ -99,7 +99,7 @@ test('cadastro ENEM usa 3ª série, 45 questões e ano atual sem alterar o simul
     await waitFor(()=>document.querySelectorAll('.cepi-workspace-list > article').length===2);
     const saved=dom.window.eval('rows.cepi_tests[1]');
     assert.equal(saved.question_count,45);
-    assert.equal(saved.title,'SIMULA - ENEM - CADERNO 1 - 4º BIM');
+    assert.equal(saved.title,'SIMULADO ENEM - CADERNO 1 - 4º BIM');
     assert.deepEqual(JSON.parse(JSON.stringify(saved.subjects)),['Química','Física','Biologia','História','Geografia','Filosofia','Sociologia']);
     assert.deepEqual(errors,[]);
   }finally{dom.window.close();}
@@ -180,6 +180,26 @@ test('formulário mostra QUESTÃO com o número sem impedir a edição da ordem'
     const label=document.querySelector('#cepiQuestionForm .cepi-question-number-label');
     assert.equal(label.textContent.trim(),'QUESTÃO');
     assert.equal(label.querySelector('[name="number"]').value,'1');
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('salvar questão da prova também a registra no banco com a disciplina', async () => {
+  const {dom,waitFor,errors}=await fixture('',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="new-question"]').click();
+    document.getElementById('cepiQuestionEditor').innerHTML='<p>Quanto é 2 + 2?</p><p>A) 3<br>B) 4</p>';
+    document.querySelector('#cepiQuestionForm [name="correct_answer"]').value='B';
+    document.getElementById('cepiQuestionForm').requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_test_questions.length')===1);
+    const bank=dom.window.eval('rows.cepi_question_bank[0]');
+    const saved=dom.window.eval('rows.cepi_test_questions[0]');
+    assert.equal(bank.subject,'Língua Portuguesa');
+    assert.equal(bank.stage,'fundamental_ii');
+    assert.equal(bank.correct_answer,'B');
+    assert.equal(saved.bank_question_id,bank.id);
     assert.deepEqual(errors,[]);
   } finally {dom.window.close();}
 });
