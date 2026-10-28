@@ -25,7 +25,6 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent = `
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
-    .subscription-visibility { padding:12px; border:1px solid #dbe5ff; border-radius:9px; background:#f8faff; }
     .billing-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
     .billing-option { position:relative; display:flex; gap:13px; align-items:center; min-height:112px; padding:18px; border:1.5px solid #d7dfed; border-radius:17px; background:linear-gradient(145deg,#fff,#f8faff); box-shadow:0 7px 22px #10204a0a; cursor:pointer; transition:border-color .2s,box-shadow .2s,transform .2s,background .2s; }
     .billing-option:hover { border-color:#9fb1df; transform:translateY(-1px); box-shadow:0 12px 28px #173b8f16; }
@@ -38,6 +37,12 @@ document.addEventListener('DOMContentLoaded', () => {
     .billing-option strong { color:#132040; font-size:15px; line-height:1.3; }
     .billing-option small { color:#60708e; margin-top:6px; line-height:1.4; }
     .access-users { display:grid; gap:10px; }
+    .access-search { position:sticky; top:0; z-index:1; display:flex; align-items:center; gap:9px; margin:0 0 15px; padding:8px 11px; border:1px solid #d0d5dd; border-radius:10px; background:#fff; box-shadow:0 4px 14px #17233a0d; }
+    .access-search:focus-within { border-color:var(--blue); box-shadow:0 0 0 3px #dfe8ff; }
+    .access-search svg { width:19px; height:19px; flex:none; fill:none; stroke:#667085; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+    .access-search input { min-width:0; min-height:30px; padding:2px 0; border:0; box-shadow:none; }
+    .access-search input:focus { border:0; box-shadow:none; }
+    .access-search-count { margin:-5px 0 12px; color:var(--muted); font-size:13px; }
     .access-user { display:flex; align-items:center; justify-content:space-between; gap:16px; border:1px solid var(--line); border-radius:10px; padding:14px; }
     .access-user .access-actions { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
     .access-user .access-actions .btn { min-height:38px; }
@@ -389,12 +394,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'settingsModal';
   modal.className = 'modal-bg hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><h3>Configurações da plataforma</h3><button class="close" type="button">×</button></div><div class="form"><h4 style="margin:0 0 7px">Acesso dos usuários</h4><p class="sub" style="margin:0 0 15px">Suspenda quem não deve acessar. Você pode reativar a qualquer momento.</p><div id="accessUsers" class="access-users"></div></div></div>`;
+  modal.innerHTML = `<div class="modal"><div class="modal-head"><h3>Configurações da plataforma</h3><button class="close" type="button">×</button></div><div class="form"><h4 style="margin:0 0 7px">Acesso dos usuários</h4><p class="sub" style="margin:0 0 15px">Suspenda quem não deve acessar. Você pode reativar a qualquer momento.</p><label class="access-search" for="accessUserSearch"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 5 5"></path></svg><input id="accessUserSearch" type="search" autocomplete="off" placeholder="Pesquisar por nome ou e-mail" aria-label="Pesquisar usuários por nome ou e-mail"></label><p id="accessSearchCount" class="access-search-count" aria-live="polite"></p><div id="accessUsers" class="access-users"></div></div></div>`;
   document.body.appendChild(modal);
-  const subscriptionVisibility = document.createElement('label');
-  subscriptionVisibility.className = 'check subscription-visibility';
-  subscriptionVisibility.innerHTML = '<input id="showSubscriptionButton" type="checkbox"> Disponibilizar a oferta pública de planos';
-  modal.querySelector('h4').before(subscriptionVisibility);
   modal.querySelector('.close').onclick = () => modal.classList.add('hidden');
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
 
@@ -474,9 +475,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const target = document.getElementById('accessUsers');
-    const showSubscription = await readSubscriptionVisibilitySetting();
-    document.getElementById('showSubscriptionButton').checked = showSubscription;
-    target.innerHTML = '<div class="meta">Carregando usuários...</div>';
+    const scroller = modal.querySelector('.modal');
+    const search = document.getElementById('accessUserSearch');
+    const wasHidden = modal.classList.contains('hidden');
+    const previousScroll = wasHidden ? 0 : scroller.scrollTop;
+    if (wasHidden) search.value = '';
+    search.oninput = null;
+    if (wasHidden) target.innerHTML = '<div class="meta">Carregando usuários...</div>';
     modal.classList.remove('hidden');
     const { data, error } = await db.rpc('admin_list_carometro_accounts');
     if (error) {
@@ -496,31 +501,42 @@ document.addEventListener('DOMContentLoaded', () => {
       // ou valor inesperado): não deve ser classificado como ativo nem como suspenso.
       return { cls:'access-unknown', label:'Acesso sem permissão configurada', toggle:null };
     }
-    target.innerHTML = (data || []).map(item => {
-      const owner = item.role === 'platform_owner';
-      const status = accountStatus(item);
-      const name = item.full_name?.trim() || 'Nome não informado';
-      const email = item.email || 'Usuário';
-      const toggleButton = status.toggle
-        ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender login' : 'Reativar login'}</button>`
-        : '';
-      return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${owner ? '<span class="meta">Proprietário da plataforma</span>' : toggleButton}</div></article>`;
-    }).join('') || '<div class="empty">Nenhum usuário encontrado.</div>';
-    (data || []).forEach((item, index) => {
-      if (item.role === 'platform_owner') return;
-      const email = item.email || '';
-      const controls = target.querySelectorAll('.access-actions')[index];
-      if (!controls) return;
-      const cancel = document.createElement('button');
-      cancel.className = 'btn secondary';
-      cancel.textContent = 'Cancelar login';
-      cancel.onclick = () => window.manageUserAccount('cancel_login', item.user_id, email);
-      const remove = document.createElement('button');
-      remove.className = 'btn danger-outline';
-      remove.textContent = 'Excluir permanentemente';
-      remove.onclick = () => window.manageUserAccount('permanent_delete', item.user_id, email);
-      controls.append(cancel, remove);
-    });
+    const accounts = data || [];
+    const normalizeSearch = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+    function renderAccessUsers() {
+      const term = normalizeSearch(search.value.trim());
+      const visible = term ? accounts.filter(item => normalizeSearch(`${item.full_name || ''} ${item.email || ''}`).includes(term)) : accounts;
+      document.getElementById('accessSearchCount').textContent = `${visible.length} de ${accounts.length} usuário(s)`;
+      target.innerHTML = visible.map(item => {
+        const owner = item.role === 'platform_owner';
+        const status = accountStatus(item);
+        const name = item.full_name?.trim() || 'Nome não informado';
+        const email = item.email || 'Usuário';
+        const toggleButton = status.toggle
+          ? `<button class="btn secondary" onclick="setPlatformAccess('${item.user_id}','${status.toggle}')">${status.toggle === 'suspended' ? 'Suspender login' : 'Reativar login'}</button>`
+          : '';
+        return `<article class="access-user"><div><b>${esc(name)}</b><div class="meta">${esc(email)}</div><div class="${status.cls}">${status.label}</div></div><div class="access-actions">${owner ? '<span class="meta">Proprietário da plataforma</span>' : toggleButton}</div></article>`;
+      }).join('') || `<div class="empty">${term ? 'Nenhum usuário corresponde à pesquisa.' : 'Nenhum usuário encontrado.'}</div>`;
+      const actionGroups = target.querySelectorAll('.access-actions');
+      visible.forEach((item, index) => {
+        if (item.role === 'platform_owner') return;
+        const email = item.email || '';
+        const controls = actionGroups[index];
+        if (!controls) return;
+        const cancel = document.createElement('button');
+        cancel.className = 'btn secondary';
+        cancel.textContent = 'Cancelar login';
+        cancel.onclick = () => window.manageUserAccount('cancel_login', item.user_id, email);
+        const remove = document.createElement('button');
+        remove.className = 'btn danger-outline';
+        remove.textContent = 'Excluir permanentemente';
+        remove.onclick = () => window.manageUserAccount('permanent_delete', item.user_id, email);
+        controls.append(cancel, remove);
+      });
+    }
+    search.oninput = () => { renderAccessUsers(); scroller.scrollTop = 0; };
+    renderAccessUsers();
+    scroller.scrollTop = previousScroll;
   }
 
   // Acionador público usado por Plataforma → Configurações. Evita depender
@@ -535,7 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (error) { toast(error.message); return; }
     toast(status === 'active' ? 'Login reativado.' : 'Login suspenso.');
-    openSettings();
+    await openSettings();
   };
   const pendingAccountActions = new Set();
   window.manageUserAccount = async (action, id, email) => {
@@ -564,27 +580,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       toast(action === 'cancel_login' ? 'Login cancelado. O e-mail está liberado para novo cadastro.' : 'Usuário excluído permanentemente.');
-      openSettings();
+      await openSettings();
     } finally {
       pendingAccountActions.delete(actionKey);
     }
-  };
-  document.getElementById('showSubscriptionButton').onchange = async event => {
-    const show = event.target.checked;
-    if (!await refreshPlatformOwner()) {
-      event.target.checked = !show;
-      toast('Acesso negado.');
-      return;
-    }
-    const { error } = await db.rpc('platform_set_subscription_visibility', {
-      p_show_subscription: show
-    });
-    if (error) {
-      event.target.checked = !show;
-      toast('Execute primeiro a configuração de assinatura no Supabase.');
-      return;
-    }
-    toast(show ? 'Oferta pública de planos habilitada.' : 'Oferta pública de planos desabilitada.');
   };
   document.addEventListener('carometro:platform-settings-changed', () => {
     refreshPublicPlansVisibility();
