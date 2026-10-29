@@ -40,7 +40,7 @@ test('reutilizar prova cria rascunho editável sem alterar a origem',async()=>{
     document.getElementById('cepiDuplicateForm').requestSubmit();
     await waitFor(()=>/Cópia criada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
     assert.match(document.getElementById('cepiWorkspaceMessage').textContent,/Cópia criada/);
-    assert.ok(document.getElementById('cepiQuestionBack'));
+    assert.ok(document.getElementById('cepiQuestionsToolbar'));
     const records=dom.window.eval('rows.cepi_tests');
     assert.equal(records.length,2);
     assert.equal(records[0].id,'33333333-3333-4333-8333-333333333333');
@@ -75,7 +75,7 @@ test('importar texto revisado cria a prova com gabarito informado',async()=>{
     document.querySelector('#cepiExamImportForm [data-cepi-person-id]').click();
     document.getElementById('cepiExamImportForm').requestSubmit();
     await waitFor(()=>/Prova importada/.test(document.getElementById('cepiWorkspaceMessage').textContent));
-    assert.ok(document.getElementById('cepiQuestionBack'));
+    assert.ok(document.getElementById('cepiQuestionsToolbar'));
     assert.deepEqual(dom.window.eval('rows.cepi_test_questions.filter(item=>item.test_id==="33333333-3333-4333-8333-333333333336").map(item=>item.correct_answer)').join(''),'BA');
     assert.equal(dom.window.eval('rows.cepi_tests.find(item=>item.id==="33333333-3333-4333-8333-333333333336").status'),'ready');
     assert.ok(document.querySelector('[data-action="print-cards"]'));

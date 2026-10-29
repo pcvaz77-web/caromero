@@ -126,7 +126,7 @@
         document.getElementById('cepiTeacherProofSelect').selectedIndex=1;
         document.getElementById('cepiTeacherProofContinue').click();
       }
-      checks.push(!!document.getElementById('cepiQuestionBack'));
+      checks.push(!!document.getElementById('cepiQuestionsToolbar') && !document.getElementById('cepiQuestionBack'));
       checks.push(document.querySelector('[data-action="new-question"]')?.textContent.trim()==='＋ Inserir questões');
       document.getElementById('cepiWorkspaceBack').click();
       checks.push(button.textContent.trim()==='＋ Inserir questões');
@@ -185,10 +185,11 @@
       checks.push(!!document.querySelector('[data-action="duplicate-test"]'));
       document.querySelector('[data-action="questions"]')?.click();
       checks.push(back.textContent.trim()==='← Provas');
+      checks.push(!!document.getElementById('cepiQuestionsToolbar') && !document.getElementById('cepiQuestionBack') && document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
       document.querySelector('[data-action="new-question"]')?.click();
       checks.push(!!document.getElementById('cepiQuestionForm') && back.textContent.trim()==='← Questões da prova');
       back.click();
-      checks.push(!!document.getElementById('cepiQuestionBack'));
+      checks.push(!!document.getElementById('cepiQuestionsToolbar'));
       back.click();
       checks.push(!!document.querySelector('[data-action="duplicate-test"]'));
       back.click();
@@ -213,7 +214,7 @@
       document.querySelector('[data-action="print-cards"]')?.click();
       checks.push(!!document.getElementById('cepiCardForm') && back.textContent.trim()==='← Questões da prova');
       document.getElementById('cepiCardCancel')?.click();
-      checks.push(!!document.getElementById('cepiQuestionBack'));
+      checks.push(!!document.getElementById('cepiQuestionsToolbar'));
       back.click();
       document.querySelector('[data-action="correct-cards"]')?.click();
       checks.push(back.textContent.trim()==='← Provas' && document.getElementById('cepiCorrectionBack')?.textContent.trim()==='← Provas');

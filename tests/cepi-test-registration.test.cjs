@@ -160,7 +160,8 @@ test('professor vê a prova cadastrada e adiciona questões sem cadastrar outra 
   const {dom, errors} = await fixture('', false);
   try {
     const document=dom.window.document;
-    assert.ok(document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
+    assert.equal(document.getElementById('cepiWorkspaceNew').textContent.trim(),'＋ Inserir questões');
+    assert.ok(!document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
     assert.equal(document.getElementById('cepiImportExam'),null);
     assert.equal(document.querySelector('[data-action="duplicate-test"]'),null);
     assert.equal(document.querySelector('[data-action="edit-test"]'),null);
@@ -362,11 +363,14 @@ test('questões completas podem ser editadas até a abertura da impressão', asy
   try {
     const document=dom.window.document;
     document.querySelector('[data-action="questions"]').click();
+    assert.equal(document.querySelectorAll('#cepiWorkspaceBack, #cepiQuestionBack').length,1);
+    assert.equal(document.getElementById('cepiWorkspaceBack').textContent.trim(),'← Provas');
+    assert.ok(document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
     assert.equal(document.querySelector('[data-action="new-question"]'),null);
     assert.ok(document.querySelector('[data-action="edit-question"]'));
     assert.equal(document.querySelector('[data-action="remove-question"]'),null);
     dom.window.eval('rows.cepi_tests[0].print_opened_at="2026-10-13T12:00:00Z"');
-    document.getElementById('cepiQuestionBack').click();
+    document.getElementById('cepiWorkspaceBack').click();
     document.querySelector('[data-action="questions"]').click();
     assert.equal(document.querySelector('[data-action="edit-question"]'),null);
     assert.deepEqual(errors,[]);
