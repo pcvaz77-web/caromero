@@ -11,6 +11,7 @@ test('coordenador convida os três cargos; secretaria segue restrita a professor
   const frontend = read('school-invitations.js');
   const edge = read('supabase/functions/send-school-invitation/index.ts');
   const migration = read('supabase/migrations/201_secretary_observations_coordinator_invitations.sql');
+  const boundary = read('supabase/migrations/202_limit_coordinator_invitation_roles.sql');
 
   assert.match(index, /school-invitations\.js\?v=9/);
   assert.match(frontend, /\['school_admin', 'coordinator'\]\.includes/);
@@ -19,6 +20,8 @@ test('coordenador convida os três cargos; secretaria segue restrita a professor
   assert.match(edge, /callerMember\.role === 'secretary' && !callerPermissions\?\.can_invite_teachers/);
   assert.match(migration, /v_role='secretary' and target_role<>'teacher'/);
   assert.match(migration, /sm\.role='coordinator' or \(sm\.role='secretary'/);
+  assert.match(boundary, /sm\.role='coordinator' and school_invitations\.role in \('coordinator','secretary','teacher'\)/);
+  assert.match(boundary, /v_role='coordinator' and v_inv\.role in \('coordinator','secretary','teacher'\)/);
 });
 
 test('aceite remove o token persistido depois do sucesso e exige e-mail convidado', () => {
