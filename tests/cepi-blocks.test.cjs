@@ -6,7 +6,26 @@ const {test} = require('node:test');
 
 const context = {window:{}};
 vm.runInNewContext(fs.readFileSync(path.join(__dirname,'..','cepi-blocks.js'),'utf8'),context);
-const {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,displayTitle,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+const {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectRange,nextSubjectNumber,subjectCapacity,title,displayTitle,instructions,summarize,ranking,stageForClassName} = context.window.CepiBlocks;
+
+test('cada disciplina de um bloco ocupa sua faixa mesmo quando professores começam fora de ordem', () => {
+  const exam={id:'bloco-6',kind:'bloco',stage:'medio',block_number:6,subject_plan:plan('medio',6),question_count:30};
+  assert.deepEqual(JSON.parse(JSON.stringify(subjectRange(exam,'Biologia'))),{start:1,end:15});
+  assert.deepEqual(JSON.parse(JSON.stringify(subjectRange(exam,'Sociologia'))),{start:16,end:23});
+  assert.deepEqual(JSON.parse(JSON.stringify(subjectRange(exam,'Filosofia'))),{start:24,end:30});
+  const rows=[{test_id:exam.id,number:24,subject:'Filosofia'},{test_id:exam.id,number:25,subject:'Filosofia'},{test_id:exam.id,number:1,subject:'Biologia'}];
+  assert.equal(nextSubjectNumber(exam,rows,'Filosofia'),26);
+  assert.equal(nextSubjectNumber(exam,rows,'Biologia'),2);
+  assert.equal(nextSubjectNumber(exam,rows,'Sociologia'),16);
+  assert.equal(subjectForNumber(exam,24),'Filosofia');
+  assert.equal(subjectForNumber(exam,16),'Sociologia');
+  assert.equal(subjectForNumber(exam,1),'Biologia');
+  assert.equal(nextSubjectNumber(exam,[...rows,...Array.from({length:5},(_,i)=>({test_id:exam.id,number:26+i,subject:'Filosofia'}))],'Filosofia'),null);
+  const fundamental={id:'bloco-4',kind:'bloco',stage:'fundamental_ii',block_number:4,subject_plan:plan('fundamental_ii',4)};
+  assert.equal(subjectForNumber(fundamental,1),'Língua Inglesa');
+  assert.equal(subjectForNumber(fundamental,6),'Arte');
+  assert.equal(subjectForNumber(fundamental,11),'Educação Física');
+});
 
 test('modelos ENEM preservam totais, ordem e ano letivo', () => {
   assert.equal(enemPlan('caderno_1').reduce((sum,item)=>sum+item.count,0),45);

@@ -179,8 +179,86 @@ test('formulário mostra QUESTÃO com o número sem impedir a edição da ordem'
     document.querySelector('[data-action="questions"]').click();
     document.querySelector('[data-action="new-question"]').click();
     const label=document.querySelector('#cepiQuestionForm .cepi-question-number-label');
-    assert.equal(label.textContent.trim(),'QUESTÃO');
+    assert.match(label.textContent,/^QUESTÃO/);
+    assert.match(label.textContent,/Questões 1–2 de Língua Portuguesa/);
     assert.equal(label.querySelector('[name="number"]').value,'1');
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('bloco 6 reserva Filosofia no fim e Biologia no começo, independente da ordem de envio', async () => {
+  const {dom,waitFor,errors}=await fixture('block6=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="new-question"]').click();
+    let form=document.getElementById('cepiQuestionForm');
+    assert.equal(form.elements.number.value,'1');
+    form.elements.subject.value='Filosofia';
+    form.elements.subject.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.number.value,'24');
+    assert.equal(form.elements.number.min,'24');
+    assert.equal(form.elements.number.max,'30');
+    form.elements.number.value='1';
+    form.elements.number.dispatchEvent(new dom.window.Event('input'));
+    assert.equal(form.querySelector('[type="submit"]').disabled,true);
+    form.elements.number.value='24';
+    form.elements.number.dispatchEvent(new dom.window.Event('input'));
+    document.getElementById('cepiQuestionEditor').innerHTML='<p>Uma questão de Filosofia.</p>';
+    form.elements.correct_answer.value='A';
+    form.requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_test_questions.length')===1);
+    assert.equal(dom.window.eval('rows.cepi_test_questions[0].number'),24);
+    await waitFor(()=>document.getElementById('cepiQuestionForm')?.elements.number.value==='25');
+    document.getElementById('cepiCancelForm').click();
+    document.querySelector('[data-action="new-question"]').click();
+    form=document.getElementById('cepiQuestionForm');
+    form.elements.subject.value='Biologia';
+    form.elements.subject.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.number.value,'1');
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('bloco 6 bloqueia Filosofia após sete questões', async () => {
+  const {dom,errors}=await fixture('block6=1&block6Full=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="new-question"]').click();
+    const form=document.getElementById('cepiQuestionForm');
+    form.elements.subject.value='Filosofia';
+    form.elements.subject.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.querySelector('[type="submit"]').disabled,true);
+    assert.match(document.getElementById('cepiQuestionSaveStatus').textContent,/7 de 7/);
+    form.elements.subject.value='Sociologia';
+    form.elements.subject.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.elements.number.value,'16');
+    assert.equal(form.querySelector('[type="submit"]').disabled,false);
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('professor retoma a própria disciplina após outra pessoa lançar questão', async () => {
+  const {dom,errors}=await fixture('block6=1&block6Mixed=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="new-question"]').click();
+    const form=document.getElementById('cepiQuestionForm');
+    assert.equal(form.elements.subject.value,'Filosofia');
+    assert.equal(form.elements.number.value,'25');
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
+});
+
+test('questão antiga fora da faixa é sinalizada sem alterar os dados', async () => {
+  const {dom,errors}=await fixture('block6=1&block6Wrong=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    assert.match(document.querySelector('[role="alert"]').textContent,/fora da faixa prevista/);
+    assert.equal(dom.window.eval('rows.cepi_test_questions[0].number'),1);
     assert.deepEqual(errors,[]);
   } finally {dom.window.close();}
 });
@@ -262,6 +340,29 @@ test('usar questões do banco filtra disciplina e ano e sugere a próxima posiç
     assert.equal(saved.bank_question_id,'77777777-7777-4777-8777-777777777761');
     assert.deepEqual(errors,[]);
   }finally{dom.window.close();}
+});
+
+test('importação do banco sugere e exige a faixa da disciplina no bloco 6', async () => {
+  const {dom,waitFor,errors}=await fixture('block6=1',false);
+  try {
+    const document=dom.window.document;
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="import-question"]').click();
+    const form=document.getElementById('cepiImportForm');
+    const choice=form.querySelector('[name="question_id"][value="77777777-7777-4777-8777-777777777771"]');
+    choice.checked=true;
+    choice.dispatchEvent(new dom.window.Event('change',{bubbles:true}));
+    assert.equal(form.elements.number.value,'24');
+    form.elements.number.value='1';
+    form.requestSubmit();
+    assert.match(document.getElementById('cepiImportStatus').textContent,/faixa reservada/);
+    assert.equal(dom.window.eval('rows.cepi_test_questions.length'),0);
+    form.elements.number.value='24';
+    form.requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_test_questions.length')===1);
+    assert.equal(dom.window.eval('rows.cepi_test_questions[0].number'),24);
+    assert.deepEqual(errors,[]);
+  } finally {dom.window.close();}
 });
 
 test('posição sugerida pode ser alterada para outra posição vazia', async () => {

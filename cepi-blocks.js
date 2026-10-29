@@ -77,8 +77,26 @@
     if(test?.kind==='bloco') return Array.isArray(test.subject_plan)&&test.subject_plan.length?test.subject_plan:plan(test.stage,test.block_number);
     return enemPlan(enemModel(test));
   }
+  function subjectRange(test, subject) {
+    const distribution=examPlan(test);
+    if(!distribution)return null;
+    let start=1;
+    for(const entry of distribution){
+      const end=start+Number(entry.count)-1;
+      if(entry.subject===subject)return {start,end};
+      start=end+1;
+    }
+    return null;
+  }
+  function nextSubjectNumber(test, questions, subject) {
+    const range=subjectRange(test,subject);
+    if(!range)return null;
+    const occupied=new Set(questions.filter(item=>item.test_id===test.id).map(item=>Number(item.number)));
+    for(let number=range.start;number<=range.end;number++)if(!occupied.has(number))return number;
+    return null;
+  }
   function subjectForNumber(test, number) {
-    if(!enemModel(test)||!Number.isInteger(Number(number))||Number(number)<1)return null;
+    if(!examPlan(test)||!Number.isInteger(Number(number))||Number(number)<1)return null;
     let last=0;
     for(const entry of examPlan(test)){
       last+=entry.count;
@@ -173,5 +191,5 @@
     return {tests:relevant,subjects,rows};
   }
 
-  window.CepiBlocks = {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectCapacity,title,displayTitle,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
+  window.CepiBlocks = {plan,enemPlan,enemModel,examPlan,subjectForNumber,subjectRange,nextSubjectNumber,subjectCapacity,title,displayTitle,instructions,defaultInstructionTail,summarize,ranking,stageForClassName};
 })();

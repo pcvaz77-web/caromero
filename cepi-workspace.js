@@ -858,7 +858,15 @@ document.addEventListener('DOMContentLoaded', () => {
     setWorkspaceBack('Provas', renderTests);
     $('cepiWorkspaceNew').classList.add('hidden');
     const rows = questions.filter(q => q.test_id === testId).sort((a,b)=>a.number-b.number);
+    const misplaced=test.kind==='bloco'?rows.filter(q=>window.CepiBlocks.subjectForNumber(test,q.number)!==q.subject):[];
     $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-toolbar" id="cepiQuestionsToolbar">${canAddQuestion(test) ? actionButton('＋ Inserir questões','new-question',testId,true) + actionButton('Usar as questões do banco','import-question',testId) : ''}${manager()&&test.status!=='draft'?actionButton('Imprimir prova do aluno','print-student',testId,true):''}${manager()&&test.status!=='draft'?(window.CepiBlocks.enemModel(test)?'':actionButton('Imprimir cartões-resposta','print-cards',testId))+actionButton('Gabarito oficial','print-key',testId):''}${manager()&&(!examHeader?.school_name || !examHeader?.state_name) ? actionButton('Configurar cabeçalho','header',testId) : ''}${manager()?actionButton('Excluir prova','delete-test',testId):''}</div><h4>${esc(displayTitle(test.title))}</h4><p class="meta">${rows.length} de ${test.question_count} questões previstas · ${esc(test.answer_format)}</p>${manager()?`<p class="cepi-workspace-hint">Confira as questões enviadas pelos professores. O gabarito mostrado aqui é interno e não aparece na prova do aluno.${rows.length<test.question_count?` Faltam ${test.question_count-rows.length} questões para imprimir.`:''}</p>`:''}<div class="cepi-workspace-list cepi-workspace-questions">${rows.map(q=>`<article class="cepi-workspace-item cepi-question-card"><h4>Questão ${q.number} · ${esc(q.subject)}</h4>${rich().render(q.statement,schoolId)}${Object.entries(q.alternatives||{}).filter(([,value])=>value).map(([letter,value])=>`<p>${esc(letter)}) ${esc(value)}</p>`).join('')}<p>Gabarito interno: <strong>${esc(q.correct_answer)}</strong></p>${canEditQuestion(test)?actionButton('Editar questão','edit-question',q.id):''}${canAddQuestion(test)?actionButton('Retirar da prova','remove-question',q.id):''}</article>`).join('') || '<div class="cepi-empty">Nenhuma questão cadastrada.</div>'}</div>`;
+    if(misplaced.length){
+      const warning=document.createElement('p');
+      warning.className='cepi-workspace-hint';
+      warning.setAttribute('role','alert');
+      warning.textContent=`${misplaced.length} ${misplaced.length===1?'questão foi salva':'questões foram salvas'} fora da faixa prevista para a disciplina. Corrija a numeração dessas questões antes de completar a prova.`;
+      $('cepiWorkspaceContent').querySelector('.cepi-workspace-questions').before(warning);
+    }
     rich().hydrate($('cepiWorkspaceContent'),db,schoolId).catch(fail);
     bindActions({'new-question':()=>questionForm(test),'edit-question':id=>questionForm(test,questions.find(q=>q.id===id)),'import-question':()=>importQuestionForm(test),'print-student':()=>printTest(test.id),'print-cards':()=>answerSheetForm(test.id),'print-key':()=>printAnswerSheet(test.id,true),'header':()=>headerForm(true,test.id),'delete-test':()=>deleteTest(test.id),'remove-question':async id=>{if(!canAddQuestion(test)||!ensureContext())return;const result=await db.from('cepi_test_questions').delete().eq('school_id',schoolId).eq('test_id',test.id).eq('id',id);if(result.error)return fail(result.error);await load().then(()=>renderQuestions(test.id)).catch(fail);}});
   }
@@ -870,9 +878,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const occupied=new Set(questions.filter(item=>item.test_id===test.id).map(item=>item.number));
     const next = q?.number || Array.from({length:test.question_count},(_,index)=>index+1).find(number=>!occupied.has(number));
     if(!next){message('Todas as questões desta prova já foram cadastradas.');return renderQuestions(test.id);}
-    const selectedSubject=window.CepiBlocks.subjectForNumber(test,next) || q?.subject || preferredSubject || test.subjects?.[0] || '';
+    const ownLastSubject=test.kind==='bloco'?questions.filter(item=>item.test_id===test.id&&item.created_by===userId).sort((a,b)=>new Date(b.created_at||0)-new Date(a.created_at||0))[0]?.subject:null;
+    const selectedSubject=q?.subject || preferredSubject || ownLastSubject || window.CepiBlocks.subjectForNumber(test,next) || test.subjects?.[0] || '';
     const initialCapacity=window.CepiBlocks.subjectCapacity(test,questions,selectedSubject,q?.id);
-    const initialNumber=!q && initialCapacity?.full ? initialCapacity.lastNumber || next : next;
+    const initialNumber=q?.number || window.CepiBlocks.nextSubjectNumber(test,questions,selectedSubject) || (initialCapacity?.full ? initialCapacity.lastNumber : next) || next;
     $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiQuestionForm"><h4>${q?'Editar':'Nova'} questão ${initialNumber} · ${esc(displayTitle(test.title))}</h4><div class="cepi-workspace-grid"><label class="cepi-question-number-label">QUESTÃO<input name="number" type="number" aria-label="Número da questão" min="1" max="${test.question_count}" required value="${initialNumber}"></label><label>Disciplina<input name="subject" maxlength="100" required value="${esc(selectedSubject)}"></label></div><div><div class="cepi-question-editor-label" id="cepiQuestionEditorLabel">Enunciado e alternativas *</div><p class="cepi-rich-hint">Cole a questão completa do Word ou de outro lugar. Imagens coladas ou inseridas aparecem no topo; depois você pode movê-las.</p>${richTools('cepiQuestionEditor')}<div id="cepiQuestionEditor" class="cepi-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="cepiQuestionEditorLabel" data-placeholder="Cole ou escreva aqui o texto de apoio, a pergunta e as alternativas..."></div></div><div class="cepi-answer-panel"><label>Gabarito<select name="correct_answer" required><option value="">Selecione</option>${answerFormat.map(letter=>`<option value="${letter}" ${q?.correct_answer===letter?'selected':''}>${letter}</option>`).join('')}</select></label></div><p id="cepiQuestionSaveStatus" role="status" aria-live="polite"></p><div class="actions"><button class="btn secondary" type="button" id="cepiCancelForm">Cancelar</button><button class="btn primary" type="submit">${q?'Salvar alterações':'Salvar questão e ir para a próxima'}</button></div></form>`;
     const form=$('cepiQuestionForm'),editorArea=$('cepiQuestionEditor');
     if(window.CepiBlocks.enemModel(test))form.elements.subject.readOnly=true;
@@ -888,34 +897,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const heading=form.querySelector('h4'),numberInput=form.elements.number,submit=form.querySelector('button[type="submit"]');
     const toolbar=form.querySelector('[data-editor="cepiQuestionEditor"]');
+    const rangeHint=document.createElement('small');
+    if(test.kind==='bloco')numberInput.after(rangeHint);
     const applySubjectCapacity=(resetNumber=false)=>{
       if(test.kind!=='bloco')return false;
       const subject=form.elements.subject.value;
       const capacity=window.CepiBlocks.subjectCapacity(test,questions,subject,q?.id);
-      const blocked=!capacity || capacity.full;
+      const range=window.CepiBlocks.subjectRange(test,subject);
+      const suggested=window.CepiBlocks.nextSubjectNumber(test,questions,subject);
+      if(resetNumber&&!q)numberInput.value=String(suggested||capacity?.lastNumber||range?.start||next);
+      if(resetNumber&&q&&subject!==q.subject&&suggested)numberInput.value=String(suggested);
+      if(range){numberInput.min=String(range.start);numberInput.max=String(range.end);rangeHint.textContent=`Questões ${range.start}–${range.end} de ${subject}.`;}
+      const number=Number(numberInput.value);
+      const occupied=questions.some(item=>item.test_id===test.id&&item.number===number&&item.id!==q?.id);
+      const invalidNumber=!range||!Number.isInteger(number)||number<range.start||number>range.end||occupied;
+      const full=!capacity||capacity.full||(!q&&!suggested);
+      heading.textContent=`${q?'Editar':'Nova'} questão ${numberInput.value} · ${displayTitle(test.title)}`;
       if(!q){
-        if(resetNumber || blocked)numberInput.value=String(blocked ? capacity?.lastNumber || next : next);
-        numberInput.readOnly=blocked;
-        heading.textContent=`Nova questão ${numberInput.value} · ${displayTitle(test.title)}`;
-        editorArea.contentEditable=String(!blocked);
-        editorArea.setAttribute('aria-disabled',String(blocked));
-        toolbar.inert=blocked;
-        toolbar.setAttribute('aria-disabled',String(blocked));
-        toolbar.querySelectorAll('button,input,select').forEach(control=>{control.disabled=blocked;});
-        form.elements.correct_answer.disabled=blocked;
+        numberInput.readOnly=full;
+        editorArea.contentEditable=String(!full);
+        editorArea.setAttribute('aria-disabled',String(full));
+        toolbar.inert=full;
+        toolbar.setAttribute('aria-disabled',String(full));
+        toolbar.querySelectorAll('button,input,select').forEach(control=>{control.disabled=full;});
+        form.elements.correct_answer.disabled=full;
       }
-      submit.disabled=blocked;
-      $('cepiQuestionSaveStatus').textContent=blocked
-        ? capacity ? `${subject}: ${capacity.limit} de ${capacity.limit} questões cadastradas. Selecione outra disciplina para continuar.` : 'Selecione uma disciplina válida.'
-        : '';
-      return blocked;
+      submit.disabled=full||invalidNumber;
+      $('cepiQuestionSaveStatus').textContent=!capacity?'Selecione uma disciplina válida.':capacity.full?`${subject}: ${capacity.limit} de ${capacity.limit} questões cadastradas. Selecione outra disciplina para continuar.`:!q&&!suggested?`A faixa de ${subject} está ocupada por questão de outra disciplina. Corrija a numeração antes de continuar.`:invalidNumber?`Escolha uma posição vazia entre as questões ${range.start} e ${range.end} de ${subject}.`:'';
+      return full||invalidNumber;
     };
     if(test.kind==='bloco')form.elements.subject.onchange=()=>applySubjectCapacity(true);
+    if(test.kind==='bloco')numberInput.oninput=()=>applySubjectCapacity();
     if(window.CepiBlocks.enemModel(test))form.elements.number.onchange=()=>{
       form.elements.subject.value=window.CepiBlocks.subjectForNumber(test,form.elements.number.value)||'';
       heading.textContent=`${q?'Editar':'Nova'} questão ${form.elements.number.value} · ${displayTitle(test.title)}`;
     };
-    applySubjectCapacity(true);
+    applySubjectCapacity();
     $('cepiCancelForm').onclick = async () => {
       if(unsavedUploads.size)await richControl.rollback([...unsavedUploads]).catch(()=>{});
       richControl.dispose();renderQuestions(test.id);
@@ -1085,7 +1102,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const testGrades=gradesForClasses(test.class_ids);
     const available=questionBank.filter(q=>q.active&&q.stage===test.stage&&q.answer_format===test.answer_format&&(!allowedSubjects.size||allowedSubjects.has(q.subject))&&(test.kind!=='bloco'||!window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full)&&(!(q.target_grades||[]).length||q.target_grades.some(grade=>testGrades.includes(grade))));
     const occupied=new Set(questions.filter(q=>q.test_id===test.id).map(q=>q.number));
-    const next=Array.from({length:test.question_count},(_,i)=>i+1).find(n=>!occupied.has(n));
+    const next=test.kind==='bloco'
+      ? (test.subject_plan||[]).map(item=>window.CepiBlocks.nextSubjectNumber(test,questions,item.subject)).find(Boolean)
+      : Array.from({length:test.question_count},(_,i)=>i+1).find(n=>!occupied.has(n));
     if(!next){message('A prova já tem todas as questões previstas.');return;}
     $('cepiWorkspaceNew').classList.add('hidden');
     const subjects=[...new Set(available.map(item=>item.subject))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
@@ -1101,12 +1120,20 @@ document.addEventListener('DOMContentLoaded', () => {
       rich().hydrate(results,db,schoolId).catch(fail);
       form.querySelector('[type="submit"]').disabled=!matching.length;
     };
-    form.elements.subject.onchange=renderResults;
+    const suggestNumber=subject=>{
+      if(test.kind!=='bloco'||!subject)return;
+      const range=window.CepiBlocks.subjectRange(test,subject);
+      const suggested=window.CepiBlocks.nextSubjectNumber(test,questions,subject);
+      if(suggested)form.elements.number.value=String(suggested);
+      status.textContent=range?`Posições de ${subject}: questões ${range.start}–${range.end}.`:'';
+    };
+    form.elements.subject.onchange=()=>{suggestNumber(form.elements.subject.value);renderResults();};
     form.elements.grade.onchange=renderResults;
+    results.onchange=event=>{if(event.target.name==='question_id'){const chosen=available.find(item=>item.id===event.target.value);suggestNumber(chosen?.subject);}};
     form.elements.number.oninput=renderResults;
     renderResults();
     $('cepiImportCancel').onclick=()=>renderQuestions(test.id);
-    form.onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const data=new FormData(form),q=available.find(item=>item.id===data.get('question_id')),number=Number(data.get('number'));if(!q){status.textContent='Selecione uma questão.';return;}if(!Number.isInteger(number)||number<1||number>test.question_count||occupied.has(number)){status.textContent='Escolha uma posição vazia dentro da quantidade prevista da prova.';return;}if(test.kind==='bloco'&&window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full){status.textContent=`A quantidade de questões de ${q.subject} já foi atingida.`;return;}if(window.CepiBlocks.enemModel(test)&&window.CepiBlocks.subjectForNumber(test,number)!==q.subject){status.textContent='Escolha uma questão da disciplina prevista para esta posição do caderno ENEM.';return;}const button=form.querySelector('[type="submit"]');button.disabled=true;status.textContent='Adicionando questão…';const result=await db.from('cepi_test_questions').insert({school_id:schoolId,test_id:test.id,number,subject:q.subject,statement:q.statement,alternatives:q.alternatives,correct_answer:q.correct_answer,bank_question_id:q.id,created_by:userId});if(result.error){status.textContent=result.error.message||'Não foi possível adicionar a questão.';button.disabled=false;return;}await load().then(()=>renderQuestions(test.id)).catch(fail);};
+    form.onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const data=new FormData(form),q=available.find(item=>item.id===data.get('question_id')),number=Number(data.get('number'));if(!q){status.textContent='Selecione uma questão.';return;}if(!Number.isInteger(number)||number<1||number>test.question_count||occupied.has(number)){status.textContent='Escolha uma posição vazia dentro da quantidade prevista da prova.';return;}if(test.kind==='bloco'&&window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full){status.textContent=`A quantidade de questões de ${q.subject} já foi atingida.`;return;}if((test.kind==='bloco'||window.CepiBlocks.enemModel(test))&&window.CepiBlocks.subjectForNumber(test,number)!==q.subject){status.textContent='Escolha uma posição dentro da faixa reservada para esta disciplina.';return;}const button=form.querySelector('[type="submit"]');button.disabled=true;status.textContent='Adicionando questão…';const result=await db.from('cepi_test_questions').insert({school_id:schoolId,test_id:test.id,number,subject:q.subject,statement:q.statement,alternatives:q.alternatives,correct_answer:q.correct_answer,bank_question_id:q.id,created_by:userId});if(result.error){status.textContent=result.error.message||'Não foi possível adicionar a questão.';button.disabled=false;return;}await load().then(()=>renderQuestions(test.id)).catch(fail);};
   }
   function answerSheetForm(id) {
     if (!manager() || !ensureContext()) return;
