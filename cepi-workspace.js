@@ -18,6 +18,13 @@ document.addEventListener('DOMContentLoaded', () => {
   ];
   home.insertAdjacentHTML('beforeend', cards.map(([key,icon,title,description]) =>
     `<button class="cepi-feature-card${key==='listas'?' hidden':''}" ${key==='listas'?'id="cepiPrintListsCard"':''} type="button" data-cepi-workspace="${key}"><span class="cepi-feature-icon" aria-hidden="true">${icon}</span><span><b>${title}</b><small>${description}</small></span><strong aria-hidden="true">→</strong></button>`).join(''));
+  const examSections = new Set(['provas','correcao','ranking','banco','cabecalho']);
+  const syncExamCards = () => home.querySelectorAll('[data-cepi-workspace]').forEach(button => {
+    button.classList.toggle('hidden', window.getActiveSchoolRole?.() === 'secretary' && examSections.has(button.dataset.cepiWorkspace));
+  });
+  document.addEventListener('carometro:school-context-ready', syncExamCards);
+  document.addEventListener('carometro:permission-refresh', syncExamCards);
+  syncExamCards();
 
   const workspace = document.createElement('div');
   workspace.id = 'cepiWorkspace';
@@ -191,6 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return {label: 'Provas', action: renderTests};
   }
   function openSection(key, testId = null, parent = null) {
+    if (window.getActiveSchoolRole?.() === 'secretary' && examSections.has(key)) return;
     if (correctionPoll) { clearInterval(correctionPoll); correctionPoll=null; }
     section = key;
     sectionBack = parent;
@@ -205,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiWorkspaceNew').classList.add('hidden');
     message('Carregando…');
     $('cepiWorkspaceContent').replaceChildren();
-    load().then(() => { $('cepiWorkspaceNew').classList.toggle('hidden', !(editor() && ['provas','banco'].includes(key)) && !(manager() && ['eletiva','clube','oficina'].includes(key))); message(''); render(); if (key === 'provas' && testId && activeTests().some(test=>test.id===testId)) renderQuestions(testId); }).catch(fail);
+    load().then(() => { if (memberRole === 'secretary' && examSections.has(key)) { workspace.classList.add('hidden'); return; } $('cepiWorkspaceNew').classList.toggle('hidden', !(editor() && ['provas','banco'].includes(key)) && !(manager() && ['eletiva','clube','oficina'].includes(key))); message(''); render(); if (key === 'provas' && testId && activeTests().some(test=>test.id===testId)) renderQuestions(testId); }).catch(fail);
   }
   window.openCepiTest = testId => openSection('provas',testId);
   home.querySelectorAll('[data-cepi-workspace]').forEach(button => button.onclick = () => openSection(button.dataset.cepiWorkspace));

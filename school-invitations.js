@@ -35,8 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // Convites possuem uma permissão própria. `can_edit_all` controla dados da
   // escola, mas não deve ampliar implicitamente a capacidade de criar contas.
   // Esta regra precisa permanecer idêntica às RPCs e à Edge Function.
-  const canInvite = () => window.getActiveSchoolRole?.() === 'school_admin'
-    || (['coordinator', 'secretary'].includes(window.getActiveSchoolRole?.()) && permission.can_invite_teachers === true);
+  const canInvite = () => ['school_admin', 'coordinator'].includes(window.getActiveSchoolRole?.())
+    || (window.getActiveSchoolRole?.() === 'secretary' && permission.can_invite_teachers === true);
   const linkForToken = token => new URL(`accept-invite.html?token=${encodeURIComponent(token)}`, location.href).href;
   const copyText = async text => {
     try { await navigator.clipboard.writeText(text); }
@@ -47,10 +47,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function refreshVisibility() {
     const allowed = canInvite();
     nav.classList.toggle('hidden', !allowed);
-    const delegatedStaff = ['coordinator', 'secretary'].includes(window.getActiveSchoolRole?.());
-    byId('schoolInviteRole').querySelector('option[value="coordinator"]').disabled = delegatedStaff;
-    byId('schoolInviteRole').querySelector('option[value="secretary"]').disabled = delegatedStaff;
-    if (delegatedStaff) byId('schoolInviteRole').value = 'teacher';
+    const secretary = window.getActiveSchoolRole?.() === 'secretary';
+    byId('schoolInviteRole').querySelector('option[value="coordinator"]').disabled = secretary;
+    byId('schoolInviteRole').querySelector('option[value="secretary"]').disabled = secretary;
+    if (secretary) byId('schoolInviteRole').value = 'teacher';
     if (!allowed) modal.classList.add('hidden');
   }
 
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const schoolId = window.getActiveSchoolId?.(), email = byId('schoolInviteEmail').value.trim(), role = byId('schoolInviteRole').value;
     if (!schoolId || !canInvite()) { toast('Você não possui permissão para convidar nesta escola.'); return; }
     if (!byId('schoolInviteEmail').checkValidity()) { byId('schoolInviteEmail').reportValidity(); return; }
-    if (['coordinator', 'secretary'].includes(window.getActiveSchoolRole?.()) && role !== 'teacher') { toast('Este perfil só pode convidar professores.'); return; }
+    if (window.getActiveSchoolRole?.() === 'secretary' && role !== 'teacher') { toast('A secretaria só pode convidar professores.'); return; }
     byId('schoolInviteCreate').disabled = true;
     try {
       const { data:id, error } = await db.rpc('create_school_invitation', { target_school_id:schoolId, target_email:email, target_role:role });

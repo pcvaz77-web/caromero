@@ -6,15 +6,19 @@ const test = require('node:test');
 const root = path.resolve(__dirname, '..');
 const read = relative => fs.readFileSync(path.join(root, relative), 'utf8');
 
-test('menu de convites usa a mesma permissão específica exigida pelo servidor', () => {
+test('coordenador convida os três cargos; secretaria segue restrita a professores', () => {
   const index = read('index.html');
   const frontend = read('school-invitations.js');
   const edge = read('supabase/functions/send-school-invitation/index.ts');
+  const migration = read('supabase/migrations/201_secretary_observations_coordinator_invitations.sql');
 
-  assert.match(index, /school-invitations\.js\?v=8/);
-  assert.match(frontend, /\['coordinator', 'secretary'\][\s\S]{0,180}permission\.can_invite_teachers === true/);
+  assert.match(index, /school-invitations\.js\?v=9/);
+  assert.match(frontend, /\['school_admin', 'coordinator'\]\.includes/);
+  assert.match(frontend, /getActiveSchoolRole\?\.\(\) === 'secretary' && role !== 'teacher'/);
   assert.doesNotMatch(frontend, /permission\.can_edit_all\s*\|\|\s*permission\.can_invite_teachers/);
-  assert.match(edge, /callerPermissions\?\.can_invite_teachers/);
+  assert.match(edge, /callerMember\.role === 'secretary' && !callerPermissions\?\.can_invite_teachers/);
+  assert.match(migration, /v_role='secretary' and target_role<>'teacher'/);
+  assert.match(migration, /sm\.role='coordinator' or \(sm\.role='secretary'/);
 });
 
 test('aceite remove o token persistido depois do sucesso e exige e-mail convidado', () => {

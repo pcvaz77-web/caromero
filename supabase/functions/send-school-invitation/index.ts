@@ -157,7 +157,7 @@ async function handleAdminMode(
   if (callerMember.role === 'school_admin') {
     // autorizado para coordinator, teacher ou secretary, já garantido acima.
   } else if (['coordinator', 'secretary'].includes(callerMember.role)) {
-    if (invitation.role !== 'teacher') {
+    if (callerMember.role === 'secretary' && invitation.role !== 'teacher') {
       return json(request, { ok: false, code: 'forbidden', error: 'Este perfil só pode convidar professores.' }, 403)
     }
     const { data: callerPermissions, error: permissionsError } = await admin
@@ -166,7 +166,7 @@ async function handleAdminMode(
       .eq('member_id', callerMember.id)
       .maybeSingle()
     if (permissionsError) return json(request, { ok: false, code: 'server_error', error: 'Não foi possível validar suas permissões.' }, 500)
-    if (!callerPermissions?.can_invite_teachers) {
+    if (callerMember.role === 'secretary' && !callerPermissions?.can_invite_teachers) {
       return json(request, { ok: false, code: 'forbidden', error: 'Você não possui permissão para convidar professores.' }, 403)
     }
   } else {

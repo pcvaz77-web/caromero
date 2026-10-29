@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const close = () => { modal.classList.add('hidden'); button.focus(); };
   modal.querySelectorAll('[data-regular-exam-close]').forEach(item => { item.onclick = close; });
   modal.onclick = event => { if (event.target === modal) close(); };
-  button.onclick = () => { modal.classList.remove('hidden'); connect.focus(); connect.click(); };
+  button.onclick = () => { if (window.getActiveSchoolRole?.() === 'secretary') return; modal.classList.remove('hidden'); connect.focus(); connect.click(); };
   connect.onclick = async () => {
     connect.disabled = true;
     status.dataset.state = '';
@@ -72,12 +72,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
   const sync = () => {
-    const visible = !app.classList.contains('hidden') && Boolean(window.getActiveSchoolId?.());
+    const visible = !app.classList.contains('hidden') && Boolean(window.getActiveSchoolId?.()) && window.getActiveSchoolRole?.() !== 'secretary';
     button.classList.toggle('hidden', !visible);
     if (!visible) modal.classList.add('hidden');
   };
   new MutationObserver(sync).observe(app, { attributes:true, attributeFilter:['class'] });
   document.addEventListener('carometro:school-context-ready', sync);
+  document.addEventListener('carometro:permission-refresh', sync);
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
   sync();
 });
