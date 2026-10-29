@@ -38,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `.cepi-rich-editor img{cursor:move}.cepi-rich-editor img.cepi-image-selected{outline:3px solid #6255db;outline-offset:3px}.cepi-image-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;width:100%;padding-top:8px;border-top:1px solid #d7dfec}.cepi-image-tools[hidden]{display:none}.cepi-image-tools label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}.cepi-image-tools input[type=range]{width:130px;min-height:auto}.cepi-image-tools output{min-width:38px;font-size:13px}.cepi-image-tools button[aria-pressed=true]{background:#dedaff;border-color:#6255db}.cepi-rich-toolbar .cepi-image-tools button{font-size:12px}.cepi-image-tools [data-image-remove]{color:#9f1d32;border-color:#e7b8c0}`;
   style.textContent += `#cepiWorkspace.cepi-modal{padding:0;z-index:20}#cepiWorkspace .cepi-workspace-dialog{width:100vw;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;display:flex;flex-direction:column;overflow:hidden}#cepiWorkspace .modal-head{flex:none;background:linear-gradient(115deg,#142541,#205da8 58%,#5547c8);color:#fff}#cepiWorkspace .modal-head .meta,#cepiWorkspace .modal-head .cepi-kicker,#cepiWorkspace .modal-head .close{color:#eaf2ff}#cepiWorkspace .cepi-workspace-body{flex:1;min-height:0;overflow:auto;padding:clamp(12px,2vw,28px)}#cepiWorkspace .cepi-workspace-form{max-width:none}#cepiWorkspace .cepi-rich-editor{min-height:clamp(300px,46vh,640px)}#cepiWorkspace .cepi-answer-panel{padding:15px;border:1px solid #b9cdee;border-radius:12px;background:linear-gradient(120deg,#e5f0ff,#f0eaff)}#cepiWorkspace .cepi-answer-panel label{color:#153c70}#cepiWorkspace .cepi-workspace-form .actions .primary{background:linear-gradient(125deg,#2163aa,#5d3bd3);box-shadow:inset 1px 1px 0 #ffffff50,0 5px 14px #345cc030}#cepiWorkspace .cepi-workspace-form .actions{flex-wrap:wrap}@media(max-width:700px){#cepiWorkspace .cepi-rich-editor{min-height:42vh}#cepiWorkspace .cepi-workspace-form .actions .btn{flex:1}}`;
   style.textContent += '#cepiWorkspace .modal-head h3{color:#fff}';
+  style.textContent += '#cepiWorkspace button[id$="Back"],#cepiWorkspace #cepiCardCancel{border:1px solid #2559a2;border-radius:10px;background:linear-gradient(125deg,#1766b5,#4456d3);color:#fff;font-weight:750;box-shadow:inset 1px 1px 0 #ffffff80,0 4px 11px #244f9e38}#cepiWorkspace button[id$="Back"]:hover,#cepiWorkspace #cepiCardCancel:hover{filter:brightness(1.08)}#cepiWorkspace button[id$="Back"]:focus-visible,#cepiWorkspace #cepiCardCancel:focus-visible{outline:3px solid #a9c8ff;outline-offset:2px}';
   style.textContent += '#cepiBankForm .cepi-bank-grade-picker{min-width:0}#cepiBankForm .cepi-bank-grade-picker summary{min-height:48px;padding:12px 14px;border:1px solid #cbd6e8;border-radius:10px;background:#fff;color:#17233a;font-size:15px;font-weight:600;cursor:pointer}#cepiBankForm .cepi-bank-grade-picker details[open] summary{border-radius:10px 10px 0 0;border-color:var(--blue)}#cepiBankForm .cepi-bank-grade-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:7px;padding:10px;border:1px solid #cbd6e8;border-top:0;border-radius:0 0 10px 10px;background:#f8faff}#cepiBankForm .cepi-bank-grade-options label{display:flex;align-items:center;gap:8px;min-height:38px;padding:7px 9px;border:1px solid #d8e1f1;border-radius:8px;background:#fff;font-size:14px;font-weight:600;cursor:pointer}#cepiBankForm .cepi-bank-grade-options input{width:17px;min-height:17px;height:17px;margin:0;accent-color:var(--blue)}';
   style.textContent += '#cepiImportForm .cepi-import-results{display:grid;gap:10px}#cepiImportForm .cepi-import-count{margin:4px 0;color:#405273;font-weight:750}#cepiImportForm .cepi-import-question{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px;align-items:start;padding:15px;border:1px solid #cbd6e8;border-radius:12px;background:linear-gradient(120deg,#fff,#f5f8ff);cursor:pointer}#cepiImportForm .cepi-import-question:has(input:checked){border-color:#4469c9;background:#edf3ff;box-shadow:0 0 0 2px #4469c926}#cepiImportForm .cepi-import-question input{width:19px;height:19px;min-height:19px;margin:2px 0 0;accent-color:#315fc4}#cepiImportForm .cepi-import-question strong{display:block;margin-bottom:6px;color:#173d70}#cepiImportForm .cepi-import-statement{max-height:190px;overflow:auto;color:#17233a;font-weight:400}#cepiImportForm .cepi-import-statement p{margin:4px 0}#cepiImportForm .cepi-import-question small{display:block;margin-top:8px;color:#405273}#cepiImportForm label>small{color:#53627e;font-weight:400}#cepiImportStatus:not(:empty){padding:10px 12px;border-radius:9px;background:#fff1f1;color:#992b2b;font-weight:700}@media(max-width:700px){#cepiImportForm .cepi-import-question{padding:11px}}';
   style.textContent += `#cepiTestForm{gap:18px}#cepiTestForm .cepi-test-heading{padding:19px 21px;border:1px solid #dbe5f6;border-radius:16px;background:linear-gradient(120deg,#f1f5ff,#fff);box-shadow:0 5px 18px #152b5410}#cepiTestForm .cepi-test-heading h4{margin:0 0 5px;color:var(--navy);font-size:24px;font-weight:850;letter-spacing:-.5px}#cepiTestForm .cepi-test-heading p{margin:0;color:#53627e;line-height:1.5}#cepiTestForm #cepiTestIdentity{margin:0;border-left:4px solid var(--blue);font-weight:750}#cepiTestForm .cepi-workspace-grid{gap:18px 20px;align-items:start}#cepiTestForm label{display:flex;flex-direction:column;align-items:stretch;align-self:start;gap:8px;margin:0;color:var(--navy);font-size:15px;font-weight:800}#cepiTestForm label[hidden]{display:none}#cepiTestForm label>select,#cepiTestForm label>input,#cepiTestForm label>textarea{min-height:48px;border-color:#cbd6e8;border-radius:10px;background:#fff;font-size:15px;font-weight:600;color:#17233a}#cepiTestForm label>select:focus,#cepiTestForm label>input:focus,#cepiTestForm label>textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px #dfe8ff}#cepiTestForm .cepi-test-classes{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiTestForm .cepi-test-classes legend{padding:0 4px;color:var(--navy);font-size:15px;font-weight:800}#cepiTestForm .cepi-class-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;max-height:160px;overflow:auto}#cepiTestForm .cepi-class-options label{display:flex;flex-direction:row;align-items:center;gap:8px;min-height:40px;padding:7px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;font-size:14px;cursor:pointer}#cepiTestForm .cepi-class-options label:has(input:checked){border-color:#9cb8f6;background:#edf3ff;color:#173e87}#cepiTestForm .cepi-class-options input{width:17px;min-height:0;height:17px;margin:0;accent-color:var(--blue)}#cepiTestForm .cepi-test-classes small{display:block;margin-top:9px;color:#53627e;font-size:12px}#cepiTestForm .cepi-test-empty{color:#667085;font-size:14px;line-height:1.4}#cepiTestForm .cepi-workspace-grid>.cepi-test-classes{align-self:start}#cepiTestForm .actions{padding-top:8px;border-top:1px solid #e4eaf4}#cepiTestForm .actions .btn{min-height:46px;border-radius:10px}@media(max-width:700px){#cepiTestForm .cepi-test-heading{padding:16px}#cepiTestForm .cepi-test-heading h4{font-size:21px}#cepiTestForm .cepi-workspace-grid{gap:16px}}`;
@@ -163,9 +164,32 @@ document.addEventListener('DOMContentLoaded', () => {
     classes = classResult.data || []; students = studentResult.data || [];
   }
 
-  function openSection(key, testId = null) {
+  function backToCepi() {
+    workspace.classList.add('hidden');
+    if (correctionPoll) { clearInterval(correctionPoll); correctionPoll = null; }
+    $('cepiModal').classList.remove('hidden');
+  }
+  let workspaceBackLabel = 'Meu CEPI';
+  let workspaceBackAction = backToCepi;
+  let sectionBack = null;
+  function setWorkspaceBack(label = sectionBack?.label || 'Meu CEPI', action = sectionBack?.action || backToCepi) {
+    workspaceBackLabel = label;
+    workspaceBackAction = action;
+    const button = $('cepiWorkspaceBack');
+    button.textContent = `← ${label}`;
+    button.onclick = action;
+  }
+  function proofPreviousView(testId) {
+    if ($('cepiQuestionBack')) return {label: 'Questões da prova', action: () => renderQuestions(testId)};
+    if ($('cepiCorrectionBack')) return {label: workspaceBackLabel, action: workspaceBackAction};
+    if (section === 'correcao') return {label: 'Correção de provas', action: renderCorrectionHub};
+    return {label: 'Provas', action: renderTests};
+  }
+  function openSection(key, testId = null, parent = null) {
     if (correctionPoll) { clearInterval(correctionPoll); correctionPoll=null; }
     section = key;
+    sectionBack = parent;
+    setWorkspaceBack();
     $('cepiModal').classList.add('hidden');
     workspace.classList.remove('hidden');
     $('cepiWorkspaceTitle').textContent = ({provas:'Provas',correcao:'Correção de provas',ranking:'Ranking de médias',banco:'Banco de questões',cabecalho:'Cabeçalho das provas',listas:'Imprimir listas',lideres:'Líderes'})[key] || groupLabel(key);
@@ -178,7 +202,6 @@ document.addEventListener('DOMContentLoaded', () => {
   window.openCepiTest = testId => openSection('provas',testId);
   home.querySelectorAll('[data-cepi-workspace]').forEach(button => button.onclick = () => openSection(button.dataset.cepiWorkspace));
   $('cepiWorkspaceClose').onclick = () => { workspace.classList.add('hidden'); if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;} };
-  $('cepiWorkspaceBack').onclick = () => { workspace.classList.add('hidden'); $('cepiModal').classList.remove('hidden'); };
   workspace.onclick = event => { if (event.target === workspace) workspace.classList.add('hidden'); };
   document.addEventListener('carometro:school-context-ready', () => { if (!workspace.classList.contains('hidden') && window.getActiveSchoolId?.() !== schoolId) workspace.classList.add('hidden'); });
   $('signOut')?.addEventListener('click', () => { workspace.classList.add('hidden'); schoolId = null; access = null; memberRole=''; }, {capture:true});
@@ -216,6 +239,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return ` cepi-block-card cepi-block-${block} cepi-block-${test.stage==='medio'?'medio':'fundamental'}`;
   };
   function renderTests() {
+    setWorkspaceBack();
     $('cepiWorkspaceNew').classList.toggle('hidden',!manager());
     const visible=activeTests().filter(test=>(!testFilters.query||`${displayTitle(test.title)} ${(test.subjects||[]).join(' ')}`.toLocaleLowerCase('pt-BR').includes(testFilters.query.toLocaleLowerCase('pt-BR')))&&(!testFilters.year||String(test.academic_year)===testFilters.year)&&(!testFilters.bimester||String(test.bimester)===testFilters.bimester)&&(!testFilters.stage||test.stage===testFilters.stage)&&(!testFilters.block||String(test.block_number)===testFilters.block)&&(!testFilters.status||test.status===testFilters.status));
     const years=[...new Set(activeTests().map(test=>test.academic_year))].sort((a,b)=>b-a).map(value=>[value,String(value)]);
@@ -248,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function assignmentForm(test) {
     if(!manager()||!ensureContext()||!test||test.deleted_at)return;
+    setWorkspaceBack('Provas', renderTests);
     try { await loadClubTeachers(); } catch(error) { fail(error); return; }
     if(!ensureContext())return;
     $('cepiWorkspaceNew').classList.add('hidden');
@@ -263,6 +288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
   function renderCorrectionHub() {
+    setWorkspaceBack();
     $('cepiWorkspaceNew').classList.add('hidden');
     const available=editor()?activeTests().filter(test=>['ready','applied'].includes(test.status)&&assignedToTest(test)):[];
     $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-item"><h4>Extensão neste computador</h4><p>O Carômetro verifica a extensão automaticamente. Depois, escolha uma prova com questões completas e uma turma ativa para gerar o QR Code. O celular abre a página de leitura ao apontar a câmera para o código exibido aqui.</p><p id="cepiHubStatus" class="cepi-connection-status" role="status">Verificando a extensão…</p><div class="cepi-workspace-actions"><a class="btn secondary" id="cepiHubInstall" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button class="btn secondary" id="cepiHubConnect" type="button">Tentar conectar novamente</button></div></div><p class="cepi-workspace-hint">A correção fica disponível automaticamente quando todas as questões da prova forem lançadas.</p><div class="cepi-workspace-actions">${actionButton('Ver provas','show-tests','')}</div><div class="cepi-workspace-list cepi-workspace-questions">${available.map(test=>`<article class="cepi-workspace-item${blockCardClass(test)}"><h4>${esc(displayTitle(test.title))}</h4><p>${test.question_count} questões · ${test.class_ids?.length||0} turma(s) vinculada(s)</p>${actionButton('Corrigir cartões pelo celular','correct-cards',test.id,true)}</article>`).join('')||'<div class="cepi-empty">Nenhuma prova com questões completas nesta escola.</div>'}</div>`;
@@ -282,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiHubConnect').onclick=verifyHubExtension;
     verifyHubExtension();
     if(manager())$('cepiWorkspaceContent').querySelectorAll('.cepi-workspace-questions > article').forEach((card,index)=>card.insertAdjacentHTML('beforeend',actionButton('Excluir prova','delete-test',available[index].id)));
-    bindActions({'show-tests':()=>openSection('provas'),'correct-cards':id=>correctionForm(id),'delete-test':id=>deleteTest(id)});
+    bindActions({'show-tests':()=>openSection('provas',null,{label:'Correção de provas',action:()=>openSection('correcao')}),'correct-cards':id=>correctionForm(id),'delete-test':id=>deleteTest(id)});
   }
   const testTeacherFields = selected => {
     const people=groupTeachers.filter(item=>['teacher','coordinator','school_admin'].includes(item.role));
@@ -309,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function testForm(test=null) {
     if (!manager()) return;
     if (test && !canEditTest(test)) return;
+    setWorkspaceBack('Provas', renderTests);
     try { await loadClubTeachers(); } catch(error) { fail(error); return; }
     if (!ensureContext()) return;
     const values = test || {kind:'bloco',academic_year:year,bimester:1,stage:'fundamental_ii',question_count:15,answer_format:'ABCD',status:'draft',subjects:[]};
@@ -451,6 +478,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function duplicateTestForm(source) {
     if (!source || !manager() || !ensureContext()) return;
+    setWorkspaceBack('Provas', renderTests);
     try { await loadClubTeachers(); } catch(error) { fail(error); return; }
     if(!ensureContext())return;
     $('cepiWorkspaceNew').classList.add('hidden');
@@ -489,6 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function importExamForm() {
     if(!manager() || !ensureContext())return;
+    setWorkspaceBack('Provas', renderTests);
     try { await loadClubTeachers(); } catch(error) { fail(error); return; }
     if(!ensureContext())return;
     $('cepiWorkspaceNew').classList.add('hidden');message('');
@@ -595,6 +624,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!test||test.deleted_at||!['ready','applied'].includes(test.status)||!editor()||!assignedToTest(test)||!ensureContext())return;
     try { window.CepiAnswerSheets.prepare(test,questions); }
     catch(error){message(error.message);return;}
+    const previous=proofPreviousView(id);
+    setWorkspaceBack(previous.label, previous.action);
     const expired=expireCorrectionSession();
     const relevant=classes.filter(item=>test.class_ids?.includes(item.id));
     $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-form"><div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiCorrectionBack">← Provas</button></div><h4>Corrigir cartões · ${esc(displayTitle(test.title))}</h4><ol class="cepi-correction-steps"><li>Selecione a turma ativa e a chamada desta prova.</li><li>Toque em <strong>Gerar QR Code para esta prova</strong>. O gabarito salvo e os alunos serão preparados automaticamente.</li><li>O código aparecerá <strong>nesta tela</strong>. No celular, abra a câmera e aponte para ele; a página de leitura abrirá para escolher o aluno e fotografar seu cartão-resposta.</li></ol><label>Turma<select id="cepiCorrectionClass"><option value="">Selecione</option>${relevant.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}${item.archived_at?' · turma arquivada':''}</option>`).join('')}</select></label><p id="cepiCorrectionClassStatus" class="cepi-class-status" role="status">Selecione uma turma ativa vinculada a esta prova.</p><div id="cepiCorrectionRecovery"></div><label>Chamada<select id="cepiCorrectionCall"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label><div id="cepiCorrectionExtensionSetup" class="cepi-workspace-hint"></div><div class="actions"><button type="button" class="btn primary" id="cepiCorrectionStart" disabled>Gerar QR Code para esta prova</button></div><p id="cepiCorrectionActionStatus" class="cepi-workspace-hint" role="status" hidden></p><div id="cepiCorrectionLive" role="status"></div></div>`;
@@ -692,7 +723,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     connect.onclick=connectExtension;
     connectExtension();
-    $('cepiCorrectionBack').onclick=()=>{if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}renderTests();};
+    $('cepiCorrectionBack').textContent=`← ${previous.label}`;
+    $('cepiCorrectionBack').onclick=()=>{if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}previous.action();};
     $('cepiCorrectionStart').onclick=async()=>{
       if(!ensureContext()){showActionStatus('A escola ativa mudou ou o acesso ao Meu CEPI expirou. Feche esta janela e abra o Meu CEPI novamente.');return;}
       const classId=$('cepiCorrectionClass').value;
@@ -789,25 +821,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function resultForm(test) {
     if(!test||test.deleted_at||!['ready','applied'].includes(test.status)||!editor()||!assignedToTest(test)||!ensureContext())return;
+    const previous=proofPreviousView(test.id);
+    setWorkspaceBack(previous.label, previous.action);
     $('cepiWorkspaceContent').innerHTML=`<form id="cepiResultForm" class="cepi-workspace-form"><h4>Registrar respostas · ${esc(displayTitle(test.title))}</h4><p class="cepi-workspace-hint">Confira a identificação e cada marcação antes de salvar. Uma correção posterior cria um novo registro; a anterior fica preservada.</p><div class="cepi-workspace-grid"><label>Turma<select name="class_id" required><option value="">Selecione</option>${classes.filter(c=>test.class_ids?.includes(c.id)).map(c=>`<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select></label><label>Aluno<select name="student_id" required><option value="">Selecione a turma</option></select></label><label>Chamada<select name="call_number"><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label></div><label>${test.question_count} respostas em ordem, usando ${esc(test.answer_format)}; use - para branco<textarea name="answers" required placeholder="Ex.: A B C D - A B..."></textarea></label><div id="cepiResultPreview" class="cepi-workspace-hint">Preencha as respostas para conferir os acertos.</div><div class="actions"><button type="button" id="cepiResultCancel" class="btn secondary">Cancelar</button><button class="btn primary" type="submit">Confirmar correção</button></div></form>`;
-    const form=$('cepiResultForm');$('cepiResultCancel').onclick=renderTests;
+    const form=$('cepiResultForm');$('cepiResultCancel').onclick=previous.action;
     form.elements.class_id.onchange=()=>{form.elements.student_id.innerHTML='<option value="">Selecione</option>'+students.filter(s=>s.enrollment_status==='active'&&s.class_id===form.elements.class_id.value).map(s=>`<option value="${esc(s.id)}">${esc(s.full_name)}</option>`).join('');};
     const parseAnswers=()=>String(form.elements.answers.value||'').toUpperCase().replace(/[\s,;]+/g,'').split('').filter(Boolean);
     const preview=()=>{const answers=parseAnswers(),allowed=test.answer_format==='VF'?['V','F','-']:[...test.answer_format,'-'];const valid=answers.length===test.question_count&&answers.every(answer=>allowed.includes(answer));const score=valid?window.CepiBlocks.summarize(test,questions,answers):null;$('cepiResultPreview').textContent=score?`${score.correct} de ${score.total} acertos · ${Object.entries(score.bySubject).map(([subject,item])=>`${subject}: ${item.correct}/${item.total}`).join(' · ')}`:`Informe exatamente ${test.question_count} respostas válidas em ordem.`;return score?answers:null;};
     form.elements.answers.oninput=preview;
-    form.onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const answers=preview(),studentId=form.elements.student_id.value;if(!answers||!studentId){message('Confira o estudante e todas as respostas.');return;}const result=await db.from('cepi_test_results').insert({school_id:schoolId,test_id:test.id,student_id:studentId,call_number:Number(form.elements.call_number.value),answers,source:'manual',reviewed_by:userId});if(result.error)return fail(result.error);message('Correção registrada. O ranking usa a última correção revista desta chamada.');renderTests();};
+    form.onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const answers=preview(),studentId=form.elements.student_id.value;if(!answers||!studentId){message('Confira o estudante e todas as respostas.');return;}const result=await db.from('cepi_test_results').insert({school_id:schoolId,test_id:test.id,student_id:studentId,call_number:Number(form.elements.call_number.value),answers,source:'manual',reviewed_by:userId});if(result.error)return fail(result.error);message('Correção registrada. O ranking usa a última correção revista desta chamada.');previous.action();};
   }
   function renderQuestions(testId) {
     const test = activeTests().find(item => item.id === testId); if (!test) return render();
+    setWorkspaceBack('Provas', renderTests);
     $('cepiWorkspaceNew').classList.toggle('hidden',!manager());
     const rows = questions.filter(q => q.test_id === testId).sort((a,b)=>a.number-b.number);
     $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-toolbar"><button type="button" class="btn secondary" id="cepiQuestionBack">← Provas</button>${canAddQuestion(test) ? actionButton('＋ Questão','new-question',testId,true) + actionButton('Usar as questões do banco','import-question',testId) : ''}${manager()&&test.status!=='draft'?actionButton('Imprimir prova do aluno','print-student',testId,true):''}${manager()&&test.status!=='draft'?(window.CepiBlocks.enemModel(test)?'':actionButton('Imprimir cartões-resposta','print-cards',testId))+actionButton('Gabarito oficial','print-key',testId):''}${manager()&&(!examHeader?.school_name || !examHeader?.state_name) ? actionButton('Configurar cabeçalho','header',testId) : ''}${manager()?actionButton('Excluir prova','delete-test',testId):''}</div><h4>${esc(displayTitle(test.title))}</h4><p class="meta">${rows.length} de ${test.question_count} questões previstas · ${esc(test.answer_format)}</p>${manager()?`<p class="cepi-workspace-hint">Confira as questões enviadas pelos professores. O gabarito mostrado aqui é interno e não aparece na prova do aluno.${rows.length<test.question_count?` Faltam ${test.question_count-rows.length} questões para imprimir.`:''}</p>`:''}<div class="cepi-workspace-list cepi-workspace-questions">${rows.map(q=>`<article class="cepi-workspace-item cepi-question-card"><h4>Questão ${q.number} · ${esc(q.subject)}</h4>${rich().render(q.statement,schoolId)}${Object.entries(q.alternatives||{}).filter(([,value])=>value).map(([letter,value])=>`<p>${esc(letter)}) ${esc(value)}</p>`).join('')}<p>Gabarito interno: <strong>${esc(q.correct_answer)}</strong></p>${canEditQuestion(test)?actionButton('Editar questão','edit-question',q.id):''}${canAddQuestion(test)?actionButton('Retirar da prova','remove-question',q.id):''}</article>`).join('') || '<div class="cepi-empty">Nenhuma questão cadastrada.</div>'}</div>`;
     rich().hydrate($('cepiWorkspaceContent'),db,schoolId).catch(fail);
     $('cepiQuestionBack').onclick = renderTests;
-    bindActions({'new-question':()=>questionForm(test),'edit-question':id=>questionForm(test,questions.find(q=>q.id===id)),'import-question':()=>importQuestionForm(test),'print-student':()=>printTest(test.id),'print-cards':()=>answerSheetForm(test.id),'print-key':()=>printAnswerSheet(test.id,true),'header':()=>openSection('cabecalho'),'delete-test':()=>deleteTest(test.id),'remove-question':async id=>{if(!canAddQuestion(test)||!ensureContext())return;const result=await db.from('cepi_test_questions').delete().eq('school_id',schoolId).eq('test_id',test.id).eq('id',id);if(result.error)return fail(result.error);await load().then(()=>renderQuestions(test.id)).catch(fail);}});
+    bindActions({'new-question':()=>questionForm(test),'edit-question':id=>questionForm(test,questions.find(q=>q.id===id)),'import-question':()=>importQuestionForm(test),'print-student':()=>printTest(test.id),'print-cards':()=>answerSheetForm(test.id),'print-key':()=>printAnswerSheet(test.id,true),'header':()=>headerForm(true,test.id),'delete-test':()=>deleteTest(test.id),'remove-question':async id=>{if(!canAddQuestion(test)||!ensureContext())return;const result=await db.from('cepi_test_questions').delete().eq('school_id',schoolId).eq('test_id',test.id).eq('id',id);if(result.error)return fail(result.error);await load().then(()=>renderQuestions(test.id)).catch(fail);}});
   }
   function questionForm(test,q=null,preferredSubject=null) {
     if (!canEditQuestion(test) || (!q && !canAddQuestion(test))) return;
+    setWorkspaceBack('Questões da prova', () => renderQuestions(test.id));
     $('cepiWorkspaceNew').classList.add('hidden');
     const answerFormat = test.answer_format === 'VF' ? ['V','F'] : [...test.answer_format];
     const occupied=new Set(questions.filter(item=>item.test_id===test.id).map(item=>item.number));
@@ -930,6 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
   }
   function renderRanking() {
+    setWorkspaceBack();
     const latest=activeTests().find(t=>t.kind==='bloco'&&['ready','applied'].includes(t.status))||activeTests().find(t=>t.kind==='bloco');
     const years=[...new Set([year,...activeTests().filter(t=>t.kind==='bloco').map(t=>t.academic_year)])].sort((a,b)=>b-a);
     $('cepiWorkspaceContent').innerHTML=`<form id="cepiRankingFilters" class="cepi-workspace-form"><div class="cepi-workspace-grid"><label>Ano letivo<select name="academic_year">${years.map(value=>`<option value="${value}" ${value===(latest?.academic_year||year)?'selected':''}>${value}</option>`).join('')}</select></label><label>Bimestre<select name="bimester">${[1,2,3,4].map(value=>`<option value="${value}" ${value===(latest?.bimester||1)?'selected':''}>${value}º bimestre</option>`).join('')}</select></label><label>Etapa<select name="stage"><option value="fundamental_ii" ${latest?.stage!=='medio'?'selected':''}>Fundamental II</option><option value="medio" ${latest?.stage==='medio'?'selected':''}>Ensino Médio</option></select></label><label>Turma<select name="class_id"><option value="">Todas as turmas</option>${classes.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Bloco<select name="block_number"><option value="">Todos os blocos</option>${[1,2,3,4,5,6].map(value=>`<option value="${value}">Bloco ${value}</option>`).join('')}</select></label></div><div class="actions"><button class="btn primary" type="submit">Gerar ranking</button></div></form><p class="cepi-workspace-hint">Percentual total = acertos ÷ questões corrigidas. “Sem resultado” não vira zero; estudantes com provas pendentes aparecem sem colocação até completar as correções do filtro.</p><div id="cepiRankingResult"></div>`;
@@ -956,6 +993,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('cepiRankingPrint').onclick=()=>{const popup=window.open('','_blank');if(!popup){message('Permita a janela de impressão.');return;}popup.document.write(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Ranking de médias</title><style>body{font:12px Arial;margin:15mm}h1{font-size:18px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:5px;text-align:left}th{background:#eee}@page{size:landscape}</style><h1>Ranking de médias · ${esc(filters.bimester)}º bimestre de ${esc(filters.academic_year)}</h1>${table}</html>`);popup.document.close();popup.focus();popup.print();};
   }
   function renderBank() {
+    setWorkspaceBack();
     $('cepiWorkspaceNew').classList.remove('hidden');
     $('cepiWorkspaceContent').innerHTML = `<p class="cepi-workspace-hint">Cada professor pode cadastrar questões da sua matéria. Professores e coordenação podem revisar e editar as questões da escola. Ao usar uma questão numa prova, fica uma cópia vinculada àquela prova.</p><div class="cepi-workspace-list">${questionBank.filter(q=>q.active).map(q=>`<article class="cepi-workspace-item cepi-question-card"><h4>${esc(q.subject)} · ${esc(q.stage === 'medio' ? 'Ensino Médio' : 'Fundamental II')}</h4>${rich().render(q.statement,schoolId)}${Object.entries(q.alternatives||{}).filter(([,value])=>value).map(([letter,value])=>`<p>${esc(letter)}) ${esc(value)}</p>`).join('')}<p>Gabarito: ${esc(q.correct_answer)}</p>${editor()?`<div class="cepi-workspace-actions">${actionButton('Editar','edit-bank',q.id)}${actionButton('Retirar do banco','archive-bank',q.id)}</div>`:''}</article>`).join('') || '<div class="cepi-empty">Nenhuma questão cadastrada no banco desta escola.</div>'}</div>`;
     $('cepiWorkspaceContent').querySelectorAll('.cepi-question-card').forEach((card,index)=>{
@@ -968,6 +1006,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function bankQuestionForm(question=null) {
     if (!editor() || !ensureContext()) return;
+    setWorkspaceBack('Banco de questões', renderBank);
     $('cepiWorkspaceNew').classList.add('hidden');
     const q = question || {stage:'fundamental_ii',answer_format:'ABCD',alternatives:{}};
     const letters = q.answer_format === 'VF' ? ['V','F'] : [...q.answer_format];
@@ -994,6 +1033,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function importQuestionForm(test) {
     if(!canAddQuestion(test))return;
+    setWorkspaceBack('Questões da prova', () => renderQuestions(test.id));
     const allowedSubjects=new Set((test.subject_plan||[]).map(item=>item.subject));
     const testGrades=gradesForClasses(test.class_ids);
     const available=questionBank.filter(q=>q.active&&q.stage===test.stage&&q.answer_format===test.answer_format&&(!allowedSubjects.size||allowedSubjects.has(q.subject))&&(test.kind!=='bloco'||!window.CepiBlocks.subjectCapacity(test,questions,q.subject)?.full)&&(!(q.target_grades||[]).length||q.target_grades.some(grade=>testGrades.includes(grade))));
@@ -1027,10 +1067,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!test || test.status==='draft') return;
     try { window.CepiAnswerSheets.prepare(test,questions); }
     catch(error) { message(error.message); return; }
+    const previous=proofPreviousView(id);
+    setWorkspaceBack(previous.label, previous.action);
     if (window.CepiBlocks.enemModel(test)) {
       const eligible=classes.filter(item=>test.class_ids?.includes(item.id));
       $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiCardForm"><h4>Cartões-resposta · ${esc(displayTitle(test.title))}</h4><p class="cepi-workspace-hint">Um cartão nominal por folha A4. É possível acrescentar cartões não nominais para alunos recém-chegados.</p><label>Turma<select name="class_id" required><option value="">Selecione a turma</option>${eligible.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Quantos cartões não nominais<input type="number" name="unnamed_count" min="0" max="600" value="0" required></label><div class="actions"><button type="button" class="btn secondary" id="cepiCardCancel">Voltar</button><button type="submit" class="btn primary">Gerar cartões</button></div></form>`;
-      $('cepiCardCancel').onclick=renderTests;
+      $('cepiCardCancel').onclick=previous.action;
       $('cepiCardForm').onsubmit=event=>{event.preventDefault();const form=event.currentTarget,classId=form.elements.class_id.value,unnamedCount=Number(form.elements.unnamed_count.value);if(!test.class_ids?.includes(classId)||!Number.isInteger(unnamedCount)||unnamedCount<0||unnamedCount>600)return message('Selecione a turma e confira a quantidade de cartões.');printAnswerSheet(id,false,{classId,unnamedCount});};
       return;
     }
@@ -1038,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const eligible=classes.filter(item=>test.class_ids?.includes(item.id));
       $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiCardForm"><h4>Imprimir cartões-resposta · ${esc(displayTitle(test.title))}</h4><p class="cepi-workspace-hint">Selecione a turma. Será impresso um cartão com nome para cada aluno ativo, em ordem alfabética. Cada folha A4 terá até quatro cartões para recortar.</p><label>Turma<select name="class_id" required><option value="">Selecione a turma</option>${eligible.map(item=>`<option value="${esc(item.id)}">${esc(item.name)}</option>`).join('')}</select></label><label>Quantos cartões não nominais<input type="number" name="unnamed_count" min="0" max="600" step="1" required value="0"></label><div class="cepi-workspace-grid"><label>Quantidade de cartões<input type="number" name="quantity" readonly value="0"></label><label>Quantidade de folhas<input type="number" name="sheets" readonly value="0"></label></div><div class="actions"><button type="button" class="btn secondary" id="cepiCardCancel">Voltar</button><button type="submit" class="btn primary">Gerar para impressão</button></div></form>`;
       const form=$('cepiCardForm');
-      $('cepiCardCancel').onclick=renderTests;
+      $('cepiCardCancel').onclick=previous.action;
       const updateCount=()=>{const classId=form.elements.class_id.value;const named=students.filter(student=>student.class_id===classId&&student.enrollment_status==='active'&&student.full_name?.trim()).length;const unnamed=Math.max(0,Number(form.elements.unnamed_count.value)||0);const total=classId?named+unnamed:0;form.elements.quantity.value=total;form.elements.sheets.value=Math.ceil(total/4);};
       form.elements.class_id.onchange=updateCount;
       form.elements.unnamed_count.oninput=updateCount;
@@ -1047,7 +1089,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const count=students.filter(student=>student.enrollment_status==='active' && test.class_ids?.includes(student.class_id)).length;
     $('cepiWorkspaceContent').innerHTML=`<form class="cepi-workspace-form" id="cepiCardForm"><h4>Imprimir cartões-resposta · ${esc(displayTitle(test.title))}</h4><p class="cepi-workspace-hint">Cada folha A4 terá até quatro cartões para recortar, com bolhas ampliadas e gabarito oculto. O aluno preenche o nome e as respostas.</p><p>${count} aluno(s) ativo(s) nas turmas desta prova.</p><label>Quantidade de cartões<input type="number" name="quantity" min="1" max="600" required value="${Math.max(1,count)}"></label><div class="actions"><button type="button" class="btn secondary" id="cepiCardCancel">Voltar</button><button type="submit" class="btn primary">Gerar para impressão</button></div></form>`;
-    $('cepiCardCancel').onclick=renderTests;
+    $('cepiCardCancel').onclick=previous.action;
     $('cepiCardForm').onsubmit=event=>{event.preventDefault();const quantity=Number(event.currentTarget.elements.quantity.value);if(!Number.isInteger(quantity)||quantity<1||quantity>600){message('Informe entre 1 e 600 cartões.');return;}printAnswerSheet(id,false,quantity);};
   }
   async function lockQuestionEditingForPrint(test,popup) {
@@ -1113,7 +1155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(questions.filter(q=>q.test_id===id).length!==test.question_count){message('Complete a quantidade prevista de questões antes de imprimir.');return;}
     if (!examHeader?.school_name || !examHeader?.state_name) {
       message('Configure o cabeçalho da escola uma vez. Depois, volte à prova e clique em imprimir.');
-      headerForm(true);
+      headerForm(true,id);
       return;
     }
     const popup = window.open('','_blank'); if (!popup) { message('Permita a janela de impressão para esta ação.'); return; }
@@ -1161,12 +1203,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   function renderHeader() {
+    setWorkspaceBack();
     const h=examHeader||{};
     $('cepiWorkspaceContent').innerHTML=`<div class="cepi-workspace-item"><h4>Identidade das provas desta escola</h4><p>Configure somente os dados fixos da escola. Tipo, bloco, etapa, bimestre e composição da prova são preenchidos automaticamente a partir do cadastro.</p><div class="cepi-workspace-grid"><div>${h.state_logo_data?`<img src="${esc(h.state_logo_data)}" alt="Logo do estado" style="max-width:100px;max-height:100px">`:'Sem logo do estado'}</div><div>${h.school_logo_data?`<img src="${esc(h.school_logo_data)}" alt="Logo da escola" style="max-width:100px;max-height:100px">`:'Sem logo da escola'}</div></div><p>${esc(h.state_name||'Estado não configurado')} · ${esc(h.department_name||'')}</p><p><strong>${esc(h.school_name||'Escola não configurada')}</strong></p><p>${esc(schoolHeaderExtra(h)||'Nenhum complemento fixo da escola.')}</p><p>${esc(instructionTail(h))}</p>${manager()?actionButton('Editar cabeçalho','edit-header','header'):''}</div>`;
     bindActions({'edit-header':()=>headerForm()});
   }
-  function headerForm(returnToTests=false) {
+  function headerForm(returnToTests=false,testId=null) {
     if(!manager()||!ensureContext())return;
+    const previous=returnToTests?(testId?proofPreviousView(testId):{label:'Provas',action:renderTests}):{label:'Cabeçalho das provas',action:renderHeader};
+    setWorkspaceBack(previous.label,previous.action);
     const h=examHeader||{};
     const headerExtra=schoolHeaderExtra(h);
     $('cepiWorkspaceContent').innerHTML=`<form id="cepiHeaderForm" class="cepi-workspace-form"><h4>Cabeçalho da escola</h4><p class="cepi-workspace-hint">Os dados da escola são comuns a todas as provas. Tipo, bloco, etapa, total e disciplinas vêm automaticamente de cada prova. Use imagens PNG, JPG ou WebP de até 300 KB.</p><label>Estado<input name="state_name" maxlength="160" required value="${esc(h.state_name||'')}"></label><label>Secretaria de Educação ou órgão<input name="department_name" maxlength="160" value="${esc(h.department_name||'')}"></label><label>Nome da escola<input name="school_name" maxlength="160" required value="${esc(h.school_name||'')}"></label><label>Complemento fixo da escola (opcional)<input name="subtitle" maxlength="240" value="${esc(headerExtra)}"><small>Não informe aqui disciplinas nem quantidade de questões.</small></label><label>Frase escolhida para as provas<textarea id="cepiHeaderInstructions" name="instructions" maxlength="500">${esc(instructionTail(h))}</textarea><small>Esta frase aparece após a composição automática da prova.</small></label><div class="cepi-workspace-grid"><label>Logo do estado<input name="state_logo" type="file" accept="image/png,image/jpeg,image/webp"></label><label>Logo da escola<input name="school_logo" type="file" accept="image/png,image/jpeg,image/webp"></label></div><div class="actions"><button type="button" id="cepiHeaderCancel" class="btn secondary">Cancelar</button><button class="btn primary" type="submit">Salvar cabeçalho</button></div></form>`;
@@ -1175,8 +1220,8 @@ document.addEventListener('DOMContentLoaded', () => {
     preview.className='cepi-workspace-item cepi-enem-header-preview';
     preview.innerHTML=`<h4>Prévia do cabeçalho · Simulado do ENEM</h4><p class="cepi-workspace-hint">Usa os logotipos e o nome da escola configurados acima. Caderno, série, ano e distribuição vêm do cadastro da prova.</p><div style="display:flex;justify-content:space-between;align-items:center;gap:20px;min-height:72px">${h.school_logo_data?`<img src="${esc(h.school_logo_data)}" alt="Logo da escola" style="max-width:72px;max-height:72px">`:'<span>Logo da escola</span>'}${h.state_logo_data?`<img src="${esc(h.state_logo_data)}" alt="Logo do estado" style="max-width:120px;max-height:72px">`:`<span>${esc(h.state_name||'Estado')}</span>`}</div><p style="text-align:center;font-weight:700">${esc(h.school_name||'Nome da escola')}</p><p style="text-align:center;font-weight:700">SIMULADÃO ENEM ${year}</p><p style="text-align:center">3ª SÉRIE DO ENSINO MÉDIO · ${year}</p><p>Aluno: ______________________________ &nbsp; Turma: __________</p><p>Habilidades: _________________________________________________</p>`;
     form.querySelector('.actions').before(preview);
-    $('cepiHeaderCancel').onclick=()=>returnToTests?renderTests():renderHeader();
-    $('cepiHeaderForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const form=event.currentTarget,data=new FormData(form);const readLogo=async(name,existing)=>{const file=form.elements[name].files?.[0];if(!file)return existing||null;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>300000)throw new Error('Use uma imagem PNG, JPG ou WebP de até 300 KB.');return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Não foi possível ler a imagem.'));reader.readAsDataURL(file);});};try{const payload={school_id:schoolId,state_name:String(data.get('state_name')).trim(),department_name:String(data.get('department_name')).trim(),school_name:String(data.get('school_name')).trim(),subtitle:String(data.get('subtitle')).trim(),instructions:String(data.get('instructions') ?? '').trim(),state_logo_data:await readLogo('state_logo',h.state_logo_data),school_logo_data:await readLogo('school_logo',h.school_logo_data),updated_by:userId};const result=await db.from('cepi_exam_headers').upsert(payload,{onConflict:'school_id'});if(result.error)return fail(result.error);await load().then(()=>{returnToTests?renderTests():renderHeader();if(returnToTests)message('Cabeçalho salvo. Agora clique em Imprimir prova do aluno.');}).catch(fail);}catch(error){fail(error);}};
+    $('cepiHeaderCancel').onclick=previous.action;
+    $('cepiHeaderForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;const form=event.currentTarget,data=new FormData(form);const readLogo=async(name,existing)=>{const file=form.elements[name].files?.[0];if(!file)return existing||null;if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>300000)throw new Error('Use uma imagem PNG, JPG ou WebP de até 300 KB.');return await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Não foi possível ler a imagem.'));reader.readAsDataURL(file);});};try{const payload={school_id:schoolId,state_name:String(data.get('state_name')).trim(),department_name:String(data.get('department_name')).trim(),school_name:String(data.get('school_name')).trim(),subtitle:String(data.get('subtitle')).trim(),instructions:String(data.get('instructions') ?? '').trim(),state_logo_data:await readLogo('state_logo',h.state_logo_data),school_logo_data:await readLogo('school_logo',h.school_logo_data),updated_by:userId};const result=await db.from('cepi_exam_headers').upsert(payload,{onConflict:'school_id'});if(result.error)return fail(result.error);await load().then(()=>{previous.action();if(returnToTests)message('Cabeçalho salvo. Agora clique em Imprimir prova do aluno.');}).catch(fail);}catch(error){fail(error);}};
   }
 
   async function loadClubTeachers() {
@@ -1190,6 +1235,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderGroups() {
+    setWorkspaceBack();
     if(['clube','eletiva'].includes(section)&&manager()&&!groupTeachersLoaded){$('cepiWorkspaceContent').textContent='Carregando professores…';loadClubTeachers().then(renderGroups).catch(fail);return;}
     const subset = groups.filter(item=>item.kind===section);
     $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; const teacher=groupTeachers.find(item=>item.user_id===group.responsible_user_id); return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p>${['clube','eletiva'].includes(section)&&manager()?`<p>Professor responsável: <strong>${esc(teacher?.full_name||(group.responsible_user_id?'Usuário indisponível':'Não definido'))}</strong></p>`:''}<div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
@@ -1197,6 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function renderUsefulLists() {
     if (!manager() || !ensureContext()) { message('Somente coordenação e administração podem imprimir estas listas.'); return; }
+    setWorkspaceBack();
     $('cepiWorkspaceContent').textContent='Carregando alocações da turma…';
     const requestedSchool=schoolId;
     try {
@@ -1235,6 +1282,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function groupForm(group=null) {
     if (!manager()) return;
     if (['clube','eletiva'].includes(section)) return clubForm(group);
+    setWorkspaceBack(groupLabel(section), renderGroups);
     const value=group || {kind:section,academic_year:year,subjects:[],active:true};
     const selectedClasses=groupClasses.filter(item=>item.group_id===group?.id).map(item=>item.class_id);
     $('cepiWorkspaceContent').innerHTML = `<form class="cepi-workspace-form" id="cepiGroupForm"><h4>${group?'Editar':'Cadastrar'} ${esc(groupLabel(section))}</h4><label>Título<input name="title" maxlength="200" required value="${esc(value.title||'')}"></label><div class="cepi-workspace-grid"><label>Ano letivo<input name="academic_year" type="number" min="2000" max="2100" value="${value.academic_year}" required></label><label>Semestre<select name="semester"><option value="">Não informado</option><option value="1" ${value.semester===1?'selected':''}>1º</option><option value="2" ${value.semester===2?'selected':''}>2º</option></select></label><label>Vagas<input name="seats" type="number" min="1" max="999" value="${value.seats||''}"></label><label>Perfil<input name="profile" value="${esc(value.profile||'')}"></label></div><label>Turmas do público alvo<select name="classes" multiple size="${Math.min(6,Math.max(2,classes.length))}">${classes.map(item=>`<option value="${esc(item.id)}" ${selectedClasses.includes(item.id)?'selected':''}>${esc(item.name)}</option>`).join('')}</select></label>${section==='clube'?`<div class="cepi-workspace-grid"><label>Líder<select name="leader_student_id"><option value="">Selecione</option>${students.filter(s=>s.enrollment_status==='active'||s.id===value.leader_student_id).map(s=>`<option value="${esc(s.id)}" ${value.leader_student_id===s.id?'selected':''}>${esc(s.full_name)} · ${esc(labelClass(s.class_id))}</option>`).join('')}</select></label><label>Co-líder<select name="coleader_student_id"><option value="">Selecione</option>${students.filter(s=>s.enrollment_status==='active'||s.id===value.coleader_student_id).map(s=>`<option value="${esc(s.id)}" ${value.coleader_student_id===s.id?'selected':''}>${esc(s.full_name)} · ${esc(labelClass(s.class_id))}</option>`).join('')}</select></label></div>`:''}<label>Componentes curriculares<input name="subjects" value="${esc((value.subjects||[]).join(', '))}"></label><label>Proposta<textarea name="proposal">${esc(value.proposal||'')}</textarea></label><label>Práticas<textarea name="practices">${esc(value.practices||'')}</textarea></label><label>Culminância<textarea name="culmination">${esc(value.culmination||'')}</textarea></label><label><input name="active" type="checkbox" ${value.active?'checked':''}> Ativo</label><div class="actions"><button class="btn secondary" id="cepiCancelForm" type="button">Cancelar</button><button class="btn primary" type="submit">Salvar</button></div></form>`;
@@ -1255,6 +1303,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function clubForm(group=null) {
     if(!manager()||!ensureContext())return;
+    setWorkspaceBack(groupLabel(section), renderGroups);
     $('cepiWorkspaceContent').textContent='Carregando professores e alunos…';
     try{await loadClubTeachers();}catch(error){fail(error);return;}
     if(!['clube','eletiva'].includes(section)||!ensureContext())return;
@@ -1344,6 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   function renderMembers(groupId) {
     const group=groups.find(item=>item.id===groupId);if(!group)return render();
+    setWorkspaceBack(groupLabel(section), renderGroups);
     const members=groupStudents.filter(item=>item.group_id===groupId);
     const targetClasses=groupClasses.filter(item=>item.group_id===groupId).map(item=>item.class_id);
     const candidates=students.filter(s=>s.enrollment_status==='active' && !members.some(m=>m.student_id===s.id) && (!targetClasses.length || targetClasses.includes(s.class_id)));
@@ -1353,6 +1403,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(manager())$('cepiMemberForm').onsubmit=async event=>{event.preventDefault();if(!ensureContext())return;if(group.seats&&members.length>=group.seats){message('Todas as vagas estão ocupadas.');return;}const studentId=new FormData(event.currentTarget).get('student_id');const result=await db.from('cepi_group_students').insert({school_id:schoolId,group_id:groupId,student_id:studentId});if(result.error)return fail(result.error);await load().then(()=>renderMembers(groupId)).catch(fail);};
   }
   function renderLeaders() {
+    setWorkspaceBack();
     const labels=observationOptions.filter(o=>/l[ií]der|representante/i.test(o.label)).map(o=>o.label);
     const tagged=students.filter(s=>s.enrollment_status==='active').flatMap(s=>{const values=window.decodeObservationValues?.(s.has_report)||[];return values.filter(v=>labels.includes(v)).map(v=>({student:s,label:v}));});
     const canManage=!!$('observationsNav') && !$('observationsNav').classList.contains('hidden');

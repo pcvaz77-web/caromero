@@ -108,6 +108,75 @@
       ];
     }
     document.querySelector('[data-cepi-workspace="provas"]').click();
+    if(location.search.includes('nav=1')){
+      const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
+      const waitFor=async predicate=>{for(let i=0;i<80&&!predicate();i++)await wait();return predicate();};
+      const back=document.getElementById('cepiWorkspaceBack');
+      const checks=[];
+      await waitFor(()=>!!document.querySelector('[data-action="duplicate-test"]'));
+      checks.push(back.textContent.trim()==='← Meu CEPI');
+      checks.push(getComputedStyle(back).color==='rgb(255, 255, 255)' && getComputedStyle(back).backgroundImage.includes('linear-gradient'));
+      document.getElementById('cepiWorkspaceNew').click();
+      await waitFor(()=>!!document.getElementById('cepiTestForm'));
+      checks.push(back.textContent.trim()==='← Provas');
+      back.click();
+      checks.push(!!document.querySelector('[data-action="duplicate-test"]'));
+      document.querySelector('[data-action="duplicate-test"]')?.click();
+      await waitFor(()=>!!document.getElementById('cepiDuplicateForm'));
+      checks.push(back.textContent.trim()==='← Provas');
+      back.click();
+      checks.push(!!document.querySelector('[data-action="duplicate-test"]'));
+      document.querySelector('[data-action="questions"]')?.click();
+      checks.push(back.textContent.trim()==='← Provas');
+      document.querySelector('[data-action="new-question"]')?.click();
+      checks.push(!!document.getElementById('cepiQuestionForm') && back.textContent.trim()==='← Questões da prova');
+      back.click();
+      checks.push(!!document.getElementById('cepiQuestionBack'));
+      back.click();
+      checks.push(!!document.querySelector('[data-action="duplicate-test"]'));
+      back.click();
+      checks.push(document.getElementById('cepiWorkspace').classList.contains('hidden') && !document.getElementById('cepiModal').classList.contains('hidden'));
+      document.querySelector('[data-cepi-workspace="banco"]').click();
+      await waitFor(()=>!!document.getElementById('cepiWorkspaceNew') && !document.getElementById('cepiWorkspaceNew').classList.contains('hidden'));
+      document.getElementById('cepiWorkspaceNew').click();
+      checks.push(!!document.getElementById('cepiBankForm') && back.textContent.trim()==='← Banco de questões');
+      back.click();
+      checks.push(back.textContent.trim()==='← Meu CEPI' && !document.getElementById('cepiBankForm'));
+      document.body.dataset.navigationResult=checks.every(Boolean)?'PASS':'FAIL '+checks.join(',');
+      return;
+    }
+    if(location.search.includes('navDeep=1')){
+      const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
+      const waitFor=async predicate=>{for(let i=0;i<80&&!predicate();i++)await wait();return predicate();};
+      const back=document.getElementById('cepiWorkspaceBack');
+      const checks=[];
+      await waitFor(()=>!!document.querySelector('[data-action="questions"]'));
+      document.querySelector('[data-action="questions"]').click();
+      checks.push(back.textContent.trim()==='← Provas');
+      document.querySelector('[data-action="print-cards"]')?.click();
+      checks.push(!!document.getElementById('cepiCardForm') && back.textContent.trim()==='← Questões da prova');
+      document.getElementById('cepiCardCancel')?.click();
+      checks.push(!!document.getElementById('cepiQuestionBack'));
+      back.click();
+      document.querySelector('[data-action="correct-cards"]')?.click();
+      checks.push(back.textContent.trim()==='← Provas' && document.getElementById('cepiCorrectionBack')?.textContent.trim()==='← Provas');
+      document.getElementById('cepiCorrectionBack')?.click();
+      checks.push(!!document.querySelector('[data-action="questions"]'));
+      back.click();
+      document.querySelector('[data-cepi-workspace="correcao"]').click();
+      await waitFor(()=>!!document.querySelector('[data-action="correct-cards"]'));
+      document.querySelector('[data-action="correct-cards"]')?.click();
+      checks.push(back.textContent.trim()==='← Correção de provas');
+      back.click();
+      checks.push(!!document.getElementById('cepiHubInstall'));
+      document.querySelector('[data-action="show-tests"]')?.click();
+      await waitFor(()=>!!document.querySelector('[data-action="questions"]'));
+      checks.push(back.textContent.trim()==='← Correção de provas');
+      back.click();
+      checks.push(await waitFor(()=>!!document.getElementById('cepiHubInstall')));
+      document.body.dataset.navigationResult=checks.every(Boolean)?'PASS':'FAIL '+checks.join(',');
+      return;
+    }
     if(location.search.includes('form=1') || location.search.includes('review=1') || location.search.includes('edit=1') || location.search.includes('correction=1') || location.search.includes('teacherWorkflow=1')){
       const wait=()=>new Promise(resolve=>setTimeout(resolve,25));
       for(let i=0;i<40 && document.getElementById('cepiWorkspaceNew').classList.contains('hidden');i++)await wait();
