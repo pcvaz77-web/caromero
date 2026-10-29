@@ -21,6 +21,22 @@
     rows.classes.push({id:'44444444-4444-4444-8444-444444444445',school_id:school,name:'6A',archived_at:null});
     rows.students.push({id:'66666666-6666-4666-8666-666666666666',school_id:school,full_name:'Aluno fictício',class_id:rows.classes[1].id,enrollment_status:'active'});
   }
+  if(location.search.includes('bankFilters=1')){
+    const seventh='44444444-4444-4444-8444-444444444447';
+    rows.classes.push({id:seventh,school_id:school,name:'7B'});
+    rows.cepi_tests[0].kind='simulado';rows.cepi_tests[0].subject_plan=[];rows.cepi_tests[0].subjects=['Língua Portuguesa','Matemática'];rows.cepi_tests[0].question_count=4;rows.cepi_tests[0].class_ids.push(seventh);
+    rows.cepi_question_bank.push(
+      {id:'77777777-7777-4777-8777-777777777761',school_id:school,subject:'Língua Portuguesa',stage:'fundamental_ii',answer_format:'ABCD',target_grades:['6'],statement:'Questão de Português para o sexto ano.',alternatives:{},correct_answer:'A',active:true},
+      {id:'77777777-7777-4777-8777-777777777762',school_id:school,subject:'Língua Portuguesa',stage:'fundamental_ii',answer_format:'ABCD',target_grades:['7'],statement:'Questão de Português para o sétimo ano.',alternatives:{},correct_answer:'B',active:true},
+      {id:'77777777-7777-4777-8777-777777777763',school_id:school,subject:'Matemática',stage:'fundamental_ii',answer_format:'ABCD',target_grades:['6','7'],statement:'Questão de Matemática para ambos.',alternatives:{},correct_answer:'C',active:true},
+      {id:'77777777-7777-4777-8777-777777777764',school_id:school,subject:'Matemática',stage:'fundamental_ii',answer_format:'ABCD',target_grades:['8'],statement:'Questão de Matemática apenas para o oitavo ano.',alternatives:{},correct_answer:'D',active:true},
+      {id:'77777777-7777-4777-8777-777777777765',school_id:school,subject:'Língua Portuguesa',stage:'fundamental_ii',answer_format:'ABCD',target_grades:[],statement:'Questão antiga sem ano definido.',alternatives:{},correct_answer:'A',active:true}
+    );
+    rows.cepi_test_questions.push(
+      {id:'88888888-8888-4888-8888-888888888881',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:'Primeira questão da prova.',alternatives:{},correct_answer:'A'},
+      {id:'88888888-8888-4888-8888-888888888882',school_id:school,test_id:testId,number:2,subject:'Matemática',statement:'Segunda questão da prova.',alternatives:{},correct_answer:'B'}
+    );
+  }
   if(imageExample)rows.cepi_test_questions.push({id:'55555555-5555-4555-8555-555555555555',school_id:school,test_id:testId,number:1,subject:'Língua Portuguesa',statement:`<!--cepi-rich-v1--><p>Leia o texto e observe a imagem.</p><img data-cepi-path="${school}/${user}/66666666-6666-4666-8666-666666666666.png" data-cepi-width="60" data-cepi-align="center"><p>A) Primeira resposta<br>B) Segunda resposta</p>`,alternatives:{},correct_answer:'B'});
   window.CAROMETRO_RUNTIME_CONFIG={siapAssistantStoreUrl:'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc'};
   window.connectCarometroCorrectionExtension=async()=>location.search.includes('connected=1')?{ok:true,extensionVersion:'0.28.35',license:{examAccess:{active:true}}}:null;

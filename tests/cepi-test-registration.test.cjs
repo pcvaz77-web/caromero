@@ -233,6 +233,72 @@ test('banco oferece somente anos e séries presentes na escola, sem repetir turm
   }finally{dom.window.close();}
 });
 
+test('usar questões do banco filtra disciplina e ano e sugere a próxima posição livre', async () => {
+  const {dom,waitFor,errors}=await fixture('bankFilters=1',false);
+  try{
+    const document=dom.window.document;
+    await waitFor(()=>!!document.querySelector('[data-action="questions"]'));
+    document.querySelector('[data-action="questions"]').click();
+    await waitFor(()=>!!document.querySelector('[data-action="import-question"]'));
+    const button=document.querySelector('[data-action="import-question"]');
+    assert.match(button.textContent,/Usar as questões do banco/);
+    button.click();
+    const form=document.getElementById('cepiImportForm');
+    assert.equal(form.elements.number.value,'3');
+    assert.equal(form.querySelectorAll('[name="question_id"]').length,4,'inclui questão antiga e exclui a questão do 8º ano');
+    form.elements.subject.value='Língua Portuguesa';
+    form.elements.subject.dispatchEvent(new dom.window.Event('change'));
+    assert.equal(form.querySelectorAll('[name="question_id"]').length,3);
+    form.elements.grade.value='6';
+    form.elements.grade.dispatchEvent(new dom.window.Event('change'));
+    const choices=form.querySelectorAll('[name="question_id"]');
+    assert.equal(choices.length,1);
+    choices[0].checked=true;
+    form.requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_test_questions.length')===3);
+    const saved=dom.window.eval('rows.cepi_test_questions[2]');
+    assert.equal(saved.number,3);
+    assert.equal(saved.bank_question_id,'77777777-7777-4777-8777-777777777761');
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
+test('posição sugerida pode ser alterada para outra posição vazia', async () => {
+  const {dom,waitFor,errors}=await fixture('bankFilters=1',false);
+  try{
+    const document=dom.window.document;
+    await waitFor(()=>!!document.querySelector('[data-action="questions"]'));
+    document.querySelector('[data-action="questions"]').click();
+    await waitFor(()=>!!document.querySelector('[data-action="import-question"]'));
+    document.querySelector('[data-action="import-question"]').click();
+    const form=document.getElementById('cepiImportForm');
+    form.elements.number.value='4';
+    form.elements.number.dispatchEvent(new dom.window.Event('input'));
+    form.querySelector('[name="question_id"]').checked=true;
+    form.requestSubmit();
+    await waitFor(()=>dom.window.eval('rows.cepi_test_questions.length')===3);
+    assert.equal(dom.window.eval('rows.cepi_test_questions[2].number'),4);
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
+test('não substitui questão existente ao escolher posição ocupada', async () => {
+  const {dom,waitFor,errors}=await fixture('bankFilters=1',false);
+  try{
+    const document=dom.window.document;
+    await waitFor(()=>!!document.querySelector('[data-action="questions"]'));
+    document.querySelector('[data-action="questions"]').click();
+    document.querySelector('[data-action="import-question"]').click();
+    const form=document.getElementById('cepiImportForm');
+    form.elements.number.value='2';
+    form.querySelector('[name="question_id"]').checked=true;
+    form.requestSubmit();
+    assert.match(document.getElementById('cepiImportStatus').textContent,/posição vazia/);
+    assert.equal(dom.window.eval('rows.cepi_test_questions.length'),2);
+    assert.deepEqual(errors,[]);
+  }finally{dom.window.close();}
+});
+
 test('prova do aluno imprime QUESTÃO 1 e QUESTÃO 2 acima dos enunciados', async () => {
   const {dom, waitFor, errors}=await fixture('manager=1&review=1',false);
   const popup=new JSDOM('',{url:'https://example.test/'});
