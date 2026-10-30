@@ -49,6 +49,14 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     assert.equal(el('familyInviteIdentity').classList.contains('hidden'),true);
     assert.equal(el('familyPhone').required,false);
     assert.equal(el('familyCpfSection').classList.contains('hidden'),false);
+    let printHtml='';
+    window.open=()=>({ opener:window,document:{ write:html=>{ printHtml=html; },close:()=>{} } });
+    el('familyPrintGeneral').click();
+    assert.match(printHtml,/<svg><\/svg>/);
+    assert.match(printHtml,/Abra a câmera do celular/);
+    assert.match(printHtml,/informe seu nome completo e CPF/);
+    assert.match(printHtml,/Confira os nomes dos seus filhos e crie sua senha/);
+    assert.doesNotMatch(printHtml,/https?:\/\//);
     el('familyInviteShift').value='Matutino';
     el('familyInviteShift').onchange();
     el('familyInviteClass').value=classId;

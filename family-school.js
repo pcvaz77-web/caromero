@@ -173,7 +173,7 @@
       const page=window.open('','_blank');
       if (!page) return error('Permita a abertura da página de impressão.');
       page.opener=null;
-      page.document.write(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Portal da Família</title><style>body{font:20px Arial;text-align:center;padding:40px}svg{width:360px;height:360px}p{overflow-wrap:anywhere}</style><h1>Portal da Família</h1><p>Leia o QR Code para fazer seu cadastro</p>${svg}<p>${esc(url)}</p><script>onload=()=>print()<\/script></html>`);
+      page.document.write(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Portal da Família</title><style>@page{size:A4;margin:18mm}body{font:18px Arial,sans-serif;color:#111;text-align:center;margin:0}main{max-width:620px;margin:35px auto}h1{font-size:32px;margin:0 0 12px}p{margin:0 0 20px}svg{width:300px;height:300px;max-width:100%}ol{text-align:left;margin:28px auto 0;padding-left:34px;max-width:500px;line-height:1.45}li{margin-bottom:16px;padding-left:6px}</style><main><h1>Portal da Família</h1><p>Faça seu cadastro pelo QR Code</p>${svg}<ol><li>Abra a câmera do celular e aponte para o QR Code.</li><li>Toque no link que aparecer e informe seu nome completo e CPF.</li><li>Confira os nomes dos seus filhos e crie sua senha.</li></ol></main><script>onload=()=>print()<\/script></html>`);
       page.document.close();
     };
     const close = () => { dialog.classList.add('hidden'); document.dispatchEvent(new Event('carometro:family-school-closed')); };
