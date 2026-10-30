@@ -8,6 +8,7 @@
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
     const token = new URL(location.href).searchParams.get('token');
     const publicSchoolId = new URL(location.href).searchParams.get('escola');
+    const individualCpf = !!token && new URL(location.href).searchParams.get('cpf') === '1';
     const cpfDigits = value => String(value || '').replace(/\D/g,'');
     const validCpf = value => {
       const cpf=cpfDigits(value);
@@ -199,7 +200,7 @@
       startLive(familyUserId);
     }
     async function acceptPendingInvite() {
-      if (!token) return;
+      if (!token || individualCpf) return;
       const { error: acceptError } = await db.rpc('family_accept_invitation', { p_token:token });
       if (acceptError) throw acceptError;
       history.replaceState(null,'',location.pathname);
@@ -438,6 +439,7 @@
       });
       if (sessionError) throw sessionError;
       await loadPortal();
+      if (individualCpf) history.replaceState(null,'',location.pathname);
     }
     const resetCpfPreview = () => {
       get('familyCpfChildren').classList.add('hidden');
@@ -454,6 +456,7 @@
       const data=await cpfAccess({
         action:'preview',schoolId:publicSchoolId,name:get('familyCpfName').value.trim(),
         cpf:cpfDigits(get('familyCpfNumber').value),
+        ...(individualCpf ? { token } : {}),
       });
       if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha abaixo.');
       if (!Array.isArray(data?.students) || !data.students.length)
@@ -472,7 +475,7 @@
         const data=await cpfAccess({
           action:'activate',schoolId:publicSchoolId,name:get('familyCpfName').value.trim(),
           cpf:cpfDigits(get('familyCpfNumber').value),
-          password,
+          password,...(individualCpf ? { token } : {}),
         });
         if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha.');
         get('familyCpfPassword').value='';
@@ -484,7 +487,8 @@
       busy(event.submitter,async()=>{
         const cpf=cpfDigits(get('familyLoginCpf').value);
         if (!validCpf(cpf)) throw new Error('Confira o CPF informado.');
-        const data=await cpfAccess({ action:'login',cpf,password:get('familyLoginPassword').value });
+        const data=await cpfAccess({ action:'login',cpf,password:get('familyLoginPassword').value,
+          ...(individualCpf ? { token,schoolId:publicSchoolId } : {}) });
         get('familyLoginPassword').value='';
         await useCpfSession(data);
       });
@@ -565,14 +569,16 @@
         error('portalError','Senha alterada.');
       }, 'portalError');
     };
-    if (token) showFirstAccess();
+    if (token && !individualCpf) showFirstAccess();
     else if (publicSchoolId && /^[0-9a-f-]{36}$/i.test(publicSchoolId)) {
       get('familyCpfAccessForm').classList.remove('hidden');
       get('firstAccess').classList.add('hidden');
+      get('familyPhoneLogin').open=false;
+      if (individualCpf) get('familyCpfAccessForm').querySelector('h2').textContent='Primeiro acesso pelo convite individual';
     }
     try {
       const { data } = await db.auth.getSession();
-      if (data.session) { await acceptPendingInvite(); await loadPortal(); }
+      if (data.session) { await acceptPendingInvite(); await loadPortal(); if (individualCpf) history.replaceState(null,'',location.pathname); }
     } catch (caught) { error('accessError',caught.message || 'Não foi possível abrir o portal.'); }
   });
 })();

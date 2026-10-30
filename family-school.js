@@ -18,9 +18,9 @@
         <section id="familyHome" class="family-workspace-home"><h4>O que você deseja fazer?</h4><div class="family-workspace-choices"><button type="button" data-family-view="invite"><strong>Convidar responsável</strong><span>Escolha os filhos e mostre o QR Code de acesso à família.</span></button><button type="button" data-family-view="occurrence"><strong>Compartilhar ocorrência</strong><span>Encontre o aluno e escolha qual ocorrência publicar.</span></button><button type="button" data-family-view="entry"><strong>Entrada dos alunos</strong><span>Leia a carteirinha pela câmera e registre a chegada.</span></button><button type="button" data-family-view="cards"><strong>Gerenciar carteirinhas</strong><span>Imprima por turma ou aluno e substitua cartões perdidos.</span></button></div></section>
         <section id="familyInviteView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body">
           <div class="family-cpf-tabs"><button class="btn primary" id="familyModeIndividual" type="button">Convite individual</button><button class="btn secondary" id="familyModeGeneral" type="button">Cadastro pelo QR geral</button></div>
-          <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Confirme a identidade do responsável antes de mostrar o QR Code. Selecione até 10 filhos, inclusive de turmas diferentes, para um único convite.</p><div class="family-grid" id="familyInviteIdentity"><label>Nome do responsável<input id="familyGuardianName" maxlength="160" required></label><label>Celular com DDI<input id="familyPhone" type="tel" placeholder="+5562999999999" pattern="\\+[1-9][0-9]{7,14}" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" id="familyInviteSubmit" type="submit">Gerar convite por QR Code</button></form>
-          <div id="familyInviteResult" class="family-invite-result hidden"><strong>Convite individual criado</strong><p>Mostre este QR Code ao responsável na escola. Ele vale por 15 minutos e só pode ser usado uma vez. Não o coloque na carteirinha do aluno.</p><div id="familyInviteQr" class="family-invite-qr" aria-label="QR Code do convite"></div><input id="familyInviteUrl" readonly aria-label="Link do convite"><button class="btn secondary" type="button" id="familyCopyInvite">Copiar link</button></div>
-          <section class="family-cpf-section hidden" id="familyCpfSection"><h4>Cadastro para o QR geral</h4><p class="meta">Use os filtros de turno e turma acima, selecione os filhos e informe o responsável. Não há confirmação por celular.</p><label>Nome completo do responsável<input id="familyCpfNameSchool" type="text" maxlength="160" autocomplete="off"></label><label>CPF do responsável<input id="familyCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label><button class="btn primary" type="button" id="familySaveCpf">Cadastrar responsável e filhos</button><p id="familyCpfStatus" class="meta" role="status"></p><div class="family-general-qr"><strong>QR Code geral desta escola</strong><p class="meta">Pode ser impresso ou compartilhado. Não contém CPF nem dados dos alunos.</p><div id="familyGeneralQr" class="family-invite-qr" aria-label="QR Code geral"></div><input id="familyGeneralUrl" readonly aria-label="Link geral do cadastro"><button class="btn secondary" type="button" id="familyCopyGeneral">Copiar link</button> <button class="btn secondary" type="button" id="familyPrintGeneral">Imprimir QR Code</button></div><h4>Responsáveis pré-cadastrados nesta turma</h4><div id="familyCpfRoster" class="family-overview" aria-live="polite"><p class="meta">Selecione uma turma para ver os cadastros.</p></div></section>
+          <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Cadastre o responsável e selecione até 10 filhos, inclusive de turmas diferentes. Ao ler o QR individual, ele confirmará nome e CPF.</p><div class="family-grid" id="familyInviteIdentity"><label>Nome completo do responsável<input id="familyGuardianName" maxlength="160" required></label><label>CPF do responsável<input id="familyIndividualCpf" type="text" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required></label><label>Celular com DDD, sem DDI<input id="familyPhone" type="tel" inputmode="tel" maxlength="15" placeholder="(62) 99999-9999" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" id="familyInviteSubmit" type="submit">Gerar convite por QR Code</button></form>
+          <div id="familyInviteResult" class="family-invite-result hidden"><strong>Convite individual criado</strong><p>Mostre este QR Code ao responsável na escola. Ele vale por 15 minutos e só pode ser usado uma vez. Não o coloque na carteirinha do aluno.</p><p id="familyInviteContactStatus" class="meta" role="status"></p><div id="familyInviteQr" class="family-invite-qr" aria-label="QR Code do convite"></div><input id="familyInviteUrl" readonly aria-label="Link do convite"><button class="btn secondary" type="button" id="familyCopyInvite">Copiar link</button></div>
+          <section class="family-cpf-section hidden" id="familyCpfSection"><h4>Cadastro para o QR geral</h4><p class="meta">Use os filtros de turno e turma acima, selecione os filhos e informe o responsável. O celular é salvo na ficha dos alunos; não é usado para confirmar a identidade.</p><label>Nome completo do responsável<input id="familyCpfNameSchool" type="text" maxlength="160" autocomplete="off"></label><label>CPF do responsável<input id="familyCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label><label>Celular com DDD, sem DDI<input id="familyCpfPhone" type="tel" inputmode="tel" maxlength="15" placeholder="(62) 99999-9999"></label><button class="btn primary" type="button" id="familySaveCpf">Cadastrar responsável e filhos</button><p id="familyCpfStatus" class="meta" role="status"></p><div class="family-general-qr"><strong>QR Code geral desta escola</strong><p class="meta">Pode ser impresso ou compartilhado. Não contém CPF nem dados dos alunos.</p><div id="familyGeneralQr" class="family-invite-qr" aria-label="QR Code geral"></div><input id="familyGeneralUrl" readonly aria-label="Link geral do cadastro"><button class="btn secondary" type="button" id="familyCopyGeneral">Copiar link</button> <button class="btn secondary" type="button" id="familyPrintGeneral">Imprimir QR Code</button></div><h4>Responsáveis pré-cadastrados nesta turma</h4><div id="familyCpfRoster" class="family-overview" aria-live="polite"><p class="meta">Selecione uma turma para ver os cadastros.</p></div></section>
           <section class="family-cpf-section hidden" id="familyCpfSearchSection"><h4>Localizar cadastro para excluir</h4><p class="meta">Encontre também responsáveis de alunos transferidos ou fora das turmas atuais.</p><label>CPF do responsável<input id="familyCpfSearch" type="text" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00"></label><button class="btn secondary" type="button" id="familyCpfSearchButton">Buscar cadastro</button><div id="familyCpfSearchResults" class="family-overview" aria-live="polite"></div></section>
           <section><h4>Vínculos e ciência</h4><div id="familySchoolOverview" class="family-overview" aria-live="polite"></div></section>
         </div></section>
@@ -58,6 +58,7 @@
       get('familyInviteIdentity').classList.toggle('hidden',general);
       get('familyGuardianName').required=!general;
       get('familyPhone').required=!general;
+      get('familyIndividualCpf').required=!general;
       get('familyInviteSubmit').classList.toggle('hidden',general);
       get('familyInviteSubmit').disabled=general;
       get('familyCpfSection').classList.toggle('hidden',!general);
@@ -69,6 +70,8 @@
     get('familyModeIndividual').onclick=()=>setInviteMode('individual');
     get('familyModeGeneral').onclick=()=>setInviteMode('general');
     const cpfDigits = value => String(value || '').replace(/\D/g,'');
+    const localPhone = value => String(value || '').replace(/\D/g,'');
+    const validLocalPhone = value => /^[1-9][0-9]{9,10}$/.test(localPhone(value));
     const validCpf = value => {
       const cpf = cpfDigits(value);
       if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
@@ -117,18 +120,22 @@
       const students=[...selectedStudentIds];
       const name=get('familyCpfNameSchool').value.trim();
       const cpf=cpfDigits(get('familyCpf').value);
+      const phone=localPhone(get('familyCpfPhone').value);
       if (!students.length || students.length>10 || students.some(id=>!knownStudents.has(id)))
         return error('Selecione de 1 a 10 alunos nos filtros de turno e turma.');
       if (name.length<2 || !validCpf(cpf)) return error('Informe nome completo e CPF válido do responsável.');
+      if (!validLocalPhone(phone)) return error('Informe o celular com DDD, sem DDI.');
       const button=event.currentTarget;button.disabled=true;
       try {
-        const { error: requestError }=await db.rpc('family_cpf_register_bundle', {
-          p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,
+        const { data, error: requestError }=await db.rpc('family_cpf_register_bundle_contact', {
+          p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone,
         });
         if (requestError) throw requestError;
-        get('familyCpfStatus').textContent='Responsável pré-cadastrado. Compartilhe o QR Code geral.';
+        const filled=Number(data?.[0]?.filled_count || 0);
+        get('familyCpfStatus').textContent=`Responsável pré-cadastrado. ${filled} ficha(s) de aluno atualizada(s).${filled<students.length?' Contatos diferentes já preenchidos foram preservados.':''} Compartilhe o QR Code geral.`;
         get('familyCpf').value='';
         selectedStudentIds.clear();renderStudentChoices();renderSelectedStudents();
+        await window.load?.();
         await loadCpfRoster();
       } catch (caught) { error(caught.message || 'Não foi possível cadastrar o responsável.'); }
       finally { button.disabled=false; }
@@ -486,16 +493,21 @@
     get('familyInviteForm').onsubmit = async event => {
       event.preventDefault(); error('');
       const students = [...selectedStudentIds];
-      const phone = get('familyPhone').value.trim();
+      const phone = localPhone(get('familyPhone').value);
       const name = get('familyGuardianName').value.trim();
+      const cpf=cpfDigits(get('familyIndividualCpf').value);
       if (!students.length || students.length > 10 || students.some(id => !knownStudents.has(id))) return error('Selecione de 1 a 10 filhos autorizados nesta escola.');
+      if (!validCpf(cpf)) return error('Informe um CPF válido do responsável.');
+      if (!validLocalPhone(phone)) return error('Informe o celular com DDD, sem DDI.');
       const submit = event.submitter; submit.disabled = true;
       try {
-        const { data, error: requestError } = await db.rpc('family_create_invitation_bundle', { p_school_id:currentSchool,p_student_ids:students,p_name:name,p_phone:phone });
+        const { data, error: requestError } = await db.rpc('family_cpf_create_individual_invite', { p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone });
         if (requestError) throw requestError;
         const token = data?.[0]?.invitation_token;
         if (!token) throw new Error('Convite criado, mas o link não foi retornado.');
-        get('familyInviteUrl').value = new URL(`familia.html?token=${encodeURIComponent(token)}`, location.href).href;
+        const filled=Number(data?.[0]?.filled_count || 0);
+        get('familyInviteContactStatus').textContent=`${filled} ficha(s) de aluno atualizada(s).${filled<students.length?' Contatos diferentes já preenchidos foram preservados.':''}`;
+        get('familyInviteUrl').value = new URL(`familia.html?escola=${encodeURIComponent(currentSchool)}&token=${encodeURIComponent(token)}&cpf=1`, location.href).href;
         if (typeof window.qrcode === 'function') {
           const qr = window.qrcode(0,'M');
           qr.addData(get('familyInviteUrl').value);
@@ -504,6 +516,7 @@
         } else get('familyInviteQr').textContent = 'QR Code indisponível. Copie o link do convite.';
         get('familyInviteResult').classList.remove('hidden');
         selectedStudentIds.clear(); renderStudentChoices(); renderSelectedStudents();
+        await window.load?.();
         await loadOverview();
       } catch (caught) { error(caught.message || 'Não foi possível criar o convite.'); }
       finally { submit.disabled = false; }

@@ -71,6 +71,20 @@ Deno.serve(async request => {
       .eq('cpf',cpf);
     if (profileError) return reply({ error:'Serviço indisponível.' }, 503);
 
+    let invite: { token:string;guardian_id:string;school_id:string;expires_at:string;claimed_at:string | null } | null = null;
+    if (input.token !== undefined) {
+      if (typeof input.token !== 'string' || !uuid.test(input.token)
+        || typeof input.schoolId !== 'string' || !uuid.test(input.schoolId))
+        return reply({ error:'Convite individual inválido ou vencido.' }, 404);
+      const { data, error }=await admin.from('family_cpf_invites')
+        .select('token,guardian_id,school_id,expires_at,claimed_at')
+        .eq('token',input.token).maybeSingle();
+      if (error || !data || data.claimed_at || new Date(data.expires_at).getTime()<=Date.now()
+        || data.school_id!==input.schoolId)
+        return reply({ error:'Convite individual inválido ou vencido.' }, 404);
+      invite=data;
+    }
+
     if (action === 'login') {
       const accounts = (profiles || []).filter(row => row.guardian_user_id);
       if (!accounts.length || accounts.some(row => row.guardian_user_id !== accounts[0].guardian_user_id))
@@ -83,6 +97,15 @@ Deno.serve(async request => {
       if (signError || !signed?.session || signed.user.id !== accounts[0].guardian_user_id
         || signed.user.app_metadata?.family_portal !== true)
         return reply({ error:'CPF ou senha incorretos.' }, 400);
+      if (invite) {
+        const invitedProfile=(profiles || []).find(row => row.id===invite.guardian_id
+          && !row.removed_at && row.guardian_user_id===signed.user.id);
+        if (!invitedProfile) return reply({ error:'Convite individual inválido ou vencido.' }, 404);
+        const { error: redeemError }=await admin.rpc('family_cpf_redeem_invite', {
+          p_token:invite.token,p_guardian_id:invite.guardian_id,p_user_id:signed.user.id,
+        });
+        if (redeemError) return reply({ error:'Convite individual inválido ou vencido.' }, 404);
+      }
       for (const profile of profiles || []) {
         if (profile.removed_at) continue;
         if (profile.guardian_user_id && profile.guardian_user_id !== signed.user.id) continue;
@@ -99,7 +122,8 @@ Deno.serve(async request => {
       && nameKey(row.guardian_name) === nameKey(input.name));
     const { data: school } = await admin.from('schools').select('id')
       .eq('id',input.schoolId as string).eq('status','active').maybeSingle();
-    if (!profile || !school) return reply({ error:publicError }, 404);
+    if (!profile || !school || (invite && invite.guardian_id!==profile.id))
+      return reply({ error:invite?'Convite individual inválido ou vencido.':publicError }, 404);
     const { data: childRows, error: childError } = await admin.from('family_cpf_children')
       .select('student_id').eq('guardian_id',profile.id).eq('school_id',profile.school_id).eq('status','active');
     if (childError || !childRows?.length) return reply({ error:publicError }, 404);
@@ -131,9 +155,13 @@ Deno.serve(async request => {
     if (!signed.data?.session || !signed.data.user || signed.data.user.app_metadata?.family_portal !== true) {
       return reply({ error:'Não foi possível criar o acesso.' }, 500);
     }
-    const { error: claimError } = await admin.rpc('family_cpf_claim', {
-      p_guardian_id:profile.id, p_user_id:signed.data.user.id,
-    });
+    const { error: claimError } = invite
+      ? await admin.rpc('family_cpf_redeem_invite', {
+        p_token:invite.token,p_guardian_id:profile.id,p_user_id:signed.data.user.id,
+      })
+      : await admin.rpc('family_cpf_claim', {
+        p_guardian_id:profile.id,p_user_id:signed.data.user.id,
+      });
     if (claimError) {
       return reply({ error:'Não foi possível concluir o cadastro. Consulte a escola.' }, 409);
     }
