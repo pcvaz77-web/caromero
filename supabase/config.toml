@@ -54,3 +54,6 @@ verify_jwt = false
 
 [functions.family-activate]
 verify_jwt = false
+
+[functions.family-cpf-access]
+verify_jwt = false

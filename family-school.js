@@ -17,8 +17,11 @@
       <div class="form family-school-content"><p id="familySchoolError" class="error hidden" role="alert"></p>
         <section id="familyHome" class="family-workspace-home"><h4>O que você deseja fazer?</h4><div class="family-workspace-choices"><button type="button" data-family-view="invite"><strong>Convidar responsável</strong><span>Escolha os filhos e mostre o QR Code de acesso à família.</span></button><button type="button" data-family-view="occurrence"><strong>Compartilhar ocorrência</strong><span>Encontre o aluno e escolha qual ocorrência publicar.</span></button><button type="button" data-family-view="entry"><strong>Entrada dos alunos</strong><span>Leia a carteirinha pela câmera e registre a chegada.</span></button><button type="button" data-family-view="cards"><strong>Gerenciar carteirinhas</strong><span>Imprima por turma ou aluno e substitua cartões perdidos.</span></button></div></section>
         <section id="familyInviteView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body">
-          <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Confirme a identidade do responsável antes de mostrar o QR Code. Selecione até 10 filhos, inclusive de turmas diferentes, para um único convite.</p><div class="family-grid"><label>Nome do responsável<input id="familyGuardianName" maxlength="160" required></label><label>Celular com DDI<input id="familyPhone" type="tel" placeholder="+5562999999999" pattern="\\+[1-9][0-9]{7,14}" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" type="submit">Gerar convite por QR Code</button></form>
+          <div class="family-cpf-tabs"><button class="btn primary" id="familyModeIndividual" type="button">Convite individual</button><button class="btn secondary" id="familyModeGeneral" type="button">Cadastro pelo QR geral</button></div>
+          <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Confirme a identidade do responsável antes de mostrar o QR Code. Selecione até 10 filhos, inclusive de turmas diferentes, para um único convite.</p><div class="family-grid" id="familyInviteIdentity"><label>Nome do responsável<input id="familyGuardianName" maxlength="160" required></label><label>Celular com DDI<input id="familyPhone" type="tel" placeholder="+5562999999999" pattern="\\+[1-9][0-9]{7,14}" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" id="familyInviteSubmit" type="submit">Gerar convite por QR Code</button></form>
           <div id="familyInviteResult" class="family-invite-result hidden"><strong>Convite individual criado</strong><p>Mostre este QR Code ao responsável na escola. Ele vale por 15 minutos e só pode ser usado uma vez. Não o coloque na carteirinha do aluno.</p><div id="familyInviteQr" class="family-invite-qr" aria-label="QR Code do convite"></div><input id="familyInviteUrl" readonly aria-label="Link do convite"><button class="btn secondary" type="button" id="familyCopyInvite">Copiar link</button></div>
+          <section class="family-cpf-section hidden" id="familyCpfSection"><h4>Cadastro para o QR geral</h4><p class="meta">Use os filtros de turno e turma acima, selecione os filhos e informe o responsável. Não há confirmação por celular.</p><label>Nome completo do responsável<input id="familyCpfNameSchool" type="text" maxlength="160" autocomplete="off"></label><label>CPF do responsável<input id="familyCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label><button class="btn primary" type="button" id="familySaveCpf">Cadastrar responsável e filhos</button><p id="familyCpfStatus" class="meta" role="status"></p><div class="family-general-qr"><strong>QR Code geral desta escola</strong><p class="meta">Pode ser impresso ou compartilhado. Não contém CPF nem dados dos alunos.</p><div id="familyGeneralQr" class="family-invite-qr" aria-label="QR Code geral"></div><input id="familyGeneralUrl" readonly aria-label="Link geral do cadastro"><button class="btn secondary" type="button" id="familyCopyGeneral">Copiar link</button> <button class="btn secondary" type="button" id="familyPrintGeneral">Imprimir QR Code</button></div><h4>Responsáveis pré-cadastrados nesta turma</h4><div id="familyCpfRoster" class="family-overview" aria-live="polite"><p class="meta">Selecione uma turma para ver os cadastros.</p></div></section>
+          <section class="family-cpf-section hidden" id="familyCpfSearchSection"><h4>Localizar cadastro para excluir</h4><p class="meta">Encontre também responsáveis de alunos transferidos ou fora das turmas atuais.</p><label>CPF do responsável<input id="familyCpfSearch" type="text" inputmode="numeric" maxlength="14" autocomplete="off" placeholder="000.000.000-00"></label><button class="btn secondary" type="button" id="familyCpfSearchButton">Buscar cadastro</button><div id="familyCpfSearchResults" class="family-overview" aria-live="polite"></div></section>
           <section><h4>Vínculos e ciência</h4><div id="familySchoolOverview" class="family-overview" aria-live="polite"></div></section>
         </div></section>
         <section id="familyOccurrenceView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body">
@@ -34,6 +37,8 @@
     css.textContent += `.family-workspace-choices{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.family-workspace-choices button{min-height:122px;padding:17px}.family-workspace-choices strong{font-size:16px}.family-workspace-choices span{margin-top:9px;font-size:13px}@media(max-width:900px){.family-workspace-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.family-workspace-choices{grid-template-columns:1fr}.family-workspace-choices button{min-height:92px;padding:16px}}`;
     css.textContent += `#familySchoolModal .family-workspace-choices button{border-color:#ffffff38;background:linear-gradient(135deg,#142b58,#315fbc);color:#fff;box-shadow:0 12px 24px #173a7940;transition:transform .18s ease,box-shadow .18s ease}#familySchoolModal .family-workspace-choices button:nth-child(2){background:linear-gradient(135deg,#2757c6,#3866cb)}#familySchoolModal .family-workspace-choices button:nth-child(3){background:linear-gradient(135deg,#4148ad,#655bd7)}#familySchoolModal .family-workspace-choices button:nth-child(4){background:linear-gradient(135deg,#5a36a8,#7950d6)}#familySchoolModal .family-workspace-choices button span{color:#eef2ff}#familySchoolModal .family-workspace-choices button:hover{transform:translateY(-3px);border-color:#fff;box-shadow:0 16px 30px #173a7952}#familySchoolModal .family-workspace-choices button:focus-visible{outline:3px solid #356ae6;outline-offset:3px;box-shadow:0 0 0 6px #fff,0 12px 24px #173a7940}@media(prefers-reduced-motion:reduce){#familySchoolModal .family-workspace-choices button{transition:none}#familySchoolModal .family-workspace-choices button:hover{transform:none}}`;
     css.textContent += `.family-occurrence-fieldset{min-width:0;margin:8px 0 0;padding:0;border:0}.family-occurrence-fieldset legend{margin-bottom:10px;font-weight:700}.family-occurrence-choices{display:grid;gap:10px;max-height:420px;overflow:auto;padding:2px}.family-occurrence-choice{display:flex!important;align-items:flex-start;gap:12px;padding:14px;border:1px solid #dce5f1;border-radius:12px;background:#fff;cursor:pointer}.family-occurrence-choice:has(input:checked){border-color:#4566d9;background:#f1f5ff;box-shadow:0 0 0 1px #4566d9}.family-occurrence-choice input{width:18px!important;height:18px;min-height:0;flex:none;margin:2px 0 0!important}.family-occurrence-detail{display:grid;gap:6px;min-width:0;font-size:13px;line-height:1.4;overflow-wrap:anywhere}.family-occurrence-detail strong{font-size:14px;color:#17233a}.family-occurrence-detail small{font-size:12px;color:#5b6a84}.family-occurrence-detail .body{white-space:pre-wrap;color:#263b60}.family-occurrence-detail .remark{padding:7px 9px;background:#f4f6fb;border-radius:7px}.family-occurrence-choice:focus-within{outline:2px solid #4566d9;outline-offset:2px}@media(max-width:600px){.family-occurrence-choice{padding:12px;gap:9px}.family-occurrence-choices{max-height:50dvh}}`;
+    css.textContent += `.family-cpf-section{display:grid;gap:12px;padding:20px;border:1px solid #dce5f1;border-radius:14px;background:#f8faff}.family-cpf-section>h4{margin:5px 0 0}.family-cpf-section>button{justify-self:start}.family-general-qr{padding:18px;border:1px solid #dce5f1;border-radius:12px;background:#fff}.family-general-qr input{margin:10px 0}.family-cpf-section .family-link-row{background:#fff}.family-cpf-section .family-link-row button{margin-left:9px}@media(max-width:650px){.family-cpf-section{padding:14px}.family-cpf-section>button{justify-self:stretch}}`;
+    css.textContent += `.family-cpf-tabs{display:flex;gap:10px;flex-wrap:wrap}.family-cpf-tabs button{flex:1 1 190px}.family-cpf-section.hidden{display:none!important}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -48,6 +53,122 @@
     let activeLinksReady = false;
     const selectedStudentIds = new Set();
     let currentView = 'home';
+    function setInviteMode(mode) {
+      const general=mode==='general';
+      get('familyInviteIdentity').classList.toggle('hidden',general);
+      get('familyGuardianName').required=!general;
+      get('familyPhone').required=!general;
+      get('familyInviteSubmit').classList.toggle('hidden',general);
+      get('familyInviteSubmit').disabled=general;
+      get('familyCpfSection').classList.toggle('hidden',!general);
+      get('familyCpfSearchSection').classList.toggle('hidden',!general);
+      get('familyInviteResult').classList.toggle('hidden',general || !get('familyInviteUrl').value);
+      get('familyModeIndividual').className=general?'btn secondary':'btn primary';
+      get('familyModeGeneral').className=general?'btn primary':'btn secondary';
+    }
+    get('familyModeIndividual').onclick=()=>setInviteMode('individual');
+    get('familyModeGeneral').onclick=()=>setInviteMode('general');
+    const cpfDigits = value => String(value || '').replace(/\D/g,'');
+    const validCpf = value => {
+      const cpf = cpfDigits(value);
+      if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+      for (let length=9;length<=10;length++) {
+        const sum=[...cpf.slice(0,length)].reduce((total,digit,index)=>total+Number(digit)*(length+1-index),0);
+        if (Number(cpf[length]) !== ((sum*10)%11)%10) return false;
+      }
+      return true;
+    };
+    async function loadCpfRoster() {
+      const school = currentSchool;
+      const classId = get('familyInviteClass').value;
+      if (!classId) { get('familyCpfRoster').innerHTML = '<p class="meta">Selecione uma turma para ver os cadastros.</p>'; return; }
+      const { data, error: requestError } = await db.rpc('family_cpf_school_roster', {
+        p_school_id:school,p_class_id:classId,
+      });
+      if (school !== currentSchool || classId !== get('familyInviteClass').value) return;
+      if (requestError) throw requestError;
+      get('familyCpfRoster').innerHTML = data?.length ? data.map(cpfRosterRow).join('')
+        : '<p class="meta">Nenhum responsável pré-cadastrado nesta turma.</p>';
+    }
+    function cpfRosterRow(row) {
+      const inactive=row.enrollment_status && row.enrollment_status!=='active';
+      return `<article class="family-link-row"><b>${esc(row.student_name)}</b><p>${esc(row.guardian_name)} · CPF final ${esc(row.cpf_last4)} · ${row.account_active ? 'Acesso criado' : 'Aguardando cadastro'}${inactive ? ' · Aluno fora da matrícula ativa' : ''}</p>${row.link_status!=='revoked' ? `<button class="btn secondary" type="button" data-remove-cpf="${esc(row.guardian_id)}" data-student="${esc(row.student_id)}">Excluir vínculo com este aluno</button>` : ''}<button class="btn secondary" type="button" data-remove-guardian-cpf="${esc(row.guardian_id)}">Excluir responsável desta escola</button></article>`;
+    }
+    async function findCpfGuardian() {
+      const cpf=cpfDigits(get('familyCpfSearch').value);
+      if (!validCpf(cpf)) return error('Informe um CPF válido para buscar.');
+      const school=currentSchool;
+      const { data, error: requestError }=await db.rpc('family_cpf_find_guardian', {
+        p_school_id:school,p_cpf:cpf,
+      });
+      if (requestError) throw requestError;
+      if (school!==currentSchool) return;
+      get('familyCpfSearchResults').innerHTML=data?.length ? data.map(cpfRosterRow).join('')
+        : '<p class="meta">Nenhum cadastro encontrado para este CPF nesta escola.</p>';
+    }
+    get('familyCpfSearchButton').onclick=async event=>{
+      event.currentTarget.disabled=true;error('');
+      try { await findCpfGuardian(); }
+      catch (caught) { error(caught.message || 'Não foi possível buscar o cadastro.'); }
+      finally { event.currentTarget.disabled=false; }
+    };
+    get('familySaveCpf').onclick = async event => {
+      error('');
+      const students=[...selectedStudentIds];
+      const name=get('familyCpfNameSchool').value.trim();
+      const cpf=cpfDigits(get('familyCpf').value);
+      if (!students.length || students.length>10 || students.some(id=>!knownStudents.has(id)))
+        return error('Selecione de 1 a 10 alunos nos filtros de turno e turma.');
+      if (name.length<2 || !validCpf(cpf)) return error('Informe nome completo e CPF válido do responsável.');
+      const button=event.currentTarget;button.disabled=true;
+      try {
+        const { error: requestError }=await db.rpc('family_cpf_register_bundle', {
+          p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,
+        });
+        if (requestError) throw requestError;
+        get('familyCpfStatus').textContent='Responsável pré-cadastrado. Compartilhe o QR Code geral.';
+        get('familyCpf').value='';
+        selectedStudentIds.clear();renderStudentChoices();renderSelectedStudents();
+        await loadCpfRoster();
+      } catch (caught) { error(caught.message || 'Não foi possível cadastrar o responsável.'); }
+      finally { button.disabled=false; }
+    };
+    get('familyCpfRoster').onclick = async event => {
+      const button=event.target.closest('[data-remove-cpf], [data-remove-guardian-cpf]');
+      if (!button) return;
+      const all=button.hasAttribute('data-remove-guardian-cpf');
+      if (!confirm(all
+        ? 'Excluir este responsável e todos os seus vínculos nesta escola? O acesso a outras escolas e o histórico de ciência serão preservados.'
+        : 'Excluir o vínculo deste responsável com este aluno? O acesso será revogado, mas o histórico de ciência será preservado.')) return;
+      button.disabled=true;error('');
+      try {
+        const { error: requestError }=all
+          ? await db.rpc('family_cpf_remove_guardian', {
+            p_school_id:currentSchool,p_guardian_id:button.dataset.removeGuardianCpf,
+          })
+          : await db.rpc('family_cpf_remove_child', {
+            p_school_id:currentSchool,p_guardian_id:button.dataset.removeCpf,p_student_id:button.dataset.student,
+          });
+        if (requestError) throw requestError;
+        await loadCpfRoster();await loadOverview();
+        if (get('familyCpfSearch').value.trim()) await findCpfGuardian();
+      } catch (caught) { error(caught.message || 'Não foi possível excluir o vínculo.');button.disabled=false; }
+    };
+    get('familyCpfSearchResults').onclick=get('familyCpfRoster').onclick;
+    get('familyCopyGeneral').onclick = async () => {
+      try { await navigator.clipboard.writeText(get('familyGeneralUrl').value); }
+      catch { get('familyGeneralUrl').select(); document.execCommand('copy'); }
+    };
+    get('familyPrintGeneral').onclick = () => {
+      const svg=get('familyGeneralQr').innerHTML;
+      const url=get('familyGeneralUrl').value;
+      if (!svg || !url) return error('QR Code indisponível.');
+      const page=window.open('','_blank');
+      if (!page) return error('Permita a abertura da página de impressão.');
+      page.opener=null;
+      page.document.write(`<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Portal da Família</title><style>body{font:20px Arial;text-align:center;padding:40px}svg{width:360px;height:360px}p{overflow-wrap:anywhere}</style><h1>Portal da Família</h1><p>Leia o QR Code para fazer seu cadastro</p>${svg}<p>${esc(url)}</p><script>onload=()=>print()<\/script></html>`);
+      page.document.close();
+    };
     const close = () => { dialog.classList.add('hidden'); document.dispatchEvent(new Event('carometro:family-school-closed')); };
     get('familySchoolClose').onclick = close;
     dialog.onclick = event => { if (event.target === dialog) close(); };
@@ -140,6 +261,7 @@
       get('familyStudentSearch').value = '';
       get('familyStudentSearch').disabled = !classId;
       if (!classId) return renderStudentChoices();
+      get('familyCpfRoster').innerHTML = '<p class="meta">Carregando cadastros…</p>';
       get('familyStudentChoices').innerHTML = '<p class="meta">Carregando alunos da turma…</p>';
       try {
         const rows = [];
@@ -156,6 +278,7 @@
         inviteRows = rows.map(row => ({ ...row, class_name:className }));
         inviteRows.forEach(row => knownStudents.set(row.id,row));
         renderStudentChoices();
+        await loadCpfRoster();
       } catch (caught) {
         if (loadId !== classLoadId || activeSchool !== currentSchool) return;
         get('familyStudentChoices').innerHTML = '<p class="meta">Não foi possível carregar os alunos desta turma.</p>';
@@ -298,7 +421,7 @@
       }
       get('familySchoolOverview').innerHTML = grouped.size ? [...grouped.values()].map(({ row, messages }) => `
         <article class="family-link-row"><b>${esc(row.guardian_name)}</b> · ${esc(row.student_name)}
-        <p>${esc(row.phone_e164)} · ${row.link_status === 'active' ? 'Ativo' : row.link_status === 'pending' ? 'Convite pendente' : 'Revogado'}</p>
+        <p>${row.phone_e164 ? esc(row.phone_e164) : 'Cadastro por CPF'} · ${row.link_status === 'active' ? 'Ativo' : row.link_status === 'pending' ? 'Convite pendente' : 'Revogado'}</p>
         ${messages.map(m => `<p>${esc(m.message_title)}: ${m.acknowledged_at ? 'Ciência confirmada' : m.viewed_at ? 'Visualizada' : 'Aguardando leitura'}
           <button class="btn secondary" type="button" data-withdraw="${esc(m.message_id)}">Retirar publicação</button>
           </p>`).join('')}
@@ -325,6 +448,8 @@
       get('familyStudentSearch').disabled = true;
       renderStudentChoices(); renderSelectedStudents();
       get('familyInviteResult').classList.add('hidden');
+      setInviteMode('individual');
+      get('familyCpfStatus').textContent = '';
       get('familyInviteUrl').value = '';
       get('familyPublishForm').reset();
       resetOccurrenceFilters();
@@ -337,6 +462,11 @@
         return;
       }
       dialog.classList.remove('hidden');
+      get('familyGeneralUrl').value = new URL(`familia.html?escola=${encodeURIComponent(currentSchool)}`, location.href).href;
+      if (typeof window.qrcode === 'function') {
+        const qr=window.qrcode(0,'M');qr.addData(get('familyGeneralUrl').value);qr.make();
+        get('familyGeneralQr').innerHTML=qr.createSvgTag({ cellSize:4,margin:8,scalable:true });
+      } else get('familyGeneralQr').textContent='QR Code indisponível. Copie o link geral.';
       showView('home');
       try {
         const classResult = await db.from('classes').select('id,name,shift').eq('school_id',currentSchool).is('archived_at',null).order('name');

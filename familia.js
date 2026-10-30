@@ -7,6 +7,17 @@
     const get = id => document.getElementById(id);
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
     const token = new URL(location.href).searchParams.get('token');
+    const publicSchoolId = new URL(location.href).searchParams.get('escola');
+    const cpfDigits = value => String(value || '').replace(/\D/g,'');
+    const validCpf = value => {
+      const cpf=cpfDigits(value);
+      if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false;
+      for (let length=9;length<=10;length++) {
+        const sum=[...cpf.slice(0,length)].reduce((total,digit,index)=>total+Number(digit)*(length+1-index),0);
+        if (Number(cpf[length]) !== ((sum*10)%11)%10) return false;
+      }
+      return true;
+    };
     let links = [];
     let digitalEnabledSchools = new Set();
     let selectedLink = null;
@@ -167,6 +178,9 @@
     async function loadPortal() {
       const { data: userData, error: authError } = await db.auth.getUser();
       if (authError || !userData?.user) return;
+      const cpfAccount=userData.user.app_metadata?.family_cpf===true;
+      get('changedPassword').minLength=cpfAccount?8:12;
+      get('changedPassword').maxLength=cpfAccount?8:128;
       const { data, error: listError } = await db.rpc('family_my_students');
       if (listError) throw listError;
       links = data || [];
@@ -179,7 +193,7 @@
       get('portal').classList.remove('hidden');
       void syncPushStatus();
       error('portalError','');
-      get('students').innerHTML = links.length ? links.map(link => `<button class="student-card" type="button" data-link="${link.link_id}"><strong>${esc(link.student_name)}</strong><small>${esc(link.school_name)} · ${esc(link.class_name)}</small></button>`).join('') : '<div class="empty">Nenhum estudante autorizado para este celular. Consulte a escola caso tenha recebido um convite.</div>';
+      get('students').innerHTML = links.length ? links.map(link => `<button class="student-card" type="button" data-link="${link.link_id}"><strong>${esc(link.student_name)}</strong><small>${esc(link.school_name)} · ${esc(link.class_name)}</small></button>`).join('') : '<div class="empty">Nenhum estudante autorizado para esta conta. Consulte a escola.</div>';
       if (selectedLink && links.some(link => link.link_id === selectedLink)) await openTimeline(selectedLink);
       else get('timeline').classList.add('hidden');
       startLive(familyUserId);
@@ -408,8 +422,77 @@
         await loadPortal();
       });
     };
+    async function cpfAccess(body) {
+      const { data, error: invokeError }=await db.functions.invoke('family-cpf-access', { body });
+      if (invokeError) {
+        const response=await invokeError.context?.json?.().catch(()=>null);
+        if (response?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha.');
+        throw new Error(response?.error || 'Não foi possível continuar. Tente novamente.');
+      }
+      return data;
+    }
+    async function useCpfSession(data) {
+      if (!data?.access_token || !data?.refresh_token) throw new Error('Não foi possível abrir o Portal.');
+      const { error: sessionError }=await db.auth.setSession({
+        access_token:data.access_token,refresh_token:data.refresh_token,
+      });
+      if (sessionError) throw sessionError;
+      await loadPortal();
+    }
+    const resetCpfPreview = () => {
+      get('familyCpfChildren').classList.add('hidden');
+      get('familyCpfFinish').classList.add('hidden');
+      get('familyCpfConfirm').checked=false;
+      for (const id of ['familyCpfPassword','familyCpfConfirm']) get(id).disabled=true;
+    };
+    get('familyCpfName').oninput=resetCpfPreview;
+    get('familyCpfNumber').oninput=resetCpfPreview;
+    get('familyCpfPreview').onclick=event=>busy(event.currentTarget,async()=>{
+      error('accessError','');
+      if (!validCpf(get('familyCpfNumber').value)) throw new Error('Confira o CPF informado.');
+      if (!get('familyCpfName').value.trim()) throw new Error('Informe seu nome completo.');
+      const data=await cpfAccess({
+        action:'preview',schoolId:publicSchoolId,name:get('familyCpfName').value.trim(),
+        cpf:cpfDigits(get('familyCpfNumber').value),
+      });
+      if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha abaixo.');
+      if (!Array.isArray(data?.students) || !data.students.length)
+        throw new Error('Seu cadastro ainda não foi realizado pela escola. Procure a secretaria.');
+      get('familyCpfChildren').innerHTML=`<strong>Filhos cadastrados pela escola</strong><ul>${data.students.map(row=>`<li>${esc(row.name)} · Turma ${esc(row.class_name || 'não informada')}</li>`).join('')}</ul>`;
+      get('familyCpfChildren').classList.remove('hidden');
+      get('familyCpfFinish').classList.remove('hidden');
+      for (const id of ['familyCpfPassword','familyCpfConfirm']) get(id).disabled=false;
+    });
+    get('familyCpfAccessForm').onsubmit=event=>{
+      event.preventDefault();error('accessError','');
+      busy(event.submitter,async()=>{
+        if (get('familyCpfFinish').classList.contains('hidden') || !get('familyCpfConfirm').checked)
+          throw new Error('Confira e confirme os filhos mostrados acima.');
+        const password=get('familyCpfPassword').value;
+        const data=await cpfAccess({
+          action:'activate',schoolId:publicSchoolId,name:get('familyCpfName').value.trim(),
+          cpf:cpfDigits(get('familyCpfNumber').value),
+          password,
+        });
+        if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha.');
+        get('familyCpfPassword').value='';
+        await useCpfSession(data);
+      });
+    };
+    get('familyCpfLoginForm').onsubmit=event=>{
+      event.preventDefault();error('accessError','');
+      busy(event.submitter,async()=>{
+        const cpf=cpfDigits(get('familyLoginCpf').value);
+        if (!validCpf(cpf)) throw new Error('Confira o CPF informado.');
+        const data=await cpfAccess({ action:'login',cpf,password:get('familyLoginPassword').value });
+        get('familyLoginPassword').value='';
+        await useCpfSession(data);
+      });
+    };
     function showFirstAccess() {
       get('passwordForm').classList.add('hidden');
+      get('familyPhoneLogin').classList.add('hidden');
+      get('familyCpfLoginForm').classList.add('hidden');
       get('firstAccessForm').classList.remove('hidden');
       get('invitePhone').value = get('phone').value;
       error('accessError','');
@@ -434,7 +517,7 @@
       error('accessError','');
     });
     get('firstAccess').onclick = () => { if (!token) return error('accessError','Abra o convite individual enviado pela escola para fazer o primeiro acesso.'); showFirstAccess(); };
-    get('backToLogin').onclick = () => { get('firstAccessForm').classList.add('hidden'); get('passwordForm').classList.remove('hidden'); error('accessError',''); };
+    get('backToLogin').onclick = () => { get('firstAccessForm').classList.add('hidden'); get('passwordForm').classList.remove('hidden'); get('familyPhoneLogin').classList.remove('hidden'); get('familyCpfLoginForm').classList.remove('hidden'); error('accessError',''); };
     get('firstAccessForm').onsubmit = event => {
       event.preventDefault(); error('accessError','');
       busy(event.submitter, async () => {
@@ -460,6 +543,8 @@
           get('phone').value = invitedPhone;
           get('firstAccessForm').classList.add('hidden');
           get('passwordForm').classList.remove('hidden');
+          get('familyPhoneLogin').classList.remove('hidden');
+          get('familyPhoneLogin').open=true;
           error('accessError','Este celular já tem acesso. Entre com a senha que você usa no Portal da Família para aceitar o convite.');
           return;
         }
@@ -481,6 +566,10 @@
       }, 'portalError');
     };
     if (token) showFirstAccess();
+    else if (publicSchoolId && /^[0-9a-f-]{36}$/i.test(publicSchoolId)) {
+      get('familyCpfAccessForm').classList.remove('hidden');
+      get('firstAccess').classList.add('hidden');
+    }
     try {
       const { data } = await db.auth.getSession();
       if (data.session) { await acceptPendingInvite(); await loadPortal(); }
