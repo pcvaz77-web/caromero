@@ -75,6 +75,8 @@ test('cadastro por CPF respeita escola e revoga os vínculos de alunos transferi
     try { await db.exec(migration); } catch (error) { throw new Error(error.message); }
     const contactMigration=readFileSync(path.join(__dirname,'..','supabase/migrations/204_family_cpf_individual_and_student_contact.sql'),'utf8');
     try { await db.exec(contactMigration); } catch (error) { throw new Error(error.message); }
+    const rosterMigration=readFileSync(path.join(__dirname,'..','supabase/migrations/205_family_cpf_roster_all_children.sql'),'utf8');
+    try { await db.exec(rosterMigration); } catch (error) { throw new Error(error.message); }
     const as=user=>db.query('select set_config($1,$2,false)',['app.user_id',user]);
     await as(adminA);
     assert.equal((await db.query("select has_function_privilege('authenticated','public.family_cpf_register_bundle(uuid,uuid[],text,text)','EXECUTE') as allowed")).rows[0].allowed,false);
@@ -88,6 +90,13 @@ test('cadastro por CPF respeita escola e revoga os vínculos de alunos transferi
       schoolA,[studentA,studentB],'Maria da Silva','52998224725',
     ]);
     const guardianId=result.rows[0].id;
+    const classA='55555555-5555-4555-8555-555555555551';
+    const classB='55555555-5555-4555-8555-555555555552';
+    await db.query('update public.students set class_id=$1 where id=$2',[classA,studentA]);
+    await db.query('update public.students set class_id=$1 where id=$2',[classB,studentB]);
+    const roster=await db.query('select * from public.family_cpf_school_roster($1,$2)',[schoolA,classA]);
+    assert.deepEqual(roster.rows.map(row=>row.student_id).sort(),[studentA,studentB].sort(),
+      'a turma selecionada mostra todos os filhos ativos do responsável, inclusive de outra turma');
     await assert.rejects(db.query("update public.students set guardian_name='Pessoa sem cadastro',guardian_phone='62977777777' where id=$1",[studentA]),/Sem permissao/);
     const contact=await db.query('select * from public.family_cpf_register_bundle_contact($1,$2,$3,$4,$5)',[
       schoolA,[studentA,studentB],'Maria da Silva','52998224725','62999999999',

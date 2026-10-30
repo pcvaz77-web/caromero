@@ -22,7 +22,11 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     rpc:async (name,args)=>{
       calls.push({ name,args });
       if (name==='family_school_manager') return { data:true,error:null };
-      if (name==='family_cpf_school_roster' || name==='family_school_overview') return { data:[],error:null };
+      if (name==='family_cpf_school_roster') return { data:[
+        { guardian_id:'guardian-id',guardian_name:'Maria da Silva',cpf_last4:'4725',student_id:studentId,student_name:'Ana',account_active:false },
+        { guardian_id:'guardian-id',guardian_name:'Maria da Silva',cpf_last4:'4725',student_id:'33333333-3333-4333-8333-333333333334',student_name:'Bia',account_active:false },
+      ],error:null };
+      if (name==='family_school_overview') return { data:[],error:null };
       if (name==='family_cpf_register_bundle_contact') return { data:[{guardian_id:'guardian-id',filled_count:1}],error:null };
       if (name==='family_cpf_create_individual_invite') return { data:[{invitation_token:'44444444-4444-4444-8444-444444444444',filled_count:1}],error:null };
       return { data:null,error:null };
@@ -61,6 +65,10 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     el('familyInviteShift').onchange();
     el('familyInviteClass').value=classId;
     await el('familyInviteClass').onchange();
+    assert.equal(el('familyCpfRoster').querySelectorAll('.family-cpf-child').length,2);
+    assert.equal(el('familyCpfRoster').querySelectorAll('[data-remove-guardian-cpf]').length,1);
+    assert.match(el('familyCpfRoster').textContent,/Ana/);
+    assert.match(el('familyCpfRoster').textContent,/Bia/);
     const checkbox=el('familyStudentChoices').querySelector('input[type=checkbox]');
     assert.ok(checkbox);
     checkbox.checked=true;
