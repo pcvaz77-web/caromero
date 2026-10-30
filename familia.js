@@ -9,6 +9,8 @@
     const token = new URL(location.href).searchParams.get('token');
     const publicSchoolId = new URL(location.href).searchParams.get('escola');
     const individualCpf = !!token && new URL(location.href).searchParams.get('cpf') === '1';
+    if (token || (publicSchoolId && /^[0-9a-f-]{36}$/i.test(publicSchoolId)))
+      get('access').classList.add('family-qr-theme');
     const cpfDigits = value => String(value || '').replace(/\D/g,'');
     const validCpf = value => {
       const cpf=cpfDigits(value);
