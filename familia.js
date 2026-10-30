@@ -55,7 +55,7 @@
     function syncInstall() {
       const installed = installedThisSession || isStandalone();
       get('installFamily').classList.toggle('hidden', installed);
-      get('installFamilyAccessBox').classList.toggle('hidden', installed || !!token);
+      get('installFamilyAccessBox').classList.toggle('hidden', installed || !!token || !!publicSchoolId);
       if (installed) installHelp('O Portal da Família já está instalado neste aparelho.');
     }
     window.addEventListener('beforeinstallprompt', event => { event.preventDefault(); installPrompt = event; syncInstall(); });
@@ -495,8 +495,8 @@
     };
     function showFirstAccess() {
       get('passwordForm').classList.add('hidden');
-      get('familyPhoneLogin').classList.add('hidden');
-      get('familyCpfLoginForm').classList.add('hidden');
+      get('familyExistingAccess').classList.add('hidden');
+      get('firstAccess').classList.add('hidden');
       get('firstAccessForm').classList.remove('hidden');
       get('invitePhone').value = get('phone').value;
       error('accessError','');
@@ -521,7 +521,7 @@
       error('accessError','');
     });
     get('firstAccess').onclick = () => { if (!token) return error('accessError','Abra o convite individual enviado pela escola para fazer o primeiro acesso.'); showFirstAccess(); };
-    get('backToLogin').onclick = () => { get('firstAccessForm').classList.add('hidden'); get('passwordForm').classList.remove('hidden'); get('familyPhoneLogin').classList.remove('hidden'); get('familyCpfLoginForm').classList.remove('hidden'); error('accessError',''); };
+    get('backToLogin').onclick = () => { get('firstAccessForm').classList.add('hidden'); get('passwordForm').classList.remove('hidden'); get('familyExistingAccess').classList.remove('hidden'); get('familyExistingAccess').open=true; get('firstAccess').classList.remove('hidden'); error('accessError',''); };
     get('firstAccessForm').onsubmit = event => {
       event.preventDefault(); error('accessError','');
       busy(event.submitter, async () => {
@@ -547,7 +547,8 @@
           get('phone').value = invitedPhone;
           get('firstAccessForm').classList.add('hidden');
           get('passwordForm').classList.remove('hidden');
-          get('familyPhoneLogin').classList.remove('hidden');
+          get('familyExistingAccess').classList.remove('hidden');
+          get('familyExistingAccess').open=true;
           get('familyPhoneLogin').open=true;
           error('accessError','Este celular já tem acesso. Entre com a senha que você usa no Portal da Família para aceitar o convite.');
           return;
@@ -573,9 +574,10 @@
     else if (publicSchoolId && /^[0-9a-f-]{36}$/i.test(publicSchoolId)) {
       get('familyCpfAccessForm').classList.remove('hidden');
       get('firstAccess').classList.add('hidden');
-      get('familyPhoneLogin').open=false;
+      get('familyExistingAccess').open=false;
+      if (!token) get('familyPhoneLogin').classList.add('hidden');
       if (individualCpf) get('familyCpfAccessForm').querySelector('h2').textContent='Primeiro acesso pelo convite individual';
-    }
+    } else { get('familyExistingAccess').open=true; get('firstAccess').classList.add('hidden'); }
     try {
       const { data } = await db.auth.getSession();
       if (data.session) { await acceptPendingInvite(); await loadPortal(); if (individualCpf) history.replaceState(null,'',location.pathname); }

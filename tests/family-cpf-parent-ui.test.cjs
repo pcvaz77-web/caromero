@@ -37,6 +37,14 @@ test('QR geral mostra filhos por nome e CPF e cria acesso sem pedir celular', as
     await new Promise(resolve=>window.document.addEventListener('DOMContentLoaded',resolve,{once:true}));
     const el=id=>window.document.getElementById(id);
     assert.equal(el('familyCpfAccessForm').classList.contains('hidden'),false);
+    assert.match(el('familyCpfAccessForm').textContent,/Bem-vindo, esse é seu primeiro acesso/);
+    assert.match(el('familyCpfAccessForm').textContent,/Confirme seu nome completo e CPF/);
+    assert.doesNotMatch(el('access').textContent,/Use o QR Code geral/);
+    assert.equal(el('familyExistingAccess').open,false);
+    assert.equal(el('familyPhoneLogin').classList.contains('hidden'),true);
+    assert.equal(el('installFamilyAccessBox').classList.contains('hidden'),true);
+    el('familyExistingAccess').open=true;
+    assert.match(el('familyExistingAccess').textContent,/Se você já criou sua senha, entre com seu CPF/);
     assert.equal(html.includes('id="familyCpfPhone"'),false);
     el('familyCpfName').value='Maria da Silva';
     el('familyCpfNumber').value='529.982.247-25';
@@ -89,6 +97,8 @@ test('QR individual novo confirma nome e CPF sem pedir celular', async () => {
     const el=id=>window.document.getElementById(id);
     assert.match(el('familyCpfAccessForm').textContent,/convite individual/i);
     assert.equal(el('firstAccessForm').classList.contains('hidden'),true);
+    assert.equal(el('familyExistingAccess').open,false);
+    assert.equal(el('familyPhoneLogin').classList.contains('hidden'),false);
     el('familyCpfName').value='Maria da Silva';
     el('familyCpfNumber').value='52998224725';
     el('familyCpfPreview').click();
