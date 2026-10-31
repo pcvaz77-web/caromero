@@ -15,7 +15,7 @@
     dialog.innerHTML = `<section class="modal family-school-dialog" role="dialog" aria-modal="true" aria-labelledby="familySchoolTitle">
       <div class="modal-head"><div><h3 id="familySchoolTitle">Portal da Família</h3><p class="meta">Escolha o que deseja fazer nesta escola.</p></div><button class="close" type="button" id="familySchoolClose" aria-label="Fechar">×</button></div>
       <div class="form family-school-content"><p id="familySchoolError" class="error hidden" role="alert"></p>
-        <section id="familyHome" class="family-workspace-home"><h4>O que você deseja fazer?</h4><div class="family-workspace-choices"><button type="button" data-family-view="invite"><strong>Convidar responsável</strong><span>Escolha os filhos e mostre o QR Code de acesso à família.</span></button><button type="button" data-family-view="occurrence"><strong>Compartilhar ocorrência</strong><span>Encontre o aluno e escolha qual ocorrência publicar.</span></button><button type="button" data-family-view="entry"><strong>Entrada dos alunos</strong><span>Leia a carteirinha pela câmera e registre a chegada.</span></button><button type="button" data-family-view="cards"><strong>Gerenciar carteirinhas</strong><span>Imprima por turma ou aluno e substitua cartões perdidos.</span></button></div></section>
+        <section id="familyHome" class="family-workspace-home"><h4>O que você deseja fazer?</h4><div class="family-workspace-choices"><button type="button" data-family-view="invite"><strong>Convidar responsável</strong><span>Escolha os filhos e mostre o QR Code de acesso à família.</span></button><button type="button" data-family-view="addChild"><strong>Acrescentar filho</strong><span>Vincule um novo aluno a uma conta que já está ativa, sem outro QR Code.</span></button><button type="button" data-family-view="occurrence"><strong>Compartilhar ocorrência</strong><span>Encontre o aluno e escolha qual ocorrência publicar.</span></button><button type="button" data-family-view="entry"><strong>Entrada dos alunos</strong><span>Leia a carteirinha pela câmera e registre a chegada.</span></button><button type="button" data-family-view="cards"><strong>Gerenciar carteirinhas</strong><span>Imprima por turma ou aluno e substitua cartões perdidos.</span></button></div></section>
         <section id="familyInviteView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body">
           <div class="family-cpf-tabs"><button class="btn primary" id="familyModeIndividual" type="button">Convite individual</button><button class="btn secondary" id="familyModeGeneral" type="button">Cadastro pelo QR geral</button></div>
           <form id="familyInviteForm"><h4>Convidar responsável</h4><p class="meta">Cadastre o responsável e selecione até 10 filhos, inclusive de turmas diferentes. Ao ler o QR individual, ele confirmará nome e CPF.</p><div class="family-grid" id="familyInviteIdentity"><label>Nome completo do responsável<input id="familyGuardianName" maxlength="160" required></label><label>CPF do responsável<input id="familyIndividualCpf" type="text" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" required></label><label>Celular com DDD<input id="familyPhone" type="tel" inputmode="tel" maxlength="15" placeholder="(62) 99999-9999" required></label></div><div class="family-grid"><label>Turno<select id="familyInviteShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyInviteClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div><label for="familyStudentSearch">Alunos da turma</label><input id="familyStudentSearch" type="search" placeholder="Buscar aluno nesta turma" disabled><div id="familyStudentChoices" class="family-student-choices"><p class="meta">Selecione o turno e a turma para ver os alunos.</p></div><div id="familySelectedStudents" class="family-selected-students" aria-live="polite"></div><button class="btn primary" id="familyInviteSubmit" type="submit">Gerar convite por QR Code</button></form>
@@ -29,12 +29,21 @@
         </div></section>
         <section id="familyEntryView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body" id="familyEntryMount"></div></section>
         <section id="familyCardsView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body" id="familyCardsMount"></div></section>
+        <section id="familyAddChildView" class="family-view hidden"><button type="button" class="family-back" data-family-back>← Portal da Família</button><div class="family-view-body"><div class="family-cpf-section">
+          <h4>Acrescentar filho a uma conta existente</h4><p class="meta">O responsável já usa o Portal? Busque seu CPF, escolha o novo aluno e confirme. Ele não precisa ler outro QR Code.</p>
+          <label>CPF do responsável<input id="familyAddChildCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label>
+          <button class="btn secondary" type="button" id="familyAddChildSearch">Buscar responsável</button><div id="familyAddChildAccount" class="family-overview" role="status"></div>
+          <div id="familyAddChildSelection" class="hidden"><div class="family-grid"><label>Turno<select id="familyAddChildShift"><option value="">Selecione o turno</option></select></label><label>Turma<select id="familyAddChildClass" disabled><option value="">Selecione o turno primeiro</option></select></label></div>
+            <label>Buscar o novo aluno<input id="familyAddChildStudentSearch" type="search" placeholder="Digite o nome do aluno" disabled></label>
+            <label>Novo aluno<select id="familyAddChildStudent" disabled><option value="">Selecione a turma primeiro</option></select></label>
+            <button class="btn primary" id="familyAddChildSubmit" type="button">Acrescentar este filho à conta</button><p id="familyAddChildStatus" class="meta" role="status"></p>
+          </div></div></div></section>
       </div></section>`;
     document.body.append(dialog);
     const css = document.createElement('style');
     css.textContent = `#familySchoolModal{z-index:230}.family-school-dialog{width:min(900px,100%)}.family-school-content{display:grid;gap:26px;min-width:0}.family-school-content form{padding-bottom:20px;border-bottom:1px solid #e4e7ec;min-width:0}.family-school-content h4{margin:0 0 13px;font-size:16px}.family-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.family-school-content label{display:block;min-width:0}.family-school-content label input,.family-school-content label select,.family-school-content textarea{margin-top:7px}.family-student-choices{max-height:220px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0 16px}.family-student-choices label{display:flex;align-items:center;gap:9px;margin:0;padding:9px;border:1px solid #dce5f1;border-radius:9px;font-size:13px;font-weight:650;min-width:0;overflow-wrap:anywhere}.family-student-choices label:has(input:checked){border-color:#4569da;background:#eef3ff}.family-student-choices input{width:18px!important;height:18px;min-height:0;margin:0!important;flex:none}.family-student-choices small{display:block;color:#667085}.family-selected-students{margin:-4px 0 16px;min-width:0}.family-selected-students strong{display:block;font-size:13px;margin-bottom:8px}.family-selected-students button{background:#eef3ff;color:#264aac;border-radius:99px;padding:7px 10px;margin:0 6px 6px 0;font-size:12px;font-weight:700;max-width:100%;overflow-wrap:anywhere}.family-invite-result{padding:16px;border-radius:10px;background:#f1f6ff;min-width:0}.family-invite-result p{font-size:13px}.family-invite-result input{margin-bottom:10px}.family-invite-qr svg{display:block;width:200px;height:200px;max-width:100%;margin:14px auto;background:#fff}.family-overview{display:grid;gap:9px}.family-link-row{padding:12px;border:1px solid #dce5f1;border-radius:9px;overflow-wrap:anywhere}.family-link-row p{margin:4px 0;font-size:13px}.family-link-row button{margin-top:8px}.family-school-dialog .meta{margin:5px 0 0}@media(max-width:650px){#familySchoolModal{padding:0;place-items:stretch}.family-school-dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0;box-shadow:none;overscroll-behavior:contain}.family-school-dialog .modal-head{padding:16px;gap:8px}.family-school-dialog .form{padding:18px 16px 40px}.family-grid,.family-student-choices{grid-template-columns:1fr}.family-school-content{gap:20px}.family-school-content .btn{max-width:100%}.family-invite-result input{min-width:0}.family-school-dialog .close{flex:none;min-width:42px;min-height:42px}}`;
     css.textContent += `#familySchoolModal{padding:0;place-items:stretch}.family-school-dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0;box-shadow:none;display:flex;flex-direction:column;overflow:hidden}.family-school-dialog .modal-head{flex:none;background:#fff}.family-school-content{display:block;flex:1;overflow:auto;overscroll-behavior:contain}.family-workspace-home{max-width:1120px;margin:clamp(12px,5vh,55px) auto}.family-workspace-home h4{font-size:20px;margin-bottom:18px}.family-workspace-choices{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.family-workspace-choices button{min-width:0;min-height:156px;padding:23px;text-align:left;border:1px solid #dce5f5;border-radius:16px;background:linear-gradient(135deg,#fff,#f1f5ff);color:#17233a;box-shadow:0 8px 24px #17233a0d}.family-workspace-choices button:hover,.family-workspace-choices button:focus-visible{border-color:#4566d9;box-shadow:0 9px 25px #4566d926;outline:none}.family-workspace-choices strong{display:block;font-size:18px;line-height:1.3}.family-workspace-choices span{display:block;margin-top:13px;color:#5b6a84;font-size:14px;line-height:1.5}.family-view{min-width:0}.family-view-body{max-width:940px;margin:0 auto;display:grid;gap:22px}.family-back{position:sticky;top:0;z-index:2;display:inline-flex;align-items:center;min-height:43px;margin:-5px 0 18px;padding:9px 13px;border:1px solid #dce5f5;border-radius:9px;background:#fff;color:#3156b2;font-weight:750}.family-view-body>form{border-bottom:0}.family-entry-view .family-view-body{max-width:940px}@media(max-width:800px){.family-workspace-choices{grid-template-columns:1fr}.family-workspace-choices button{min-height:105px}.family-workspace-home{margin:10px auto}.family-workspace-home h4{font-size:18px}}@media(max-width:650px){.family-school-content{padding:18px 16px 40px}.family-workspace-choices{gap:12px}.family-workspace-choices button{padding:18px}.family-view-body{gap:18px}.family-back{width:100%;margin:0 0 16px}.family-school-dialog .modal-head{padding:16px}}`;
-    css.textContent += `.family-workspace-choices{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.family-workspace-choices button{min-height:122px;padding:17px}.family-workspace-choices strong{font-size:16px}.family-workspace-choices span{margin-top:9px;font-size:13px}@media(max-width:900px){.family-workspace-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.family-workspace-choices{grid-template-columns:1fr}.family-workspace-choices button{min-height:92px;padding:16px}}`;
+    css.textContent += `.family-workspace-choices{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.family-workspace-choices button{min-height:122px;padding:17px}.family-workspace-choices strong{font-size:16px}.family-workspace-choices span{margin-top:9px;font-size:13px}@media(max-width:900px){.family-workspace-choices{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:600px){.family-workspace-choices{grid-template-columns:1fr}.family-workspace-choices button{min-height:92px;padding:16px}}`;
     css.textContent += `#familySchoolModal .family-workspace-choices button{border-color:#ffffff38;background:linear-gradient(135deg,#142b58,#315fbc);color:#fff;box-shadow:0 12px 24px #173a7940;transition:transform .18s ease,box-shadow .18s ease}#familySchoolModal .family-workspace-choices button:nth-child(2){background:linear-gradient(135deg,#2757c6,#3866cb)}#familySchoolModal .family-workspace-choices button:nth-child(3){background:linear-gradient(135deg,#4148ad,#655bd7)}#familySchoolModal .family-workspace-choices button:nth-child(4){background:linear-gradient(135deg,#5a36a8,#7950d6)}#familySchoolModal .family-workspace-choices button span{color:#eef2ff}#familySchoolModal .family-workspace-choices button:hover{transform:translateY(-3px);border-color:#fff;box-shadow:0 16px 30px #173a7952}#familySchoolModal .family-workspace-choices button:focus-visible{outline:3px solid #356ae6;outline-offset:3px;box-shadow:0 0 0 6px #fff,0 12px 24px #173a7940}@media(prefers-reduced-motion:reduce){#familySchoolModal .family-workspace-choices button{transition:none}#familySchoolModal .family-workspace-choices button:hover{transform:none}}`;
     css.textContent += `.family-occurrence-fieldset{min-width:0;margin:8px 0 0;padding:0;border:0}.family-occurrence-fieldset legend{margin-bottom:10px;font-weight:700}.family-occurrence-choices{display:grid;gap:10px;max-height:420px;overflow:auto;padding:2px}.family-occurrence-choice{display:flex!important;align-items:flex-start;gap:12px;padding:14px;border:1px solid #dce5f1;border-radius:12px;background:#fff;cursor:pointer}.family-occurrence-choice:has(input:checked){border-color:#4566d9;background:#f1f5ff;box-shadow:0 0 0 1px #4566d9}.family-occurrence-choice input{width:18px!important;height:18px;min-height:0;flex:none;margin:2px 0 0!important}.family-occurrence-detail{display:grid;gap:6px;min-width:0;font-size:13px;line-height:1.4;overflow-wrap:anywhere}.family-occurrence-detail strong{font-size:14px;color:#17233a}.family-occurrence-detail small{font-size:12px;color:#5b6a84}.family-occurrence-detail .body{white-space:pre-wrap;color:#263b60}.family-occurrence-detail .remark{padding:7px 9px;background:#f4f6fb;border-radius:7px}.family-occurrence-choice:focus-within{outline:2px solid #4566d9;outline-offset:2px}@media(max-width:600px){.family-occurrence-choice{padding:12px;gap:9px}.family-occurrence-choices{max-height:50dvh}}`;
     css.textContent += `.family-cpf-section{display:grid;gap:12px;padding:20px;border:1px solid #dce5f1;border-radius:14px;background:#f8faff}.family-cpf-section>h4{margin:5px 0 0}.family-cpf-section>button{justify-self:start}.family-general-qr{padding:18px;border:1px solid #dce5f1;border-radius:12px;background:#fff}.family-general-qr input{margin:10px 0}.family-cpf-section .family-link-row{background:#fff}.family-cpf-section .family-link-row button{margin-left:9px}@media(max-width:650px){.family-cpf-section{padding:14px}.family-cpf-section>button{justify-self:stretch}}`;
@@ -54,6 +63,7 @@
     let activeLinksReady = false;
     const selectedStudentIds = new Set();
     let currentView = 'home';
+    let secretaryOnly = false;
     function setInviteMode(mode) {
       const general=mode==='general';
       get('familyInviteIdentity').classList.toggle('hidden',general);
@@ -81,6 +91,111 @@
         if (Number(cpf[length]) !== ((sum*10)%11)%10) return false;
       }
       return true;
+    };
+    let addChildGuardian = null;
+    let addChildRows = [];
+    let addChildExistingIds = new Set();
+    let addChildLoadId = 0;
+    function resetAddChildAccount() {
+      addChildGuardian = null;
+      addChildExistingIds = new Set();
+      get('familyAddChildAccount').textContent = '';
+      get('familyAddChildSelection').classList.add('hidden');
+      get('familyAddChildStatus').textContent = '';
+    }
+    get('familyAddChildCpf').oninput = resetAddChildAccount;
+    function renderAddChildStudents() {
+      const select = get('familyAddChildStudent');
+      const previous = select.value;
+      const search = get('familyAddChildStudentSearch').value.trim().toLocaleLowerCase('pt-BR');
+      const rows = addChildRows.filter(row => !addChildExistingIds.has(row.id)
+        && row.full_name.toLocaleLowerCase('pt-BR').includes(search));
+      select.innerHTML = `<option value="">${rows.length ? 'Selecione o novo aluno' : 'Nenhum aluno disponível nesta busca'}</option>`
+        + rows.map(row => `<option value="${esc(row.id)}">${esc(row.full_name)}</option>`).join('');
+      select.disabled = !rows.length;
+      if (rows.some(row => row.id === previous)) select.value = previous;
+    }
+    async function findAddChildAccount() {
+      const cpf = cpfDigits(get('familyAddChildCpf').value);
+      if (!validCpf(cpf)) return error('Informe um CPF válido do responsável.');
+      const school = currentSchool;
+      const { data, error: requestError } = await db.rpc('family_cpf_existing_account', {
+        p_school_id:school,p_cpf:cpf,
+      });
+      if (requestError) throw requestError;
+      if (school !== currentSchool || cpf !== cpfDigits(get('familyAddChildCpf').value)) return;
+      if (!data?.length) {
+        resetAddChildAccount();
+        get('familyAddChildAccount').textContent = 'Conta ativa não encontrada nesta escola. Confira o CPF ou faça primeiro o cadastro do responsável.';
+        return;
+      }
+      addChildGuardian = data[0];
+      addChildExistingIds = new Set(data.map(row => row.student_id).filter(Boolean));
+      const children = data.filter(row => row.student_id);
+      get('familyAddChildAccount').innerHTML = `<article class="family-link-row"><b>${esc(addChildGuardian.guardian_name)}</b><p>CPF final ${esc(addChildGuardian.cpf_last4)} · Conta ativa</p><p>${children.length ? 'Filhos já vinculados: ' + children.map(row => `${esc(row.student_name)}${row.class_name ? ' · ' + esc(row.class_name) : ''}`).join('; ') : 'Nenhum filho ativo nesta escola.'}</p></article>`;
+      get('familyAddChildSelection').classList.remove('hidden');
+      renderAddChildStudents();
+    }
+    get('familyAddChildSearch').onclick = async event => {
+      const button=event.currentTarget;button.disabled=true;error('');
+      try { await findAddChildAccount(); }
+      catch (caught) { error(caught.message || 'Não foi possível buscar o responsável.'); }
+      finally { button.disabled=false; }
+    };
+    get('familyAddChildShift').onchange = () => {
+      addChildLoadId++;
+      const shift = get('familyAddChildShift').value;
+      const classSelect = get('familyAddChildClass');
+      classSelect.innerHTML = `<option value="">${shift ? 'Selecione a turma' : 'Selecione o turno primeiro'}</option>`
+        + inviteClasses.filter(row => row.shift === shift).map(row => `<option value="${esc(row.id)}">${esc(row.name)}</option>`).join('');
+      classSelect.disabled = !shift;
+      addChildRows = [];
+      get('familyAddChildStudentSearch').value = '';
+      get('familyAddChildStudentSearch').disabled = true;
+      renderAddChildStudents();
+    };
+    get('familyAddChildClass').onchange = async () => {
+      const loadId=++addChildLoadId;
+      const school=currentSchool;
+      const classId=get('familyAddChildClass').value;
+      addChildRows=[];
+      get('familyAddChildStudentSearch').value='';
+      get('familyAddChildStudentSearch').disabled=!classId;
+      renderAddChildStudents();
+      if (!classId) return;
+      try {
+        const rows=[];
+        for (let start=0;;start+=500) {
+          const {data,error:requestError}=await db.from('students').select('id,full_name')
+            .eq('school_id',school).eq('class_id',classId).eq('enrollment_status','active')
+            .order('full_name').range(start,start+499);
+          if (requestError) throw requestError;
+          if (loadId!==addChildLoadId || school!==currentSchool || classId!==get('familyAddChildClass').value) return;
+          rows.push(...(data || []));
+          if (!data || data.length<500) break;
+        }
+        addChildRows=rows;
+        renderAddChildStudents();
+      } catch (caught) { if (loadId===addChildLoadId) error(caught.message || 'Não foi possível carregar os alunos.'); }
+    };
+    get('familyAddChildStudentSearch').oninput = renderAddChildStudents;
+    get('familyAddChildSubmit').onclick = async event => {
+      error('');
+      const studentId=get('familyAddChildStudent').value;
+      if (!addChildGuardian || !studentId || !addChildRows.some(row => row.id===studentId))
+        return error('Busque a conta do responsável e selecione o novo aluno.');
+      const button=event.currentTarget;button.disabled=true;
+      try {
+        const {error:requestError}=await db.rpc('family_cpf_add_child_to_active', {
+          p_school_id:currentSchool,p_guardian_id:addChildGuardian.guardian_id,p_student_id:studentId,
+        });
+        if (requestError) throw requestError;
+        const studentName=addChildRows.find(row => row.id===studentId)?.full_name || 'O aluno';
+        get('familyAddChildStatus').textContent=`${studentName} foi acrescentado à conta. O responsável verá o filho ao atualizar o Portal, sem ler outro QR Code.`;
+        get('familyAddChildStudent').value='';
+        await findAddChildAccount();
+      } catch (caught) { error(caught.message || 'Não foi possível acrescentar o aluno.'); }
+      finally { button.disabled=false; }
     };
     async function loadCpfRoster() {
       const school = currentSchool;
@@ -189,10 +304,11 @@
     get('familySchoolClose').onclick = close;
     dialog.onclick = event => { if (event.target === dialog) close(); };
     function showView(view) {
+      if (secretaryOnly && view !== 'addChild') return;
       if (currentView === 'entry' && view !== 'entry') document.dispatchEvent(new Event('carometro:family-entry-hidden'));
       currentView = view;
       get('familyHome').classList.toggle('hidden',view !== 'home');
-      for (const name of ['invite','occurrence','entry','cards']) get(`family${name[0].toUpperCase()+name.slice(1)}View`).classList.toggle('hidden',view !== name);
+      for (const name of ['invite','occurrence','entry','cards','addChild']) get(`family${name[0].toUpperCase()+name.slice(1)}View`).classList.toggle('hidden',view !== name);
       error('');
       get('familySchoolModal').querySelector('.family-school-content').scrollTop = 0;
       if (view === 'entry') document.dispatchEvent(new CustomEvent('carometro:family-school-opened', { detail:{ schoolId:currentSchool } }));
@@ -206,11 +322,11 @@
       const choice = event.target.closest('[data-family-view]');
       if (choice) showView(choice.dataset.familyView);
     };
-    dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => showView('home'));
+    dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => secretaryOnly ? close() : showView('home'));
     function refreshNav() {
       const role = window.getActiveSchoolRole?.();
       const allowed = !app.classList.contains('hidden')
-        && ['school_admin','coordinator'].includes(role) && window.canManageFamilyPortal?.() === true;
+        && (role === 'secretary' || (['school_admin','coordinator'].includes(role) && window.canManageFamilyPortal?.() === true));
       button.hidden = !allowed;
       button.classList.toggle('hidden', !allowed);
       button.setAttribute('aria-hidden', String(!allowed));
@@ -445,7 +561,8 @@
         <button class="btn secondary" type="button" data-remove-guardian="${esc(row.link_id)}">Excluir responsável desta escola</button></article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
     }
     button.onclick = async () => {
-      if (button.hidden || window.canManageFamilyPortal?.() !== true) return;
+      secretaryOnly = window.getActiveSchoolRole?.() === 'secretary';
+      if (button.hidden || (!secretaryOnly && window.canManageFamilyPortal?.() !== true)) return;
       error('');
       currentSchool = schoolId();
       if (!currentSchool) return;
@@ -469,7 +586,17 @@
       get('familyInviteUrl').value = '';
       get('familyPublishForm').reset();
       resetOccurrenceFilters();
-      const check = await db.rpc('family_school_manager', { p_school_id:currentSchool });
+      addChildLoadId++;
+      addChildRows=[];
+      get('familyAddChildCpf').value='';
+      resetAddChildAccount();
+      get('familyAddChildShift').innerHTML='<option value="">Selecione o turno</option>';
+      get('familyAddChildClass').innerHTML='<option value="">Selecione o turno primeiro</option>';
+      get('familyAddChildClass').disabled=true;
+      get('familyAddChildStudentSearch').value='';
+      get('familyAddChildStudentSearch').disabled=true;
+      renderAddChildStudents();
+      const check = await db.rpc(secretaryOnly ? 'family_can_add_existing_child' : 'family_school_manager', { p_school_id:currentSchool });
       if (check.error || check.data !== true) {
         if (typeof window.refreshCarometroSchoolPermission === 'function')
           await window.refreshCarometroSchoolPermission().catch(() => {});
@@ -483,7 +610,7 @@
         const qr=window.qrcode(0,'M');qr.addData(get('familyGeneralUrl').value);qr.make();
         get('familyGeneralQr').innerHTML=qr.createSvgTag({ cellSize:4,margin:8,scalable:true });
       } else get('familyGeneralQr').textContent='QR Code indisponível. Copie o link geral.';
-      showView('home');
+      showView(secretaryOnly ? 'addChild' : 'home');
       try {
         const classResult = await db.from('classes').select('id,name,shift').eq('school_id',currentSchool).is('archived_at',null).order('name');
         if (classResult.error) throw classResult.error;
@@ -497,6 +624,7 @@
         const shiftOptions = '<option value="">Selecione o turno</option>' + shifts.map(shift => `<option value="${esc(shift)}">${esc(shift)}</option>`).join('');
         get('familyInviteShift').innerHTML = shiftOptions;
         get('familyOccurrenceShift').innerHTML = shiftOptions;
+        get('familyAddChildShift').innerHTML = shiftOptions;
       } catch (caught) { error(caught.message || 'Não foi possível carregar o Portal da Família.'); }
     };
     get('familyInviteForm').onsubmit = async event => {
