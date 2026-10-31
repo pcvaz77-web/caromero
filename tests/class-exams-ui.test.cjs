@@ -218,18 +218,18 @@ test('editor rico busca imagens da prova da turma no bucket próprio',async()=>{
   }finally{dom.window.close();}
 });
 
-test('limpar formatação sem seleção restaura o texto e preserva objetos',()=>{
-  const dom=new JSDOM('<!doctype html><html><body><div id="editor" contenteditable="true"><p><span style="font-size:18pt;color:#ff0000;background-color:#ffff00"><strong>Texto colorido</strong></span></p><table><tbody><tr><td>1</td></tr></tbody></table></div></body></html>',{runScripts:'dangerously'});
+test('texto antigo e colado recebe padrão sem perder tabelas',()=>{
+  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'dangerously'});
   try{
     const {window}=dom;window.eval(source('cepi-rich-text.js'));
-    window.document.execCommand=()=>true;
-    const editor=window.document.getElementById('editor');
-    const control=window.CepiRichText.mount(editor,{db:{},schoolId:'school-1'});
-    control.clearTextStyle();
-    assert.match(editor.textContent,/Texto colorido/);
-    assert.equal(editor.querySelector('strong,span,[style*="font-size"],[style*="background-color"]'),null);
-    assert.ok(editor.querySelector('table td'));
-    control.dispose();
+    const input='<p><span style="font-size:18pt;color:#ff0000;background-color:#ffff00"><strong>Texto colorido</strong></span></p><table><tbody><tr><td>1</td></tr></tbody></table>';
+    const cleaned=window.CepiRichText.sanitize(input);
+    const rendered=window.CepiRichText.render(window.CepiRichText.marker+input,'school-1');
+    assert.match(cleaned,/<p>Texto colorido<\/p>/);
+    assert.doesNotMatch(cleaned,/strong|span|font-size|background-color|color:/);
+    assert.match(cleaned,/<table/);
+    assert.match(rendered,/<p>Texto colorido<\/p>/);
+    assert.doesNotMatch(rendered,/strong|span|font-size|background-color|color:/);
   }finally{dom.window.close();}
 });
 

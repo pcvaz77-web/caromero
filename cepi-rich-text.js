@@ -3,7 +3,7 @@
 
   const marker = '<!--cepi-rich-v1-->';
   const bucket = 'cepi-question-images';
-  const tags = new Set(['DIV','P','BR','B','STRONG','I','EM','U','S','SUP','SUB','UL','OL','LI','BLOCKQUOTE','H2','H3','TABLE','THEAD','TBODY','TR','TH','TD','SPAN','IMG']);
+  const tags = new Set(['DIV','P','BR','SUP','SUB','UL','OL','LI','TABLE','THEAD','TBODY','TR','TH','TD','IMG']);
   const imageTypes = new Set(['image/png','image/jpeg','image/webp']);
   const escape = value => String(value ?? '').replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
   const imageWidth = value => { const width=Number(value); return Number.isInteger(width) && width>=10 && width<=100 ? width : null; };
@@ -30,24 +30,13 @@
     image.style.transformOrigin='center center';
   };
 
-  function safeStyle(value) {
+  function safeStyle(value, tag) {
     const allowed = [];
     for (const part of String(value || '').split(';')) {
       const [rawName,...rest] = part.split(':');
       const name = rawName?.trim().toLowerCase(), content = rest.join(':').trim().toLowerCase();
-      if (name === 'text-align' && /^(left|right|center|justify)$/.test(content)) allowed.push(`${name}:${content}`);
-      if (name === 'font-weight' && /^(bold|[6-9]00)$/.test(content)) allowed.push('font-weight:bold');
-      if (name === 'font-style' && content === 'italic') allowed.push('font-style:italic');
-      if (name === 'text-decoration' && /^(underline|line-through)$/.test(content)) allowed.push(`${name}:${content}`);
-      if (name === 'font-size' && /^(10|11|12|14|16|18)pt$/.test(content)) allowed.push(`${name}:${content}`);
-      if (['color','background-color'].includes(name)) {
-        let color=/^#[0-9a-f]{6}$/.test(content) ? content : null;
-        const rgb=content.match(/^rgb\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\s*\)$/);
-        if(!color && rgb && rgb.slice(1).every(part=>Number(part)<=255))color='#'+rgb.slice(1).map(part=>Number(part).toString(16).padStart(2,'0')).join('');
-        if(color)allowed.push(`${name}:${color}`);
-      }
-      if (name === 'width' && /^(?:[1-9][0-9]?|100)%$/.test(content)) allowed.push(`${name}:${content}`);
-      if (name === 'table-layout' && content === 'fixed') allowed.push('table-layout:fixed');
+      if (['TABLE','TD','TH'].includes(tag) && name === 'width' && /^(?:[1-9][0-9]?|100)%$/.test(content)) allowed.push(`${name}:${content}`);
+      if (tag === 'TABLE' && name === 'table-layout' && content === 'fixed') allowed.push('table-layout:fixed');
     }
     return allowed.join(';');
   }
@@ -57,7 +46,10 @@
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const tag = node.tagName;
     if (['SCRIPT','STYLE','IFRAME','OBJECT','SVG','FORM','INPUT','BUTTON','META','LINK'].includes(tag)) return;
-    if (!tags.has(tag)) { for (const child of [...node.childNodes]) cleanNode(child,destination,options); return; }
+    if (!tags.has(tag) && !['H1','H2','H3','H4','H5','H6','BLOCKQUOTE'].includes(tag)) {
+      for (const child of [...node.childNodes]) cleanNode(child,destination,options);
+      return;
+    }
     if (tag === 'IMG') {
       const path = node.getAttribute('data-cepi-path');
       const temp = node.getAttribute('data-cepi-temp');
@@ -74,8 +66,8 @@
       destination.appendChild(image);
       return;
     }
-    const element = document.createElement(tag.toLowerCase());
-    const style = safeStyle(node.getAttribute('style'));
+    const element = document.createElement(/^H[1-6]$/.test(tag) || tag === 'BLOCKQUOTE' ? 'p' : tag.toLowerCase());
+    const style = safeStyle(node.getAttribute('style'),tag);
     if (style) element.setAttribute('style',style);
     if (tag === 'TABLE') {element.dataset.cepiAlign=tableAlign(node.getAttribute('data-cepi-align'));styleTable(element);}
     if (tag === 'TD' || tag === 'TH') {
@@ -120,17 +112,10 @@
     }));
   }
 
-  const toolbar = (id,klass='cepi-rich-toolbar') => `<div class="${klass} rich-toolbar-modern" data-editor="${escape(id)}" aria-label="Formatação da questão">
-    <div class="rich-tool-group" aria-label="Histórico e estilo">
+  const toolbar = (id,klass='cepi-rich-toolbar') => `<div class="${klass} rich-toolbar-modern" data-editor="${escape(id)}" aria-label="Ferramentas da questão">
+    <div class="rich-tool-group" aria-label="Desfazer e refazer">
       <button type="button" class="rich-tool" data-command="undo" title="Desfazer" aria-label="Desfazer">↶</button><button type="button" class="rich-tool" data-command="redo" title="Refazer" aria-label="Refazer">↷</button>
-      <button type="button" class="rich-tool" data-command="bold" title="Negrito" aria-label="Negrito"><b>B</b></button><button type="button" class="rich-tool" data-command="italic" title="Itálico" aria-label="Itálico"><i>I</i></button><button type="button" class="rich-tool" data-command="underline" title="Sublinhado" aria-label="Sublinhado"><u>S</u></button>
-    </div><div class="rich-tool-group" aria-label="Aparência do trecho selecionado">
-      <label class="rich-tool-label">Tamanho da letra <select data-text-size aria-label="Tamanho do texto selecionado"><option value="">Escolher</option><option value="10pt">10 pt</option><option value="11pt">11 pt</option><option value="12pt">12 pt</option><option value="14pt">14 pt</option><option value="16pt">16 pt</option><option value="18pt">18 pt</option></select></label>
-      <label class="rich-tool-label">Cor da letra <input type="color" data-text-color value="#17233a" aria-label="Cor da letra selecionada"></label>
-      <label class="rich-tool-label">Cor de fundo <input type="color" data-text-highlight value="#fff2a8" aria-label="Cor de fundo do texto selecionado"></label>
-      <button type="button" class="rich-tool rich-tool-wide" data-clear-format title="Remover a formatação do trecho selecionado; sem seleção, remover de toda a questão">Limpar formatação</button>
     </div><div class="rich-tool-group" aria-label="Parágrafo e listas">
-      <button type="button" class="rich-tool" data-command="justifyLeft" title="Alinhar à esquerda" aria-label="Alinhar à esquerda">☰</button><button type="button" class="rich-tool" data-command="justifyCenter" title="Centralizar" aria-label="Centralizar">≡</button><button type="button" class="rich-tool" data-command="justifyRight" title="Alinhar à direita" aria-label="Alinhar à direita">☷</button>
       <button type="button" class="rich-tool rich-tool-wide" data-command="insertUnorderedList" title="Lista com marcadores">• Lista</button><button type="button" class="rich-tool rich-tool-wide" data-command="insertOrderedList" title="Lista numerada">1. Lista</button>
     </div><div class="rich-tool-group" aria-label="Matemática">
       <select data-symbol aria-label="Inserir símbolo matemático"><option value="">Ω Símbolos matemáticos</option>${['x²','x₂','°','≤','≥','π','±','×','÷','√','∞','²','³','₂','¼','½','¾','→','←','∑','Δ','α','β','μ'].map(symbol=>`<option value="${symbol}">${symbol}</option>`).join('')}</select>
@@ -156,11 +141,6 @@
     }});
     tools.addEventListener('pointerdown',()=>control.rememberSelection(),true);
     tools.querySelectorAll('[data-command]').forEach(button=>{button.onmousedown=event=>event.preventDefault();button.onclick=()=>{editor.focus();document.execCommand(button.dataset.command,false,null);};});
-    tools.querySelector('[data-text-size]').onchange=event=>{if(event.target.value)control.applyTextStyle('font-size',event.target.value);event.target.value='';};
-    tools.querySelector('[data-text-color]').onchange=event=>control.applyTextStyle('color',event.target.value);
-    tools.querySelector('[data-text-highlight]').onchange=event=>control.applyTextStyle('background-color',event.target.value);
-    tools.querySelector('[data-clear-format]').onmousedown=event=>event.preventDefault();
-    tools.querySelector('[data-clear-format]').onclick=()=>control.clearTextStyle();
     tools.querySelector('[data-symbol]').onchange=event=>{if(event.target.value)control.insertSymbol(event.target.value);event.target.value='';};
     tools.querySelector('[data-table-insert]').onclick=()=>{control.insertTable(tools.querySelector('[data-table-rows]').value,tools.querySelector('[data-table-columns]').value);tools.querySelector('.rich-table-menu').open=false;};
     tableTools.querySelectorAll('[data-table-action]').forEach(button=>{button.onmousedown=event=>event.preventDefault();button.onclick=()=>control.tableAction(button.dataset.tableAction);});
@@ -209,28 +189,24 @@
       const image=draggedImage;draggedImage=null;
       range.insertNode(image);selectImage(image);
     });
-    let lastTextRange = null;
     const rememberSelection = () => {
       const selection=window.getSelection();
       if(!selection.rangeCount)return;
       const range=selection.getRangeAt(0);
       if(!editor.contains(range.commonAncestorContainer))return;
       lastRange=range.cloneRange();
-      lastTextRange=range.collapsed ? null : range.cloneRange();
     };
     editor.addEventListener('keyup',rememberSelection);
     editor.addEventListener('mouseup',rememberSelection);
     editor.addEventListener('click',rememberSelection);
     const onSelectionChange=()=>{if(document.activeElement===editor)rememberSelection();};
     document.addEventListener('selectionchange',onSelectionChange);
-    const savedSelection = (requireText=false) => {
+    const savedSelection = () => {
       const selection = window.getSelection();
       const live=selection.rangeCount ? selection.getRangeAt(0) : null;
       const inEditor=range=>range && editor.contains(range.commonAncestorContainer);
-      let range = requireText
-        ? (inEditor(live) && !live.collapsed ? live : inEditor(lastTextRange) ? lastTextRange : null)
-        : (document.activeElement===editor && inEditor(live) ? live : inEditor(lastRange) ? lastRange : inEditor(live) ? live : null);
-      if (!range && !requireText) {
+      let range = document.activeElement===editor && inEditor(live) ? live : inEditor(lastRange) ? lastRange : inEditor(live) ? live : null;
+      if (!range) {
         range=document.createRange();range.selectNodeContents(editor);range.collapse(false);
       }
       if(!range)return {selection,range:null};
@@ -260,22 +236,7 @@
         if(!after.textContent.trim() && !after.querySelector('img,br'))after.remove();
       } else range.insertNode(node);
       const caret=document.createRange();caret.setStartAfter(node);caret.collapse(true);
-      selection.removeAllRanges();selection.addRange(caret);lastRange=caret.cloneRange();lastTextRange=null;
-    };
-    const selectedTextRange = () => {
-      const {selection,range}=savedSelection(true);
-      if (!range || range.collapsed || !editor.contains(range.commonAncestorContainer)) { notify(new Error('Selecione primeiro uma palavra ou trecho da questão.')); return null; }
-      const block = node => (node.nodeType===Node.ELEMENT_NODE ? node : node.parentElement)?.closest('p,div,li,td,th,blockquote') || editor;
-      if (block(range.startContainer)!==block(range.endContainer)) { notify(new Error('Selecione um trecho dentro do mesmo parágrafo.')); return null; }
-      selection.removeAllRanges();selection.addRange(range);
-      return range;
-    };
-    const applyTextStyle = (property,value) => {
-      const range=selectedTextRange();if(!range)return;
-      const span=document.createElement('span');span.style.setProperty(property,value);
-      span.appendChild(range.extractContents());range.insertNode(span);
-      range.selectNodeContents(span);window.getSelection().removeAllRanges();window.getSelection().addRange(range);
-      lastRange=range.cloneRange();lastTextRange=range.cloneRange();editor.dispatchEvent(new Event('input',{bubbles:true}));
+      selection.removeAllRanges();selection.addRange(caret);lastRange=caret.cloneRange();
     };
     const tableAction = action => {
       const cell=selectedCell;if(!cell || !editor.contains(cell))return;
@@ -364,25 +325,13 @@
       } catch(error) { notify(error); }
     };
     editor.addEventListener('paste',onPaste);
+    editor.addEventListener('beforeinput',event=>{if(event.inputType?.startsWith('format'))event.preventDefault();});
+    editor.addEventListener('keydown',event=>{
+      if((event.ctrlKey || event.metaKey) && ['b','i','u'].includes(event.key.toLowerCase()))event.preventDefault();
+    });
     editor.querySelectorAll('img').forEach(image=>{image.draggable=true;styleImage(image);});
     return {
       rememberSelection,
-      applyTextStyle,
-      clearTextStyle() {
-        const {selection,range}=savedSelection();
-        if(!range)return;
-        const wholeQuestion=range.collapsed;
-        if(wholeQuestion){range.selectNodeContents(editor);selection.removeAllRanges();selection.addRange(range);}
-        document.execCommand('removeFormat',false,null);
-        if(wholeQuestion){
-          editor.querySelectorAll('b,strong,i,em,u,s,font,span,sup,sub').forEach(node=>node.replaceWith(...node.childNodes));
-          editor.querySelectorAll('[style]').forEach(node=>{
-            for(const property of ['font-size','font-weight','font-style','text-decoration','color','background-color'])node.style.removeProperty(property);
-            if(!node.getAttribute('style'))node.removeAttribute('style');
-          });
-        }
-        lastTextRange=null;rememberSelection();editor.dispatchEvent(new Event('input',{bubbles:true}));
-      },
       insertSymbol(symbol) {if(/^(?:x²|x₂|[°≤≥π±×÷√∞²³₂¼½¾→←∑Δαβμ])$/.test(symbol))insert(document.createTextNode(symbol));},
       insertTable(rows,columns) {
         rows=Number(rows);columns=Number(columns);
@@ -456,6 +405,7 @@
   toolbarStyle.textContent=`.rich-toolbar-modern{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px!important;background:linear-gradient(120deg,#f4f7ff,#eef3fb)!important;border:1px solid #cbd6eb!important;border-radius:12px 12px 0 0!important;box-shadow:0 5px 18px #243b6210}.rich-toolbar-modern .rich-tool-group{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding:4px 7px;border:1px solid #dce5f4;border-radius:9px;background:#ffffffb8}.rich-toolbar-modern button,.rich-toolbar-modern summary{min-height:34px;border:1px solid #d4deef;border-radius:7px;background:#fff;color:#26385d;font-size:13px;font-weight:700;cursor:pointer}.rich-toolbar-modern button:hover,.rich-toolbar-modern summary:hover{background:#e8efff;border-color:#a9bef0}.rich-toolbar-modern button:focus-visible,.rich-toolbar-modern select:focus-visible,.rich-toolbar-modern input:focus-visible,.rich-toolbar-modern summary:focus-visible{outline:2px solid #6255db;outline-offset:2px}.rich-toolbar-modern .rich-tool{min-width:34px;padding:5px 8px}.rich-toolbar-modern .rich-tool-wide{white-space:nowrap}.rich-toolbar-modern .rich-tool-group:nth-of-type(4){flex-wrap:nowrap}.rich-toolbar-modern [data-symbol]{width:112px!important;min-width:112px;max-width:112px}.rich-toolbar-modern .rich-tool-label,.rich-toolbar-modern .rich-object-tools label{display:flex;flex-direction:row;align-items:center;gap:5px;margin:0;color:#405273;font-size:12px;font-weight:750}.rich-toolbar-modern select{width:auto;min-width:85px;min-height:34px;padding:4px 7px;border:1px solid #d4deef;border-radius:7px;background:#fff;color:#26385d;font-size:13px}.rich-toolbar-modern input[type=color]{width:34px;height:32px;min-height:32px;padding:2px;border:1px solid #d4deef;border-radius:7px;background:#fff;cursor:pointer}.rich-toolbar-modern .rich-table-menu{position:relative}.rich-toolbar-modern .rich-table-menu summary{list-style:none;padding:7px 10px}.rich-toolbar-modern .rich-table-menu summary::-webkit-details-marker{display:none}.rich-toolbar-modern .rich-table-popover{position:absolute;z-index:15;left:0;top:38px;display:flex;align-items:end;gap:8px;padding:12px;border:1px solid #cbd6eb;border-radius:10px;background:#fff;box-shadow:0 12px 32px #17233a25}.rich-toolbar-modern .rich-table-popover label{display:grid;gap:4px;font-size:12px;font-weight:700}.rich-toolbar-modern .rich-table-popover input[type=number]{width:65px;min-height:34px;padding:4px}.rich-toolbar-modern .rich-table-popover button{white-space:nowrap;padding:7px 10px}.rich-toolbar-modern .rich-object-tools{display:flex;align-items:center;flex-wrap:wrap;gap:7px;width:100%;padding:9px;border:1px solid #dce5f4;border-radius:9px;background:#fff}.rich-toolbar-modern .rich-object-tools[hidden]{display:none!important}.rich-toolbar-modern .rich-object-tools strong{color:#30466f;font-size:12px}.rich-toolbar-modern .rich-object-tools input[type=range]{width:105px;min-height:0}.rich-toolbar-modern .rich-object-tools output{font-size:12px}.rich-toolbar-modern .rich-object-tools button{padding:5px 8px;font-size:12px}.rich-toolbar-modern [data-image-remove],.rich-toolbar-modern [data-table-action^=delete]{color:#a22631;border-color:#f0c8cc}.cepi-rich-content img[data-cepi-rotation],.cepi-rich-editor img[data-cepi-rotation],.cxe-rich-editor img[data-cepi-rotation]{transform-origin:center center}@media(max-width:650px){.rich-toolbar-modern{gap:6px;padding:7px!important}.rich-toolbar-modern .rich-tool-group{padding:4px}.rich-toolbar-modern .rich-table-popover{left:auto;right:0;flex-wrap:wrap;min-width:210px}}`;
   document.head.appendChild(toolbarStyle);
   toolbarStyle.textContent += '.rich-toolbar-modern [data-symbol]{width:185px!important;min-width:185px;max-width:185px}.rich-toolbar-modern [data-table-align][aria-pressed="true"]{background:#dedaff;border-color:#9185eb}:is(.cepi-rich-editor,.cxe-rich-editor,.cepi-rich-content) table{table-layout:fixed;overflow-wrap:anywhere}:is(.cepi-rich-editor,.cxe-rich-editor,.cepi-rich-content) td,:is(.cepi-rich-editor,.cxe-rich-editor,.cepi-rich-content) th{overflow-wrap:anywhere;vertical-align:top}';
-  toolbarStyle.textContent += `.rich-toolbar-modern{gap:7px;background:linear-gradient(115deg,#d8e9fd,#edf4ff 50%,#e9e5ff)!important;border-color:#afc9ea!important}.rich-toolbar-modern .rich-tool-group{display:inline-flex;flex-wrap:wrap;gap:5px;border-color:#bbd1ed;background:linear-gradient(145deg,#ffffffd9,#e8f1ffcf)}.rich-toolbar-modern button,.rich-toolbar-modern summary,.rich-toolbar-modern select{background:linear-gradient(150deg,#fff,#deebfc)!important;border-color:#adbfdb!important;color:#173d70!important;box-shadow:inset 1px 1px 0 #fff,0 1px 3px #234b7829}.rich-toolbar-modern button:hover,.rich-toolbar-modern summary:hover{background:linear-gradient(150deg,#eff7ff,#bcd5fa)!important}.rich-toolbar-modern [data-clear-format]{background:linear-gradient(130deg,#2365a9,#5443c7)!important;color:#fff!important;border-color:#3457a9!important}.rich-toolbar-modern .rich-tool-label{white-space:nowrap}.rich-toolbar-modern [data-symbol]{width:150px!important;min-width:150px;max-width:150px}@media(max-width:650px){.rich-toolbar-modern .rich-tool-group{max-width:100%}.rich-toolbar-modern [data-symbol]{width:140px!important;min-width:140px;max-width:140px}}`;
+  toolbarStyle.textContent += `.rich-toolbar-modern{gap:7px;background:linear-gradient(115deg,#d8e9fd,#edf4ff 50%,#e9e5ff)!important;border-color:#afc9ea!important}.rich-toolbar-modern .rich-tool-group{display:inline-flex;flex-wrap:wrap;gap:5px;border-color:#bbd1ed;background:linear-gradient(145deg,#ffffffd9,#e8f1ffcf)}.rich-toolbar-modern button,.rich-toolbar-modern summary,.rich-toolbar-modern select{background:linear-gradient(150deg,#fff,#deebfc)!important;border-color:#adbfdb!important;color:#173d70!important;box-shadow:inset 1px 1px 0 #fff,0 1px 3px #234b7829}.rich-toolbar-modern button:hover,.rich-toolbar-modern summary:hover{background:linear-gradient(150deg,#eff7ff,#bcd5fa)!important}.rich-toolbar-modern [data-symbol]{width:150px!important;min-width:150px;max-width:150px}@media(max-width:650px){.rich-toolbar-modern .rich-tool-group{max-width:100%}.rich-toolbar-modern [data-symbol]{width:140px!important;min-width:140px;max-width:140px}}`;
+  toolbarStyle.textContent += `:is(.cepi-rich-editor,.cxe-rich-editor,.cepi-rich-content){font:15px/1.55 Arial,sans-serif;color:#17233a;text-align:left}:is(.cepi-rich-editor,.cxe-rich-editor,.cepi-rich-content) p{margin:7px 0}`;
   window.CepiRichText = {marker,bucket,sanitize,plain,render,hydrate,mount,toolbar,bindToolbar};
 })();
