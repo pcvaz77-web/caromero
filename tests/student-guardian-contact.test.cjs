@@ -20,12 +20,14 @@ test('formulario traz contato e matrícula sem caixas de exibição', () => {
   assert.match(editor, /\.guardian-contact-fields \{ display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
-test('contato aparece automaticamente no perfil e no card', () => {
+test('contato aparece apenas no perfil aberto, fora da lista', () => {
   assert.doesNotMatch(index, /if\(!s\?\.showGuardianOnCard\)return''/);
   assert.match(index, /class="guardian-contact-pill"/);
   assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
   assert.match(index, /<b>Informação<\/b>\$\{detailGuardian\}\$\{detail\.report\?/);
-  assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
+  assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
+  assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div><div class="meta hidden"><\/div>/);
+  assert.doesNotMatch(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
   assert.match(editor, /\.guardian-contact-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
   assert.match(editor, /const source = row\.querySelector\('\.detail-observation-source'\)/);
   assert.match(editor, /row\.registration_number = studentRegistration\.value\.trim\(\) \|\| null/);
