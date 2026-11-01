@@ -11,7 +11,7 @@
     cardsMount.append(cardsArea);
     const entryArea = document.createElement('div');
     entryArea.className = 'family-gate-area';
-    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Leia o QR Code do verso da carteirinha e confira o aluno antes de registrar.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><form id="familyEntryHistoryForm" class="family-entry-filters"><label>Turma<select id="familyEntryClass"><option value="">Todas as turmas</option></select></label><label>Nome do aluno<input id="familyEntryName" type="search" list="familyEntryNameOptions" autocomplete="off" placeholder="Digite parte do nome"><datalist id="familyEntryNameOptions"></datalist></label><label>De<input id="familyEntryFrom" type="date"></label><label>Até<input id="familyEntryTo" type="date"></label><label>Situação<select id="familyEntryStatus"><option value="all">Todas</option><option value="published">Aviso publicado</option><option value="pending">Não publicado</option></select></label><button id="familySearchHistory" type="submit" class="btn primary">Buscar histórico</button><button id="familyClearHistory" type="button" class="btn secondary">Limpar filtros</button></form><p id="familyHistoryMessage" class="family-gate-message" role="status">Escolha uma turma, digite um nome ou informe um período para pesquisar o histórico.</p><h5 id="familyRecentTitle">Entradas recentes (últimos 7 dias)</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
+    entryArea.innerHTML = `<section class="family-gate-panel" id="familyEntryPanel"><h4>Entrada dos alunos</h4><p>Aponte a câmera para a carteirinha. Cada leitura válida registra a entrada na turma e publica o aviso para os responsáveis automaticamente.</p><button id="familyStartScan" type="button" class="btn primary">Ler QR Code pela câmera</button> <button id="familyStopScan" type="button" class="btn secondary hidden">Parar câmera</button><div id="familyScanStage" class="family-scan-stage hidden"><video id="familyScanVideo" autoplay playsinline muted aria-label="Câmera para leitura da carteirinha"></video></div><p id="familyScanMessage" class="family-gate-message" role="status"></p><div id="familyScanStudent" class="family-scan-student hidden"></div><form id="familyEntryHistoryForm" class="family-entry-filters"><label>Turma<select id="familyEntryClass"><option value="">Todas as turmas</option></select></label><label>Nome do aluno<input id="familyEntryName" type="search" list="familyEntryNameOptions" autocomplete="off" placeholder="Digite parte do nome"><datalist id="familyEntryNameOptions"></datalist></label><label>De<input id="familyEntryFrom" type="date"></label><label>Até<input id="familyEntryTo" type="date"></label><label>Situação<select id="familyEntryStatus"><option value="all">Todas</option><option value="published">Aviso publicado</option><option value="pending">Não publicado</option></select></label><button id="familySearchHistory" type="submit" class="btn primary">Buscar histórico</button><button id="familyClearHistory" type="button" class="btn secondary">Limpar filtros</button></form><p id="familyHistoryMessage" class="family-gate-message" role="status">Escolha uma turma, digite um nome ou informe um período para pesquisar o histórico.</p><h5 id="familyRecentTitle">Entradas recentes (últimos 7 dias)</h5><div id="familyRecentEntries" class="family-recent-entries"></div></section>`;
     entryMount.append(entryArea);
     const css = document.createElement('style');
     css.textContent = `.family-gate-area{display:grid;gap:20px;min-width:0}.family-gate-panel{border:1px solid #dce5f5;border-radius:14px;padding:18px;background:#f8faff;min-width:0}.family-gate-panel h4{margin:0 0 5px;font-size:17px}.family-gate-panel h5{margin:18px 0 8px}.family-gate-panel p{font-size:13px;color:#53627b;line-height:1.45}.family-gate-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin-top:10px}.family-gate-row label{flex:1;min-width:180px}.family-gate-row select{margin-top:6px}.family-gate-message{min-height:18px;overflow-wrap:anywhere}.family-gate-message.error{color:#b42318}.family-digital-setting{margin-top:22px;padding:15px;border:1px solid #ccd9f2;border-radius:11px;background:#fff}.family-digital-setting label{display:flex!important;align-items:center;gap:10px;font-weight:750}.family-digital-setting input{width:19px!important;height:19px;min-height:0!important;margin:0!important;flex:none}.family-digital-setting p{margin:7px 0 0}.family-scan-stage{margin-top:14px;width:100%}.family-scan-stage video{display:block;width:100%;aspect-ratio:1/1;max-height:min(65dvh,640px);object-fit:cover;border-radius:12px;background:#17233a}.family-scan-student{display:flex;gap:14px;align-items:center;margin-top:14px;border:1px solid #ccd9f2;border-radius:12px;padding:14px;background:#fff;min-width:0;overflow-wrap:anywhere}.family-scan-student>div{flex:1;min-width:0}.family-scan-student img,.family-scan-student .family-photo-fallback{width:68px;height:80px;object-fit:cover;border-radius:8px;background:#e7edff;display:grid;place-items:center;font-weight:800;flex:none}.family-scan-student strong,.family-scan-student small{display:block}.family-scan-student small{margin:4px 0;color:#53627b}.family-scan-student .family-student-action{margin-top:9px;white-space:normal}.family-recent-entries{display:grid;gap:7px}.family-recent-entries>div{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid #e1e7f2;border-radius:9px;padding:9px 11px;font-size:13px;overflow-wrap:anywhere}.family-recent-entries small{color:#65728a}.family-recent-entries button{border:1px solid #ccd9f2;border-radius:7px;background:#eef3ff;color:#29468a;padding:6px 9px;font-weight:700;cursor:pointer}.family-entry-actions{display:flex;gap:8px;flex-wrap:wrap}.family-recent-entries .family-entry-delete{border-color:#f2cccc;background:#fff5f5;color:#9a2727}@media(max-width:600px){.family-gate-panel{padding:12px}.family-gate-row{display:grid;grid-template-columns:1fr}.family-gate-row label{min-width:0}.family-gate-row .btn,#familyStartScan,#familyStopScan,.family-student-action{width:100%}.family-scan-stage{margin-inline:-6px;width:calc(100% + 12px)}.family-scan-student{align-items:flex-start}.family-recent-entries>div{align-items:flex-start;flex-direction:column}.family-entry-actions{width:100%;flex-direction:column}.family-entry-actions button{width:100%}}`;
@@ -21,7 +21,7 @@
     const get = id => document.getElementById(id);
     const escape = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
     const tokenPattern = /^CAROMETRO:CARD:([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
-    const formatTime = value => new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(new Date(value));
+    const formatTime = value => new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short', timeZone:'America/Sao_Paulo' }).format(new Date(value));
     let schoolId = null;
     let schoolName = '';
     let stream = null;
@@ -37,9 +37,6 @@
     scanCanvas.height = 768;
     const scanContext = scanCanvas.getContext('2d', { willReadFrequently:true });
     let detectedToken = null;
-    let currentStudent = null;
-    let currentEntry = null;
-    let identityVerified = false;
     let qrReaderPromise = null;
     let nameSuggestionTimer = null;
     let historyMode = false;
@@ -198,7 +195,7 @@
     document.addEventListener('carometro:family-school-opened', async event => {
       stopScan();
       schoolId = event.detail.schoolId;
-      currentStudent = null; currentEntry = null; detectedToken = null;
+      detectedToken = null;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','');
       get('familyEntryHistoryForm').reset();
@@ -410,73 +407,44 @@
         return;
       }
       detectedToken = match[1];
-      currentStudent = null; currentEntry = null; identityVerified = false;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','Conferindo carteirinha...');
       const activeSchool = schoolId;
       const detectedGeneration = scanGeneration;
-      const { data, error } = await db.rpc('family_lookup_card', { p_school_id:activeSchool, p_qr_token:detectedToken });
+      const { data, error } = await db.rpc('family_lookup_card', {
+        p_school_id:activeSchool, p_qr_token:detectedToken
+      }).catch(caught => ({ error:caught }));
       if (activeSchool !== schoolId || detectedGeneration !== scanGeneration || !stream) return;
       if (error || !data?.[0]) {
         setMessage('familyScanMessage',error?.message || 'Carteirinha inválida para esta escola.',true);
-        setTimeout(resumeScan, 900);
+        blockedToken = detectedToken;
+        blockedTokenMisses = 0;
+        resumeScan();
         return;
       }
-      currentStudent = data[0];
+      const student = data[0];
       const selectedToken = detectedToken;
-      get('familyScanStudent').innerHTML = `<span class="family-photo-fallback" aria-hidden="true">Aluno</span><div><strong>${escape(currentStudent.student_name)}</strong><small>Turma ${escape(currentStudent.class_name)} · Responsável: ${escape(currentStudent.guardian_name || 'não informado')}</small><button type="button" class="btn secondary family-student-action hidden" id="familyManualIdentity">Confirmei a identidade pessoalmente</button><button type="button" class="btn primary family-student-action" id="familyConfirmEntry" disabled>Confirmar entrada</button></div>`;
+      get('familyScanStudent').innerHTML = `<span class="family-photo-fallback" aria-hidden="true">Aluno</span><div><strong>${escape(student.student_name)}</strong><small>Turma ${escape(student.class_name)} · Responsável: ${escape(student.guardian_name || 'não informado')}</small><small>Registrando a entrada e publicando o aviso…</small></div>`;
       get('familyScanStudent').classList.remove('hidden');
-      get('familyConfirmEntry').disabled = true;
-      setMessage('familyScanMessage',currentStudent.photo_path ? 'Carregando a foto atual do aluno para conferência…' : 'Foto não cadastrada. Confira a identidade do aluno pessoalmente.');
-      get('familyConfirmEntry').onclick = confirmEntry;
-      get('familyManualIdentity').onclick = () => {
-        if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration) return;
-        identityVerified = true;
-        get('familyConfirmEntry').disabled = false;
-        get('familyManualIdentity').classList.add('hidden');
-        setMessage('familyScanMessage','Identidade conferida pessoalmente. Confirme a entrada.');
-      };
-      get('familyScanStudent').scrollIntoView({ block:'nearest' });
-      if (currentStudent.photo_path) {
-        db.storage.from('student-photos').createSignedUrl(currentStudent.photo_path, 900).then(result => {
-          if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration) return;
-          if (!result.data?.signedUrl) throw new Error('Foto indisponível');
-          const photo = document.createElement('img');
-          photo.alt = 'Foto do aluno';
-          photo.onload = () => {
-            if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration) return;
-            get('familyScanStudent').querySelector('.family-photo-fallback')?.replaceWith(photo);
-            identityVerified = true;
-            get('familyConfirmEntry').disabled = false;
-            setMessage('familyScanMessage','Confira a foto e o nome atuais antes de confirmar a entrada.');
-          };
-          photo.onerror = () => {
-            if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration) return;
-            get('familyManualIdentity').classList.remove('hidden');
-            setMessage('familyScanMessage','Foto indisponível. Confira a identidade pessoalmente antes de registrar.',true);
-          };
-          photo.src = result.data.signedUrl;
-        }).catch(() => {
-          if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration) return;
-          get('familyManualIdentity').classList.remove('hidden');
-          setMessage('familyScanMessage','Foto indisponível. Confira a identidade pessoalmente antes de registrar.',true);
-        });
-      } else get('familyManualIdentity').classList.remove('hidden');
-    }
-    async function confirmEntry() {
-      if (!detectedToken || !currentStudent || !schoolId || !identityVerified) return;
-      const button = get('familyConfirmEntry'); button.disabled = true;
-      const activeSchool = schoolId;
-      const { data, error } = await db.rpc('family_record_entry', { p_school_id:activeSchool, p_qr_token:detectedToken });
-      if (activeSchool !== schoolId) return;
-      if (error || !data?.[0]) { button.disabled = false; return setMessage('familyScanMessage',error?.message || 'Não foi possível registrar a entrada.',true); }
-      currentEntry = data[0];
-      if (!currentEntry.duplicate) document.dispatchEvent(new CustomEvent('carometro:family-entry-recorded', { detail:{ schoolId:activeSchool } }));
-      setMessage('familyScanMessage',`${currentEntry.duplicate ? 'Entrada já registrada' : 'Entrada registrada'} às ${formatTime(currentEntry.arrived_at)}. Aponte a próxima carteirinha.`);
-      button.textContent = 'Publicar aviso no Portal da Família';
-      button.disabled = false;
-      button.onclick = () => publishEntry(currentEntry.entry_id, button);
-      blockedToken = detectedToken;
+      setMessage('familyScanMessage','Registrando entrada e enviando aviso automaticamente…');
+      const { data:entryRows, error:entryError } = await db.rpc('family_record_entry', {
+        p_school_id:activeSchool, p_qr_token:selectedToken
+      }).catch(caught => ({ error:caught }));
+      if (selectedToken !== detectedToken || activeSchool !== schoolId || detectedGeneration !== scanGeneration || !stream) return;
+      if (entryError || !entryRows?.[0]) {
+        setMessage('familyScanMessage',entryError?.message || 'Não foi possível registrar a entrada.',true);
+        blockedToken = selectedToken;
+        blockedTokenMisses = 0;
+        resumeScan();
+        return;
+      }
+      const entry = entryRows[0];
+      if (!entry.duplicate) document.dispatchEvent(new CustomEvent('carometro:family-entry-recorded', { detail:{ schoolId:activeSchool } }));
+      const result = `${entry.duplicate ? 'Entrada já registrada' : 'Entrada registrada'} em ${formatTime(entry.arrived_at)}. Aviso disponível no Portal da Família.`;
+      const resultNode = get('familyScanStudent').querySelector('small:last-child');
+      if (resultNode) resultNode.textContent = result;
+      setMessage('familyScanMessage',`${result} Aponte a próxima carteirinha.`);
+      blockedToken = selectedToken;
       blockedTokenMisses = 0;
       resumeScan();
       loadRecent();
@@ -550,7 +518,7 @@
     get('familyStartScan').onclick = async () => {
       if (!schoolId) return setMessage('familyScanMessage','Abra o Portal da Família e escolha uma escola.',true);
       if (!navigator.mediaDevices?.getUserMedia) return setMessage('familyScanMessage','Este navegador não disponibilizou a leitura por câmera. Atualize o navegador ou use outro dispositivo.',true);
-      stopScan(); currentStudent = null; currentEntry = null; detectedToken = null;
+      stopScan(); detectedToken = null;
       const requestGeneration = scanGeneration;
       get('familyScanStudent').classList.add('hidden');
       setMessage('familyScanMessage','Solicitando acesso à câmera...');

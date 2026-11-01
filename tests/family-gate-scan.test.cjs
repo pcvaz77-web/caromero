@@ -8,13 +8,14 @@ const firstToken = '00000000-0000-4000-8000-000000000001';
 const secondToken = '00000000-0000-4000-8000-000000000002';
 const flush = async () => { for (let i = 0; i < 12; i++) await new Promise(resolve => setImmediate(resolve)); };
 
-test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera', async () => {
+test('leitor registra dois alunos automaticamente sem reabrir a câmera', async () => {
   const nodes = new Map();
   const listeners = new Map();
   const detections = [firstToken, secondToken];
   const calls = [];
   let cameraOpens = 0;
   let cameraStops = 0;
+  let panelUpdates = 0;
   const classes = () => {
     const values = new Set();
     return { add:value => values.add(value), remove:value => values.delete(value), contains:value => values.has(value), toggle(){} };
@@ -34,7 +35,9 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
       getElementById:get,
       createElement:tag => tag === 'canvas' ? { width:0,height:0,getContext:()=>({ drawImage(){},getImageData:()=>({data:new Uint8ClampedArray(4)}) }) }
         : tag === 'span' ? { textContent:'',get innerHTML(){return this.textContent;} } : node(),
-      addEventListener:(name,fn)=>listeners.set(name,fn), head:{append(){}},
+      addEventListener:(name,fn)=>listeners.set(name,fn),
+      dispatchEvent:event=>{ if(event.type==='carometro:family-entry-recorded') panelUpdates++; },
+      head:{append(){}},
     },
     window: { BarcodeDetector:class { async detect() { const token = detections.shift(); return token ? [{ rawValue:`CAROMETRO:CARD:${token}` }] : []; } } },
     navigator: { mediaDevices:{ getUserMedia:async()=>{
@@ -46,11 +49,12 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
       calls.push(name);
       if (name === 'family_recent_entries') return { data:[],error:null };
       if (name === 'family_lookup_card') return { data:[{ student_name:args.p_qr_token === firstToken ? 'Aluno 1' : 'Aluno 2', class_name:'6A', guardian_name:'Responsável' }],error:null };
-      if (name === 'family_record_entry') return { data:[{ entry_id:'entry-1',arrived_at:'2026-10-09T12:00:00Z',duplicate:false }],error:null };
+      if (name === 'family_record_entry') return { data:[{ entry_id:`entry-${calls.filter(value=>value==='family_record_entry').length}`,arrived_at:'2026-10-09T12:00:00Z',duplicate:false }],error:null };
       throw new Error(`RPC inesperado: ${name}`);
     } },
     setTimeout:()=>1, clearTimeout(){}, console,
     Intl, Date, Uint8ClampedArray,
+    CustomEvent:class { constructor(type,options){ this.type=type; this.detail=options?.detail; } },
   };
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(path.join(__dirname,'../family-gate.js'),'utf8'),context);
@@ -58,13 +62,10 @@ test('leitor identifica o próximo aluno após confirmar sem reabrir a câmera',
   await listeners.get('carometro:family-school-opened')({ detail:{ schoolId:'school-a' } });
   await get('familyStartScan').onclick();
   await flush();
-  assert.equal(calls.filter(name => name === 'family_lookup_card').length, 1);
-  assert.equal(get('familyConfirmEntry').disabled, true);
-  await get('familyManualIdentity').onclick();
-  assert.equal(get('familyConfirmEntry').disabled, false);
-  await get('familyConfirmEntry').onclick();
-  await flush();
   assert.equal(calls.filter(name => name === 'family_lookup_card').length, 2);
+  assert.equal(calls.filter(name => name === 'family_record_entry').length, 2);
+  assert.equal(panelUpdates,2);
+  assert.doesNotMatch(get('familyScanStudent').innerHTML,/Confirmar entrada|Publicar aviso/);
   assert.equal(cameraOpens, 1);
   assert.equal(cameraStops, 0);
   assert.match(get('familyScanStudent').innerHTML, /Aluno 2/);
