@@ -24,11 +24,17 @@ test('contato aparece apenas no perfil aberto, fora da lista', () => {
   assert.doesNotMatch(index, /if\(!s\?\.showGuardianOnCard\)return''/);
   assert.match(index, /class="guardian-contact-pill"/);
   assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
-  assert.match(index, /<b>Informação<\/b>\$\{detailGuardian\}\$\{detail\.report\?/);
+  assert.match(index, /detailRegistration=detail\?registrationBadge\(detail\):''/);
+  assert.match(index, /class="student-registration-pill"[^>]*><span>Matrícula:<\/span> \$\{esc\(s\.registrationNumber\)\}/);
+  assert.match(index, /detailGuardian\|\|detailRegistration\|\|detail\.report\?/);
+  assert.match(index, /<b>Informação<\/b>\$\{detailGuardian\}\$\{detailRegistration\}/);
   assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
   assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div><div class="meta hidden"><\/div>/);
   assert.doesNotMatch(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
-  assert.match(editor, /\.guardian-contact-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
+  assert.doesNotMatch(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{registrationBadge\(s\)\}/);
+  assert.match(editor, /\.guardian-contact-pill,\.student-registration-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
+  assert.match(editor, /\.guardian-contact-pill \{ padding:0 5px 0 8px; \}/);
+  assert.match(editor, /\.student-registration-pill \{ padding:4px 8px; \}/);
   assert.match(editor, /const source = row\.querySelector\('\.detail-observation-source'\)/);
   assert.match(editor, /row\.registration_number = studentRegistration\.value\.trim\(\) \|\| null/);
   assert.match(editor, /guardianName:\s*item\.guardian_name\s*\|\|\s*''/);
@@ -65,5 +71,5 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
 });
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
-  assert.match(index, /student-edit-improvements\.js\?v=119/);
+  assert.match(index, /student-edit-improvements\.js\?v=120/);
 });

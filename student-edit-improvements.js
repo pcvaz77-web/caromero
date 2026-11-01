@@ -807,12 +807,15 @@ document.addEventListener('DOMContentLoaded', () => {
     .move-class .check { font-size:14px; }
     .guardian-contact-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; margin-bottom:8px; padding:10px 11px 8px; border:1px solid #d0d5dd; border-radius:9px; background:#f8f9fb; }
     .guardian-contact-fields .field { min-width:0; margin-bottom:8px; }
-    .guardian-contact-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:5px; padding:4px 8px; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
-    .guardian-contact-pill span { margin-right:4px; color:#344054; font-weight:800; }
+    .guardian-contact-pill,.student-registration-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:11.5px; font-weight:650; line-height:1.2; overflow-wrap:anywhere; }
+    .guardian-contact-pill { padding:0 5px 0 8px; }
+    .student-registration-pill { padding:4px 8px; }
+    .guardian-contact-pill span,.student-registration-pill span { margin-right:4px; color:#344054; font-weight:800; }
     .guardian-contact-pill .guardian-whatsapp-link { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin-left:7px; border-radius:50%; background:#128c4a; color:#fff; flex:none; position:relative; z-index:1; }
     .guardian-contact-pill .guardian-whatsapp-link:hover,.guardian-contact-pill .guardian-whatsapp-link:focus-visible { background:#075e38; outline:2px solid #075e38; outline-offset:2px; }
     .guardian-contact-pill .guardian-whatsapp-link svg { display:block; width:20px; height:20px; fill:currentColor; }
-    #studentDetails .guardian-contact-pill { display:flex; margin:3px 0 9px; }
+    #studentDetails .guardian-contact-pill { display:flex; margin:2px 0 4px; }
+    #studentDetails .student-registration-pill { display:flex; margin:0 0 6px; }
     /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
     .observation-manager-overlay .photo-picker-card.observation-manager { width:min(560px, calc(100vw - 40px)); max-height:calc(100dvh - 40px); overflow:hidden; margin:0; }
