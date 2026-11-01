@@ -49,6 +49,7 @@
     css.textContent += `.family-cpf-section{display:grid;gap:12px;padding:20px;border:1px solid #dce5f1;border-radius:14px;background:#f8faff}.family-cpf-section>h4{margin:5px 0 0}.family-cpf-section>button{justify-self:start}.family-general-qr{padding:18px;border:1px solid #dce5f1;border-radius:12px;background:#fff}.family-general-qr input{margin:10px 0}.family-cpf-section .family-link-row{background:#fff}.family-cpf-section .family-link-row button{margin-left:9px}@media(max-width:650px){.family-cpf-section{padding:14px}.family-cpf-section>button{justify-self:stretch}}`;
     css.textContent += `.family-cpf-tabs{display:flex;gap:10px;flex-wrap:wrap}.family-cpf-tabs button{flex:1 1 190px}.family-cpf-section.hidden{display:none!important}`;
     css.textContent += `.family-cpf-children{display:grid;gap:8px;margin:10px 0}.family-cpf-child{border-top:1px solid #dce5f1;padding-top:8px}.family-cpf-child strong{display:block}.family-cpf-child button{margin-left:0!important}`;
+    css.textContent += `.family-selected-row{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:8px 0}.family-selected-row label{flex:1 1 220px;font-size:12px;font-weight:700}.family-selected-row input{width:100%;margin-top:4px}`;
     document.head.append(css);
     const get = id => document.getElementById(id);
     const esc = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -62,6 +63,8 @@
     let activeStudentIds = new Set();
     let activeLinksReady = false;
     const selectedStudentIds = new Set();
+    const registrationDrafts = new Map();
+    const selectedRegistrations = ids => Object.fromEntries(ids.map(id => [id,(registrationDrafts.get(id) || '').trim()]).filter(([,value]) => value));
     let currentView = 'home';
     let secretaryOnly = false;
     function setInviteMode(mode) {
@@ -252,13 +255,13 @@
       const button=event.currentTarget;button.disabled=true;
       try {
         const { data, error: requestError }=await db.rpc('family_cpf_register_bundle_contact', {
-          p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone,
+          p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone,p_registrations:selectedRegistrations(students),
         });
         if (requestError) throw requestError;
         const filled=Number(data?.[0]?.filled_count || 0);
         get('familyCpfStatus').textContent=`Responsável pré-cadastrado. ${filled} ficha(s) de aluno atualizada(s).${filled<students.length?' Contatos diferentes já preenchidos foram preservados.':''} Compartilhe o QR Code geral.`;
         get('familyCpf').value='';
-        selectedStudentIds.clear();renderStudentChoices();renderSelectedStudents();
+        selectedStudentIds.clear();registrationDrafts.clear();renderStudentChoices();renderSelectedStudents();
         await window.load?.();
         await loadCpfRoster();
       } catch (caught) { error(caught.message || 'Não foi possível cadastrar o responsável.'); }
@@ -350,14 +353,19 @@
     function renderSelectedStudents() {
       const selected = [...selectedStudentIds].map(id => knownStudents.get(id)).filter(Boolean);
       get('familySelectedStudents').innerHTML = selected.length
-        ? `<strong>${selected.length} ${selected.length === 1 ? 'filho selecionado' : 'filhos selecionados'} para este convite</strong>${selected.map(row => `<button type="button" data-remove-student="${row.id}" aria-label="Retirar ${esc(row.full_name)}">${esc(row.full_name)} · ${esc(row.class_name || '')} ×</button>`).join('')}`
+        ? `<strong>${selected.length} ${selected.length === 1 ? 'filho selecionado' : 'filhos selecionados'} para este convite</strong>${selected.map(row => `<div class="family-selected-row"><button type="button" data-remove-student="${row.id}" aria-label="Retirar ${esc(row.full_name)}">${esc(row.full_name)} · ${esc(row.class_name || '')} ×</button><label>Matrícula de ${esc(row.full_name)}<input type="text" data-registration-student="${row.id}" maxlength="40" autocomplete="off" value="${esc(registrationDrafts.get(row.id) ?? row.registration_number ?? '')}"></label></div>`).join('')}`
         : '<p class="meta">Nenhum filho selecionado. Você pode escolher alunos de outras turmas sem perder os anteriores.</p>';
     }
     get('familyStudentSearch').oninput = renderStudentChoices;
+    get('familySelectedStudents').oninput = event => {
+      const input = event.target.closest('[data-registration-student]');
+      if (input) registrationDrafts.set(input.dataset.registrationStudent,input.value);
+    };
     get('familySelectedStudents').onclick = event => {
       const remove = event.target.closest('[data-remove-student]');
       if (!remove) return;
       selectedStudentIds.delete(remove.dataset.removeStudent);
+      registrationDrafts.delete(remove.dataset.removeStudent);
       renderStudentChoices(); renderSelectedStudents();
     };
     get('familyStudentChoices').onchange = event => {
@@ -369,7 +377,7 @@
         return;
       }
       if (input.checked) selectedStudentIds.add(input.value);
-      else selectedStudentIds.delete(input.value);
+      else { selectedStudentIds.delete(input.value); registrationDrafts.delete(input.value); }
       error(''); renderSelectedStudents();
     };
     get('familyInviteShift').onchange = () => {
@@ -398,7 +406,7 @@
       try {
         const rows = [];
         for (let start = 0; ; start += 500) {
-          const { data, error: requestError } = await db.from('students').select('id,full_name,class_id,class_name')
+          const { data, error: requestError } = await db.from('students').select('id,full_name,class_id,class_name,registration_number')
             .eq('school_id',activeSchool).eq('class_id',classId).eq('enrollment_status','active')
             .order('full_name').range(start,start+499);
           if (requestError) throw requestError;
@@ -568,6 +576,7 @@
       if (!currentSchool) return;
       classLoadId++;
       selectedStudentIds.clear();
+      registrationDrafts.clear();
       knownStudents.clear();
       inviteRows = [];
       inviteClasses = [];
@@ -638,7 +647,7 @@
       if (!validLocalPhone(phone)) return error('Informe o celular com DDD.');
       const submit = event.submitter; submit.disabled = true;
       try {
-        const { data, error: requestError } = await db.rpc('family_cpf_create_individual_invite', { p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone });
+        const { data, error: requestError } = await db.rpc('family_cpf_create_individual_invite', { p_school_id:currentSchool,p_student_ids:students,p_name:name,p_cpf:cpf,p_phone_local:phone,p_registrations:selectedRegistrations(students) });
         if (requestError) throw requestError;
         const token = data?.[0]?.invitation_token;
         if (!token) throw new Error('Convite criado, mas o link não foi retornado.');
@@ -652,7 +661,7 @@
           get('familyInviteQr').innerHTML = qr.createSvgTag({ cellSize:4, margin:8, scalable:true });
         } else get('familyInviteQr').textContent = 'QR Code indisponível. Copie o link do convite.';
         get('familyInviteResult').classList.remove('hidden');
-        selectedStudentIds.clear(); renderStudentChoices(); renderSelectedStudents();
+        selectedStudentIds.clear(); registrationDrafts.clear(); renderStudentChoices(); renderSelectedStudents();
         await window.load?.();
         await loadOverview();
       } catch (caught) { error(caught.message || 'Não foi possível criar o convite.'); }

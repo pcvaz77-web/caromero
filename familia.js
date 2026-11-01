@@ -463,7 +463,7 @@
       if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha abaixo.');
       if (!Array.isArray(data?.students) || !data.students.length)
         throw new Error('Seu cadastro ainda não foi realizado pela escola. Procure a secretaria.');
-      get('familyCpfChildren').innerHTML=`<strong>Filhos cadastrados pela escola</strong><ul>${data.students.map(row=>`<li>${esc(row.name)} · Turma ${esc(row.class_name || 'não informada')}</li>`).join('')}</ul>`;
+      get('familyCpfChildren').innerHTML=`<strong>Filhos cadastrados pela escola</strong><ul>${data.students.map(row=>`<li>${esc(row.name)} · Turma ${esc(row.class_name || 'não informada')}<label>Matrícula do aluno<input type="text" data-family-registration="${esc(row.id)}" maxlength="40" autocomplete="off" value="${esc(row.registration_number || '')}" ${row.registration_number ? 'readonly' : ''}></label></li>`).join('')}</ul>`;
       get('familyCpfChildren').classList.remove('hidden');
       get('familyCpfFinish').classList.remove('hidden');
       for (const id of ['familyCpfPassword','familyCpfConfirm']) get(id).disabled=false;
@@ -477,11 +477,13 @@
         const data=await cpfAccess({
           action:'activate',schoolId:publicSchoolId,name:get('familyCpfName').value.trim(),
           cpf:cpfDigits(get('familyCpfNumber').value),
+          registrations:Object.fromEntries([...get('familyCpfChildren').querySelectorAll('[data-family-registration]:not([readonly])')].map(input=>[input.dataset.familyRegistration,input.value.trim()]).filter(([,value])=>value)),
           password,...(individualCpf ? { token } : {}),
         });
         if (data?.existing) throw new Error('Este CPF já tem acesso. Entre com CPF e senha.');
         get('familyCpfPassword').value='';
         await useCpfSession(data);
+        if (data.registration_warning) window.alert('Seu acesso foi criado, mas a matrícula não foi salva. Informe a escola.');
       });
     };
     get('familyCpfLoginForm').onsubmit=event=>{

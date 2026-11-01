@@ -22,6 +22,7 @@ test('cadastro por CPF respeita escola e revoga os vínculos de alunos transferi
       create function auth.uid() returns uuid language sql stable as $$
         select nullif(current_setting('app.user_id',true),'')::uuid
       $$;
+      create function auth.role() returns text language sql stable as $$select 'authenticated'$$;
       create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,raw_app_meta_data jsonb);
       create table public.schools(id uuid primary key,status text not null,name text);
       create table public.classes(id uuid primary key,school_id uuid,name text);
@@ -77,6 +78,8 @@ test('cadastro por CPF respeita escola e revoga os vínculos de alunos transferi
     try { await db.exec(contactMigration); } catch (error) { throw new Error(error.message); }
     const rosterMigration=readFileSync(path.join(__dirname,'..','supabase/migrations/205_family_cpf_roster_all_children.sql'),'utf8');
     try { await db.exec(rosterMigration); } catch (error) { throw new Error(error.message); }
+    const registrationMigration=readFileSync(path.join(__dirname,'..','supabase/migrations/209_student_registration_and_automatic_guardian_card.sql'),'utf8');
+    try { await db.exec(registrationMigration); } catch (error) { throw new Error(error.message); }
     const as=user=>db.query('select set_config($1,$2,false)',['app.user_id',user]);
     await as(adminA);
     assert.equal((await db.query("select has_function_privilege('authenticated','public.family_cpf_register_bundle(uuid,uuid[],text,text)','EXECUTE') as allowed")).rows[0].allowed,false);
@@ -104,6 +107,17 @@ test('cadastro por CPF respeita escola e revoga os vínculos de alunos transferi
     assert.equal(contact.rows[0].filled_count,1);
     assert.equal((await db.query('select guardian_name,guardian_phone from public.students where id=$1',[studentA])).rows[0].guardian_phone,'62999999999');
     assert.equal((await db.query('select guardian_name,guardian_phone from public.students where id=$1',[studentB])).rows[0].guardian_phone,'62988888888');
+    await db.query('select * from public.family_cpf_register_bundle_contact($1,$2,$3,$4,$5,$6)',[
+      schoolA,[studentA],'Maria da Silva','52998224725','62999999999',JSON.stringify({[studentA]:'2026-001'}),
+    ]);
+    assert.equal((await db.query('select registration_number from public.students where id=$1',[studentA])).rows[0].registration_number,'2026-001');
+    await assert.rejects(db.query('insert into public.students(id,school_id,full_name,enrollment_status,registration_number) values($1,$2,$3,$4,$5)',[
+      '22222222-2222-4222-8222-222222222224',schoolA,'Novo aluno','active','2026-004',
+    ]),/Sem permissao/);
+    await assert.rejects(db.query('update public.students set registration_number=$1 where id=$2',['2026-002',studentA]),/Sem permissao/);
+    await assert.rejects(db.query('select * from public.family_cpf_register_bundle_contact($1,$2,$3,$4,$5,$6)',[
+      schoolA,[studentA],'Maria da Silva','52998224725','62999999999',JSON.stringify({[studentOther]:'2026-003'}),
+    ]),/Aluno fora da seleção/);
     await assert.rejects(db.query("update public.students set guardian_phone='62977777777' where id=$1",[studentA]),/Sem permissao/);
     await assert.rejects(db.query("update public.students set guardian_name='Maria da Silva',guardian_phone='62999999999' where id=$1",[studentB]),/Sem permissao/);
     await assert.rejects(db.query('select * from public.family_cpf_register_bundle_contact($1,$2,$3,$4,$5)',[

@@ -454,8 +454,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const guardianContactFields = document.getElementById('guardianContactFields');
   const guardianName = document.getElementById('guardianName');
   const guardianPhone = document.getElementById('guardianPhone');
-  guardianPhone.closest('.field').insertAdjacentHTML('afterend', '<label class="check guardian-whatsapp-toggle"><input id="guardianHasWhatsapp" type="checkbox"> Este número tem WhatsApp</label>');
-  const guardianHasWhatsapp = document.getElementById('guardianHasWhatsapp');
   const guardianWhatsappNumber = value => {
     const digits = String(value || '').replace(/\D/g, '');
     if (/^[1-9][0-9]{9,10}$/.test(digits)) return `55${digits}`;
@@ -463,7 +461,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return '';
   };
   window.guardianWhatsappNumber = guardianWhatsappNumber;
-  const showGuardianOnCard = document.getElementById('showGuardianOnCard');
+  const studentRegistration = document.getElementById('studentRegistration');
   classField.classList.add('move-target-class');
   const actions = form.querySelector('.actions');
   let pendingPhoto = null;
@@ -656,8 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
       report: item.has_report === 'Sim' ? 'Laudo' : item.has_report === 'Não' ? '' : item.has_report,
       guardianName: item.guardian_name || '',
       guardianPhone: item.guardian_phone || '',
-      guardianHasWhatsapp: !!item.guardian_has_whatsapp,
-      showGuardianOnCard: !!item.show_guardian_on_card,
+      registrationNumber: item.registration_number || '',
       photoPath: item.photo_path,
       uniform_received: uniformStateById.get(item.id)?.uniform_received ?? item.uniform_received,
       shoes_received: uniformStateById.get(item.id)?.shoes_received ?? item.shoes_received,
@@ -810,13 +807,11 @@ document.addEventListener('DOMContentLoaded', () => {
     .move-class .check { font-size:14px; }
     .guardian-contact-fields { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0 12px; margin-bottom:8px; padding:10px 11px 8px; border:1px solid #d0d5dd; border-radius:9px; background:#f8f9fb; }
     .guardian-contact-fields .field { min-width:0; margin-bottom:8px; }
-    .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0; padding:5px 8px; border-radius:7px; background:#eaecf0; color:#475467; }
-    .guardian-whatsapp-toggle { grid-column:1 / -1; width:max-content; max-width:100%; margin:0 0 8px; padding:5px 8px; border-radius:7px; background:#e8f8ee; color:#12653a; }
     .guardian-contact-pill { display:inline-flex; align-items:center; width:max-content; max-width:100%; margin-top:5px; padding:4px 8px; border:1px solid #d0d5dd; border-radius:999px; background:#f2f4f7; color:#475467; font-size:12px; font-weight:650; line-height:1.25; overflow-wrap:anywhere; }
     .guardian-contact-pill span { margin-right:4px; color:#344054; font-weight:800; }
-    #studentDetails .guardian-contact-pill .guardian-whatsapp-link { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; margin-left:7px; border-radius:50%; background:#128c4a; color:#fff; flex:none; }
-    #studentDetails .guardian-contact-pill .guardian-whatsapp-link:hover,#studentDetails .guardian-contact-pill .guardian-whatsapp-link:focus-visible { background:#075e38; outline:2px solid #075e38; outline-offset:2px; }
-    #studentDetails .guardian-contact-pill .guardian-whatsapp-link svg { display:block; width:17px; height:17px; fill:currentColor; }
+    .guardian-contact-pill .guardian-whatsapp-link { display:inline-flex; align-items:center; justify-content:center; width:30px; height:30px; margin-left:7px; border-radius:50%; background:#128c4a; color:#fff; flex:none; position:relative; z-index:1; }
+    .guardian-contact-pill .guardian-whatsapp-link:hover,.guardian-contact-pill .guardian-whatsapp-link:focus-visible { background:#075e38; outline:2px solid #075e38; outline-offset:2px; }
+    .guardian-contact-pill .guardian-whatsapp-link svg { display:block; width:20px; height:20px; fill:currentColor; }
     #studentDetails .guardian-contact-pill { display:flex; margin:3px 0 9px; }
     /* As janelas permanecem fixas: a rolagem ocorre apenas nas listas de observações. */
     .observation-manager-overlay { position:fixed !important; inset:0 !important; z-index:200 !important; display:grid; place-items:center; height:100dvh; padding:20px; overflow:hidden; overscroll-behavior:none; touch-action:manipulation; }
@@ -890,8 +885,6 @@ document.addEventListener('DOMContentLoaded', () => {
     #studentModal #fullName, #studentModal #guardianName, #studentModal #guardianPhone { min-height:38px; padding:7px 10px; }
     #studentModal .guardian-contact-fields { margin-bottom:6px; padding:7px 10px; gap:0 10px; }
     #studentModal .guardian-contact-fields .field { margin-bottom:4px; }
-    #studentModal .guardian-whatsapp-toggle, #studentModal .guardian-card-toggle { grid-column:auto; padding:3px 6px; font-size:12px; }
-    #studentModal .guardian-whatsapp-toggle { margin-bottom:0; }
     #studentModal .observation-choices { flex:1 1 auto !important; min-height:95px !important; max-height:none !important; overflow-y:auto !important; overscroll-behavior:auto; }
     #studentModal .actions { position:relative; z-index:2; flex:none; margin-top:6px; padding-top:6px; background:#fff; }
     #studentModal .move-class { min-height:32px; padding:4px 8px; }
@@ -912,8 +905,6 @@ document.addEventListener('DOMContentLoaded', () => {
       #studentModal .student-observations-field { flex:1 0 140px; }
     }
     @media (max-width:560px) {
-      #studentModal .guardian-whatsapp-toggle, #studentModal .guardian-card-toggle { grid-column:1 / -1; width:max-content; max-width:100%; }
-      #studentModal .guardian-whatsapp-toggle { margin-bottom:4px; }
     }
   `;
   document.head.appendChild(style);
@@ -972,8 +963,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('fullName').value = student?.name || '';
     guardianName.value = student?.guardianName || '';
     guardianPhone.value = student?.guardianPhone || '';
-    guardianHasWhatsapp.checked = !!student?.guardianHasWhatsapp;
-    showGuardianOnCard.checked = !!student?.showGuardianOnCard;
+    studentRegistration.value = student?.registrationNumber || '';
     const currentObservations = decodeObservationValues(student?.report);
     currentObservations.filter(value => !observations.some(option => option.value === value)).forEach(value => observations.push({
       value,
@@ -989,8 +979,7 @@ document.addEventListener('DOMContentLoaded', () => {
     guardianContactFields.classList.toggle('hidden', !canEditGuardianContact);
     guardianName.disabled = !canEditGuardianContact;
     guardianPhone.disabled = !canEditGuardianContact;
-    guardianHasWhatsapp.disabled = !canEditGuardianContact;
-    showGuardianOnCard.disabled = !canEditGuardianContact;
+    studentRegistration.disabled = !canEditGuardianContact;
     const canEditObservations = can('can_edit_report');
     reportField.classList.toggle('hidden', !canEditObservations);
     observationChoices.querySelectorAll('input').forEach(input => { input.disabled = !canEditObservations; });
@@ -1201,10 +1190,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cls) { toast('Selecione uma turma.'); return; }
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) { toast('Selecione uma escola antes de salvar o aluno.'); return; }
-    if (can('can_edit_guardian_contact') && guardianHasWhatsapp.checked && !guardianWhatsappNumber(guardianPhone.value)) {
-      toast('Para usar o WhatsApp, informe um número com DDD (e código do país, se necessário).');
-      guardianPhone.focus();
-      return;
+    if (can('can_edit_guardian_contact') && studentRegistration.value.trim().length > 40) {
+      toast('A matrícula deve ter até 40 caracteres.'); studentRegistration.focus(); return;
     }
     const { data: { user: signedInUser } } = await db.auth.getUser();
     if (!signedInUser) { toast('Sua sessão expirou. Entre novamente para salvar o aluno.'); return; }
@@ -1233,8 +1220,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const normalizedGuardianPhone = guardianPhone.value.trim();
       row.guardian_name = normalizedGuardianName || null;
       row.guardian_phone = normalizedGuardianPhone || null;
-      row.guardian_has_whatsapp = guardianHasWhatsapp.checked && !!normalizedGuardianPhone;
-      row.show_guardian_on_card = showGuardianOnCard.checked && !!(normalizedGuardianName || normalizedGuardianPhone);
+      row.registration_number = studentRegistration.value.trim() || null;
     }
     let studentWrite = id ? db.from('students').update(row).eq('id', id) : db.from('students').insert(row);
     if (id) studentWrite = studentWrite.eq('school_id', schoolId);

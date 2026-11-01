@@ -14,16 +14,21 @@ test('função pública pré-visualiza, ativa e entra por CPF sem celular', asyn
   const invite={token:'44444444-4444-4444-8444-444444444444',guardian_id:profile.id,
     school_id:schoolId,expires_at:new Date(Date.now()+600000).toISOString(),claimed_at:null};
   const calls=[];
+  let studentRegistration=null;
   let createdEmail=null;
   let handler;
   const fakeQuery=table=>{
+    let updateValue;
     const query={
-      select:()=>query,eq:()=>query,in:()=>query,
+      select:()=>query,eq:()=>query,in:()=>query,is:()=>query,
+      update:value=>{updateValue=value;return query;},
       maybeSingle:async()=>({data:table==='schools'?{id:schoolId}
         :table==='family_cpf_invites'?invite:null,error:null}),
-      then:(resolve,reject)=>Promise.resolve({data:table==='family_cpf_guardians'?[profile]
+      then:(resolve,reject)=>Promise.resolve(updateValue
+        ? (studentRegistration=updateValue.registration_number,{data:[{id:'student'}],error:null})
+        : {data:table==='family_cpf_guardians'?[profile]
         :table==='family_cpf_children'?[{student_id:'student'}]
-        :table==='students'?[{id:'student',full_name:'Ana',class_name:'1A'}]:[],error:null}).then(resolve,reject),
+        :table==='students'?[{id:'student',full_name:'Ana',class_name:'1A',registration_number:studentRegistration}]:[],error:null}).then(resolve,reject),
     };
     return query;
   };
@@ -72,10 +77,15 @@ test('função pública pré-visualiza, ativa e entra por CPF sem celular', asyn
   const preview=await send({action:'preview',schoolId,name:'Maria da Silva',cpf:'529.982.247-25'});
   assert.equal(preview.status,200);
   assert.equal(preview.body.students[0].name,'Ana');
+  assert.equal(preview.body.students[0].id,'student');
+  const rejected=await send({action:'activate',schoolId,name:'Maria da Silva',cpf:'52998224725',
+    password:'abcd1234',registrations:{other:'2026-999'}});
+  assert.equal(rejected.status,400);
   const activated=await send({action:'activate',schoolId,name:'Maria da Silva',
-    cpf:'52998224725',password:'abcd1234'});
+    cpf:'52998224725',password:'abcd1234',registrations:{student:'2026-001'}});
   assert.equal(activated.status,200);
   assert.equal(activated.body.access_token,'access');
+  assert.equal(studentRegistration,'2026-001');
   assert.equal(calls.some(call=>call.name==='family_cpf_claim'),true);
   assert.equal(createdEmail.includes('52998224725'),false);
   const duplicate=await send({action:'preview',schoolId,name:'Maria da Silva',cpf:'52998224725'});

@@ -83,6 +83,9 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     assert.ok(checkbox);
     checkbox.checked=true;
     checkbox.dispatchEvent(new window.Event('change',{ bubbles:true }));
+    const generalRegistration=el('familySelectedStudents').querySelector('[data-registration-student]');
+    generalRegistration.value='2026-001';
+    generalRegistration.dispatchEvent(new window.Event('input',{ bubbles:true }));
     el('familyCpfNameSchool').value='Maria da Silva';
     el('familyCpf').value='529.982.247-25';
     el('familyCpfPhone').value='(62) 99999-9999';
@@ -90,7 +93,7 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     await new Promise(setImmediate);
     const registration=calls.find(call=>call.name==='family_cpf_register_bundle_contact');
     assert.deepEqual(JSON.parse(JSON.stringify(registration.args)),{
-      p_school_id:schoolId,p_student_ids:[studentId],p_name:'Maria da Silva',p_cpf:'52998224725',p_phone_local:'62999999999',
+      p_school_id:schoolId,p_student_ids:[studentId],p_name:'Maria da Silva',p_cpf:'52998224725',p_phone_local:'62999999999',p_registrations:{[studentId]:'2026-001'},
     });
     assert.match(el('familyCpfStatus').textContent,/pré-cadastrado/);
     el('familyModeIndividual').click();
@@ -99,6 +102,9 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     const individualCheckbox=el('familyStudentChoices').querySelector('input[type=checkbox]');
     individualCheckbox.checked=true;
     individualCheckbox.dispatchEvent(new window.Event('change',{ bubbles:true }));
+    const individualRegistration=el('familySelectedStudents').querySelector('[data-registration-student]');
+    individualRegistration.value='2026-002';
+    individualRegistration.dispatchEvent(new window.Event('input',{ bubbles:true }));
     el('familyGuardianName').value='Maria da Silva';
     el('familyIndividualCpf').value='529.982.247-25';
     el('familyPhone').value='62999999999';
@@ -106,7 +112,7 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     await new Promise(setImmediate);
     const individual=calls.find(call=>call.name==='family_cpf_create_individual_invite');
     assert.deepEqual(JSON.parse(JSON.stringify(individual.args)),{
-      p_school_id:schoolId,p_student_ids:[studentId],p_name:'Maria da Silva',p_cpf:'52998224725',p_phone_local:'62999999999',
+      p_school_id:schoolId,p_student_ids:[studentId],p_name:'Maria da Silva',p_cpf:'52998224725',p_phone_local:'62999999999',p_registrations:{[studentId]:'2026-002'},
     });
     assert.match(el('familyInviteUrl').value,/cpf=1/);
     assert.match(el('familyInviteUrl').value,/token=44444444/);

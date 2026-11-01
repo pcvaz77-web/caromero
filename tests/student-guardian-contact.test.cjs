@@ -10,36 +10,36 @@ const index = read('index.html');
 const editor = read('student-edit-improvements.js');
 const permissions = read('permissions-and-details.js');
 const migration = read('supabase/migrations/129_student_guardian_contact.sql');
+const registrationMigration = read('supabase/migrations/209_student_registration_and_automatic_guardian_card.sql');
 
-test('formulario traz os dois campos lado a lado e a marcacao do card', () => {
+test('formulario traz contato e matrícula sem caixas de exibição', () => {
   assert.match(index, /id="fullName"[\s\S]*id="guardianContactFields"[\s\S]*id="guardianName"[\s\S]*id="guardianPhone"/);
-  assert.match(index, /id="showGuardianOnCard"[\s\S]*Exibir como etiqueta no card do aluno/);
+  assert.match(index, /id="studentRegistration"/);
+  assert.doesNotMatch(index, /id="showGuardianOnCard"/);
+  assert.doesNotMatch(editor, /id="guardianHasWhatsapp"/);
   assert.match(editor, /\.guardian-contact-fields \{ display:grid; grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
 });
 
-test('etiqueta cinza so aparece quando o aluno estiver marcado', () => {
-  assert.match(index, /if\(!s\?\.showGuardianOnCard\)return''/);
+test('contato aparece automaticamente no perfil e no card', () => {
+  assert.doesNotMatch(index, /if\(!s\?\.showGuardianOnCard\)return''/);
   assert.match(index, /class="guardian-contact-pill"/);
   assert.match(index, /detailGuardian=detail\?guardianBadge\(detail\):''/);
   assert.match(index, /<b>Informação<\/b>\$\{detailGuardian\}\$\{detail\.report\?/);
-  assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div><div class="meta hidden">/);
-  assert.doesNotMatch(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
+  assert.match(index, /<div class="name">\$\{esc\(s\.name\)\}<\/div>\$\{guardianBadge\(s\)\}/);
   assert.match(editor, /\.guardian-contact-pill \{[^}]*background:#f2f4f7;[^}]*color:#475467;/);
   assert.match(editor, /const source = row\.querySelector\('\.detail-observation-source'\)/);
-  assert.match(editor, /row\.show_guardian_on_card = showGuardianOnCard\.checked/);
+  assert.match(editor, /row\.registration_number = studentRegistration\.value\.trim\(\) \|\| null/);
   assert.match(editor, /guardianName:\s*item\.guardian_name\s*\|\|\s*''/);
   assert.match(editor, /guardianPhone:\s*item\.guardian_phone\s*\|\|\s*''/);
-  assert.match(editor, /showGuardianOnCard:\s*!!item\.show_guardian_on_card/);
+  assert.match(editor, /registrationNumber: item\.registration_number \|\| ''/);
   assert.match(editor, /const subtitle = card\.querySelector\(':scope > div:nth-child\(2\) > \.meta'\)/);
   assert.doesNotMatch(editor, /card\.querySelector\('\.name'\)\?\.nextElementSibling/);
 });
 
-test('icone do WhatsApp fica apenas na etiqueta do card', () => {
-  assert.match(index, /guardianBadge=s=>[\s\S]*s\.guardianHasWhatsapp\?window\.guardianWhatsappNumber\?\.\(s\.guardianPhone\)/);
-  assert.match(index, /class="guardian-whatsapp-link" href="https:\/\/wa\.me\/\$\{number\}"/);
-  assert.match(editor, /id="guardianHasWhatsapp" type="checkbox"> Este número tem WhatsApp/);
-  assert.doesNotMatch(editor, /guardianPhone\.after\(guardianWhatsappLink\)/);
-  assert.match(editor, /#studentDetails \.guardian-contact-pill \.guardian-whatsapp-link/);
+test('ícone do WhatsApp usa número válido sem confirmação por caixa', () => {
+  assert.match(index, /number=window\.guardianWhatsappNumber\?\.\(s\.guardianPhone\)\|\|''/);
+  assert.match(index, /class="guardian-whatsapp-link" onclick="event\.stopPropagation\(\)" href="https:\/\/wa\.me\/\$\{number\}"/);
+  assert.match(editor, /\.guardian-contact-pill \.guardian-whatsapp-link svg \{[^}]*width:20px; height:20px/);
 });
 
 test('permissao especifica aparece para professor coordenacao secretaria e administrador', () => {
@@ -59,9 +59,9 @@ test('banco protege os dados por escola e por permissao dedicada', () => {
   assert.match(migration, /can_edit_student_guardian_contact\(school_id\)/);
   assert.match(migration, /'can_edit_guardian_contact','can_manage_observation_options'/);
   assert.match(migration, /can_edit_guardian_contact=false[\s\S]*can_import_school_daily_attendance=true/);
+  assert.match(registrationMigration, /drop constraint if exists students_guardian_whatsapp_phone/);
 });
 
 test('versoes publicas invalidam o cache dos arquivos alterados', () => {
-  assert.match(index, /permissions-and-details\.js\?v=73/);
-  assert.match(index, /student-edit-improvements\.js\?v=117/);
+  assert.match(index, /student-edit-improvements\.js\?v=119/);
 });

@@ -51,6 +51,10 @@ Deno.serve(async request => {
       return reply({ error:'Crie uma senha de 8 caracteres.' }, 400);
     if (action === 'login' && (typeof input.password !== 'string' || !input.password))
       return reply({ error:'Confira o CPF e a senha.' }, 400);
+    if (action === 'activate' && input.registrations !== undefined
+      && (input.registrations === null || typeof input.registrations !== 'object'
+      || Array.isArray(input.registrations)))
+      return reply({ error:'Confira as matrículas informadas.' }, 400);
 
     const url = Deno.env.get('SUPABASE_URL');
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -128,12 +132,20 @@ Deno.serve(async request => {
       .select('student_id').eq('guardian_id',profile.id).eq('school_id',profile.school_id).eq('status','active');
     if (childError || !childRows?.length) return reply({ error:publicError }, 404);
     const { data: students, error: studentError } = await admin.from('students')
-      .select('id,full_name,class_name,class_id').eq('school_id',profile.school_id).eq('enrollment_status','active')
+      .select('id,full_name,class_name,class_id,registration_number').eq('school_id',profile.school_id).eq('enrollment_status','active')
       .in('id',childRows.map(row => row.student_id));
     if (studentError || !students?.length) return reply({ error:publicError }, 404);
+    const registrations = action === 'activate'
+      ? Object.entries((input.registrations || {}) as Record<string, unknown>) : [];
+    if (registrations.some(([id,value]) => !students.some(student => student.id === id)
+      || typeof value !== 'string' || value !== value.trim() || value.length < 1 || value.length > 40
+      || students.some(student => student.id === id && student.registration_number
+        && student.registration_number !== value)))
+      return reply({ error:'Confira a matrícula com a escola antes de continuar.' }, 400);
     if (action === 'preview') {
       if (profile.guardian_user_id) return reply({ existing:true });
-      return reply({ students:students.map(row => ({ name:row.full_name, class_name:row.class_name })) });
+      return reply({ students:students.map(row => ({ id:row.id, name:row.full_name,
+        class_name:row.class_name,registration_number:row.registration_number })) });
     }
     if (profile.guardian_user_id) return reply({ existing:true }, 409);
     const registeredAccounts = (profiles || []).filter(row => row.guardian_user_id);
@@ -165,8 +177,18 @@ Deno.serve(async request => {
     if (claimError) {
       return reply({ error:'Não foi possível concluir o cadastro. Consulte a escola.' }, 409);
     }
+    let registrationWarning = false;
+    for (const [id,value] of registrations) {
+      const student = students.find(row => row.id === id);
+      if (student?.registration_number) continue;
+      const { data: updated, error: registrationError } = await admin.from('students')
+        .update({ registration_number:value }).eq('id',id).eq('school_id',profile.school_id)
+        .is('registration_number',null).select('id');
+      if (registrationError || !updated?.length) registrationWarning = true;
+    }
     return reply({ access_token:signed.data.session.access_token,
-      refresh_token:signed.data.session.refresh_token, created:!!createdUserId });
+      refresh_token:signed.data.session.refresh_token, created:!!createdUserId,
+      registration_warning:registrationWarning });
   } catch {
     return reply({ error:'Não foi possível continuar. Confira os dados e tente novamente.' }, 400);
   }

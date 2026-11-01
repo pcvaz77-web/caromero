@@ -18,7 +18,7 @@ test('QR geral mostra filhos por nome e CPF e cria acesso sem pedir celular', as
   window.supabase={ createClient:()=>({
     functions:{ invoke:async (name,{body})=>{
       calls.push({name,body});
-      if (body.action==='preview') return {data:{students:[{name:'Ana',class_name:'1A'}]},error:null};
+      if (body.action==='preview') return {data:{students:[{id:'33333333-3333-4333-8333-333333333333',name:'Ana',class_name:'1A'}]},error:null};
       return {data:{access_token:'access',refresh_token:'refresh'},error:null};
     } },
     auth:{
@@ -52,6 +52,7 @@ test('QR geral mostra filhos por nome e CPF e cria acesso sem pedir celular', as
     el('familyCpfPreview').click();
     await new Promise(setImmediate);
     assert.match(el('familyCpfChildren').textContent,/Ana/);
+    el('familyCpfChildren').querySelector('[data-family-registration]').value='2026-003';
     assert.equal(el('familyCpfFinish').classList.contains('hidden'),false);
     el('familyCpfPassword').value='abcd1234';
     el('familyCpfConfirm').checked=true;
@@ -61,6 +62,7 @@ test('QR geral mostra filhos por nome e CPF e cria acesso sem pedir celular', as
     assert.equal(el('portal').classList.contains('hidden'),false);
     assert.equal(calls[0].body.action,'preview');
     assert.equal(calls[1].body.action,'activate');
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[1].body.registrations)),{'33333333-3333-4333-8333-333333333333':'2026-003'});
     assert.equal('phone' in calls[1].body,false);
   } finally { window.close(); }
 });
