@@ -10,6 +10,10 @@ test('cada aluno recebe capa, cartão individual e questões em sequência',()=>
   assert.equal((html.match(/class="page cover"/g)||[]).length,2);
   assert.equal((html.match(/class="page answer-page"/g)||[]).length,2);
   assert.equal((html.match(/class="page question-page"/g)||[]).length,2);
+  assert.match(html,/@page question-sheet\{size:A4;margin:16mm 0\}/);
+  assert.match(html,/\.question-page\{page:question-sheet;[^}]*padding:16mm/);
+  assert.match(html,/\.question-page\{height:auto;min-height:0;padding:0 16mm 0\}/);
+  assert.match(html,/\.question-page \.questions\{[^}]*font-size:11pt/);
   assert.match(html,/Ana Souza[\s\S]*CARTÃO-RESPOSTA[\s\S]*QUESTÃO DE EXEMPLO[\s\S]*Bruno Lima/);
   assert.match(html,/decorative-barcode/);
   assert.match(html,/Aprender abre caminhos/);
