@@ -1,9 +1,17 @@
-.platform-announcement-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;width:calc(100% + 96px);margin:-38px -48px 26px;padding:19px 48px;background:#138052;color:#fff;box-shadow:0 5px 16px #075e3929}
+.platform-announcement-banner{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;width:calc(100% + 96px);margin:-38px -48px 26px;padding:19px 48px;background-color:var(--announcement-color,#138052);color:var(--announcement-text,#fff);box-shadow:0 5px 16px #075e3929;background-image:var(--announcement-image,none);background-position:center;background-size:cover}
+.platform-announcement-banner[data-has-image=true],.platform-announcement-preview[data-has-image=true]{background-image:linear-gradient(90deg,rgba(3,9,21,.78),rgba(3,9,21,.42)),var(--announcement-image);color:#fff}
+.platform-announcement-banner[data-theme=black_friday],.platform-announcement-preview[data-theme=black_friday]{background-image:radial-gradient(ellipse at 75% 5%,#245aa57d,transparent 55%),linear-gradient(125deg,#03060d,#0a1730 56%,#050913);border-top:3px solid #d9b55e;box-shadow:inset 0 1px #ffffff30,0 10px 24px #05102255}
+.platform-announcement-banner[data-theme=black_friday][data-has-image=true],.platform-announcement-preview[data-theme=black_friday][data-has-image=true]{background-image:linear-gradient(90deg,#030817db,#071b3ba8),var(--announcement-image)}
+.platform-announcement-banner[data-theme=teachers],.platform-announcement-preview[data-theme=teachers]{background-image:radial-gradient(circle at 90% 10%,#e9c76844,transparent 40%),linear-gradient(125deg,#123d6b,#145584)}
+.platform-announcement-banner[data-theme=black_awareness],.platform-announcement-preview[data-theme=black_awareness]{background-image:radial-gradient(circle at 85% 5%,#dbac5544,transparent 45%),linear-gradient(125deg,#17120e,#43301d)}
+.platform-announcement-banner[data-theme=teachers][data-has-image=true],.platform-announcement-banner[data-theme=black_awareness][data-has-image=true],.platform-announcement-preview[data-theme=teachers][data-has-image=true],.platform-announcement-preview[data-theme=black_awareness][data-has-image=true]{background-image:linear-gradient(90deg,#071525d9,#07152575),var(--announcement-image)}
 .platform-announcement-banner-copy{display:grid;gap:7px;min-width:0}
 .platform-announcement-banner-copy small{font-size:13px;font-weight:700;line-height:1.3}
 .platform-announcement-banner-copy strong{font-size:clamp(17px,1.7vw,23px);font-weight:800;line-height:1.35;white-space:pre-wrap;overflow-wrap:anywhere}
 .platform-announcement-dismiss{flex:none;color:#fff;background:#ffffff22;border:1px solid #ffffff70;border-radius:8px;min-width:34px;height:34px;font-size:25px;line-height:1}
 .platform-announcement-video{justify-self:start;background:#fff;color:#09613e;border-radius:8px;padding:8px 12px;font-weight:800}
+.platform-announcement-action{justify-self:start;display:inline-flex;align-items:center;min-height:36px;padding:8px 14px;border:1px solid #ffffff8a;border-radius:9px;background:#ffffffed;color:#132b4a;text-decoration:none;font-weight:850;box-shadow:0 4px 14px #0003}
+.platform-announcement-banner[data-theme=black_friday] .platform-announcement-action,.platform-announcement-preview[data-theme=black_friday] .platform-announcement-action{background:#e6c472;color:#111724;border-color:#f5daa0}
 .platform-announcement-video-modal{position:fixed;inset:0;z-index:500;display:grid;place-items:center;background:#101828bc;padding:20px}
 .platform-announcement-video-dialog{width:min(780px,100%);max-height:calc(100dvh - 40px);overflow:auto;background:#fff;border-radius:14px;padding:18px;box-shadow:0 25px 60px #0006}
 .platform-announcement-video-dialog>button{display:block;margin:0 0 10px auto;background:#edf2f4;border-radius:8px;width:34px;height:34px;font-size:25px}
@@ -36,7 +44,11 @@
 .platform-announcement-form small{font-size:12px;color:#667085}
 .platform-announcement-actions,.platform-announcement-row-actions{display:flex;gap:8px;flex-wrap:wrap}
 #platformAnnouncementNew{white-space:nowrap}
-.platform-announcement-preview{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:18px;background:#138052;color:#fff;padding:18px;border-radius:10px}
+.platform-announcement-preview{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:18px;background-color:var(--announcement-color,#138052);background-image:var(--announcement-image,none);background-size:cover;background-position:center;color:var(--announcement-text,#fff);padding:18px;border-radius:10px}
+.platform-announcement-theme-fields{display:grid;gap:10px;margin:0;padding:14px;border:1px solid #d5def0;border-radius:10px}
+.platform-announcement-theme-fields legend{padding:0 5px;font-weight:800;color:#30486b}
+.platform-announcement-theme-colors{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.platform-announcement-theme-fields input[type=color]{width:100%;height:44px;padding:3px;border:1px solid #cad6e8;border-radius:8px;cursor:pointer}
 .platform-announcement-preview div{display:grid;gap:7px;min-width:0}
 .platform-announcement-preview small{font-size:12px;font-weight:700}
 .platform-announcement-preview strong{font-size:20px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
