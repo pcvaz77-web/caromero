@@ -1,0 +1,69 @@
+/* As artes seguem as disciplinas fixas de cada bloco e etapa. */
+body .cepi-workspace-item.cepi-block-card {
+  --cepi-art-width: 2cm;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  padding-left: calc(var(--cepi-art-width) + 16px);
+  border-left: 1px solid color-mix(in srgb, var(--cepi-block-accent) 35%, white);
+  background: linear-gradient(105deg,
+    color-mix(in srgb, var(--cepi-block-accent) 24%, white),
+    color-mix(in srgb, var(--cepi-block-accent) 20%, white) 62%,
+    color-mix(in srgb, var(--cepi-block-accent) 17%, white));
+}
+
+body .cepi-workspace-item.cepi-block-card::before,
+body .cepi-workspace-item.cepi-block-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: 0;
+  background-image: var(--cepi-block-art);
+  background-position: left top;
+  background-size: 560px 240px;
+  background-repeat: repeat;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* A mesma ilustração atravessa o card e continua tênue no canto direito. */
+body .cepi-workspace-item.cepi-block-card::before {
+  right: 0;
+  opacity: .33;
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #000a 48%, #0003 100%);
+  mask-image: linear-gradient(to right, #000 0%, #000a 48%, #0003 100%);
+}
+
+/* Faixa ilustrada de 2 cm, sem o antigo filete escuro. */
+body .cepi-workspace-item.cepi-block-card::after {
+  width: var(--cepi-art-width);
+  border-right: 1px solid color-mix(in srgb, var(--cepi-block-accent) 32%, white);
+  box-shadow: 2px 0 8px #243b6210;
+}
+
+body .cepi-workspace-item.cepi-block-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-1 { --cepi-block-art: url("media/cepi-block-art/fundamental-1.svg"); }
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-2 { --cepi-block-art: url("media/cepi-block-art/fundamental-2.svg"); }
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-3 { --cepi-block-art: url("media/cepi-block-art/fundamental-3.svg"); }
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-4 { --cepi-block-art: url("media/cepi-block-art/fundamental-4.svg"); }
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-5 { --cepi-block-art: url("media/cepi-block-art/fundamental-5.svg"); }
+body .cepi-workspace-item.cepi-block-fundamental.cepi-block-6 { --cepi-block-art: url("media/cepi-block-art/fundamental-6.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-1 { --cepi-block-art: url("media/cepi-block-art/medio-1.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-2 { --cepi-block-art: url("media/cepi-block-art/medio-2.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-3 { --cepi-block-art: url("media/cepi-block-art/medio-3.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-4 { --cepi-block-art: url("media/cepi-block-art/medio-4.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-5 { --cepi-block-art: url("media/cepi-block-art/medio-5.svg"); }
+body .cepi-workspace-item.cepi-block-medio.cepi-block-6 { --cepi-block-art: url("media/cepi-block-art/medio-6.svg"); }
+
+@media (max-width: 700px) {
+  body .cepi-workspace-item.cepi-block-card {
+    padding-left: calc(var(--cepi-art-width) + 10px);
+    padding-right: 10px;
+  }
+}
