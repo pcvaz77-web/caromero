@@ -14,6 +14,8 @@ test('cada aluno recebe capa, cartão individual e questões em sequência',()=>
   assert.match(html,/\.question-page\{page:question-sheet;[^}]*padding:16mm/);
   assert.match(html,/\.question-page\{height:auto;min-height:0;padding:0 16mm 0\}/);
   assert.match(html,/\.question-page \.questions\{[^}]*font-size:11pt/);
+  assert.match(html,/\.question-page \.questions\{[^}]*column-fill:balance/);
+  assert.match(html,/\.question-page \.question\{break-inside:auto;page-break-inside:auto/);
   assert.match(html,/Ana Souza[\s\S]*CARTÃO-RESPOSTA[\s\S]*QUESTÃO DE EXEMPLO[\s\S]*Bruno Lima/);
   assert.match(html,/decorative-barcode/);
   assert.match(html,/Aprender abre caminhos/);

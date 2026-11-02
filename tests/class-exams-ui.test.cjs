@@ -110,6 +110,8 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     assert.match(env.getPrinted(),/Cartão-resposta/);
     assert.match(env.getPrinted(),/class="front"/);
     assert.match(env.getPrinted(),/\.questions\{[^}]*font-size:11pt/);
+    assert.match(env.getPrinted(),/\.questions\{[^}]*column-fill:balance/);
+    assert.match(env.getPrinted(),/\.question\{break-inside:auto;page-break-inside:auto/);
     assert.match(env.getPrinted(),/Qual é a resposta/);
     window.document.querySelector('#cxePrintBack').click();
     window.document.querySelector('#cxeKey').click();await tick();
