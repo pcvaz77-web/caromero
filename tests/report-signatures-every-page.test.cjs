@@ -8,6 +8,28 @@ const source = fs.readFileSync(path.join(__dirname,'../reports.js'),'utf8');
 const footerSource = source.slice(source.indexOf('  function applyFooters('),source.indexOf('  const slug ='));
 const footer = vm.runInNewContext(`${footerSource}\nglobalThis.applyFooters`,{A4_HEIGHT:297,A4_WIDTH:210,MARGIN_X:15,Intl});
 
+test('o título fica entre os logos e o bloco do aluno sobe com o cabeçalho', () => {
+  const calls = [];
+  const headerSource = source.slice(source.indexOf('  function drawReportHeader('),source.indexOf('  function ensureSpace('));
+  const header = vm.runInNewContext(`${headerSource}\nglobalThis.drawReportHeader`,{
+    A4_WIDTH:210,MARGIN_X:15,
+    window:{CarometroPrintBranding:{drawPdf:(_doc,_branding,options) => calls.push({logo:options})}}
+  });
+  const doc = {
+    carometroReportBranding:{school_logo_data:'escola',state_logo_data:'estado'},
+    setTextColor(){},setFont(){},setFontSize(){},setDrawColor(){},
+    text:(value,_x,y) => calls.push({text:value,y}),
+    line:(_x,y) => calls.push({line:y}),
+    splitTextToSize:value => [value]
+  };
+  const bodyTop = header(doc,'Escola Exemplo');
+  assert.equal(calls[0].logo.left,9);
+  assert.equal(calls[0].logo.right,15);
+  assert.equal(calls.find(call => call.text === 'Relatório individual do estudante').y,22);
+  assert.equal(calls.find(call => call.text?.[0] === 'Escola Exemplo').y,29);
+  assert.ok(bodyTop > calls.find(call => call.line).line);
+});
+
 function pagesFor(signatures) {
   const pages = [[],[],[]];
   let current = 0;

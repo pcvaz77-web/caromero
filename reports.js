@@ -714,8 +714,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const centerX = A4_WIDTH / 2;
     const branding = doc.carometroReportBranding;
     const hasLogos = !!(branding?.school_logo_data || branding?.state_logo_data);
-    if (hasLogos) window.CarometroPrintBranding?.drawPdf(doc,branding,{pageWidth:A4_WIDTH,left:MARGIN_X,right:MARGIN_X,top:8,width:27,height:22});
-    let y = hasLogos ? 41 : 17;
+    if (hasLogos) window.CarometroPrintBranding?.drawPdf(doc,branding,{pageWidth:A4_WIDTH,left:9,right:MARGIN_X,top:8,width:27,height:22});
+    let y = hasLogos ? 22 : 17;
     doc.setTextColor(20, 32, 58);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
