@@ -151,6 +151,7 @@
               <div class="platform-siap-section-kicker"><span>Comercial</span><p>Clientes, vencimentos e planos disponíveis para contratação.</p></div>
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
+              <section class="platform-panel platform-siap-black-friday"><div class="platform-panel-head"><div><h4>Black Friday do Assistente</h4><p>Prepare os preços agora e ative a campanha quando os quatro checkouts estiverem prontos.</p></div><span id="platformSiapBlackFridayStatus" class="platform-badge">Desligada</span></div><div id="platformSiapBlackFriday" class="platform-siap-black-friday-body"><div class="meta">Carregando campanha…</div></div></section>
               <section class="platform-panel platform-siap-boundary"><div class="platform-panel-head"><h4>Separação protegida</h4></div><div class="platform-panel-body"><p>Este módulo não altera escolas, alunos, turmas ou assinaturas existentes. A licença institucional e a assinatura individual são avaliadas de forma independente.</p></div></section>
             </section>
             <section class="platform-page" data-platform-section="communications">
@@ -360,6 +361,53 @@
         } finally { button.disabled = false; }
       };
     });
+  }
+
+  function renderSiapBlackFriday(campaign, plans, error) {
+    const target = document.getElementById('platformSiapBlackFriday');
+    const status = document.getElementById('platformSiapBlackFridayStatus');
+    if (!target || !status) return;
+    if (error || !campaign?.plans) {
+      target.innerHTML = '<div class="empty">A campanha ficará disponível após a atualização dos planos do Assistente.</div>';
+      return;
+    }
+    const active = campaign.active === true;
+    status.textContent = active ? 'Ativa' : 'Desligada';
+    status.classList.toggle('active', active);
+    const current = new Map((plans || []).map(plan => [plan.plan_key, plan]));
+    target.innerHTML = `<div class="platform-siap-black-friday-intro"><b>${active ? 'A Black Friday está no ar' : 'Campanha preparada, sem divulgação'}</b><p>O preço normal é o valor atual de cada oferta. Salve um preço menor para cada plano. Na data da campanha, altere os quatro valores na Hotmart, confira os checkouts e ative aqui.</p></div><div class="platform-siap-black-friday-grid">${campaign.plans.map(item => {
+      const plan = current.get(item.plan_key);
+      return `<form class="platform-siap-black-friday-plan" data-black-plan="${esc(item.plan_key)}"><strong>${esc(plan?.display_name || item.plan_key)}</strong><label>De · preço normal (R$)<input name="regular" type="number" min="0.01" step="0.01" value="${esc(item.regular_amount)}" ${active ? 'disabled' : ''} required></label><label>Por · preço Black (R$)<input name="promo" type="number" min="0.01" step="0.01" value="${esc(item.promo_amount ?? '')}" placeholder="Definir" ${active ? 'disabled' : ''} required></label><button class="btn secondary" type="submit" ${active ? 'disabled' : ''}>Salvar preço</button><small>Checkout: <a href="${esc(plan?.hotmart_checkout_url || '#')}" target="_blank" rel="noopener">abrir oferta vinculada</a></small></form>`;
+    }).join('')}</div><div class="platform-siap-black-friday-actions"><label class="check"><input id="platformSiapBlackFridayConfirm" type="checkbox"> Confirmei os quatro preços ${active ? 'normais' : 'promocionais'} nos checkouts da Hotmart</label><button id="platformSiapBlackFridayToggle" class="btn ${active ? 'secondary' : 'primary'}" type="button" disabled>${active ? 'Desativar Black Friday' : 'Ativar Black Friday'}</button><p>Para ${active ? 'encerrar' : 'iniciar'} a promoção, altere primeiro as quatro ofertas na Hotmart. A ativação troca os preços exibidos e os valores esperados pelo checkout de uma só vez.</p></div>`;
+    target.querySelectorAll('[data-black-plan]').forEach(form => {
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const regular = Number(form.elements.regular.value);
+        const promo = Number(form.elements.promo.value);
+        if (!(regular > 0 && promo > 0 && promo < regular)) { toast('O preço Black precisa ser menor que o preço normal.'); return; }
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          const { error:saveError } = await db.rpc('platform_save_siap_black_friday_price', { p_plan_key:form.dataset.blackPlan, p_regular_amount:regular, p_promo_amount:promo });
+          if (saveError) { toast(saveError.message); return; }
+          toast('Preço Black salvo. A campanha continua desligada.');
+          await openDashboard(); showPlatformPage('siap');
+        } finally { button.disabled = false; }
+      };
+    });
+    const confirm = document.getElementById('platformSiapBlackFridayConfirm');
+    const toggle = document.getElementById('platformSiapBlackFridayToggle');
+    confirm.onchange = () => { toggle.disabled = !confirm.checked; };
+    toggle.onclick = async () => {
+      if (!confirm.checked) return;
+      toggle.disabled = true;
+      try {
+        const { error:toggleError } = await db.rpc('platform_set_siap_black_friday_active', { p_active:!active, p_hotmart_confirmed:true });
+        if (toggleError) { toast(toggleError.message); return; }
+        toast(active ? 'Black Friday encerrada; preços normais restaurados.' : 'Black Friday ativada nos planos do Assistente.');
+        await openDashboard(); showPlatformPage('siap');
+      } finally { toggle.disabled = false; }
+    };
   }
 
   function renderSiapCustomers(customers, error) {
@@ -1904,7 +1952,7 @@
       auditTarget.innerHTML = '<tr><td colspan="4" class="meta">Carregando atividade...</td></tr>';
     }
 
-    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult, activitySettingsResult] = await Promise.all([
+    const [summaryResult, schoolsResult, auditResult, jobsResult, plansResult, settingsResult, billingContactsResult, featuresResult, applicationsResult, paymentSubscriptionsResult, siapPlansResult, schoolMappingsResult, siapCustomersResult, siapSchoolUsersResult, activitySettingsResult, siapCampaignResult] = await Promise.all([
       db.rpc('platform_dashboard_summary'),
       db.rpc('platform_list_schools_with_counts_v3'),
       db.rpc('platform_list_audit', { p_limit:50 }),
@@ -1919,7 +1967,8 @@
       db.rpc('platform_list_school_commercial_mappings'),
       db.rpc('platform_list_siap_assistant_customers'),
       db.rpc('platform_list_siap_school_users'),
-      db.from('platform_settings').select('show_activity_site').eq('id', true).maybeSingle()
+      db.from('platform_settings').select('show_activity_site').eq('id', true).maybeSingle(),
+      db.rpc('platform_get_siap_black_friday')
     ]);
 
     if (summaryResult.error || schoolsResult.error) {
@@ -1968,6 +2017,7 @@
     renderPaymentSubscriptions(paymentSubscriptionsResult.data || [], applicationsResult.data || [], paymentSubscriptionsResult.error);
     renderBillingContacts(schoolsResult.data || [], billingContactsBySchoolId);
     renderSiapPlans(siapPlansResult.data || [], siapPlansResult.error);
+    renderSiapBlackFriday(siapCampaignResult.data, siapPlansResult.data || [], siapCampaignResult.error);
     renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
     renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error);
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));

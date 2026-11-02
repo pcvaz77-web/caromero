@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#071a39">
   <title>Assistente SIAP do Professor</title>
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assistente-siap.css?v=9">
+  <link rel="stylesheet" href="assistente-siap.css?v=10">
   <link rel="stylesheet" href="assistente-siap-support.css">
 </head>
 <body>
@@ -189,6 +189,7 @@
     </section>
 
     <section id="planos" class="section pricing-section" data-public-checkout>
+      <div class="black-friday-banner" id="blackFridayBanner" hidden><span>BLACK FRIDAY · ASSISTENTE SIAP</span><strong>Seu planejamento merece uma grande oferta.</strong><p>Preços especiais por tempo limitado nos planos individuais.</p></div>
       <div class="section-heading"><span class="eyebrow">PLANOS E DEMONSTRAÇÃO</span><h2>Escolha como começar</h2><p>Assine para usar sem limite de demonstração ou experimente gratuitamente antes de decidir.</p></div>
       <div class="pricing-grid">
         <article class="price-card monthly-card">
@@ -206,6 +207,11 @@
           <ul><li>Todos os recursos do plano mensal</li><li>Uma cobrança, sem renovação automática</li><li>Seis meses de acesso</li></ul>
           <button class="checkout-button" type="button" data-assistant-plan="semiannual" disabled>Assinatura em preparação</button>
         </article>
+        <article class="price-card annual-card">
+          <span class="plan-label">INDIVIDUAL</span><h3>Anual</h3><p class="price">R$ 269,90 / 12 meses</p><p>Pagamento único para usar durante doze meses.</p>
+          <ul><li>Todos os recursos do plano mensal</li><li>Uma cobrança, sem renovação automática</li><li>Doze meses de acesso</li></ul>
+          <button class="checkout-button" type="button" data-assistant-plan="annual" disabled>Assinatura em preparação</button>
+        </article>
         <article class="price-card trial-card">
           <span class="plan-label">DEMONSTRAÇÃO</span><h3>Experimentar grátis</h3><p class="price">R$ 0,00</p><p>Disponível uma única vez por e-mail. Verificamos seu direito ao entrar na conta.</p>
           <ul><li>2 usos de planejamento</li><li>2 usos de conteúdo</li><li>2 usos de frequência</li><li>2 usos de PEI</li></ul>
@@ -218,7 +224,7 @@
         </article>
       </div>
       <p class="pricing-note">A Correção de Provas integra o Carômetro para quem tem acesso ativo à plataforma.</p>
-      <p class="pricing-note">O mensal tem renovação recorrente. Os planos trimestral e semestral têm uma cobrança e liberam acesso por três ou seis meses, sem renovação automática.</p>
+      <p class="pricing-note">O mensal tem renovação recorrente. Os planos trimestral, semestral e anual têm uma cobrança e liberam acesso pelo período contratado, sem renovação automática.</p>
       <p class="pricing-note">Já comprou pelo celular? No computador com a extensão, <a href="assistente-siap-conta.html">entre na sua conta do Assistente SIAP</a> usando o mesmo e-mail da compra.</p>
     </section>
 
@@ -250,6 +256,6 @@
   </footer>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap.js?v=8"></script>
+  <script src="assistente-siap.js?v=9"></script>
 </body>
 </html>

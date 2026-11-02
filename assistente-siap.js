@@ -84,15 +84,34 @@
       if (trialCard) trialCard.style.display = 'none';
     }
   }).catch(() => {});
-  client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order')
-    .then(async ({ data, error }) => {
+  Promise.all([
+    client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order'),
+    client.rpc('get_siap_black_friday')
+  ]).then(async ([{ data, error }, { data:campaign, error:campaignError }]) => {
       if (error) return;
+      const blackFriday = !campaignError && campaign?.active === true;
+      if (blackFriday) {
+        document.body.classList.add('black-friday-active');
+        document.getElementById('blackFridayBanner')?.removeAttribute('hidden');
+        document.querySelector('.pricing-section .section-heading .eyebrow').textContent = 'BLACK FRIDAY · OFERTAS ATIVAS';
+        document.querySelector('.pricing-section .section-heading h2').textContent = 'Aproveite os preços de Black Friday';
+      }
       (data || []).forEach(plan => {
         const button = document.querySelector(`[data-assistant-plan="${plan.plan_key}"]`);
         const card = button?.closest('.price-card');
         if (!button || !card || !plan.amount) return;
         const period = Number(plan.billing_months) === 1 ? 'mês' : `${Number(plan.billing_months)} meses`;
         card.querySelector('.price').textContent = `${money(plan.amount)} / ${period}`;
+        if (blackFriday && Number(campaign.regular_prices?.[plan.plan_key]) > Number(plan.amount)) {
+          const oldPrice = document.createElement('span');
+          oldPrice.className = 'old-price';
+          oldPrice.textContent = `De ${money(campaign.regular_prices[plan.plan_key])}`;
+          card.querySelector('.price').before(oldPrice);
+          const badge = document.createElement('span');
+          badge.className = 'black-friday-tag';
+          badge.textContent = 'OFERTA BLACK FRIDAY';
+          card.prepend(badge);
+        }
         button.disabled = false;
         button.textContent = 'Assinar agora';
         card.querySelector('.price').textContent=`${money(plan.amount)} / ${period}`;
