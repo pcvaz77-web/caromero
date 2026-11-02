@@ -250,6 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   const filterOptions = (items, selected, label) => `<option value="">${label}</option>${items.map(([value,text])=>`<option value="${esc(value)}" ${String(selected)===String(value)?'selected':''}>${esc(text)}</option>`).join('')}`;
   const blockCardClass = test => {
+    if(window.CepiBlocks.enemModel(test))return ' cepi-block-card cepi-enem-card';
     const block=Number(test.block_number);
     if(test.kind!=='bloco'||!Number.isInteger(block)||block<1||block>6||!['medio','fundamental_ii'].includes(test.stage))return '';
     return ` cepi-block-card cepi-block-${block} cepi-block-${test.stage==='medio'?'medio':'fundamental'}`;

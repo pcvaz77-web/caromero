@@ -63,6 +63,12 @@ body .cepi-workspace-item.cepi-block-medio.cepi-block-2 { --cepi-block-scene: ur
 body .cepi-workspace-item.cepi-block-fundamental.cepi-block-6 { --cepi-block-scene: url("media/cepi-block-scenes/geografia.webp"); }
 body .cepi-workspace-item.cepi-block-medio.cepi-block-5 { --cepi-block-scene: url("media/cepi-block-scenes/fisica-quimica.webp"); }
 body .cepi-workspace-item.cepi-block-medio.cepi-block-6 { --cepi-block-scene: url("media/cepi-block-scenes/biologia-sociologia-filosofia.webp"); }
+body .cepi-workspace-item.cepi-enem-card {
+  --cepi-block-strong: #6950a8;
+  --cepi-block-color: #9b8bce;
+  --cepi-block-accent: #8b70bd;
+  --cepi-block-scene: url("media/cepi-block-scenes/enem.webp");
+}
 
 @media (max-width: 700px) {
   body .cepi-workspace-item.cepi-block-card {

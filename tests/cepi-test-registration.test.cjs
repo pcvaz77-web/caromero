@@ -101,6 +101,8 @@ test('cadastro ENEM usa 3ª série, 45 questões e ano atual sem alterar o simul
     assert.equal(saved.question_count,45);
     assert.equal(saved.title,'SIMULADO ENEM - CADERNO 1 - 4º BIM');
     assert.deepEqual(JSON.parse(JSON.stringify(saved.subjects)),['Química','Física','Biologia','História','Geografia','Filosofia','Sociologia']);
+    const card=[...document.querySelectorAll('.cepi-workspace-list > article')].find(item=>item.textContent.includes(saved.title));
+    assert.ok(card?.classList.contains('cepi-enem-card'));
     assert.deepEqual(errors,[]);
   }finally{dom.window.close();}
 });
