@@ -754,6 +754,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const membership = window.getActiveSchoolMembership?.();
     const schoolName = membership?.school_id === schoolId ? String(membership.schools?.name || membership.name || '').trim() : '';
     if (!schoolId || !schoolName) { toast('Não foi possível identificar o nome da escola ativa.'); return; }
+    const branding = await window.CarometroPrintBranding?.load(db,schoolId);
     const studentId = document.getElementById('cepiReportStudent').value;
     const assignment = assignments.find(item => item.student_id === studentId);
     const student = students.find(item => item.id === studentId);
@@ -789,12 +790,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (pageNumber) doc.addPage();
       pageNumber += 1;
       doc.setFillColor(...accent); doc.rect(0, 0, pageWidth, 3, 'F');
+      const hasLogos = !!(branding?.school_logo_data || branding?.state_logo_data);
+      if (hasLogos) window.CarometroPrintBranding?.drawPdf(doc,branding,{pageWidth,left:margin,right:margin,top:8,width:26,height:22});
+      const titleY = hasLogos ? 38 : 16;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(16); setColor(navy);
-      doc.text('Relatório da Tutoria', pageWidth / 2, 16, { align:'center' });
+      doc.text('Relatório da Tutoria', pageWidth / 2, titleY, { align:'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10); setColor(muted);
       const schoolLines = doc.splitTextToSize(schoolName, contentWidth - 10);
-      schoolLines.forEach((schoolLine, index) => doc.text(schoolLine, pageWidth / 2, 23 + index * 4.2, { align:'center' }));
-      const ruleY = 27 + (schoolLines.length - 1) * 4.2;
+      schoolLines.forEach((schoolLine, index) => doc.text(schoolLine, pageWidth / 2, titleY + 7 + index * 4.2, { align:'center' }));
+      const ruleY = titleY + 11 + (schoolLines.length - 1) * 4.2;
       doc.setDrawColor(...line); doc.line(margin, ruleY, pageWidth - margin, ruleY);
       y = ruleY + 6;
       if (pageNumber > 1) {

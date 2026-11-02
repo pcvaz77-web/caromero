@@ -49,7 +49,7 @@ test('internal tutors receive a school-scoped notification', () => {
 });
 
 test('CEPI frontend is loaded explicitly', () => {
-  assert.match(index, /'cepi-tutoring\.js\?v=22'/);
+  assert.match(index, /'cepi-tutoring\.js\?v=24'/);
   assert.match(frontend, /cepiNav\.innerHTML = '<span>Meu CEPI<\/span>'/);
   assert.match(frontend, />Tutoria</);
   assert.match(frontend, />Relatório</);
@@ -84,7 +84,7 @@ test('tutoring PDF contains only the individual form scope', () => {
   assert.match(frontend, /datas dos atendimentos e as perguntas e respostas/i);
   assert.match(frontend, /include_in_report !== false/);
   assert.match(frontend, /getActiveSchoolMembership/);
-  assert.match(frontend, /doc\.text\('Relatório da Tutoria', pageWidth \/ 2, 16, \{ align:'center' \}\)/);
+  assert.match(frontend, /doc\.text\('Relatório da Tutoria', pageWidth \/ 2, titleY, \{ align:'center' \}\)/);
 });
 
 test('individual tutoring form follows the official CEPI model', () => {

@@ -29,7 +29,7 @@ async function render(selected) {
     addImage() { images++; }
   };
   const context = {
-    MARGIN_X: 15, A4_WIDTH: 210,
+    MARGIN_X: 15, A4_WIDTH: 210, A4_HEIGHT:297, BOTTOM_MARGIN:24,
     drawReportHeader() { return 20; },
     ensureSpace(_doc, y) { return y; },
     printLines(_doc, values, _x, y) {
@@ -84,5 +84,11 @@ async function render(selected) {
   assert.equal(observationsAndPhoto.images, 1);
   assert.doesNotMatch(observationsAndPhoto.text, /FREQUÊNCIA|NOTAS FINAIS DO SIAP|HISTÓRICO DE OCORRÊNCIAS/);
 
-  console.log('Seis combinações de seções do PDF verificadas com aluno fictício.');
+  const oneSignature = await render({ signatures:{coordinator:false,manager:true,guardian:false} });
+  assert.match(oneSignature.text,/Gestor\(a\)/);
+  assert.doesNotMatch(oneSignature.text,/Coordenador\(a\)|Responsável/);
+  const threeSignatures = await render({ signatures:{coordinator:true,manager:true,guardian:true} });
+  assert.match(threeSignatures.text,/Coordenador\(a\)[\s\S]*Gestor\(a\)[\s\S]*Responsável/);
+
+  console.log('Oito combinações de seções e assinaturas do PDF verificadas com aluno fictício.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

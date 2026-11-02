@@ -50,8 +50,12 @@ test('distingue o semestre e escapa dados na prévia e impressão', () => {
   const markup=table([{...rows[0],name:'João <script>alert(1)</script>'}]);
   assert.match(markup,/João &lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   assert.doesNotMatch(markup,/<script>alert\(1\)<\/script>/);
-  const printed=printHtml({rows,schoolName:'CEPI Escola',className:'6B',year:2026,semester:1});
-  assert.match(printed,/Alocações da turma 6B/);
+  const printed=printHtml({rows,schoolName:'CEPI Escola',className:'6B',year:2026,semester:1,branding:{school_logo_data:'data:image/png;base64,AAAA',state_logo_data:'data:image/png;base64,BBBB'}});
+  assert.match(printed,/Não se perca, 6B/);
+  assert.match(printed,/Meu CEPI · Lista para referência/);
+  assert.match(printed,/class="heading-title"/);
+  assert.match(printed,/alt="Logo da escola"/);
+  assert.match(printed,/alt="Logo do estado"/);
   assert.match(printed,/Professor responsável: Professor Beto/);
   assert.doesNotMatch(printed,/2\. Pedro · 6B/);
 });

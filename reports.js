@@ -70,6 +70,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <label class="check reports-choice"><input type="radio" name="reportInclude" id="reportIncludeWithRecords" value="with_records"> Somente alunos com registros</label>
       </div>
     </div>
+    <div class="reports-section">
+      <span class="reports-section-title">Assinaturas no relatório</span>
+      <div class="reports-choice-list reports-choice-list-students">
+        <label class="check reports-choice"><input type="checkbox" id="reportSignatureCoordinator" checked> Coordenador(a)</label>
+        <label class="check reports-choice"><input type="checkbox" id="reportSignatureManager" checked> Gestor(a)</label>
+        <label class="check reports-choice"><input type="checkbox" id="reportSignatureGuardian" checked> Responsável</label>
+      </div>
+    </div>
     <div class="reports-preview" id="reportsPreview">Selecione os filtros para ver a prévia.</div>
     <div class="reports-progress hidden" id="reportsProgress"><div class="reports-progress-bar"><div id="reportsProgressFill" class="reports-progress-fill"></div></div><div id="reportsProgressText" class="reports-progress-text"></div></div>
     <div class="actions reports-actions"><button class="btn secondary" id="closeReportsSecondary" type="button">Fechar</button><button class="btn primary" id="generateReport" type="button">Gerar PDF</button></div>
@@ -258,6 +266,11 @@ document.addEventListener('DOMContentLoaded', () => {
       // campo próprio, visível só quando a opção está marcada.
       livroRevisaYear: Number(get('reportLivroRevisaYear').value) || new Date().getFullYear(),
       withUniformItems: get('reportContentUniformItems').checked,
+      signatures: {
+        coordinator:get('reportSignatureCoordinator').checked,
+        manager:get('reportSignatureManager').checked,
+        guardian:get('reportSignatureGuardian').checked
+      },
       onlyWithRecords: get('reportIncludeWithRecords').checked
     };
   }
@@ -699,7 +712,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function drawReportHeader(doc, schoolName) {
     const centerX = A4_WIDTH / 2;
-    let y = 17;
+    const branding = doc.carometroReportBranding;
+    const hasLogos = !!(branding?.school_logo_data || branding?.state_logo_data);
+    if (hasLogos) window.CarometroPrintBranding?.drawPdf(doc,branding,{pageWidth:A4_WIDTH,left:MARGIN_X,right:MARGIN_X,top:8,width:27,height:22});
+    let y = hasLogos ? 41 : 17;
     doc.setTextColor(20, 32, 58);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
@@ -1061,6 +1077,31 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       y += 4;
     }
+    const signatures = filters.signatures || {};
+    if (signatures.coordinator || signatures.manager || signatures.guardian) {
+      let signatureTop = Math.max(y + 6, 245);
+      if (signatureTop + 23 > A4_HEIGHT - BOTTOM_MARGIN) {
+        doc.addPage();
+        const top = drawReportHeader(doc, filters.schoolName);
+        doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(20,32,58);
+        doc.text(`Assinaturas — ${student.full_name || 'Aluno'}`,MARGIN_X,top + 5);
+        signatureTop = 245;
+      }
+      const slots = [
+        [signatures.coordinator,'Coordenador(a)',MARGIN_X],
+        [signatures.manager,'Gestor(a)',MARGIN_X + 66],
+        [signatures.guardian,'Responsável',MARGIN_X + 132]
+      ];
+      doc.setDrawColor(78, 91, 115);
+      doc.setTextColor(52, 64, 84);
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(9);
+      slots.forEach(([selected,label,x]) => {
+        if (!selected) return;
+        doc.line(x,signatureTop + 12,x + 48,signatureTop + 12);
+        doc.text(label,x + 24,signatureTop + 18,{align:'center'});
+      });
+    }
   }
 
   function applyFooters(doc, generatedByName, generatedAt) {
@@ -1074,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7);
       doc.setTextColor(102, 112, 133);
-      const detailLines = doc.splitTextToSize(`Gerado em ${dateStr} às ${timeStr} · Responsável: ${generatedByName}`, A4_WIDTH - MARGIN_X * 2);
+      const detailLines = doc.splitTextToSize(`Gerado em ${dateStr} às ${timeStr} · Gerado por: ${generatedByName}`, A4_WIDTH - MARGIN_X * 2);
       doc.text(detailLines, MARGIN_X, A4_HEIGHT - 14 - (detailLines.length - 1) * 3.2);
       doc.text(`Página ${page} de ${total}`, MARGIN_X, A4_HEIGHT - 7);
       doc.setFont('helvetica', 'bold');
@@ -1146,6 +1187,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (reportTargets.length > 40 && !confirm(`Isto vai gerar um relatório com ${reportTargets.length} alunos e pode demorar um pouco. Deseja continuar?`)) return;
     const schoolName = await currentReportSchoolName(filters.schoolId);
     if (!schoolName) { toast('Não foi possível obter o nome da escola para o relatório. Tente novamente.'); return; }
+    const branding = await window.CarometroPrintBranding?.load(db,filters.schoolId);
 
     const generateButton = get('generateReport');
     generateButton.disabled = true;
@@ -1167,6 +1209,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ unit:'mm', format:'a4' });
       doc.carometroReportSchoolName = schoolName;
+      doc.carometroReportBranding = branding;
 
       for (let index = 0; index < reportTargets.length; index++) {
         const student = reportTargets[index];
