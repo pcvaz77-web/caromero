@@ -71,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
     </div>
     <div class="reports-section">
-      <span class="reports-section-title">Assinaturas no relatório</span>
+      <span class="reports-section-title">Assinaturas em todas as páginas</span>
       <div class="reports-choice-list reports-choice-list-students">
         <label class="check reports-choice"><input type="checkbox" id="reportSignatureCoordinator" checked> Coordenador(a)</label>
         <label class="check reports-choice"><input type="checkbox" id="reportSignatureManager" checked> Gestor(a)</label>
@@ -732,7 +732,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function ensureSpace(doc, y, needed, continuationLabel) {
-    if (y + needed <= A4_HEIGHT - BOTTOM_MARGIN) return y;
+    if (y + needed <= A4_HEIGHT - (doc.carometroSignatureReserve || BOTTOM_MARGIN)) return y;
     doc.addPage();
     let top = drawReportHeader(doc, doc.carometroReportSchoolName);
     if (continuationLabel) {
@@ -1077,16 +1077,14 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       y += 4;
     }
-    const signatures = filters.signatures || {};
-    if (signatures.coordinator || signatures.manager || signatures.guardian) {
-      let signatureTop = Math.max(y + 6, 245);
-      if (signatureTop + 23 > A4_HEIGHT - BOTTOM_MARGIN) {
-        doc.addPage();
-        const top = drawReportHeader(doc, filters.schoolName);
-        doc.setFont('helvetica','bold');doc.setFontSize(11);doc.setTextColor(20,32,58);
-        doc.text(`Assinaturas — ${student.full_name || 'Aluno'}`,MARGIN_X,top + 5);
-        signatureTop = 245;
-      }
+  }
+
+  function applyFooters(doc, generatedByName, generatedAt, signatures = {}) {
+    const total = doc.getNumberOfPages();
+    const dateStr = new Intl.DateTimeFormat('pt-BR', { dateStyle:'short' }).format(generatedAt);
+    const timeStr = new Intl.DateTimeFormat('pt-BR', { timeStyle:'short' }).format(generatedAt);
+    for (let page = 1; page <= total; page++) {
+      doc.setPage(page);
       const slots = [
         [signatures.coordinator,'Coordenador(a)',MARGIN_X],
         [signatures.manager,'Gestor(a)',MARGIN_X + 66],
@@ -1098,18 +1096,9 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFontSize(9);
       slots.forEach(([selected,label,x]) => {
         if (!selected) return;
-        doc.line(x,signatureTop + 12,x + 48,signatureTop + 12);
-        doc.text(label,x + 24,signatureTop + 18,{align:'center'});
+        doc.line(x,A4_HEIGHT - 42,x + 48,A4_HEIGHT - 42);
+        doc.text(label,x + 24,A4_HEIGHT - 35,{align:'center'});
       });
-    }
-  }
-
-  function applyFooters(doc, generatedByName, generatedAt) {
-    const total = doc.getNumberOfPages();
-    const dateStr = new Intl.DateTimeFormat('pt-BR', { dateStyle:'short' }).format(generatedAt);
-    const timeStr = new Intl.DateTimeFormat('pt-BR', { timeStyle:'short' }).format(generatedAt);
-    for (let page = 1; page <= total; page++) {
-      doc.setPage(page);
       doc.setDrawColor(228, 231, 236);
       doc.line(MARGIN_X, A4_HEIGHT - 22, A4_WIDTH - MARGIN_X, A4_HEIGHT - 22);
       doc.setFont('helvetica', 'normal');
@@ -1210,6 +1199,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const doc = new jsPDF({ unit:'mm', format:'a4' });
       doc.carometroReportSchoolName = schoolName;
       doc.carometroReportBranding = branding;
+      doc.carometroSignatureReserve = Object.values(filters.signatures || {}).some(Boolean) ? 55 : BOTTOM_MARGIN;
 
       for (let index = 0; index < reportTargets.length; index++) {
         const student = reportTargets[index];
@@ -1220,7 +1210,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await tick();
       }
 
-      applyFooters(doc, generatedByName, generatedAt);
+      applyFooters(doc, generatedByName, generatedAt, filters.signatures);
 
       let scopeType = 'shift';
       let scopeId = null;

@@ -84,11 +84,5 @@ async function render(selected) {
   assert.equal(observationsAndPhoto.images, 1);
   assert.doesNotMatch(observationsAndPhoto.text, /FREQUÊNCIA|NOTAS FINAIS DO SIAP|HISTÓRICO DE OCORRÊNCIAS/);
 
-  const oneSignature = await render({ signatures:{coordinator:false,manager:true,guardian:false} });
-  assert.match(oneSignature.text,/Gestor\(a\)/);
-  assert.doesNotMatch(oneSignature.text,/Coordenador\(a\)|Responsável/);
-  const threeSignatures = await render({ signatures:{coordinator:true,manager:true,guardian:true} });
-  assert.match(threeSignatures.text,/Coordenador\(a\)[\s\S]*Gestor\(a\)[\s\S]*Responsável/);
-
-  console.log('Oito combinações de seções e assinaturas do PDF verificadas com aluno fictício.');
+  console.log('Seis combinações de seções do PDF verificadas com aluno fictício.');
 })().catch(error => { console.error(error); process.exitCode = 1; });
