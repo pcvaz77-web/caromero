@@ -7,11 +7,21 @@ test('aviso direto exige destinatarios e prepara os perfis escolhidos', async ()
     transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,audienceLabel};})();')
   });
   await h.ready();
+  h.context.URL = URL;
   h.get('platformAnnouncementTitle').value = 'Novo recurso';
   h.get('platformAnnouncementMessage').value = 'Confira a novidade.';
+  h.get('platformAnnouncementTheme').value = 'black_friday';
+  h.get('platformAnnouncementThemeColor').value = '#080e1b';
+  h.get('platformAnnouncementTextColor').value = '#fff5d4';
+  h.get('platformAnnouncementButtonColor').value = '#d7b65f';
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/fundo.jpg';
+  h.get('platformAnnouncementNoticeImage').value = 'https://example.org/noticia.jpg';
   h.get('platformAnnouncementRoleAll').checked = true;
   let input = h.context.window.testAnnouncements.ownerFormData();
   assert.equal(input.values.target_roles, null);
+  assert.equal(input.values.theme_image_url, 'https://example.org/fundo.jpg');
+  assert.equal(input.values.notice_image_url, 'https://example.org/noticia.jpg');
+  assert.equal(input.values.button_color, '#d7b65f');
   assert.equal(h.context.window.testAnnouncements.audienceLabel(input.values.target_roles), 'Todos');
 
   h.get('platformAnnouncementRoleAll').checked = false;

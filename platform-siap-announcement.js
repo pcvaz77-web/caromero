@@ -5,13 +5,27 @@
   let previewFileUrl = null;
   let previewFile = null;
   const bucket = 'siap-announcement-media';
-  const themes = {classic:['#17345d','#ffffff'],black_friday:['#080e1b','#fff5d4'],teachers:['#123d6b','#ffffff'],black_awareness:['#231b12','#fff1cb'],custom:['#17345d','#ffffff']};
+  const themes = {
+    classic:['#17345d','#ffffff','#e8f8ed','#14532d','#168553'],
+    black_friday:['#080e1b','#fff5d4','#080e1b','#fff5d4','#d7b65f'],
+    teachers:['#123d6b','#ffffff','#eef5ff','#183e70','#2d69ac'],
+    public_servant:['#173654','#ffffff','#eaf2fa','#173654','#275d94'],
+    black_awareness:['#231b12','#fff1cb','#241b13','#fff1cb','#bd8b45'],
+    students:['#165a86','#ffffff','#eaf7ff','#174563','#2478a6'],
+    september_yellow:['#f5c84a','#18283b','#fff7d5','#493d15','#b47d0d'],
+    christmas:['#164935','#ffffff','#e9f6ed','#164935','#b38b39'],
+    new_year:['#142b51','#ffffff','#edf3ff','#1b345a','#3c64a7'],
+    custom:['#17345d','#ffffff','#e8f8ed','#14532d','#168553']
+  };
   const themeImage = value => { try { const url = new URL(value); return url.protocol === 'https:' || url.protocol === 'blob:' ? url.href : null; } catch { return null; } };
   function themeStyle(node,item) {
     const key = Object.hasOwn(themes,item.theme_key) ? item.theme_key : 'classic';
     node.dataset.theme = key;
     node.style.setProperty('--siap-theme-color',/^#[0-9a-f]{6}$/i.test(item.theme_color) ? item.theme_color : themes[key][0]);
     node.style.setProperty('--siap-theme-text',/^#[0-9a-f]{6}$/i.test(item.theme_text_color) ? item.theme_text_color : themes[key][1]);
+    node.style.setProperty('--siap-notice-color',/^#[0-9a-f]{6}$/i.test(item.notice_color) ? item.notice_color : themes[key][2]);
+    node.style.setProperty('--siap-notice-text',/^#[0-9a-f]{6}$/i.test(item.notice_text_color) ? item.notice_text_color : themes[key][3]);
+    node.style.setProperty('--siap-notice-button',/^#[0-9a-f]{6}$/i.test(item.notice_button_color) ? item.notice_button_color : themes[key][4]);
     const image = themeImage(item.theme_image_url);
     node.dataset.hasImage = image ? 'true' : 'false';
     node.style.setProperty('--siap-theme-image',image ? `url(${JSON.stringify(image)})` : 'none');
@@ -63,7 +77,10 @@
       theme_key:form.elements.theme_key.value,
       theme_color:form.elements.theme_color.value,
       theme_text_color:form.elements.theme_text_color.value,
-      theme_image_url:form.elements.theme_image_url.value.trim() || null
+      theme_image_url:form.elements.theme_image_url.value.trim() || null,
+      notice_color:form.elements.notice_color.value,
+      notice_text_color:form.elements.notice_text_color.value,
+      notice_button_color:form.elements.notice_button_color.value
     };
   }
   function selectedFile() {
@@ -119,11 +136,11 @@
     if (card.dataset.themeFileUrl) URL.revokeObjectURL(card.dataset.themeFileUrl);
     card.dataset.themeFileUrl = themeFile ? URL.createObjectURL(themeFile) : '';
     themeStyle(card,{...item,theme_image_url:card.dataset.themeFileUrl || item.theme_image_url});
-    card.innerHTML = `<div class="platform-siap-notice-preview-label">Assistente SIAP · Prévia do tema</div><strong>${safe(item.title || 'Título da novidade')}</strong><p>${safe(item.message_body || 'Sua mensagem aparecerá aqui.').replace(/\n/g,'<br>')}</p>${source === 'file' ? filePreview : media(item.media_type,item.media_url)}${actionButton(item.link_label,item.link_url)}`;
+    card.innerHTML = `<div class="platform-siap-header-preview"><small>Assistente SIAP</small><strong>Professor · Planejamento da aula</strong><span>Concessão permanente</span></div><div class="platform-siap-notice-card"><div class="platform-siap-notice-preview-label">${item.theme_key === 'black_friday' ? 'OFERTA BLACK FRIDAY' : 'NOVIDADE DO ASSISTENTE SIAP'}</div><strong>${safe(item.title || 'Título da novidade')}</strong><p>${safe(item.message_body || 'Sua mensagem aparecerá aqui.').replace(/\n/g,'<br>')}</p>${source === 'file' ? filePreview : media(item.media_type,item.media_url)}${actionButton(item.link_label,item.link_url)}</div>`;
     refreshRemoveButton();
   }
   async function load() {
-    const {data,error} = await db.from('siap_assistant_announcement').select('title,message_body,media_type,media_url,link_label,link_url,theme_key,theme_color,theme_text_color,theme_image_url,active,updated_at').eq('id',true).maybeSingle();
+    const {data,error} = await db.from('siap_assistant_announcement').select('title,message_body,media_type,media_url,link_label,link_url,theme_key,theme_color,theme_text_color,theme_image_url,notice_color,notice_text_color,notice_button_color,active,updated_at').eq('id',true).maybeSingle();
     if (error) { status('Não foi possível carregar o comunicado. Verifique se a nova etapa do banco foi aplicada.',true); return; }
     current = data || null;
     const form = document.getElementById('platformSiapAnnouncementForm');
@@ -132,6 +149,9 @@
     form.elements.theme_color.value = data?.theme_color || themes.classic[0];
     form.elements.theme_text_color.value = data?.theme_text_color || themes.classic[1];
     form.elements.theme_image_url.value = data?.theme_image_url || '';
+    form.elements.notice_color.value = data?.notice_color || themes.classic[2];
+    form.elements.notice_text_color.value = data?.notice_text_color || themes.classic[3];
+    form.elements.notice_button_color.value = data?.notice_button_color || themes.classic[4];
     form.elements.theme_file.value = '';
     form.elements.media_source.value = data?.media_url ? 'link' : 'none';
     form.elements.media_file.value = '';
@@ -160,7 +180,7 @@
       try { if (new URL(item.link_url).protocol !== 'https:') throw Error(); }
       catch { status('Use um link HTTPS válido para o botão.',true); return; }
     }
-    if (!Object.hasOwn(themes,item.theme_key) || !/^#[0-9a-f]{6}$/i.test(item.theme_color) || !/^#[0-9a-f]{6}$/i.test(item.theme_text_color)) { status('Escolha cores válidas para o tema.',true); return; }
+    if (!Object.hasOwn(themes,item.theme_key) || ![item.theme_color,item.theme_text_color,item.notice_color,item.notice_text_color,item.notice_button_color].every(value => /^#[0-9a-f]{6}$/i.test(value))) { status('Escolha cores válidas para o tema.',true); return; }
     if (item.theme_image_url && !/^https:\/\/\S+$/i.test(item.theme_image_url)) { status('Use um link HTTPS válido para a imagem de fundo.',true); return; }
     const themeFile = active ? form.elements.theme_file.files?.[0] : null;
     if (themeFile && (!['image/jpeg','image/png','image/webp'].includes(themeFile.type) || !themeFile.size || themeFile.size > 10*1024*1024)) { status('Escolha imagem JPG, PNG ou WebP de até 10 MB.',true); return; }
@@ -184,11 +204,12 @@
         if (themeError) throw themeError;
         item.theme_image_url = db.storage.from(bucket).getPublicUrl(uploadedThemePath).data.publicUrl;
       }
-      const {error} = await db.rpc('platform_set_siap_assistant_announcement_v3', {
+      const {error} = await db.rpc('platform_set_siap_assistant_announcement_v4', {
         p_title:item.title, p_message_body:item.message_body,
         p_media_type:item.media_type, p_media_url:item.media_url,
         p_link_label:item.link_label || null, p_link_url:item.link_url || null, p_active:active,
-        p_theme_key:item.theme_key,p_theme_color:item.theme_color,p_theme_text_color:item.theme_text_color,p_theme_image_url:item.theme_image_url
+        p_theme_key:item.theme_key,p_theme_color:item.theme_color,p_theme_text_color:item.theme_text_color,p_theme_image_url:item.theme_image_url,
+        p_notice_color:item.notice_color,p_notice_text_color:item.notice_text_color,p_notice_button_color:item.notice_button_color
       });
       if (error) throw error;
       const replacedPath = active && previousPath && previousPath !== storagePath(item.media_url) ? previousPath : null;
@@ -216,13 +237,14 @@
     button.disabled = true;
     const previousPath = storagePath(current.media_url);
     try {
-      const {error} = await db.rpc('platform_set_siap_assistant_announcement_v3', {
+      const {error} = await db.rpc('platform_set_siap_assistant_announcement_v4', {
         p_title:current.title, p_message_body:current.message_body,
         p_media_type:null, p_media_url:null,
         p_link_label:current.link_label || null, p_link_url:current.link_url || null,
         p_active:current.active === true,
         p_theme_key:current.theme_key || 'classic',p_theme_color:current.theme_color || themes.classic[0],
-        p_theme_text_color:current.theme_text_color || themes.classic[1],p_theme_image_url:current.theme_image_url || null
+        p_theme_text_color:current.theme_text_color || themes.classic[1],p_theme_image_url:current.theme_image_url || null,
+        p_notice_color:current.notice_color || themes.classic[2],p_notice_text_color:current.notice_text_color || themes.classic[3],p_notice_button_color:current.notice_button_color || themes.classic[4]
       });
       if (error) throw error;
       await load();
@@ -242,11 +264,15 @@
       <div class="platform-siap-announcement-grid"><form id="platformSiapAnnouncementForm">
         <label>Título<input name="title" maxlength="120" required placeholder="Ex.: Novidade no planejamento"></label>
         <label>Mensagem<textarea name="message_body" rows="5" maxlength="3000" required placeholder="Escreva a novidade para os professores."></textarea></label>
-        <fieldset class="platform-siap-theme-fields"><legend>Aparência da mensagem e do cabeçalho</legend>
-          <label>Tema<select name="theme_key"><option value="classic">Padrão</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="black_awareness">Consciência Negra</option><option value="custom">Personalizado</option></select></label>
-          <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="theme_color" type="color" value="#17345d"></label><label>Cor do texto<input name="theme_text_color" type="color" value="#ffffff"></label></div>
-          <label>Imagem de fundo (link HTTPS)<input name="theme_image_url" type="url" maxlength="2048" placeholder="https://..."></label>
-          <label>Ou enviar imagem de fundo<input id="platformSiapThemeFile" name="theme_file" type="file" accept="image/jpeg,image/png,image/webp"></label><small>JPG, PNG ou WebP até 10 MB. O tema também aparece no cabeçalho do Assistente.</small>
+        <fieldset class="platform-siap-theme-fields"><legend>Ocasião e aparência</legend>
+          <label>Ocasião<select name="theme_key"><option value="classic">Padrão</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></label>
+          <strong>Cabeçalho do Assistente</strong>
+          <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="theme_color" type="color" value="#17345d"></label><label>Cor da letra<input name="theme_text_color" type="color" value="#ffffff"></label></div>
+          <label>Imagem de fundo do cabeçalho (link HTTPS)<input name="theme_image_url" type="url" maxlength="2048" placeholder="https://..."></label>
+          <label>Ou enviar imagem do cabeçalho<input id="platformSiapThemeFile" name="theme_file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <strong>Cartão do aviso</strong>
+          <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="notice_color" type="color" value="#e8f8ed"></label><label>Cor da letra<input name="notice_text_color" type="color" value="#14532d"></label><label>Cor do botão<input name="notice_button_color" type="color" value="#168553"></label></div>
+          <small>A imagem do aviso é escolhida em Mídia, abaixo. Ela é diferente da imagem de fundo do cabeçalho. JPG, PNG ou WebP até 10 MB para o cabeçalho.</small>
         </fieldset>
         <label>Nome do botão (opcional)<input name="link_label" maxlength="60" placeholder="Ex.: Ver promoção"></label>
         <label>Link do botão (opcional)<input name="link_url" type="url" maxlength="2048" placeholder="https://..."></label>
@@ -265,8 +291,7 @@
     const form = document.getElementById('platformSiapAnnouncementForm');
     form.addEventListener('input',preview);
     form.addEventListener('change',event => event.target.name === 'media_source' ? refreshSource() : preview());
-    form.elements.theme_key.addEventListener('change', () => { const [background,foreground] = themes[form.elements.theme_key.value] || themes.classic; form.elements.theme_color.value = background; form.elements.theme_text_color.value = foreground; preview(); });
-    for (const name of ['theme_color','theme_text_color']) form.elements[name].addEventListener('input', () => { form.elements.theme_key.value = 'custom'; preview(); });
+    form.elements.theme_key.addEventListener('change', () => { const colors = themes[form.elements.theme_key.value] || themes.classic; ['theme_color','theme_text_color','notice_color','notice_text_color','notice_button_color'].forEach((name,index) => { form.elements[name].value = colors[index]; }); preview(); });
     form.onsubmit = event => { event.preventDefault(); save(true); };
     document.getElementById('platformSiapAnnouncementDisable').onclick = () => save(false);
     document.getElementById('platformSiapAnnouncementRemoveMedia').onclick = removeMedia;

@@ -200,6 +200,19 @@ body.platform-workspace-open { overflow:hidden; }
 .platform-siap-announcement-preview[data-theme=teachers][data-has-image=true],.platform-siap-announcement-preview[data-theme=black_awareness][data-has-image=true]{background-image:linear-gradient(90deg,#061024e0,#061024a0),var(--siap-theme-image)}
 .platform-siap-announcement-preview img{aspect-ratio:auto;max-height:230px;object-fit:cover;background:transparent}
 .platform-siap-announcement-preview .platform-siap-announcement-action{background:#e6c472;color:#101b31}
+.platform-siap-announcement-preview{display:grid;gap:0;padding:0;background:transparent!important;border:1px solid #b9cce5;overflow:hidden}
+.platform-siap-header-preview{display:grid;gap:5px;min-height:105px;padding:18px;background-color:var(--siap-theme-color);background-image:linear-gradient(120deg,transparent,#0c214266);color:var(--siap-theme-text)}
+.platform-siap-announcement-preview[data-has-image=true] .platform-siap-header-preview{background-image:linear-gradient(90deg,#061024d9,#06102470),var(--siap-theme-image);background-position:center;background-size:cover;color:#fff}
+.platform-siap-announcement-preview[data-theme=black_friday] .platform-siap-header-preview{background-image:radial-gradient(ellipse at 80% 0%,#3572b277,transparent 60%),linear-gradient(125deg,var(--siap-theme-color),#122d51);border-bottom:2px solid #c9aa61}
+.platform-siap-announcement-preview[data-theme=black_friday][data-has-image=true] .platform-siap-header-preview{background-image:linear-gradient(90deg,#061024d9,#06102470),var(--siap-theme-image)}
+.platform-siap-header-preview small{font-size:14px;font-weight:850}
+.platform-siap-header-preview strong{font-size:13px;color:inherit}
+.platform-siap-header-preview span{font-size:11px;color:#76e39b;font-weight:750}
+.platform-siap-notice-card{padding:18px;background:var(--siap-notice-color);color:var(--siap-notice-text)}
+.platform-siap-notice-card .platform-siap-notice-preview-label,.platform-siap-notice-card strong,.platform-siap-notice-card p{color:inherit}
+.platform-siap-notice-card .platform-siap-announcement-action{background:var(--siap-notice-button);color:#fff;border:1px solid #ffffff55}
+.platform-siap-announcement-preview[data-theme=black_friday] .platform-siap-notice-card{background-image:radial-gradient(ellipse at 85% 5%,#2a66ad55,transparent 60%),linear-gradient(140deg,var(--siap-notice-color),#142d4c);border-top:2px solid #c9aa61}
+.platform-siap-announcement-preview[data-theme=black_friday] .platform-siap-notice-card .platform-siap-announcement-action{color:#101b31}
 @media(max-width:850px){.platform-siap-announcement-grid{grid-template-columns:1fr}}
 @media(max-width:560px){.platform-siap-announcement-media{grid-template-columns:1fr}}
 

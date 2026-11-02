@@ -12,7 +12,8 @@ function setup() {
   const elements = {
     title:{value:''}, message_body:{value:''}, link_label:{value:''}, link_url:{value:''}, media_source:{value:'none'},
     media_type:{value:''}, media_url:{value:''}, media_file:{files:[],set value(value) { if (value === '') this.files=[]; },get value() { return ''; }},
-    theme_key:{value:'classic',addEventListener(){}},theme_color:{value:'#17345d',addEventListener(){}},theme_text_color:{value:'#ffffff',addEventListener(){}},theme_image_url:{value:''},theme_file:{files:[],value:''}
+    theme_key:{value:'classic',addEventListener(){}},theme_color:{value:'#17345d',addEventListener(){}},theme_text_color:{value:'#ffffff',addEventListener(){}},theme_image_url:{value:''},theme_file:{files:[],value:''},
+    notice_color:{value:'#e8f8ed'},notice_text_color:{value:'#14532d'},notice_button_color:{value:'#168553'}
   };
   const form = {
     elements,
@@ -45,6 +46,7 @@ function setup() {
       media_type:input.p_media_type,media_url:input.p_media_url,
       link_label:input.p_link_label,link_url:input.p_link_url,
       theme_key:input.p_theme_key,theme_color:input.p_theme_color,theme_text_color:input.p_theme_text_color,theme_image_url:input.p_theme_image_url,
+      notice_color:input.p_notice_color,notice_text_color:input.p_notice_text_color,notice_button_color:input.p_notice_button_color,
       active:input.p_active,updated_at:new Date().toISOString()
     }; return {error:null}; }
   };
@@ -134,7 +136,9 @@ test('nome e link HTTPS viram botão na prévia e são salvos separados da mídi
   ui.elements.link_url.value = 'https://example.org/oferta';
   ui.form.onsubmit({preventDefault() {}});
   await settle();
-  assert.equal(ui.calls.saves[0].name,'platform_set_siap_assistant_announcement_v3');
+  assert.equal(ui.calls.saves[0].name,'platform_set_siap_assistant_announcement_v4');
+  assert.equal(ui.calls.saves[0].input.p_notice_color,'#e8f8ed');
+  assert.equal(ui.calls.saves[0].input.p_notice_button_color,'#168553');
   assert.equal(ui.calls.saves[0].input.p_link_label,'Ver promoção');
   assert.equal(ui.calls.saves[0].input.p_link_url,'https://example.org/oferta');
   assert.match(ui.nodes.platformSiapAnnouncementPreview.innerHTML,/class="platform-siap-announcement-action"/);
