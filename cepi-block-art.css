@@ -31,9 +31,10 @@ body .cepi-workspace-item.cepi-block-card::after {
 /* A cena inteira ocupa o card uma única vez e se apaga, sem desaparecer. */
 body .cepi-workspace-item.cepi-block-card::before {
   right: 0;
+  width: 100%;
   opacity: .48;
-  -webkit-mask-image: linear-gradient(to right, #000 0%, #0006 2cm, #0002 100%);
-  mask-image: linear-gradient(to right, #000 0%, #0006 2cm, #0002 100%);
+  -webkit-mask-image: linear-gradient(to right, #000 0%, #0007 2cm, #0004 100%);
+  mask-image: linear-gradient(to right, #000 0%, #0007 2cm, #0004 100%);
 }
 
 /* A faixa mostra o começo da mesma cena, viva e sem distorção. */
