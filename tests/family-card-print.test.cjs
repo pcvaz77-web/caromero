@@ -7,18 +7,24 @@ const card = number => ({
   class_name: '6A',
   guardian_name: 'Responsável',
   guardian_phone: '+5562999999999',
+  registration_number: `2026-${number}`,
   qr_token: `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`,
 });
 
-test('uma folha A4 contém quatro pares com frente e verso lado a lado', () => {
-  const html = render(Array.from({ length: 4 }, (_, i) => card(i + 1)), 'Escola', value => `<svg data-qr="${value}"></svg>`);
+test('uma folha A4 retrato contém três carteirinhas de 5,5 × 8,5 cm com verso invertido abaixo', () => {
+  const html = render(Array.from({ length: 3 }, (_, i) => card(i + 1)), 'Escola', value => `<svg data-qr="${value}"></svg>`);
   const sheets = [...html.matchAll(/<section class="sheet">([\s\S]*?)<\/section>/g)].map(match => match[1]);
   assert.equal(sheets.length, 1);
-  assert.equal((sheets[0].match(/class="card-pair"/g) || []).length, 4);
-  assert.equal((sheets[0].match(/class="card-face card-front"/g) || []).length, 4);
-  assert.equal((sheets[0].match(/class="card-face card-back"/g) || []).length, 4);
-  const names = [...sheets[0].matchAll(/<strong>(Aluno \d+)<\/strong>/g)].map(match => match[1]);
-  assert.deepEqual(names, ['Aluno 1','Aluno 1','Aluno 2','Aluno 2','Aluno 3','Aluno 3','Aluno 4','Aluno 4']);
+  assert.equal((sheets[0].match(/class="card-pair"/g) || []).length, 3);
+  assert.equal((sheets[0].match(/class="card-face card-front"/g) || []).length, 3);
+  assert.equal((sheets[0].match(/class="card-face card-back"/g) || []).length, 3);
+  const names = [...sheets[0].matchAll(/<strong class="(?:student-name|back-name)">(Aluno \d+)<\/strong>/g)].map(match => match[1]);
+  assert.deepEqual(names, ['Aluno 1','Aluno 1','Aluno 2','Aluno 2','Aluno 3','Aluno 3']);
+  assert.match(html, /grid-template-columns:repeat\(3,55mm\);grid-template-rows:170mm/);
+  assert.match(html, /\.card-back\{transform:rotate\(180deg\)/);
+  assert.match(html, /Nº responsável: \+5562999999999/);
+  assert.match(html, /Nº matrícula: 2026-1/);
+  assert.equal((html.match(/data-qr="CAROMETRO:CARD:/g) || []).length, 6);
   assert.match(html, /Recorte pelo tracejado externo e dobre na linha central/);
 });
 
@@ -26,7 +32,7 @@ test('cinco alunos geram duas folhas físicas, sem pares vazios', () => {
   const html = render(Array.from({ length: 5 }, (_, i) => card(i + 1)), 'Escola', value => `<svg data-qr="${value}"></svg>`);
   assert.equal((html.match(/<section class="sheet">/g) || []).length, 2);
   assert.equal((html.match(/class="card-pair"/g) || []).length, 5);
-  assert.equal((html.match(/data-qr="CAROMETRO:CARD:/g) || []).length, 5);
+  assert.equal((html.match(/data-qr="CAROMETRO:CARD:/g) || []).length, 10);
 });
 
 test('nome exibido é escapado e QR aceita somente token de carteirinha', () => {

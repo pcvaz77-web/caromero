@@ -361,6 +361,14 @@
         if (mode === 'student' && (classId !== get('familyCardClass').value || studentId !== get('familyReissueStudent').value)) throw new Error('A seleção mudou. Tente novamente.');
         if (!data?.length) throw new Error('Não há alunos ativos nesta turma.');
         if (typeof window.qrcode !== 'function' || !window.FamilyCardPrint) throw new Error('Gerador de carteirinhas indisponível.');
+        const { data:registrations, error:registrationError } = await withTimeout(
+          db.from('students').select('id,registration_number').in('id', data.map(row => row.student_id)),
+          60000, 'A consulta das matrículas demorou demais. Confira a conexão e tente novamente.'
+        );
+        if (registrationError) throw registrationError;
+        if ((registrations || []).length !== new Set(data.map(row => row.student_id)).size)
+          throw new Error('Não foi possível consultar a matrícula de todos os alunos. Tente novamente.');
+        const registrationByStudent = new Map((registrations || []).map(row => [row.id,row.registration_number]));
         showProgress(`Carregando fotos de ${data.length} aluno(s)...`);
         let missingPhotos = 0;
         const cards = await Promise.all(data.map(async row => {
@@ -372,7 +380,7 @@
             } catch { /* A foto é opcional; a carteirinha continua com as iniciais. */ }
             if (!photo_url) missingPhotos++;
           }
-          return { ...row, photo_url };
+          return { ...row, registration_number:registrationByStudent.get(row.student_id) || '', photo_url };
         }));
         const qrSvg = value => {
           const qr = window.qrcode(0,'M'); qr.addData(value); qr.make();
