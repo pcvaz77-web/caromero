@@ -1,0 +1,107 @@
+/* O papel de parede aparece apenas no Painel da turma. */
+#classroomMapModal.classroom-panel-mode > .modal {
+  position: relative;
+  transform: translateZ(0);
+  background: #f9fbff;
+}
+
+#classroomMapModal .classroom-panel-wallpaper {
+  display: none;
+}
+
+#classroomMapModal.classroom-panel-mode .classroom-panel-wallpaper {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  opacity: .34;
+  pointer-events: none;
+}
+
+#classroomMapModal.classroom-panel-mode .classroom-panel-wallpaper-strip {
+  flex: 0 0 4.2cm;
+  height: 100%;
+  margin-left: -1cm;
+  background-image: var(--panel-scene);
+  background-position: left center;
+  background-size: auto 100%;
+  background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 23%, #000 77%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 23%, #000 77%, transparent);
+}
+
+#classroomMapModal.classroom-panel-mode .classroom-panel-wallpaper-strip:first-child {
+  margin-left: 0;
+}
+
+#classroomMapModal.classroom-panel-mode .modal-head,
+#classroomMapModal.classroom-panel-mode .classroom-map-shell {
+  position: relative;
+  z-index: 1;
+}
+
+#classroomMapModal.classroom-panel-mode .modal-head {
+  background: rgb(255 255 255 / 52%);
+}
+
+#classroomMapModal.classroom-panel-mode .classroom-map-shell {
+  background: rgb(255 255 255 / 68%);
+}
+
+#classroomMapModal.classroom-panel-mode #classroomMapTitle {
+  color: #14213e;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+#classroomMapModal.classroom-panel-mode #classroomMapMeta {
+  display: none;
+}
+
+#classroomMapModal.classroom-panel-mode .classroom-panel-card {
+  background: rgb(248 250 255 / 76%);
+}
+
+#classroomMapModal.classroom-panel-mode .family-entry-summary,
+#classroomMapModal.classroom-panel-mode .family-entry-list,
+#classroomMapModal.classroom-panel-mode .siap-grade-summary,
+#classroomMapModal.classroom-panel-mode .siap-grade-chart {
+  background: rgb(255 255 255 / 88%);
+}
+
+#classroomMapModal.classroom-panel-mode #openAttendanceSettings {
+  border-color: #e4c568;
+  background: #fff0b6;
+  color: #67480a;
+  box-shadow: 0 4px 12px #7d5a171a;
+}
+
+#classroomMapModal.classroom-panel-mode #classExamAction {
+  border-color: #91d2a7;
+  background: #dcf5e3;
+  color: #17623b;
+  box-shadow: 0 4px 12px #28754c1a;
+}
+
+#classroomMapModal.classroom-panel-mode #openAttendanceSettings:hover {
+  background: #ffe99a;
+}
+
+#classroomMapModal.classroom-panel-mode #classExamAction:hover {
+  background: #c8eed3;
+}
+
+@media (max-width: 700px) {
+  #classroomMapModal.classroom-panel-mode #classroomMapTitle {
+    font-size: 21px;
+  }
+}
+
+@media print {
+  #classroomMapModal .classroom-panel-wallpaper {
+    display: none !important;
+  }
+}

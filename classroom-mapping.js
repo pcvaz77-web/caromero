@@ -129,7 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'classroomMapModal';
   modal.className = 'modal-bg classroom-map-modal hidden';
-  modal.innerHTML = `<div class="modal"><div class="modal-head"><div><h3 id="classroomMapTitle">Mapeamento da sala</h3><div id="classroomMapMeta" class="meta"></div></div><div class="classroom-panel-header-actions"><span id="classroomInstallAction"></span><button class="close" type="button" data-map-close>×</button></div></div><div id="classroomMapContent" class="classroom-map-shell"></div></div>`;
+  const panelScenes = ['portugues','ciencias','matematica','linguas-arte-esporte','historia-geografia','geografia','fisica-quimica','biologia-sociologia-filosofia'];
+  const panelWallpaper = panelScenes.map(scene => `<span class="classroom-panel-wallpaper-strip" style="--panel-scene:url('media/cepi-block-scenes/${scene}.webp')"></span>`).join('');
+  modal.innerHTML = `<div class="modal"><div class="classroom-panel-wallpaper" aria-hidden="true">${panelWallpaper}</div><div class="modal-head"><div><h3 id="classroomMapTitle">Mapeamento da sala</h3><div id="classroomMapMeta" class="meta"></div></div><div class="classroom-panel-header-actions"><span id="classroomInstallAction"></span><button class="close" type="button" data-map-close>×</button></div></div><div id="classroomMapContent" class="classroom-map-shell"></div></div>`;
   document.body.appendChild(modal);
 
   const fileRowOptions = Array.from({ length:20 }, (_, index) => index + 1);
@@ -447,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
     modal.classList.add('classroom-panel-mode');
     activeClassId = selectedClassId;
     const selected = classes.find(item => item.id === activeClassId);
-    document.getElementById('classroomMapTitle').textContent = 'Painel da turma';
+    document.getElementById('classroomMapTitle').textContent = `Painel da turma - ${selected?.name || 'Turma'}`;
     document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
     modal.classList.remove('hidden');
     const content = document.getElementById('classroomMapContent');
