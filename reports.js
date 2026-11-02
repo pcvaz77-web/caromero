@@ -795,7 +795,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFontSize(12);
       doc.setTextColor(20, 32, 58);
       doc.text('OBSERVAÇÕES', MARGIN_X, y);
-      y += 7;
+      y += 6;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10.5);
       const values = window.decodeObservationValues?.(student.has_report) || [];
@@ -809,10 +809,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const split = doc.splitTextToSize(`• ${value}`, A4_WIDTH - MARGIN_X * 2);
           doc.setTextColor(20, 32, 58);
           y = printLines(doc, split, MARGIN_X, y, 5.4, `Continuação — ${student.full_name}`);
-          y += 2;
+          y += 1;
         });
       }
-      y += 4;
+      y += 1.5;
     }
 
     if (filters.withSchoolDailyAttendance) {
@@ -920,7 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFontSize(12);
       doc.setTextColor(20, 32, 58);
       doc.text('HISTÓRICO DE OCORRÊNCIAS', MARGIN_X, y);
-      y += 8;
+      y += 6.5;
       const records = occurrencesByStudent.get(student.student_id) || [];
       if (!records.length) {
         doc.setFont('helvetica', 'normal');
@@ -951,7 +951,7 @@ document.addEventListener('DOMContentLoaded', () => {
           doc.setFontSize(9);
           doc.setTextColor(20, 32, 58);
           y = printLines(doc, doc.splitTextToSize(student.full_name || 'Aluno', A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5, continuationLabel);
-          y += 2;
+          y += 1;
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10.5);
           doc.setTextColor(52, 64, 84);
@@ -987,7 +987,7 @@ document.addEventListener('DOMContentLoaded', () => {
               doc.setTextColor(102, 112, 133);
             }
           }
-          y += 6;
+          y += 2.5;
         });
       }
       y = ensureSpace(doc, y, 8, `Continuação — ${student.full_name}`);
