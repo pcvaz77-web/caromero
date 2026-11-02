@@ -11,11 +11,17 @@ Deno.serve(async request=>{
   const caller=createClient(url,anon,{global:{headers:{Authorization:request.headers.get('Authorization')??''}}});const {data:{user}}=await caller.auth.getUser()
   if(!user?.email) return json(request,{ok:false,code:'login_required'},401)
   let planKey='',legalAccepted=false;try{const b=await request.json();planKey=String(b?.planKey??'');legalAccepted=b?.legalAccepted===true}catch{}
-  if (/_exam$/.test(planKey) || ['exam_one','exam_four'].includes(planKey)) return json(request,{ok:false,code:'plan_not_available'},409)
   if(!legalAccepted) return json(request,{ok:false,code:'legal_acceptance_required'},400)
   const admin=createClient(url,service,{auth:{autoRefreshToken:false,persistSession:false}})
+  const {data:plan,error:planError}=await admin.from('siap_assistant_plans').select('amount,billing_months,active').eq('plan_key',planKey).maybeSingle()
+  if(planError||!plan?.active) return json(request,{ok:false,code:'plan_not_available'},409)
   const {data:m}=await admin.from('hotmart_product_mappings').select('*').eq('target','assistant').eq('plan_key',planKey).eq('active',true).maybeSingle()
   if(!m) return json(request,{ok:false,code:'plan_not_available'},409)
+  const months={monthly:1,quarterly:3,semiannual:6,annual:12}[m.billing_cycle as 'monthly'|'quarterly'|'semiannual'|'annual']
+  let offerMatches=false
+  try {const checkout=new URL(m.checkout_url);offerMatches=checkout.origin==='https://pay.hotmart.com'&&checkout.searchParams.get('off')===m.offer_code} catch {}
+  if(!offerMatches||months!==Number(plan.billing_months)||Math.abs(Number(m.expected_amount)-Number(plan.amount))>0.009)
+    return json(request,{ok:false,code:'checkout_offer_mismatch'},409)
   const {data:e}=await admin.from('siap_assistant_payment_subscriptions').select('*').eq('user_id',user.id).in('status',['creating','pending','authorized','paused']).order('created_at',{ascending:false}).limit(1).maybeSingle()
   if(e&&['authorized','paused'].includes(e.status)) return json(request,{ok:false,code:'subscription_already_exists'},409)
   const values={provider:'hotmart',plan_key:m.plan_key,amount:Number(m.expected_amount),payer_email:user.email.toLowerCase(),legal_accepted_at:new Date().toISOString(),terms_version:'2026-09-06',status:'pending',checkout_url:m.checkout_url,provider_checkout_id:String(m.product_id),provider_status:'AWAITING_HOTMART',updated_at:new Date().toISOString()}
