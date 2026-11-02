@@ -360,7 +360,7 @@
         if (activeSchool !== schoolId) throw new Error('A escola ativa mudou. Abra a tela novamente.');
         if (mode === 'student' && (classId !== get('familyCardClass').value || studentId !== get('familyReissueStudent').value)) throw new Error('A seleção mudou. Tente novamente.');
         if (!data?.length) throw new Error('Não há alunos ativos nesta turma.');
-        if (typeof window.qrcode !== 'function' || !window.FamilyCardPrint) throw new Error('Gerador de carteirinhas indisponível.');
+        if (typeof window.qrcode !== 'function' || typeof window.JsBarcode !== 'function' || !window.FamilyCardPrint) throw new Error('Gerador de carteirinhas indisponível.');
         const { data:registrations, error:registrationError } = await withTimeout(
           db.from('students').select('id,registration_number').in('id', data.map(row => row.student_id)),
           60000, 'A consulta das matrículas demorou demais. Confira a conexão e tente novamente.'
@@ -386,14 +386,21 @@
           const qr = window.qrcode(0,'M'); qr.addData(value); qr.make();
           return qr.createSvgTag({ cellSize:3, margin:4, scalable:true });
         };
+        const barcodeSvg = value => {
+          try {
+            const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+            window.JsBarcode(svg,value,{ format:'CODE128',displayValue:false,width:2,height:40,margin:20 });
+            return svg.outerHTML;
+          } catch { return ''; }
+        };
         showProgress(`Montando ${cards.length} carteirinha(s) para impressão...`);
         await new Promise(resolve => setTimeout(resolve,0));
-        const printHtml = window.FamilyCardPrint.render(cards, schoolName, qrSvg);
+        const printHtml = window.FamilyCardPrint.render(cards, schoolName, qrSvg, barcodeSvg);
         if (popup.closed) throw new Error('A janela de impressão foi fechada. Abra novamente para imprimir.');
         popup.document.open();
         popup.document.write(printHtml);
         popup.document.close();
-        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas${missingPhotos ? `; ${missingPhotos} foto(s) indisponível(is)` : ''}. Confira a prévia, imprima em uma face, recorte cada par e dobre ao meio.`);
+        setMessage('familyCardsMessage',`${cards.length} carteirinha(s) prontas${missingPhotos ? `; ${missingPhotos} foto(s) indisponível(is)` : ''}. Imprima em A4 paisagem, escala 100%, em uma face; recorte cada par e dobre ao meio.`);
       } catch (caught) {
         const message = caught.message || 'Não foi possível gerar as carteirinhas.';
         if (!popup.closed) {
