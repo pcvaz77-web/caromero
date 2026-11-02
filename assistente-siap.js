@@ -105,11 +105,13 @@
         if (blackFriday && Number(campaign.regular_prices?.[plan.plan_key]) > Number(plan.amount)) {
           const oldPrice = document.createElement('span');
           oldPrice.className = 'old-price';
-          oldPrice.textContent = `De ${money(campaign.regular_prices[plan.plan_key])}`;
+          const previousAmount = document.createElement('strong');
+          previousAmount.textContent = money(campaign.regular_prices[plan.plan_key]);
+          oldPrice.append('De ', previousAmount, ' por');
           card.querySelector('.price').before(oldPrice);
           const badge = document.createElement('span');
           badge.className = 'black-friday-tag';
-          badge.textContent = 'OFERTA BLACK FRIDAY';
+          badge.textContent = 'Oferta Black Friday';
           card.prepend(badge);
         }
         button.disabled = false;

@@ -85,3 +85,21 @@
 @media(max-width:680px){.contextual-cta{margin:18px 13px 50px;padding:24px 21px}.contextual-cta h2{font-size:21px}.contextual-cta p{font-size:13px}}
 .exam-option{display:flex;align-items:flex-start;gap:9px;padding:13px;border-radius:15px;background:#edf3ff;font-size:13px;font-weight:700;line-height:1.5}.exam-option input{margin-top:4px;accent-color:#1769e8}.exam-offer-status{font-size:12px;min-height:34px}.exam-credit-card{position:relative;scroll-margin-top:100px}.exam-credit-card .popular{background:#ffda64;color:#473400}.exam-credit-card .secondary{margin-top:10px;background:#e9f0ff;color:#173c75}.exam-credit-card small{display:block;margin-top:12px;line-height:1.6}
 .exam-credit-card .checkout-button{border-radius:999px}
+/* Identidade da campanha ativa: azul profundo do Carômetro com tipografia arredondada. */
+.black-friday-banner{border-color:#496ea9;background:radial-gradient(circle at 88% 8%,#3a68a74d,transparent 36%),linear-gradient(115deg,#080c14,#101b31 62%,#17376a);box-shadow:0 22px 50px #0209156b}
+.black-friday-banner span{color:#9dc2ff;font-family:"Trebuchet MS",ui-rounded,sans-serif;font-size:14px;font-weight:900;letter-spacing:.08em}
+.black-friday-banner p{color:#d3e1fa}
+.black-friday-active .pricing-section{background:radial-gradient(circle at top,#173b76,#07152d 60%,#050b17)}
+.black-friday-active .pricing-section .section-heading .eyebrow{color:#a4c5ff}
+.black-friday-active .pricing-section .price-card{border-color:#9aaed1;background:linear-gradient(180deg,#fff,#f6f9ff)}
+.black-friday-active .pricing-section .price-card::before{background:linear-gradient(90deg,#080d17,#18365f,#315b9b)}
+.black-friday-active .pricing-section .price-card.featured{border-color:#4168a9;box-shadow:0 23px 53px #020f2b66}
+.black-friday-active .pricing-section .price-card.featured .popular{background:linear-gradient(100deg,#080d17,#1a3763);color:#fff;box-shadow:0 9px 17px #071b3870}
+.black-friday-active .pricing-section .price-card .price{color:#10264d;font-weight:900}
+.black-friday-active .pricing-section .price-card button,.black-friday-active .pricing-section .price-card .price-link{background:linear-gradient(105deg,#080d17,#142a4a 58%,#254a7d);color:#fff;box-shadow:0 10px 22px #08172c4f}
+.black-friday-active .pricing-section .price-card button:not(:disabled):hover,.black-friday-active .pricing-section .price-card .price-link:hover{box-shadow:0 14px 27px #08172c73}
+.black-friday-active .pricing-section .price-card .black-friday-tag{align-self:flex-start;margin-bottom:10px;padding:8px 13px;border-radius:11px;background:linear-gradient(110deg,#080d17,#182e53,#2c5391);color:#fff;font-family:"Trebuchet MS",ui-rounded,"Arial Rounded MT Bold",sans-serif;font-size:13px;font-weight:900;letter-spacing:.01em;box-shadow:0 8px 18px #101c3550}
+.black-friday-active .pricing-section .price-card .old-price{display:flex;align-items:baseline;gap:5px;margin-top:9px;color:#1b2c4b;font-size:14px;font-weight:750;text-decoration:none;white-space:nowrap}
+.black-friday-active .pricing-section .price-card .old-price strong{position:relative;color:#cb1f35;font-size:clamp(18px,1.65vw,23px);font-weight:900;letter-spacing:-.025em;white-space:nowrap}
+.black-friday-active .pricing-section .price-card .old-price strong::after{content:"";position:absolute;left:-2%;right:-2%;top:51%;height:1.5px;background:#cb1f35;transform:rotate(-2deg)}
+.black-friday-active .pricing-section .price-card .old-price+.price{margin-top:6px}
