@@ -792,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
       doc.setFillColor(...accent); doc.rect(0, 0, pageWidth, 3, 'F');
       const hasLogos = !!(branding?.school_logo_data || branding?.state_logo_data);
       if (hasLogos) window.CarometroPrintBranding?.drawPdf(doc,branding,{pageWidth,left:margin,right:margin,top:8,width:26,height:22});
-      const titleY = hasLogos ? 38 : 16;
+      const titleY = hasLogos ? 22 : 16;
       doc.setFont('helvetica', 'bold'); doc.setFontSize(16); setColor(navy);
       doc.text('Relatório da Tutoria', pageWidth / 2, titleY, { align:'center' });
       doc.setFont('helvetica', 'normal'); doc.setFontSize(10); setColor(muted);
