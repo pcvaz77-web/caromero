@@ -48,13 +48,6 @@
     }, { once:true });
   });
 
-  // A extensão abre diretamente #planos ao oferecer renovação.
-  // Uma visita inicial à página pública continua mostrando a demonstração.
-  if (window.location.hash === '#planos') {
-    const trialCard = document.querySelector('.trial-card');
-    if (trialCard) trialCard.style.display = 'none';
-  }
-
   if (institutionalAccess) {
     document.body.classList.add('institutional-access');
     document.querySelector('[data-public-checkout]')?.setAttribute('hidden', '');

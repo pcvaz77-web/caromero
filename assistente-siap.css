@@ -103,3 +103,11 @@
 .black-friday-active .pricing-section .price-card .old-price strong{position:relative;color:#cb1f35;font-size:clamp(18px,1.65vw,23px);font-weight:900;letter-spacing:-.025em;white-space:nowrap}
 .black-friday-active .pricing-section .price-card .old-price strong::after{content:"";position:absolute;left:-2%;right:-2%;top:51%;height:1.5px;background:#cb1f35;transform:rotate(-2deg)}
 .black-friday-active .pricing-section .price-card .old-price+.price{margin-top:6px}
+
+/* Planos institucionais e demonstração ficam lado a lado abaixo das ofertas individuais. */
+.pricing-section .pricing-grid .institutional-card,
+.pricing-section .pricing-grid .trial-card{grid-column:span 2}
+@media(max-width:1100px){
+  .pricing-section .pricing-grid .institutional-card,
+  .pricing-section .pricing-grid .trial-card{grid-column:span 1}
+}
