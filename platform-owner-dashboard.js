@@ -138,7 +138,16 @@
             <section class="platform-page" data-platform-section="subscriptions"><div class="platform-page-heading"><div><h3>Assinaturas</h3><p>Planos, status e condições comerciais reais por escola.</p></div></div><div id="platformSubscriptionsList" class="platform-subscription-grid"></div><div class="platform-page-heading platform-payment-heading"><div><h3>Pagamentos online</h3><p>Assinaturas recorrentes iniciadas pela oferta pública.</p></div></div><div id="platformPaymentSubscriptionsList" class="platform-subscription-grid"></div></section>
             <section class="platform-page" data-platform-section="siap">
               <section class="platform-siap-hero"><div><span>Central de gestão</span><h3>Assistente SIAP</h3><p>Controle acessos, acompanhe clientes e mantenha a operação comercial da extensão em um só lugar.</p></div><a class="btn primary" href="assistente-siap.html" target="_blank" rel="noopener">Ver página pública <span aria-hidden="true">↗</span></a></section>
-              <details class="platform-siap-announcement-disclosure"><summary>Comunicação do Assistente <span aria-hidden="true">⌄</span></summary><div id="platformSiapHeaderCampaignRoot"></div><div id="platformSiapAnnouncementRoot"></div></details>
+              <details class="platform-siap-announcement-disclosure"><summary>Comunicação do Assistente <span aria-hidden="true">⌄</span></summary>
+                <div class="platform-siap-communication-workspace" data-view="campaign">
+                  <div class="platform-communication-intro"><div><small>CENTRAL DE COMUNICAÇÃO</small><h4>O que você quer mostrar no Assistente?</h4><p>A campanha ocupa o cabeçalho até você desligar. A novidade aparece abaixo e pode ser fechada por cada professor.</p></div></div>
+                  <div class="platform-communication-switch" role="tablist" aria-label="Tipo de comunicação do Assistente">
+                    <button type="button" role="tab" aria-selected="true" data-siap-communication="campaign"><span>✦</span><strong>Campanha no cabeçalho</strong><small>Publicidade fixa e botões de compra</small></button>
+                    <button type="button" role="tab" aria-selected="false" data-siap-communication="notice"><span>▣</span><strong>Novidade e aviso</strong><small>Mensagem que o usuário pode fechar</small></button>
+                  </div>
+                  <div id="platformSiapHeaderCampaignRoot"></div><div id="platformSiapAnnouncementRoot"></div>
+                </div>
+              </details>
               <div class="platform-siap-section-kicker"><span>Visão geral</span><p>Situação atual dos pontos principais do produto.</p></div>
               <div class="platform-siap-readiness">
                 <article><span>1</span><div><h4>Página comercial</h4><p>Apresentação pública com recursos, formas de acesso e planos disponíveis.</p></div><b class="platform-badge active">Publicada</b></article>
@@ -197,6 +206,11 @@
       }
     };
     modal.querySelectorAll('[data-platform-page]').forEach(button => button.onclick = () => showPlatformPage(button.dataset.platformPage));
+    modal.querySelectorAll('[data-siap-communication]').forEach(button => button.onclick = () => {
+      const workspace = button.closest('.platform-siap-communication-workspace');
+      workspace.dataset.view = button.dataset.siapCommunication;
+      workspace.querySelectorAll('[data-siap-communication]').forEach(tab => tab.setAttribute('aria-selected', String(tab === button)));
+    });
     modal.querySelectorAll('[data-go-page]').forEach(button => button.onclick = () => showPlatformPage(button.dataset.goPage));
     modal.querySelector('#platformSchoolForm').onsubmit = provisionSchool;
     modal.querySelector('#platformAdminInviteRetry').onclick = retryAdminInvite;

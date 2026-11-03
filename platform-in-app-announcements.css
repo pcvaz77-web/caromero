@@ -61,6 +61,26 @@
 .platform-announcement-row small{display:block;margin-top:3px;color:#667085}
 .platform-announcement-notification{background:#ecf9f1!important}
 .platform-announcement-notification-close{margin-top:7px}
+.platform-announcement-shell .platform-announcement-owner-grid{align-items:start;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr)}
+.platform-announcement-shell .platform-panel{border:1px solid #dfe7f2;border-radius:16px;box-shadow:0 8px 24px #122c560d;overflow:hidden}
+.platform-announcement-shell .platform-panel-head{background:#fbfcff}
+.platform-announcement-shell .platform-panel-head h4{font-size:16px;color:#193760}
+.platform-announcement-shell .platform-panel-head p{max-width:420px;margin:4px 0 0;color:#64748b;font-size:12px;line-height:1.45}
+.platform-announcement-shell .platform-announcement-form{display:grid;gap:13px;padding:18px}
+.platform-announcement-shell .platform-announcement-form textarea{min-height:110px;resize:vertical}
+.platform-announcement-shell .platform-announcement-form .field>label{font-size:12px;font-weight:800;color:#30486b}
+.platform-compose-step{display:flex;align-items:center;gap:11px;margin-top:8px;padding-top:12px;border-top:1px solid #e8edf5}
+.platform-compose-step:first-child{margin-top:0;padding-top:0;border:0}
+.platform-compose-step>span{display:grid;place-items:center;flex:none;width:31px;height:31px;border-radius:9px;background:#eaf0ff;color:#305bd0;font-size:11px;font-weight:900}
+.platform-compose-step strong,.platform-compose-step small{display:block}.platform-compose-step strong{color:#193760;font-size:13px}.platform-compose-step small{margin-top:2px;color:#718099;font-size:11px}
+.platform-announcement-shell .platform-announcement-roles{border-color:#dce5f1;border-radius:12px;background:#fbfcff}
+.platform-announcement-shell .platform-announcement-role-options label{padding:6px 10px;border:1px solid #dce5f1;border-radius:999px;background:#fff;font-size:12px;font-weight:700}
+.platform-announcement-shell .platform-communication-details-body.platform-announcement-theme-fields{display:grid;margin:0;border:0;border-radius:0}
+.platform-announcement-shell .platform-announcement-file-field{margin:0}
+.platform-announcement-shell .platform-announcement-actions{padding-top:4px}
+.platform-announcement-shell .platform-announcement-owner-grid>div{position:sticky;top:14px}
+.platform-announcement-shell .platform-announcement-history{max-height:390px;overflow:auto}
+@media(max-width:1000px){.platform-announcement-shell .platform-announcement-owner-grid>div{position:static}.platform-announcement-shell .platform-announcement-history{max-height:none}}
 @media(max-width:1000px){.platform-announcement-owner-grid{grid-template-columns:1fr}}
 @media(max-width:800px){.platform-announcement-banner{margin:-25px -17px 24px;width:calc(100% + 34px);padding:15px 17px}}
 @media(max-width:600px){.platform-announcement-video-modal{padding:10px}.platform-announcement-video-dialog{max-height:calc(100dvh - 20px);padding:10px}#platformAnnouncementVideoContent iframe,#platformAnnouncementVideoContent video{max-height:calc(100dvh - 80px);object-fit:contain}}

@@ -264,15 +264,18 @@
       <div class="platform-siap-announcement-grid"><form id="platformSiapAnnouncementForm">
         <label>Título<input name="title" maxlength="120" required placeholder="Ex.: Novidade no planejamento"></label>
         <label>Mensagem<textarea name="message_body" rows="5" maxlength="3000" required placeholder="Escreva a novidade para os professores."></textarea></label>
-        <fieldset class="platform-siap-theme-fields"><legend>Aparência do aviso</legend>
+        <details class="platform-communication-details"><summary><span><strong>Aparência do aviso</strong><small>Data comemorativa, fundo e cores.</small></span></summary><div class="platform-communication-details-body platform-siap-theme-fields">
           <label>Ocasião<select name="theme_key"><option value="classic">Padrão</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></label>
           <input name="theme_color" type="hidden" value="#17345d"><input name="theme_text_color" type="hidden" value="#ffffff"><input name="theme_image_url" type="hidden"><input id="platformSiapThemeFile" name="theme_file" type="file" hidden>
           <strong>Cartão do aviso</strong>
           <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="notice_color" type="color" value="#e8f8ed"></label><label>Cor da letra<input name="notice_text_color" type="color" value="#14532d"></label><label>Cor do botão<input name="notice_button_color" type="color" value="#168553"></label></div>
           <small>A imagem deste aviso é escolhida em Mídia, abaixo. A campanha fixa do cabeçalho é configurada no cartão acima.</small>
-        </fieldset>
+        </div></details>
+        <details class="platform-communication-details"><summary><span><strong>Botão de link</strong><small>Opcional: leve o professor para uma página ou oferta.</small></span></summary><div class="platform-communication-details-body">
         <label>Nome do botão (opcional)<input name="link_label" maxlength="60" placeholder="Ex.: Ver promoção"></label>
         <label>Link do botão (opcional)<input name="link_url" type="url" maxlength="2048" placeholder="https://..."></label>
+        </div></details>
+        <details class="platform-communication-details"><summary><span><strong>Imagem ou vídeo</strong><small>Acrescente mídia à mensagem, se desejar.</small></span></summary><div class="platform-communication-details-body">
         <label>Mídia<select name="media_source"><option value="none">Sem mídia</option><option value="link">Link HTTPS</option><option value="file">Arquivo do computador ou celular</option></select></label>
         <div class="platform-siap-announcement-media" data-announcement-link hidden>
           <label>Tipo<select name="media_type"><option value="">Escolha o tipo</option><option value="image">Imagem</option><option value="video">Vídeo</option></select></label>
@@ -281,6 +284,7 @@
         </div>
         <div data-announcement-file hidden><label>Escolher imagem ou vídeo<input name="media_file" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm"></label><small>Imagens JPG, PNG, WebP ou GIF e vídeos MP4 ou WebM: até 50 MB por arquivo. Para vídeos maiores, escolha Link HTTPS.</small></div>
         <button id="platformSiapAnnouncementRemoveMedia" type="button" class="btn secondary" hidden>Remover mídia</button>
+        </div></details>
         <div class="platform-siap-announcement-actions"><button id="platformSiapAnnouncementPublish" type="submit" class="btn primary">Publicar comunicado</button><button id="platformSiapAnnouncementDisable" type="button" class="btn secondary">Desativar</button></div>
         <p id="platformSiapAnnouncementStatus" class="meta" role="status">Carregando…</p>
       </form><div id="platformSiapAnnouncementPreview" class="platform-siap-announcement-preview"></div></div>

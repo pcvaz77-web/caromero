@@ -132,13 +132,16 @@
     mounted=true;
     root().innerHTML=`<section class="platform-panel platform-siap-header-campaign"><div class="platform-panel-head"><div><h4>Campanha no cabeçalho</h4><p>Publicidade fixa até você voltar ao padrão. É independente do aviso que cada usuário pode fechar.</p></div></div>
       <div class="platform-siap-campaign-grid"><form id="platformSiapHeaderCampaignForm">
-        <label class="platform-siap-campaign-active"><input type="checkbox" name="active"> Mostrar campanha no cabeçalho</label>
+        <label class="platform-siap-campaign-active"><span><strong>Campanha no ar</strong><small>Desligue para mostrar o cabeçalho padrão.</small></span><input type="checkbox" name="active" aria-label="Mostrar campanha no cabeçalho"></label>
         <div class="platform-siap-campaign-button-grid"><label>Frase superior<input name="eyebrow" maxlength="30" placeholder="Ex.: PROMOÇÃO"></label><label>Chamada principal<input name="headline" maxlength="60" placeholder="Ex.: BLACK FRIDAY"></label></div>
+        <details class="platform-communication-details"><summary><span><strong>Fundo e cores</strong><small>Personalize o visual da campanha.</small></span></summary><div class="platform-communication-details-body">
         <div class="platform-siap-campaign-button-grid"><label>Cor de fundo<input name="background_color" type="color" value="#080e1b"></label><label>Cor do texto<input name="text_color" type="color" value="#fff5d4"></label></div>
         <label>Imagem de fundo (link HTTPS, opcional)<input name="background_image_url" type="url" maxlength="2048" placeholder="https://..."></label>
         <label>Ou enviar imagem de fundo<input name="background_file" type="file" accept="image/jpeg,image/png,image/webp"></label>
-        <p class="meta">Escolha até três botões. Cada um mostra o preço atual do plano e abre seu checkout Hotmart diretamente.</p>
+        </div></details>
+        <details class="platform-communication-details" open><summary><span><strong>Botões de compra</strong><small>Até três planos com acesso direto ao checkout Hotmart.</small></span></summary><div class="platform-communication-details-body platform-siap-campaign-buttons-layout">
         ${[0,1,2].map(row).join('')}
+        </div></details>
         <div class="platform-siap-announcement-actions"><button id="platformSiapHeaderCampaignSave" type="submit" class="btn primary">Salvar campanha</button><button id="platformSiapHeaderCampaignReset" type="button" class="btn secondary">Voltar ao cabeçalho padrão</button></div>
         <p id="platformSiapHeaderCampaignStatus" class="meta" role="status">Carregando…</p>
       </form><div><strong>Prévia do cabeçalho</strong><div id="platformSiapHeaderCampaignPreview" class="platform-siap-campaign-preview"></div></div></div>

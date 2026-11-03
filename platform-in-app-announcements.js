@@ -588,18 +588,16 @@
     const shell = document.createElement('div');
     shell.className = 'platform-announcement-shell';
     shell.innerHTML = `
-      <nav class="platform-announcement-tabs" aria-label="Canais de comunicação">
-        <button type="button" class="active" data-channel="in-app" aria-selected="true">Mensagem direta no Carômetro</button>
-        <button type="button" data-channel="whatsapp" aria-selected="false">Mensagens pelo WhatsApp</button>
-        <button type="button" data-channel="email" aria-selected="false">Campanhas por e-mail</button>
-      </nav>
       <div id="platformAnnouncementOwnerArea">
-        <p class="platform-announcement-intro">Publique uma mensagem para os perfis escolhidos no Carômetro. A publicação substitui e exclui definitivamente o aviso anterior. Cada pessoa pode fechar o aviso individualmente.</p>
-        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Novo aviso</h4><p>Título, mensagem e vídeo opcional. Nenhuma ação adicional é exigida de quem receber.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
+        <div class="platform-communication-intro"><div><small>AVISOS NO CARÔMETRO</small><h4>Crie uma novidade para a plataforma</h4><p>Escreva, confira a prévia e publique. Cada pessoa pode fechar o aviso no próprio acesso.</p></div><span class="platform-communication-intro-mark" aria-hidden="true">✦</span></div>
+        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Preparar aviso</h4><p>Comece pelo título e pela mensagem. Os demais recursos são opcionais.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
           <form id="platformAnnouncementForm" class="platform-announcement-form">
+            <div class="platform-compose-step"><span>01</span><div><strong>Mensagem</strong><small>O conteúdo principal que as pessoas verão.</small></div></div>
             <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
             <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
-            <fieldset class="platform-announcement-theme-fields"><legend>Aparência da faixa de novidades</legend>
+            <div class="platform-compose-step"><span>02</span><div><strong>Público</strong><small>Escolha quem receberá este aviso.</small></div></div>
+            <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
+            <details class="platform-communication-details"><summary><span><strong>Visual e data comemorativa</strong><small>Cores, imagem de fundo e imagem da informação.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
               <div class="field"><label for="platformAnnouncementTheme">Ocasião</label><select id="platformAnnouncementTheme"><option value="classic">Padrão</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></div>
               <div class="platform-announcement-theme-colors"><div class="field"><label for="platformAnnouncementThemeColor">Cor de fundo</label><input id="platformAnnouncementThemeColor" type="color" value="#138052"></div><div class="field"><label for="platformAnnouncementTextColor">Cor do texto</label><input id="platformAnnouncementTextColor" type="color" value="#ffffff"></div></div>
               <div class="field"><label for="platformAnnouncementButtonColor">Cor do botão</label><input id="platformAnnouncementButtonColor" type="color" value="#ffffff"></div>
@@ -607,31 +605,23 @@
               <div class="field"><label for="platformAnnouncementThemeFile">Ou enviar imagem de fundo</label><input id="platformAnnouncementThemeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG ou WebP até 10 MB. O texto permanece por cima da imagem.</small></div>
               <div class="field"><label for="platformAnnouncementNoticeImage">Imagem da informação (link HTTPS, opcional)</label><input id="platformAnnouncementNoticeImage" type="url" maxlength="2048" placeholder="https://..."></div>
               <div class="field"><label for="platformAnnouncementNoticeFile">Ou enviar imagem da informação</label><input id="platformAnnouncementNoticeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>Essa imagem aparece dentro da faixa, abaixo do texto. É independente do fundo comemorativo.</small></div>
-            </fieldset>
+            </div></details>
+            <details class="platform-communication-details"><summary><span><strong>Botão com link</strong><small>Opcional: envie para uma página, promoção ou tutorial.</small></span></summary><div class="platform-communication-details-body">
             <div class="field"><label for="platformAnnouncementLinkLabel">Nome do botão (opcional)</label><input id="platformAnnouncementLinkLabel" maxlength="60" placeholder="Ex.: Ver planos"></div>
             <div class="field"><label for="platformAnnouncementLinkUrl">Link do botão (opcional)</label><input id="platformAnnouncementLinkUrl" type="url" maxlength="2048" placeholder="https://..."></div>
-            <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
+            </div></details>
+            <details class="platform-communication-details"><summary><span><strong>Vídeo</strong><small>Opcional: link público ou arquivo MP4.</small></span></summary><div class="platform-communication-details-body">
             <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
             <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 45 MB, sem limite de duração. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
+            </div></details>
+            <div class="platform-compose-step"><span>03</span><div><strong>Revise e publique</strong><small>Veja a prévia ao lado antes de publicar.</small></div></div>
             <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar aviso</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>
           <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><p id="platformAnnouncementPreviewAudience" class="platform-announcement-audience">Visível para: Todos</p><div id="platformAnnouncementPreview" class="platform-announcement-preview"><div><small id="platformAnnouncementPreviewTitle">Título do aviso</small><strong id="platformAnnouncementPreviewBody">A mensagem aparecerá aqui para os perfis escolhidos.</strong><img id="platformAnnouncementPreviewImage" class="platform-announcement-content-image hidden" alt="Imagem da informação"><span id="platformAnnouncementPreviewVideo" class="hidden">▶ Ver vídeo</span><span id="platformAnnouncementPreviewAction" class="platform-announcement-action hidden">Abrir link</span></div><span aria-hidden="true">×</span></div></section>
           <section class="platform-panel platform-announcement-history"><div class="platform-panel-head"><h4>Aviso atual e rascunhos</h4></div><div id="platformAnnouncementList" class="platform-announcement-list"></div></section></div></div>
-      </div>
-      <section id="platformAnnouncementWhatsAppArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Mensagens pelo WhatsApp</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>
-      <section id="platformAnnouncementEmailArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Campanhas por e-mail</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>`;
+      </div>`;
     root.replaceChildren(shell);
-    shell.querySelectorAll('[data-channel]').forEach(button => button.onclick = () => {
-      const channel = button.dataset.channel;
-      byId('platformAnnouncementOwnerArea').classList.toggle('hidden', channel !== 'in-app');
-      byId('platformAnnouncementWhatsAppArea').classList.toggle('hidden', channel !== 'whatsapp');
-      byId('platformAnnouncementEmailArea').classList.toggle('hidden', channel !== 'email');
-      shell.querySelectorAll('[data-channel]').forEach(tab => {
-        tab.classList.toggle('active', tab === button);
-        tab.setAttribute('aria-selected', String(tab === button));
-      });
-    });
     byId('platformAnnouncementForm').onsubmit = event => { event.preventDefault(); saveDraft(); };
     byId('platformAnnouncementForm').addEventListener('input', renderOwnerPreview);
     byId('platformAnnouncementTheme').addEventListener('change', () => {
