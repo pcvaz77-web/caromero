@@ -28,7 +28,6 @@
   let currentSession = null;
   let accessStatus = null;
   let examStatus = null;
-  let pendingEmail = '';
   let paymentPollTimer = null;
   let paymentPollCount = 0;
   let checkingPayment = false;
@@ -44,12 +43,11 @@
     document.querySelector('.site-header .brand small').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy .eyebrow').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy h1').textContent = 'Experimente antes de contratar';
-    document.getElementById('accountPageIntro').textContent = 'Confirme seu e-mail com o código de 6 dígitos. Depois, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
+    document.getElementById('accountPageIntro').textContent = 'Confirme seu e-mail pelo link enviado à sua caixa de entrada. Depois, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
     loginForm.querySelector('h2').textContent = 'Confirme seu e-mail';
-    loginForm.querySelector('p').textContent = 'Enviaremos um código de 6 dígitos para este e-mail. Digite o código nesta página para liberar a instalação.';
+    loginForm.querySelector('p').textContent = 'Enviaremos um link de acesso para este e-mail. Abra a mensagem e clique no link para liberar a instalação.';
     loginForm.querySelectorAll('p')[1].hidden = true;
-    loginForm.querySelector('button[type="submit"]').textContent = 'Enviar código';
-    document.getElementById('accountCodeStep').querySelector('label').firstChild.textContent = 'Código de 6 dígitos';
+    loginForm.querySelector('button[type="submit"]').textContent = 'Enviar link de acesso';
   }
 
   if (accountFlow) {
@@ -307,22 +305,7 @@
     const redirectPath = trialFlow ? location.pathname.replace(/\.html$/, '') : location.pathname;
     const redirectTo = `${location.origin}${redirectPath}?plano=${encodeURIComponent(planKey)}`;
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
-    pendingEmail = error ? '' : email;
-    document.getElementById('accountCodeStep').hidden = !!error;
-    message('loginMessage', error ? 'Não foi possível enviar a confirmação. Tente novamente.' : trialFlow ? 'Código enviado. Confira sua caixa de entrada e o spam; digite os 6 dígitos aqui.' : 'Confira seu e-mail. Abra o link recebido ou digite o código, se houver.', !!error);
-  };
-  document.getElementById('verifyAccountCode').onclick = async () => {
-    const token = document.getElementById('accountOtp').value.trim();
-    if (!pendingEmail || !/^\d{6}$/.test(token)) {
-      message('loginMessage', 'Confira o código recebido no e-mail.', true);
-      return;
-    }
-    const { error } = await db.auth.verifyOtp({ email:pendingEmail, token, type:'email' });
-    if (error) {
-      message('loginMessage', 'Código inválido ou vencido. Confira o e-mail ou solicite outro.', true);
-      return;
-    }
-    await refresh();
+    message('loginMessage', error ? 'Não foi possível enviar o link. Tente novamente.' : 'Link enviado. Confira sua caixa de entrada e o spam; abra a mensagem e clique no link para continuar.', !!error);
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
   refreshAccessButton.onclick = () => refreshPaymentAccess();
