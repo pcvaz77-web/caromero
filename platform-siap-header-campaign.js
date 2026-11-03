@@ -2,6 +2,7 @@
   let mounted = false;
   let current = null;
   let planPrices = {};
+  let saving = false;
   const root = () => document.getElementById('platformSiapHeaderCampaignRoot');
   const form = () => document.getElementById('platformSiapHeaderCampaignForm');
   const status = (message, error=false) => {
@@ -104,11 +105,15 @@
     return null;
   }
   async function persist(item) {
+    if (saving) return false;
     const errorMessage=valid(item);
-    if (errorMessage) { status(errorMessage,true); return; }
+    if (errorMessage) { status(errorMessage,true); return false; }
     const saveButton=document.getElementById('platformSiapHeaderCampaignSave');
     const resetButton=document.getElementById('platformSiapHeaderCampaignReset');
-    saveButton.disabled=resetButton.disabled=true;
+    const activeToggle=form().elements.active;
+    saving=true;
+    saveButton.disabled=resetButton.disabled=activeToggle.disabled=true;
+    status('Salvando campanha…');
     let uploadedPath=null;
     try {
       const file=form().elements.background_file.files?.[0];
@@ -128,17 +133,19 @@
       if (error) throw error;
       await load();
       status(item.active ? 'Campanha publicada no cabeçalho.' : 'Cabeçalho padrão restaurado. Campanha guardada no painel.');
+      return true;
     } catch (error) {
       if (uploadedPath) await db.storage.from('siap-announcement-media').remove([uploadedPath]);
       status(error.message || 'Não foi possível salvar a campanha.',true);
-    } finally { saveButton.disabled=resetButton.disabled=false; }
+      return false;
+    } finally { saving=false; saveButton.disabled=resetButton.disabled=activeToggle.disabled=false; }
   }
   function mount() {
     if (mounted || !root()) return;
     mounted=true;
     root().innerHTML=`<section class="platform-panel platform-siap-header-campaign"><div class="platform-panel-head"><div><h4>Campanha no cabeçalho</h4><p>Publicidade fixa até você voltar ao padrão. É independente do aviso que cada usuário pode fechar.</p></div></div>
       <div class="platform-siap-campaign-grid"><form id="platformSiapHeaderCampaignForm">
-        <label class="platform-siap-campaign-active"><span class="platform-siap-campaign-state"><span class="platform-siap-campaign-state-dot" aria-hidden="true"></span><span><strong id="platformSiapCampaignActiveLabel">Campanha ativa</strong><small id="platformSiapCampaignActiveDescription">A publicidade aparece para os professores.</small></span></span><input type="checkbox" name="active" aria-label="Mostrar campanha no cabeçalho"><span class="platform-siap-toggle-track" aria-hidden="true"></span></label>
+        <label class="platform-siap-campaign-active"><span class="platform-siap-campaign-state"><span class="platform-siap-campaign-state-dot" aria-hidden="true"></span><span><strong id="platformSiapCampaignActiveLabel">Campanha ativa</strong><small id="platformSiapCampaignActiveDescription">A publicidade aparece para os professores.</small><small>Este interruptor salva a mudança automaticamente.</small></span></span><input type="checkbox" name="active" aria-label="Mostrar campanha no cabeçalho"><span class="platform-siap-toggle-track" aria-hidden="true"></span></label>
         <div class="platform-siap-campaign-button-grid"><label>Frase superior<input name="eyebrow" maxlength="30" placeholder="Ex.: PROMOÇÃO"></label><label>Chamada principal<input name="headline" maxlength="60" placeholder="Ex.: BLACK FRIDAY"></label></div>
         <details class="platform-communication-details"><summary><span><strong>Fundo e cores</strong><small>Personalize o visual da campanha.</small></span></summary><div class="platform-communication-details-body">
         <div class="platform-siap-campaign-button-grid"><label>Cor de fundo<input name="background_color" type="color" value="#080e1b"></label><label>Cor do texto<input name="text_color" type="color" value="#fff5d4"></label></div>
@@ -154,6 +161,12 @@
     </section>`;
     form().addEventListener('input',preview);
     form().addEventListener('change',preview);
+    form().elements.active.addEventListener('change',async () => {
+      if (!current) return;
+      const activeToggle=form().elements.active;
+      const item=activeToggle.checked ? read() : {...current,active:false};
+      if (!await persist(item)) { activeToggle.checked=current.active===true; preview(); }
+    });
     form().onsubmit=event=>{event.preventDefault();persist(read());};
     document.getElementById('platformSiapHeaderCampaignReset').onclick=()=>{
       if (current) persist({...current,active:false});
