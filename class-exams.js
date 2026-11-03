@@ -23,6 +23,11 @@
   const rich = () => window.CepiRichText;
   const role = () => window.getActiveSchoolRole?.();
   const canEdit = exam => exam?.created_by === userId && !exam.finalized_at && !exam.deleted_at;
+  const canCorrectCards = exam => exam?.finalized_at && !exam.deleted_at && exam.created_by===userId
+    && ['ABCDE','ABCD','VF'].includes(exam.answer_format)
+    && (exam.questions||[]).length>0 && exam.questions.length<=200
+    && (exam.questions||[]).every(question=>exam.answer_format.includes(question.correct_answer))
+    && (exam.exam_type!=='enem'||!cepiEnabled);
   const canContribute = exam => exam?.exam_type === 'enem' && !cepiEnabled && !exam.finalized_at && !exam.deleted_at && roles.has(role());
   const canManageExam = exam => !!exam && (managers.has(role()) || exam.created_by === userId);
   const canPurgeExam = exam => !!exam?.deleted_at && role()==='school_admin';
@@ -227,7 +232,7 @@
         body.querySelector('#cxeStatus').before(button);
       }
     }
-    if(exam.exam_type==='enem'&&exam.finalized_at&&exam.created_by===userId){
+    if(canCorrectCards(exam)){
       const button=document.createElement('button');button.type='button';button.id='cxeCorrect';button.className='btn primary';button.textContent='Corrigir cartões pelo celular';body.querySelector('.cxe-toolbar').append(button);button.onclick=()=>renderCorrection(exam);
     }
     if(exam.exam_type!=='enem'){
@@ -409,9 +414,9 @@
     if(session)correctionRequest('close',{},session).catch(()=>{});
   }
   async function renderCorrection(exam){
-    if(exam.deleted_at||exam.exam_type!=='enem'||!exam.finalized_at||exam.created_by!==userId||cepiEnabled)return;
+    if(!canCorrectCards(exam))return;
     if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}
-    body.innerHTML=`<div class="cxe-toolbar"><button type="button" class="btn secondary" id="cxeBackCorrection">← Voltar à prova</button></div><h4>Correção do Simulado do ENEM · ${esc(context.className)}</h4><p class="cxe-note">Confira os cartões no celular. Os acertos serão guardados nesta turma; este simulado não faz lançamento no SIAP.</p><div class="cxe-toolbar"><button type="button" class="btn primary" id="cxeStartCorrection">Gerar QR Code</button><button type="button" class="btn secondary" id="cxeStopCorrection" hidden>Encerrar leitura</button></div><p id="cxeCorrectionStatus" role="status"></p><div id="cxeCorrectionQr"></div><div id="cxeCorrectionLive"></div><h4>Resultados registrados</h4><div id="cxeCorrectionSaved">Carregando…</div>`;
+    body.innerHTML=`<div class="cxe-toolbar"><button type="button" class="btn secondary" id="cxeBackCorrection">← Voltar à prova</button></div><h4>Correção de ${esc(displayTitle(exam.title))} · ${esc(context.className)}</h4><p class="cxe-note">Confira os cartões no celular. Os acertos serão guardados nesta turma; esta correção não faz lançamento no SIAP.</p><div class="cxe-toolbar"><button type="button" class="btn primary" id="cxeStartCorrection">Gerar QR Code</button><button type="button" class="btn secondary" id="cxeStopCorrection" hidden>Encerrar leitura</button></div><p id="cxeCorrectionStatus" role="status"></p><div id="cxeCorrectionQr"></div><div id="cxeCorrectionLive"></div><h4>Resultados registrados</h4><div id="cxeCorrectionSaved">Carregando…</div>`;
     body.querySelector('#cxeBackCorrection').onclick=()=>{endCorrection();renderExam(exam);};
     body.querySelector('#cxeStartCorrection').onclick=()=>startCorrection(exam);
     body.querySelector('#cxeStopCorrection').onclick=async()=>{const session=correctionSession;if(session){await correctionRequest('close',{},session).catch(()=>{});correctionSession=null;}if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}renderCorrection(exam);};
@@ -437,11 +442,11 @@
       if(window.getActiveSchoolId?.()!==schoolId)throw new Error('A escola ativa mudou. Abra o Painel da Turma novamente.');
       const roster=await studentRoster();if(!roster.length)throw new Error('Não há alunos ativos nesta turma.');
       const answers=exam.questions.map(item=>item.correct_answer);
-      if(answers.some(answer=>!['A','B','C','D','E'].includes(answer)))throw new Error('Confira o gabarito antes de corrigir.');
+      if(answers.some(answer=>!exam.answer_format.includes(answer)))throw new Error('Confira o gabarito antes de corrigir.');
       const created=await correctionRequest('create',{context:`${displayTitle(exam.title)} · ${context.className} · ${exam.questions.length} questões`,mobileWorkflow:true});
       const session={room:created,schoolId,examId:exam.id,classId:context.classId,roster,saved:new Set(),heartbeatAt:Date.now()};
       try{
-        await correctionRequest('key',{key:{firstQuestion:1,alphabet:'ABCDE',answers,ranges:[{subject:'Simulado do ENEM',from:1,to:answers.length}]}},session);
+        await correctionRequest('key',{key:{firstQuestion:1,alphabet:exam.answer_format,answers,ranges:[{subject:exam.subject,from:1,to:answers.length}]}},session);
         await correctionRequest('roster',{roster:roster.map(item=>({id:item.id,name:item.full_name})),binding:`${schoolId}:${exam.id}:${context.classId}`},session);
       }catch(error){await correctionRequest('close',{},session).catch(()=>{});throw error;}
       correctionSession=session;showCorrectionRoom(exam);pollCorrection(exam);
@@ -478,7 +483,7 @@
     try{
       if(window.getActiveSchoolId?.()!==session.schoolId)throw new Error('A escola ativa mudou. Abra o Painel da Turma novamente.');
       const response=await correctionRequest('status',{},session);
-      const entries=window.CepiCorrection.reviewedItems(response,session.roster.map(item=>item.id),{answer_format:'ABCDE',question_count:exam.questions.length});
+      const entries=window.CepiCorrection.reviewedItems(response,session.roster.map(item=>item.id),{answer_format:exam.answer_format,question_count:exam.questions.length});
       if(!entries.length)throw new Error('Ainda não há cartão conferido no celular.');
       const existing=await db.from('class_exam_results').select('capture_ref').eq('school_id',session.schoolId).eq('exam_id',exam.id).in('capture_ref',entries.map(item=>item.capture_ref));
       if(existing.error)throw existing.error;

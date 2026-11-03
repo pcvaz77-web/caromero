@@ -119,6 +119,20 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
   }finally{env.dom.window.close();}
 });
 
+test('correção por cartão aparece apenas para prova objetiva finalizada do autor',async()=>{
+  const base={school_id:'school-1',class_id:'class-1',created_by:'teacher-1',title:'PROVA',subject:'Matemática',academic_year:2026,finalized_at:'2026-10-27T10:00:00Z'};
+  for(const [format,expected] of [['ABCD',true],['VF',true],['LIVRE',false],['MISTA',false]]){
+    const exam={...base,id:'exam-1',exam_type:'bimestral',answer_format:format,questions:[{statement:'Questão',correct_answer:format==='VF'?'V':'A'}]};
+    const env=setup({seed:[exam]});
+    try{
+      await tick();env.window.document.querySelector('[data-type="regular"]').click();
+      env.window.document.querySelector('[data-open]').click();
+      assert.equal(Boolean(env.window.document.querySelector('#cxeCorrect')),expected,format);
+      if(expected){env.window.document.querySelector('#cxeCorrect').click();assert.match(env.window.document.querySelector('#classExamBody').textContent,/Correção de PROVA/);}
+    }finally{env.dom.window.close();}
+  }
+});
+
 test('banco da escola reutiliza questão compatível na prova da turma',async()=>{
   const exam={id:'exam-bank',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',exam_type:'mensal',title:'Prova de Ciências',subject:'Ciências',academic_year:2026,bimester:4,answer_format:'ABCD',questions:[],finalized_at:null};
   const bank={id:'bank-1',school_id:'school-1',subject:'Ciências',stage:'medio',answer_format:'ABCD',statement:'<!--cepi-rich-v1--><p>Qual é a resposta?</p>',correct_answer:'B',model_answer:'',active:true};

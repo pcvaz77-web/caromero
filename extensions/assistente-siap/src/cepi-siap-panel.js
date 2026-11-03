@@ -2,7 +2,7 @@
   'use strict';
   const Dom=window.CepiSiapDom;
   const escape=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
-  let host=null,room=null,status=null,snapshot=null,entries=[],busy=false,message='',timer=null;
+  let host=null,room=null,status=null,snapshot=null,entries=[],busy=false,message='',timer=null,fallback=false;
   const send=data=>chrome.runtime.sendMessage(data);
   async function refresh(){
     if(busy)return;
@@ -10,7 +10,12 @@
     try{
       const found=await send({type:'SIAP_CEPI_ROOM_GET'});
       room=found?.room||null;
-      if(!room){status=null;entries=[];message='Abra a prova em Meu CEPI no Carômetro e conecte o celular para corrigir.';return;}
+      if(!room || room.meta?.examType!=='bloco'){
+        status=null;entries=[];fallback=true;
+        window.SiapExamPanel?.mount(host);
+        return;
+      }
+      fallback=false;
       const result=await send({type:'SIAP_EXAM_API',action:'status',room:room.id,token:room.desktop});
       if(!result?.ok)throw new Error(result?.error||'Não foi possível consultar os cartões.');
       status=result;
@@ -21,7 +26,7 @@
     finally{busy=false;draw();}
   }
   function draw(){
-    if(!host)return;
+    if(!host||fallback)return;
     const selected=new Set([...host.querySelectorAll('[data-cepi-capture]:checked')].map(box=>box.value));
     const call=host.querySelector('[data-cepi-call]')?.value||'1';
     host.innerHTML=`<section class="cm-card cm-exam"><h3>Cartões do Meu CEPI</h3><p>O gabarito e a divisão por disciplina vêm da prova salva no Carômetro.</p><p role="status" data-cepi-message>${escape(message)}</p><button type="button" class="cm-btn" data-cepi-refresh>Atualizar cartões</button>${entries.length?`<p><strong>${escape(snapshot.context.subject)}</strong> · ${snapshot.context.total} questões · ${escape(snapshot.context.className)}</p><label>Chamada<select data-cepi-call><option value="1">1ª chamada</option><option value="2">2ª chamada</option></select></label>${entries.map(entry=>`<label><input type="checkbox" data-cepi-capture value="${escape(entry.captureId)}" ${selected.has(entry.captureId)?'checked':''}>${escape(entry.name)} · ${entry.marks.filter(Boolean).length}/${entry.marks.length} acertos</label>`).join('')}<button type="button" class="cm-btn cm-primary" data-cepi-apply>Preencher selecionados no SIAP</button><p>Depois de conferir os campos, clique em <strong>Salvar</strong> no próprio SIAP.</p>`:''}</section>`;
@@ -50,8 +55,8 @@
     finally{busy=false;draw();}
   }
   function mount(container){
-    if(host===container)return;
-    clearInterval(timer);host=container;message='Verificando sessão de correção…';draw();refresh();
+    if(host===container){if(fallback)refresh();return;}
+    clearInterval(timer);host=container;fallback=false;message='Verificando sessão de correção…';draw();refresh();
     timer=setInterval(()=>{if(host?.isConnected)refresh();},4000);
   }
   window.CepiSiapPanel=Object.freeze({supports:Dom.supports,mount});

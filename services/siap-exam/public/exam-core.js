@@ -7,7 +7,7 @@
   const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim();
   function answers(text, count, alphabet = 'ABCDE', official = false) {
     const values = Array.isArray(text) ? text : String(text).toUpperCase().trim().split(/[\s,;]+/);
-    if (values.length !== count || !Number.isInteger(count) || count < 1 || count > 100) throw new Error('A quantidade de respostas deve corresponder ao total de questões.');
+    if (values.length !== count || !Number.isInteger(count) || count < 1 || count > 200) throw new Error('A quantidade de respostas deve corresponder ao total de questões (até 200).');
     const allowed = official ? alphabet : alphabet + '-*?';
     if (values.some(v => typeof v !== 'string' || v.length !== 1 || !allowed.includes(v))) throw new Error('Use as alternativas do modelo; - para branco, * para múltipla e ? para dúvida.');
     return [...values];

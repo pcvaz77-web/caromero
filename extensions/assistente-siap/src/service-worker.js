@@ -95,7 +95,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       const path=action==='create'?'/api/create':`/api/${room}/${action}`;
       const response=await fetch(SiapExamConfig.origin+path,{method:'POST',headers:{'Content-Type':'application/json','X-Exam-Token':token,...(['create','heartbeat'].includes(action)?{Authorization:`Bearer ${accessToken}`}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(25000)});
       const data=await response.json().catch(()=>({}));
-      if(response.ok&&data.ok&&action==='create'&&body.cepiMeta&&data.id&&data.desktop){await chrome.storage.session.set({carometroCepiExamRoom:{id:data.id,desktop:data.desktop,expires:data.expires,meta:body.cepiMeta}});}
+      if(response.ok&&data.ok&&action==='create'&&data.id&&data.desktop){
+        if(body.cepiMeta)await chrome.storage.session.set({carometroCepiExamRoom:{id:data.id,desktop:data.desktop,expires:data.expires,meta:body.cepiMeta}});
+        else await chrome.storage.session.remove('carometroCepiExamRoom');
+      }
       if(response.ok&&action==='close'){const stored=await chrome.storage.session.get('carometroCepiExamRoom');if(stored.carometroCepiExamRoom?.id===room)await chrome.storage.session.remove('carometroCepiExamRoom');}
       respond(response.ok ? data : {ok:false,error:data.error||'Correção indisponível.',status:response.status});
     })().catch(error=>respond({ok:false,error:error.message||'Correção indisponível.'}));
