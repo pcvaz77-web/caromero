@@ -19,6 +19,8 @@
   const accessSummary = document.getElementById('assistantAccessSummary');
   const installSteps = document.getElementById('assistantInstallSteps');
   const installLink = document.getElementById('installAssistantExtension');
+  const paymentReturnHint = document.getElementById('paymentReturnHint');
+  const refreshAccessButton = document.getElementById('refreshAssistantAccess');
   const panelTitle = document.getElementById('accountPanelTitle');
   const selectedPlanTarget = document.getElementById('selectedPlan');
   const trialEndedLink = document.getElementById('trialEndedLink');
@@ -27,6 +29,9 @@
   let accessStatus = null;
   let examStatus = null;
   let pendingEmail = '';
+  let paymentPollTimer = null;
+  let paymentPollCount = 0;
+  let checkingPayment = false;
   const extensionIds = [
     'bfbjocbablljmknahhlkjhllpjmihibe',
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
@@ -103,6 +108,13 @@
 
   const renderAccessStatus = status => {
     accessStatus = status;
+    const paidAccess = status?.mode === 'subscription' && status.active === true;
+    paymentReturnHint.hidden = paidAccess || trialFlow || examFlow || accountFlow;
+    refreshAccessButton.hidden = paidAccess || trialFlow || examFlow;
+    if (paidAccess && paymentPollTimer) {
+      clearInterval(paymentPollTimer);
+      paymentPollTimer = null;
+    }
     accessSummary.hidden = false;
     accessSummary.dataset.mode = status?.mode || '';
     connectButton.disabled = false;
@@ -185,6 +197,40 @@
     return data;
   };
 
+  const refreshPaymentAccess = async (knownStatus = null) => {
+    if (checkingPayment || !currentSession || trialFlow || examFlow) return;
+    checkingPayment = true;
+    try {
+      const status = knownStatus || await loadAccessStatus();
+      if (status?.mode === 'subscription' && status.active === true) return;
+      const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
+        .select('status,created_at').eq('provider','hotmart').eq('status','pending')
+        .order('created_at',{ascending:false}).limit(1).maybeSingle();
+      const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
+      if (!recent) return;
+      panelTitle.textContent = 'Pagamento em confirmação';
+      accessSummary.hidden = false;
+      accessSummary.textContent = 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento. Assim que ela chegar, esta página mostrará a conexão da extensão.';
+      selectedPlanTarget.hidden = true;
+      legal.hidden = true;
+      checkoutButton.hidden = true;
+      trialEndedLink.hidden = true;
+      paymentReturnHint.hidden = true;
+      refreshAccessButton.hidden = false;
+      installSteps.hidden = false;
+      connectButton.hidden = true;
+      if (!paymentPollTimer) {
+        paymentPollCount = 0;
+        paymentPollTimer = setInterval(() => {
+          if (++paymentPollCount > 30) { clearInterval(paymentPollTimer); paymentPollTimer = null; return; }
+          if (document.visibilityState === 'visible') refreshPaymentAccess();
+        }, 12000);
+      }
+    } finally {
+      checkingPayment = false;
+    }
+  };
+
   const connectCurrentSession = async (silent = false) => {
     if (!currentSession?.access_token || !currentSession?.expires_at) {
       if (!silent) message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
@@ -247,6 +293,7 @@
       document.getElementById('paymentEmailHint').textContent = `No pagamento da Hotmart, use ${session.user.email}. A licença e os créditos serão vinculados a essa conta. Já pagou com outro e-mail? Use “Entrar com outro e-mail”.`;
       await loadPlan();
       const status = await loadAccessStatus();
+      if (status?.mode !== 'subscription' || status.active !== true) await refreshPaymentAccess(status);
       if (!accountFlow && status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
         message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação do pagamento.');
@@ -278,6 +325,10 @@
     await refresh();
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
+  refreshAccessButton.onclick = () => refreshPaymentAccess();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentSession && !refreshAccessButton.hidden) refreshPaymentAccess();
+  });
   checkoutButton.onclick = async () => {
     if (!selectedPlan || !legal.checked) return;
     checkoutButton.disabled = true;

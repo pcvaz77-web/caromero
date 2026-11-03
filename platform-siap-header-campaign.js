@@ -19,7 +19,7 @@
       <div class="platform-siap-campaign-button-grid"><label>Plano<select name="button_plan_${index}"><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option><option value="semiannual">Semestral</option><option value="annual">Anual</option></select></label>
       <label>Texto do botão<input name="button_label_${index}" maxlength="30" placeholder="Ex.: Semestral"></label></div>
       <div class="platform-siap-campaign-button-grid"><label>Cor do botão<input type="color" name="button_color_${index}" value="#e7c46f"></label><label>Cor do texto<input type="color" name="button_text_color_${index}" value="#0b1930"></label></div>
-      <small>Abre diretamente o checkout Hotmart vinculado ao plano. O preço vem dos planos de venda.</small>
+      <small>Abre a confirmação da conta e, em seguida, o checkout Hotmart do plano. O preço vem dos planos de venda.</small>
       <p class="platform-siap-campaign-button-inactive">Ative para configurar mais um plano.</p>
     </section>`;
   }
@@ -145,7 +145,7 @@
         <label>Imagem de fundo (link HTTPS, opcional)<input name="background_image_url" type="url" maxlength="2048" placeholder="https://..."></label>
         <label>Ou enviar imagem de fundo<input name="background_file" type="file" accept="image/jpeg,image/png,image/webp"></label>
         </div></details>
-        <details class="platform-communication-details" open><summary><span><strong>Botões de compra</strong><small>Até três planos com acesso direto ao checkout Hotmart.</small></span></summary><div class="platform-communication-details-body platform-siap-campaign-buttons-layout">
+        <details class="platform-communication-details" open><summary><span><strong>Botões de compra</strong><small>Até três planos com acesso à conta e ao checkout Hotmart.</small></span></summary><div class="platform-communication-details-body platform-siap-campaign-buttons-layout">
         ${[0,1,2].map(row).join('')}
         </div></details>
         <div class="platform-siap-announcement-actions"><button id="platformSiapHeaderCampaignSave" type="submit" class="btn primary">Salvar campanha</button><button id="platformSiapHeaderCampaignReset" type="button" class="btn secondary">Voltar ao cabeçalho padrão</button></div>

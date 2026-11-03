@@ -106,7 +106,11 @@ Deno.serve(async request=>{
     const revoked=['PURCHASE_REFUNDED','PURCHASE_CHARGEBACK','PURCHASE_CANCELED'].includes(event)
     if(approved){
       const currency=String(purchase.price?.currency_value??purchase.full_price?.currency_value??'BRL')
-      if(!transaction||currency!=='BRL'||!Number.isFinite(amount)||Math.abs(amount-Number(activeMapping.expected_amount))>0.009) throw new Error('payment_mismatch')
+      // O pagamento pode ter sido iniciado antes da troca entre oferta normal
+      // e promocional. Compare com o pedido daquele comprador, não com a oferta
+      // que está publicada no momento em que o webhook chega.
+      const expectedAmount=activeMapping.target==='assistant'?Number(payment.amount):Number(activeMapping.expected_amount)
+      if(!transaction||currency!=='BRL'||!Number.isFinite(amount)||Math.abs(amount-expectedAmount)>0.009) throw new Error('payment_mismatch')
       const alreadyActivated=payment.provider_transaction_id===transaction&&payment.last_payment_status==='approved'
       const changes={provider_subscription_id:subscriptionId||payment.provider_subscription_id,provider_subscriber_code:subscriberCode||payment.provider_subscriber_code,provider_transaction_id:transaction,last_payment_id:transaction,last_invoice_id:transaction,last_payment_status:'approved',provider_status:String(data.subscription?.status??purchase.status??event),status:'authorized',last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()}
       const {error:updateError}=await admin.from(table).update(changes).eq('id',payment.id);if(updateError) throw updateError

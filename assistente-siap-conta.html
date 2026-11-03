@@ -18,7 +18,7 @@
     <section class="account-copy">
       <span class="eyebrow">PAGAMENTO PROTEGIDO</span>
       <h1>Ative seu acesso individual</h1>
-      <p id="accountPageIntro">Entre com seu e-mail, confirme o plano e prossiga para o checkout seguro.</p>
+      <p id="accountPageIntro">Confirme seu e-mail, pague na Hotmart e volte a esta página para instalar e conectar a extensão.</p>
       <div class="payment-methods" aria-label="Formas de pagamento">
         <span>◆ Pix no trimestral</span><span>▣ Cartão e boleto</span>
       </div>
@@ -45,7 +45,9 @@
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
+        <p id="paymentReturnHint" class="account-identity" hidden>Depois do pagamento, use “Acessar produto” na Hotmart ou abra o link enviado ao seu e-mail. Você voltará a esta página para instalar e conectar a extensão.</p>
         <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
+        <button id="refreshAssistantAccess" class="button button-outline" type="button" hidden>Já paguei · verificar acesso</button>
         <div id="assistantInstallSteps" class="assistant-install-steps" hidden>
           <strong>Conclua a instalação em duas etapas:</strong>
           <a id="installAssistantExtension" class="button" href="#" target="_blank" rel="noopener noreferrer">1. Instalar o Assistente SIAP</a>
@@ -60,6 +62,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=20"></script>
+  <script src="assistente-siap-conta.js?v=21"></script>
 </body>
 </html>
