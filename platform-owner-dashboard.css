@@ -209,6 +209,33 @@ body.platform-workspace-open { overflow:hidden; }
 .platform-siap-header-preview strong{font-size:13px;color:inherit}
 .platform-siap-header-preview span{font-size:11px;color:#76e39b;font-weight:750}
 .platform-siap-notice-card{padding:18px;background:var(--siap-notice-color);color:var(--siap-notice-text)}
+
+.platform-siap-header-campaign{margin-bottom:16px}
+.platform-siap-campaign-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,.9fr);gap:18px}
+.platform-siap-campaign-grid form{display:grid;gap:13px}
+.platform-siap-campaign-grid form>label,.platform-siap-campaign-button-grid label{display:grid;gap:5px;font-weight:700}
+.platform-siap-campaign-grid input:not([type=checkbox]),.platform-siap-campaign-grid select{width:100%;min-height:40px}
+.platform-siap-campaign-grid input[type=color]{padding:3px;cursor:pointer}
+.platform-siap-campaign-grid .platform-siap-campaign-active{display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#eaf1ff}
+.platform-siap-campaign-button-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.platform-siap-campaign-button{display:grid;gap:10px;margin:0;padding:12px;border:1px solid #cbd7e9;border-radius:12px}
+.platform-siap-campaign-button legend{padding:0 5px;font-weight:850;color:#243e67}
+.platform-siap-campaign-button>label{display:flex;align-items:center;gap:7px;font-weight:750}
+.platform-siap-campaign-button small{color:#64748b}
+.platform-siap-campaign-preview{min-height:190px;margin-top:8px;padding:15px;border-radius:14px;background:#17345d;background-size:cover;background-position:center;color:#fff;box-shadow:0 8px 20px #07142e32}
+.platform-siap-campaign-preview-head{display:grid;gap:2px;max-width:250px}
+.platform-siap-campaign-preview-head strong{font-size:16px}
+.platform-siap-campaign-preview-head small{font-size:12px}
+.platform-siap-campaign-preview-head span{color:#8be2a9;font-size:11px;font-weight:750}
+.platform-siap-campaign-preview-title{display:grid;justify-items:center;gap:1px;margin:20px 0 10px;text-align:center;font-family:ui-rounded,system-ui,sans-serif}
+.platform-siap-campaign-preview-title small{font-size:10px;font-weight:900;letter-spacing:.2em}
+.platform-siap-campaign-preview-title strong{font-size:25px;line-height:1.1;font-weight:950}
+.platform-siap-campaign-preview-buttons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+.platform-siap-campaign-preview-buttons:has(>div:nth-child(2):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+.platform-siap-campaign-preview-buttons>div{display:grid;gap:2px;min-width:0;padding:8px 4px;border-radius:13px;text-align:center}
+.platform-siap-campaign-preview-buttons small{font-size:9px;font-weight:850;overflow-wrap:anywhere}
+.platform-siap-campaign-preview-buttons strong{font-size:15px;font-weight:950;white-space:nowrap}
+@media(max-width:1000px){.platform-siap-campaign-grid{grid-template-columns:1fr}}
 .platform-siap-notice-card .platform-siap-notice-preview-label,.platform-siap-notice-card strong,.platform-siap-notice-card p{color:inherit}
 .platform-siap-notice-card .platform-siap-announcement-action{background:var(--siap-notice-button);color:#fff;border:1px solid #ffffff55}
 .platform-siap-announcement-preview[data-theme=black_friday] .platform-siap-notice-card{background-image:radial-gradient(ellipse at 85% 5%,#2a66ad55,transparent 60%),linear-gradient(140deg,var(--siap-notice-color),#142d4c);border-top:2px solid #c9aa61}

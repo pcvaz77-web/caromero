@@ -136,7 +136,7 @@
     if (card.dataset.themeFileUrl) URL.revokeObjectURL(card.dataset.themeFileUrl);
     card.dataset.themeFileUrl = themeFile ? URL.createObjectURL(themeFile) : '';
     themeStyle(card,{...item,theme_image_url:card.dataset.themeFileUrl || item.theme_image_url});
-    card.innerHTML = `<div class="platform-siap-header-preview"><small>Assistente SIAP</small><strong>Professor · Planejamento da aula</strong><span>Concessão permanente</span></div><div class="platform-siap-notice-card"><div class="platform-siap-notice-preview-label">${item.theme_key === 'black_friday' ? 'OFERTA BLACK FRIDAY' : 'NOVIDADE DO ASSISTENTE SIAP'}</div><strong>${safe(item.title || 'Título da novidade')}</strong><p>${safe(item.message_body || 'Sua mensagem aparecerá aqui.').replace(/\n/g,'<br>')}</p>${source === 'file' ? filePreview : media(item.media_type,item.media_url)}${actionButton(item.link_label,item.link_url)}</div>`;
+    card.innerHTML = `<div class="platform-siap-notice-card"><div class="platform-siap-notice-preview-label">${item.theme_key === 'black_friday' ? 'OFERTA BLACK FRIDAY' : 'NOVIDADE DO ASSISTENTE SIAP'}</div><strong>${safe(item.title || 'Título da novidade')}</strong><p>${safe(item.message_body || 'Sua mensagem aparecerá aqui.').replace(/\n/g,'<br>')}</p>${source === 'file' ? filePreview : media(item.media_type,item.media_url)}${actionButton(item.link_label,item.link_url)}</div>`;
     refreshRemoveButton();
   }
   async function load() {
@@ -260,19 +260,16 @@
     if (mounted || !root()) return;
     mounted = true;
     root().innerHTML = `<section class="platform-panel platform-siap-announcement">
-      <div class="platform-panel-head"><div><h4>Novidade no Assistente SIAP</h4><p>Um comunicado visível no topo do Assistente e na entrada por e-mail.</p></div></div>
+      <div class="platform-panel-head"><div><h4>Aviso abaixo do cabeçalho</h4><p>Novidades e mensagens que o usuário pode fechar no X. Desative para retirar o aviso de todos.</p></div></div>
       <div class="platform-siap-announcement-grid"><form id="platformSiapAnnouncementForm">
         <label>Título<input name="title" maxlength="120" required placeholder="Ex.: Novidade no planejamento"></label>
         <label>Mensagem<textarea name="message_body" rows="5" maxlength="3000" required placeholder="Escreva a novidade para os professores."></textarea></label>
-        <fieldset class="platform-siap-theme-fields"><legend>Ocasião e aparência</legend>
+        <fieldset class="platform-siap-theme-fields"><legend>Aparência do aviso</legend>
           <label>Ocasião<select name="theme_key"><option value="classic">Padrão</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></label>
-          <strong>Cabeçalho do Assistente</strong>
-          <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="theme_color" type="color" value="#17345d"></label><label>Cor da letra<input name="theme_text_color" type="color" value="#ffffff"></label></div>
-          <label>Imagem de fundo do cabeçalho (link HTTPS)<input name="theme_image_url" type="url" maxlength="2048" placeholder="https://..."></label>
-          <label>Ou enviar imagem do cabeçalho<input id="platformSiapThemeFile" name="theme_file" type="file" accept="image/jpeg,image/png,image/webp"></label>
+          <input name="theme_color" type="hidden" value="#17345d"><input name="theme_text_color" type="hidden" value="#ffffff"><input name="theme_image_url" type="hidden"><input id="platformSiapThemeFile" name="theme_file" type="file" hidden>
           <strong>Cartão do aviso</strong>
           <div class="platform-siap-theme-colors"><label>Cor de fundo<input name="notice_color" type="color" value="#e8f8ed"></label><label>Cor da letra<input name="notice_text_color" type="color" value="#14532d"></label><label>Cor do botão<input name="notice_button_color" type="color" value="#168553"></label></div>
-          <small>A imagem do aviso é escolhida em Mídia, abaixo. Ela é diferente da imagem de fundo do cabeçalho. JPG, PNG ou WebP até 10 MB para o cabeçalho.</small>
+          <small>A imagem deste aviso é escolhida em Mídia, abaixo. A campanha fixa do cabeçalho é configurada no cartão acima.</small>
         </fieldset>
         <label>Nome do botão (opcional)<input name="link_label" maxlength="60" placeholder="Ex.: Ver promoção"></label>
         <label>Link do botão (opcional)<input name="link_url" type="url" maxlength="2048" placeholder="https://..."></label>
