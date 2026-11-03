@@ -15,6 +15,14 @@
     if (typeof window.__doPostBack !== "function") return;
     document.documentElement?.setAttribute("data-assistente-siap-last-postback", target);
     document.documentElement?.setAttribute("data-assistente-siap-last-argument", argument);
+    if (target.includes("$treeView") && /^cphFuncionalidade_cphCampos_treeViewt\d+$/.test(String(request?.elementId || ""))) {
+      const link = document.getElementById(request.elementId);
+      const href = link?.getAttribute("href") || "";
+      if (link?.closest("#cphFuncionalidade_cphCampos_treeView") && href.includes(`__doPostBack('${target}'`)) {
+        link.click();
+        return;
+      }
+    }
     window.__doPostBack(target, argument);
   });
 })();

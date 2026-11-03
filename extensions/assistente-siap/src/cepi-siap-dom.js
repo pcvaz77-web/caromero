@@ -1,9 +1,13 @@
 (function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;else root.CepiSiapDom=api;})(globalThis,function(){
   'use strict';
   const norm=value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/gi,' ').trim().toUpperCase();
+  const normStudentName=value=>norm(String(value||'').replace(/^\s*\d+\s*(?:[.)\-–:]\s*|\s+)/,''));
   function supports(doc){
     const table=doc.getElementById('cphFuncionalidade_cphCampos_gdvLista');
-    return !!table&&[...table.rows].some(row=>row.cells?.[0]?.textContent?.trim()==='Aluno'&&[...row.cells].some(cell=>cell.textContent.trim()==='1'));
+    const assessment=String(doc.getElementById('cphFuncionalidade_cphCampos_avaliacao')?.value||'');
+    const cepiBlock=/\bBloco\s*[1-6]\s+do\s+CEPI\b/i.test(assessment);
+    const cpBlock=/\bCiclo\s*1\s*[-–]\s*Bloco\s*[1-6]\s*[-–]/i.test(assessment);
+    return !!table&&(cepiBlock||cpBlock)&&[...table.rows].some(row=>row.cells?.[0]?.textContent?.trim()==='Aluno'&&[...row.cells].some(cell=>cell.textContent.trim()==='1'));
   }
   function snapshot(doc,meta,key){
     if(!supports(doc))throw new Error('Abra no SIAP a avaliação de acertos por questão.');
@@ -32,35 +36,51 @@
     return {context,numbers,roster,signature:JSON.stringify([year,context.stage,context.grade,context.term,context.className,context.subject,context.assessment,context.total,roster.map(row=>norm(row.name))])};
   }
   function plan(snapshot,status,key){
-    const byName=new Map(snapshot.roster.map(row=>[norm(row.name),row]));
+    const byName=new Map(snapshot.roster.map(row=>[normStudentName(row.name),row]));
     const registered=new Map((status.roster||[]).map(student=>[student.id,student]));
-    if(registered.size!==(status.roster||[]).length||new Set((status.roster||[]).map(student=>norm(student.name))).size!==(status.roster||[]).length)throw new Error('Há nomes repetidos na turma do Carômetro. Identifique os alunos antes de lançar no SIAP.');
-    const seen=new Set(),entries=[];
+    if(registered.size!==(status.roster||[]).length||new Set((status.roster||[]).map(student=>normStudentName(student.name))).size!==(status.roster||[]).length)throw new Error('Há nomes repetidos na turma do Carômetro. Identifique os alunos antes de lançar no SIAP.');
+    const seen=new Set(),entries=[],skipped=[];
     for(const item of status.items||[]){
       if(item.kind!=='student'||item.discarded||item.status!=='ready'||!item.review?.reviewed)continue;
-      const student=registered.get(item.review.studentId),row=byName.get(norm(student?.name));
-      if(!student||!row||row.unavailable||seen.has(norm(student.name)))throw new Error('Aluno do cartão ausente, repetido ou indisponível nesta turma do SIAP. Confira os nomes.');
-      seen.add(norm(student.name));
+      const student=registered.get(item.review.studentId),row=byName.get(normStudentName(student?.name));
+      const studentKey=normStudentName(student?.name||'');
+      if(!student||!row){skipped.push({name:student?.name||'Aluno não identificado',reason:!student?'identificação do aluno não veio na sessão':'nome completo não encontrado na turma do SIAP'});continue;}
+      if(row.unavailable){skipped.push({name:student.name,reason:'marcado como transferido/inativo no SIAP'});continue;}
+      if(seen.has(studentKey)){skipped.push({name:student.name,reason:'mais de um cartão para o mesmo aluno'});continue;}
+      seen.add(studentKey);
       const answers=item.review.answers;
       if(!Array.isArray(answers)||answers.length!==key.answers.length||answers.some(answer=>![...key.alphabet,'-'].includes(answer)))throw new Error('Cartão com respostas incompletas ou ambíguas. Revise no celular.');
       const marks=snapshot.numbers.map(number=>answers[number-1]===key.answers[number-1]);
       entries.push({name:student.name,row,marks,captureId:item.id});
     }
-    return entries;
+    return {entries,skipped};
   }
   function preflight(entry,call){
     if(![1,2].includes(call))throw new Error('Selecione a chamada.');
     const [p1,a1,p2,a2]=entry.row.boxes;
-    const present=call===1?p1:p2,absent=call===1?a1:a2,other=call===1?p2:p1;
-    if(entry.row.unavailable||present.disabled||absent.disabled||absent.checked||other.checked||entry.row.boxes.slice(4).some(box=>box.disabled))throw new Error(`Confira presença e bloqueios de ${entry.name} no SIAP antes de lançar.`);
+    const present=call===1?p1:p2,absent=call===1?a1:a2,other=call===1?[p2,a2]:[p1,a1];
+    if(entry.row.unavailable||absent.disabled||(!absent.checked&&(present.disabled||entry.row.boxes.slice(4).some(box=>box.disabled))))throw new Error(`Os campos de ${entry.name} estão bloqueados no SIAP. Confira a situação do aluno.`);
+    if(other.some(box=>box.checked))throw new Error(`${entry.name} já tem situação registrada na chamada oposta no SIAP. Confira antes de lançar os acertos.`);
     if(entry.marks.length!==entry.row.boxes.length-4)throw new Error('Quantidade de campos do SIAP diferente da prova.');
-    return {present,questions:entry.row.boxes.slice(4)};
+    return {present,absent,questions:entry.row.boxes.slice(4)};
   }
-  function apply(entry,call){
-    const {present,questions}=preflight(entry,call);
+  function setPresence(entry,call){
+    const {present,absent,questions}=preflight(entry,call);
+    if(absent.checked)absent.click();
+    if(absent.checked)throw new Error(`O SIAP não confirmou a retirada da ausência de ${entry.name}.`);
+    if(present.disabled)throw new Error(`O SIAP manteve bloqueada a presença de ${entry.name} após retirar a ausência.`);
     if(!present.checked)present.click();
     if(!present.checked)throw new Error(`O SIAP não confirmou a presença de ${entry.name}.`);
+    return questions;
+  }
+  function ensureQuestionsEnabled(entry){
+    if(entry.row.boxes.slice(4).some(box=>box.disabled))throw new Error(`O SIAP manteve bloqueadas as questões de ${entry.name} mesmo após marcar presença. Confira a situação do aluno.`);
+  }
+  function applyMarks(entry){
+    const questions=entry.row.boxes.slice(4);
+    ensureQuestionsEnabled(entry);
     questions.forEach((box,i)=>{if(box.checked!==entry.marks[i])box.click();if(box.checked!==entry.marks[i])throw new Error(`O SIAP não confirmou a questão ${i+1} de ${entry.name}.`);});
   }
-  return Object.freeze({supports,snapshot,plan,preflight,apply,norm});
+  function apply(entry,call){preflight(entry,call);setPresence(entry,call);applyMarks(entry);}
+  return Object.freeze({supports,snapshot,plan,preflight,setPresence,ensureQuestionsEnabled,applyMarks,apply,norm});
 });

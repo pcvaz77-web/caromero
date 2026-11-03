@@ -22,15 +22,15 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
       else await chrome.storage.session.remove([key, resumeKey]);
       return { ok: true };
     }
-    if(message.type==='SIAP_EXAM_BUY') return {ok:false,error:'A Correção de Provas agora integra o Carômetro.'};
+    if(message.type==='SIAP_EXAM_BUY') return {ok:false,error:'A Correção de Provas é gratuita e está disponível no menu do Carômetro.'};
     if (message.type !== 'SIAP_EXAM_API') throw new Error('Operação desconhecida.');
     const { action, room, token, body = {} } = message;
-    if (!['create', 'heartbeat', 'finish-block', 'status', 'image', 'key', 'review', 'pause', 'close', 'retry', 'discard', 'roster'].includes(action)) throw new Error('Operação inválida.');
+    if (!['create', 'heartbeat', 'status', 'image', 'key', 'review', 'pause', 'close', 'retry', 'discard', 'roster'].includes(action)) throw new Error('Operação inválida.');
     if (action !== 'create' && (!/^[0-9a-f-]{36}$/.test(room || '') || !/^[0-9a-f]{64}$/.test(token || ''))) throw new Error('Sessão inválida.');
     const headers = { 'Content-Type': 'application/json', 'X-Exam-Token': token || '' };
-    if (['create', 'heartbeat','finish-block'].includes(action)) {
+    if (['create', 'heartbeat'].includes(action)) {
       const session = await readConnectedSession();
-      if (!session) throw new Error('Reconecte sua licença do Assistente.');
+      if (!session) throw new Error('Conecte novamente sua conta do Carômetro.');
       headers.Authorization = `Bearer ${session.accessToken || SUPABASE_ANON_KEY}`;
       if (session.deviceToken) headers['X-Assistant-Session'] = session.deviceToken;
     }

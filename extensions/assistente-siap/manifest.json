@@ -1,7 +1,8 @@
 {
+  "update_url": "https://clients2.google.com/service/update2/crx",
   "manifest_version": 3,
   "name": "Assistente SIAP do Professor",
-  "version": "0.28.35",
+  "version": "0.28.98",
   "description": "Organiza pendências do SIAP e auxilia o professor com planejamento, conteúdo, frequência e PEI.",
   "permissions": [
     "storage"
@@ -9,6 +10,7 @@
   "host_permissions": [
     "https://siap.educacao.go.gov.br/*",
     "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft",
+    "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/siap_assistant_announcement",
     "https://correcao.sistemacarometro.com.br/*"
   ],
   "externally_connectable": {
@@ -24,7 +26,8 @@
       "js": [
         "src/carometro-bridge.js"
       ],
-      "run_at": "document_start"
+      "run_at": "document_start",
+      "world": "ISOLATED"
     },
     {
       "matches": [
@@ -49,6 +52,8 @@
         "src/exam-panel.js",
         "src/cepi-siap-dom.js",
         "src/cepi-siap-panel.js",
+        "src/revisa-goias-2026-b4.js",
+        "src/revisa-goias-2026-extra.js",
         "src/content.js"
       ],
       "css": [
@@ -84,5 +89,6 @@
   ],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu82XsoYdEwSbc9GRDD97R0kKp1g+MMcuK0LOLesrWYIJZHd+FZ6fprkxJ0dYKPowgGf5YemrqUsVS6xZA+KRXrYlg6qX5MCDJ3lwwD5Ohbq+5lKAXViZh2jqmmNH+VHW1fbnHikTHxkynbxctxgNRe/y9pUH6pveWiNbgoRJln9dmS0rQrT4EDJ3KH5LVLrP2Ee8GGvQV888wUifkmwZJtyBbtVKeRpcSADKxz+KSRDQ745M9Nhlqp6Nb3waDBED9wgdOH9e9tZlLfj2+nyIsjJEVoLrncc7aDPrE4uIrmIR/NA/afTbFm8Nfhh+Uy3nG6h8em25vh4+I1LIf/LCrQIDAQAB"
 }

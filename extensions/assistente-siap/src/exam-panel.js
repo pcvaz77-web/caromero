@@ -19,11 +19,6 @@
   }
   const escape = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const send = data => chrome.runtime.sendMessage(data);
-  async function syncLicenseAfterBinding() {
-    const result = await send({ type:'ASSISTENTE_SIAP_LICENSE_STATUS' });
-    const access = result?.license?.examAccess;
-    if (access && typeof window.SiapExamAccessUpdated === 'function') window.SiapExamAccessUpdated(access);
-  }
   const save = async () => { const result = await send({ type: 'SIAP_EXAM_STATE_PUT', value: state }); if (!result?.ok) throw new Error('Não foi possível preservar a sessão.'); };
   const api = async (action, body = {}) => {
     const result = await send({ type: 'SIAP_EXAM_API', action, room: state?.room.id, token: state?.room.desktop, body });
@@ -65,7 +60,6 @@
       ${!changed && !blocked && remote?.key ? `<button class="cm-btn cm-primary" type="button" data-exam="continueCapture">Continuar fotografando provas no celular</button><p>${preservedCards} prova(s) preservada(s). Este botão retoma a mesma sessão; não cria outro lote nem apaga provas já enviadas.</p>` : ''}
       <button class="cm-btn" type="button" data-exam="close">Encerrar e apagar capturas</button>
       ${blocked && !changed ? '<button class="cm-btn" type="button" data-exam="reconnect">Verificar conexão e acesso</button>' : ''}
-      ${remote?.accessMode==='block' ? '<details><summary>Concluir crédito avulso</summary><p>Use somente depois de terminar este bloco em todas as turmas, incluindo segundas chamadas. Encerrar as capturas acima não encerra seu crédito.</p><label><input type="checkbox" data-finish-block-confirm> Terminei este bloco em todas as turmas.</label><button class="cm-btn" type="button" data-exam="finishBlock">Finalizar bloco em todas as turmas</button></details>' : ''}
       ${state.queue && state.queue.phase !== 'done' && (changed || blocked) ? `<p>Há um lote pausado. Reabra a mesma avaliação no SIAP e verifique a conexão para continuar.</p><button class="cm-btn" type="button" data-exam="cancelBatch">Cancelar restante do lote</button>` : ''}
       ${!changed && !blocked ? `<p>${remote?.key ? 'Gabarito confirmado. Fotografe os cartões dos alunos.' : 'Faça a leitura e confira o gabarito no celular. Os resultados aparecerão aqui para o lançamento final.'}</p>
       ${official ? `<details><summary>Gabarito e ajustes pelo computador</summary>${keyForm(official)}</details>` : ''}
@@ -130,11 +124,14 @@
   }
   function keyForm(item) {
     const key = remote.key || item.result;
-    return `<section><p><strong>${remote.key ? 'Gabarito confirmado' : 'Confira o gabarito uma vez'}</strong> · ${key.answers.length} questões</p><p>${escape(key.ranges.map(r=>`${r.subject}: ${r.from}–${r.to}`).join(' · '))}</p><details><summary>Ver foto e ajustar leitura</summary><p>${escape(item.result.title)} ${escape(item.result.warning)}</p>
+    const first=key.firstQuestion;
+    const printed=Number.isInteger(first)&&first>0;
+    return `<section><p><strong>${remote.key ? 'Gabarito confirmado' : 'Confira o gabarito uma vez'}</strong> · ${key.answers.length} questões</p><p>${printed?escape(key.ranges.map(r=>`${r.subject}: questões impressas ${first+r.from-1}–${first+r.to-1}`).join(' · ')):'Confira o número inicial impresso antes de usar o gabarito.'}</p><details><summary>Ver foto e ajustar leitura</summary><p>${escape(item.result.title)} ${escape(item.result.warning)}</p>
       <button class="cm-btn" type="button" data-exam-image="${item.id}">Ver foto</button><img class="cm-exam-photo" alt="Gabarito oficial fotografado" hidden>
+      <label>Número da primeira questão impressa <input data-exam-first-question type="number" min="1" max="200" value="${printed?first:''}" placeholder="Ex.: 21"></label><p>O total indica a quantidade de questões; a numeração impressa pode começar em outro número.</p>
       <label>Alternativas <select data-exam-alphabet><option ${key.alphabet === 'ABCD' ? 'selected' : ''}>ABCD</option><option ${key.alphabet === 'ABCDE' ? 'selected' : ''}>ABCDE</option></select></label>
       <label>Respostas, na ordem das questões<textarea data-exam-key>${escape(key.answers.join(' '))}</textarea></label>
-      <label>Uma disciplina por linha: nome; início; fim<textarea data-exam-ranges>${escape(key.ranges.map(r => `${r.subject}; ${r.from}; ${r.to}`).join('\n'))}</textarea></label>
+      <label>Uma disciplina por linha: nome; primeira posição; última posição no gabarito<textarea data-exam-ranges>${escape(key.ranges.map(r => `${r.subject}; ${r.from}; ${r.to}`).join('\n'))}</textarea></label>
       </details><button class="cm-btn" type="button" data-exam="key">${remote.key ? 'Atualizar gabarito' : 'Usar este gabarito'}</button></section>`;
   }
   function studentForm(item) {
@@ -144,7 +141,8 @@
     let result = '';
     try { result = Core.score(remote.key, response).map(r => `${r.subject}: ${r.correct}/${r.total}`).join(' · '); } catch { result = 'Revise as respostas e a quantidade de questões.'; }
     const number = (remote.items || []).filter(i=>i.kind==='student' && !i.discarded).findIndex(i=>i.id===item.id)+1;
-    const uncertain = response.flatMap((a,i)=>a==='?'?[i+1]:[]);
+    const first=remote.key?.firstQuestion;
+    const uncertain = response.flatMap((a,i)=>a==='?'?[Number.isInteger(first)&&first>0?first+i:`posição ${i+1}`]:[]);
     return `<fieldset data-exam-item="${item.id}"><legend>Prova ${number} — ${escape(selected ? snapshot.roster.find(r=>r.id===selected)?.name : 'Nome ilegível / não identificado')}</legend><p data-exam-score>${escape(result)}</p>${uncertain.length ? `<p>Conferir questões: ${uncertain.join(', ')}.</p>` : ''}${!selected ? '<p>Fica pendente para identificação manual. Os demais podem seguir.</p>' : ''}<details><summary>Foto e ajustes manuais</summary><p>${escape(item.result.title)} ${escape(item.result.warning)}</p>
       <label>Aluno<select data-exam-student><option value="">Selecione o aluno correto</option>${snapshot.roster.filter(r => !r.unavailable).map(r => `<option value="${escape(r.id)}" ${r.id === selected ? 'selected' : ''}>${escape(r.name)}</option>`).join('')}</select></label>
       <details><summary>Foto e respostas reconhecidas</summary><button class="cm-btn" type="button" data-exam-image="${item.id}">Ver foto</button><img class="cm-exam-photo" alt="Cartão do aluno" hidden><label>Respostas em ordem<textarea data-exam-answers>${escape(response.join(' '))}</textarea></label><p>- branco · * múltipla · ? revisar</p></details>
@@ -155,7 +153,7 @@
     return snapshot.roster.filter(row => {
       if (row.unavailable) return false;
       const controls = Dom.controls(snapshot, row.id, call);
-      return !controls.present.checked && !controls.absent.checked && !controls.field?.value.trim();
+      return !controls.present.checked && !controls.absent.checked && !controls.field?.value.trim() && !controls.questions?.some(box => box.checked);
     });
   }
   function updateAbsentOptions() {
@@ -222,12 +220,6 @@
   }
   const operations = {
     async resend() { await operations.prepare(true); },
-    async finishBlock() {
-      assertContext();
-      if(!host.querySelector('[data-finish-block-confirm]')?.checked) throw new Error('Confirme que terminou o bloco em todas as turmas.');
-      if(applying||(state?.queue?.phase && state.queue.phase!=='done')||remote?.items?.some(item=>!item.discarded&&['queued','processing'].includes(item.status))) throw new Error('Aguarde a leitura e o lançamento terminarem.');
-      await api('finish-block'); blocked=true; message='Bloco finalizado em todas as turmas.';
-    },
     async start() {
       const snapshot = current();
       if(snapshot.mode!=='entry'||!snapshot.roster.some(r=>!r.unavailable)) throw new Error('Abra a avaliação com a lista de alunos antes de gerar o QR Code.');
@@ -289,7 +281,9 @@
       const now = current(); if (!matches(now) && !canAdopt(now)) throw new Error('Outra turma ou avaliação. Inicie uma nova sessão.');
       const values = host.querySelector('[data-exam-key]').value.trim().toUpperCase().split(/[\s,;]+/);
       const ranges = host.querySelector('[data-exam-ranges]').value.trim().split('\n').map(line => { const [subject, from, to, extra] = line.split(';'); if (extra !== undefined) throw new Error('Use nome; início; fim.'); return { subject, from: Number(from), to: Number(to) }; });
-      const key = Core.validateKey({ ...(remote.key?.firstQuestion!==undefined?{firstQuestion:remote.key.firstQuestion}:{}), alphabet: host.querySelector('[data-exam-alphabet]').value, answers: values, ranges });
+      const first=Number(host.querySelector('[data-exam-first-question]')?.value);
+      if(!Number.isInteger(first)||first<1||first>200)throw new Error('Informe o número da primeira questão impressa no gabarito.');
+      const key = Core.validateKey({ firstQuestion:first, alphabet: host.querySelector('[data-exam-alphabet]').value, answers: values, ranges });
       await api('key', { key }); await refresh(); message = 'Gabarito confirmado. O celular já pode enviar as provas.';
       if (!matches(now) && canAdopt(now)) await operations.adopt();
       if (current().mode === 'selection' && key.ranges.length === 1) await chooseSubject(key.ranges[0].subject);
@@ -314,6 +308,14 @@
       const items = reapply ? batch.ready.filter(item=>already.has(item.studentId)) : batch.ready;
       const expectedReviews=new Map((remote.items||[]).map(i=>[i.id,i.review||null]));
       const entries = Core.batch(remote.key, items, now.roster, now.context.subject, now.context.total);
+      if (now.questionMode) {
+        const range = remote.key.ranges.find(r => Core.normalize(r.subject) === Core.normalize(now.context.subject));
+        if (!range || range.to - range.from + 1 !== now.context.total) throw new Error('A divisão do gabarito não coincide com as questões do SIAP.');
+        for (const entry of entries) {
+          const reviewed = items.find(item => item.studentId === entry.id);
+          entry.marks = reviewed.answers.slice(range.from - 1, range.to).map((answer, i) => answer === remote.key.answers[range.from - 1 + i]);
+        }
+      }
       for (const el of host.querySelectorAll('[data-exam-absent]:checked')) {
         if (entries.some(e => e.id === el.dataset.examAbsent)) throw new Error('Um aluno com prova também foi marcado como ausente.');
         entries.push({ id: el.dataset.examAbsent, present: false });
@@ -385,16 +387,26 @@
         if (!wanted.checked) wanted.click();
         return;
       }
-      if (!wanted.checked || other.checked || (entry.present && (!c.field || c.field.disabled))) {
-        q.attempts++; if (q.attempts > 8) throw new Error('O SIAP não liberou os campos esperados. Lote pausado para conferência.'); await save(); return;
+      if (!wanted.checked || other.checked || (entry.present && (c.questions ? c.questions.some(box => box.disabled) : !c.field || c.field.disabled))) {
+        q.attempts++; if (q.attempts > 8) throw new Error(`O SIAP não liberou os campos de ${entry.name || entry.id}. Confira presença e chamada antes de continuar.`); await save(); return;
       }
       if (entry.present) {
-        if (q.phase === 'wait') {
-          // Persist before events: Web Forms may navigate in response to a change.
-          q.phase = 'verify'; await save();
-          c.field.value = String(entry.correct); c.field.dispatchEvent(new Event('input', { bubbles: true })); c.field.dispatchEvent(new Event('change', { bubbles: true })); return;
+        if (c.questions) {
+          if (!Array.isArray(entry.marks) || entry.marks.length !== c.questions.length || entry.marks.filter(Boolean).length !== entry.correct) throw new Error('Acertos por questão diferentes do gabarito. Lote pausado.');
+          if (q.phase === 'wait') {
+            q.phase = 'verify'; await save();
+            for (let i = 0; i < c.questions.length; i++) if (c.questions[i].checked !== entry.marks[i]) c.questions[i].click();
+            return;
+          }
+          if (c.questions.some((box, i) => box.checked !== entry.marks[i])) throw new Error('O SIAP não manteve os acertos por questão. Confira este aluno.');
+        } else {
+          if (q.phase === 'wait') {
+            // Persist before events: Web Forms may navigate in response to a change.
+            q.phase = 'verify'; await save();
+            c.field.value = String(entry.correct); c.field.dispatchEvent(new Event('input', { bubbles: true })); c.field.dispatchEvent(new Event('change', { bubbles: true })); return;
+          }
+          if (c.field.value.trim() === '' || Number(c.field.value) !== entry.correct) throw new Error('O SIAP não manteve o valor preenchido. Confira este aluno.');
         }
-        if (c.field.value.trim() === '' || Number(c.field.value) !== entry.correct) throw new Error('O SIAP não manteve o valor preenchido. Confira este aluno.');
       } else if (c.field?.value.trim() !== '') {
         // A confirmed absence must not retain an earlier score in this call.
         if (q.phase === 'wait') {
@@ -426,10 +438,8 @@
           if(now.mode==='entry' && attemptedContext!==now.signature) { await operations.start();draw(); }
         } else if (!blocked || contextPaused) {
           if(contextPaused){await api('pause',{paused:false});blocked=false;contextPaused=false;draw();}
-          const bindingCredit = remote?.scanRequested && !remote?.activated;
-          if (Date.now() - heartbeatAt > 45000 || bindingCredit) {
+          if (Date.now() - heartbeatAt > 45000) {
             await api('heartbeat'); heartbeatAt = Date.now();
-            if (bindingCredit) { await refresh(); await syncLicenseAfterBinding(); }
           }
           if (state.queue && state.queue.phase !== 'done' && !state.queue.paused) await advance();
           else {
