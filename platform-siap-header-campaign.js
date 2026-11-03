@@ -13,13 +13,15 @@
     ? new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(Number(amount)) : 'Preço indisponível';
   const imageUrl = value => { try { const url=new URL(value); return url.protocol==='https:' ? url.href : null; } catch { return null; } };
   function row(index) {
-    return `<fieldset class="platform-siap-campaign-button" data-campaign-button="${index}"><legend>Botão ${index+1}</legend>
-      <label><input type="checkbox" name="button_enabled_${index}"> Exibir este botão</label>
+    return `<section class="platform-siap-campaign-button" data-campaign-button="${index}" aria-label="Botão ${index+1}">
+      <div class="platform-siap-campaign-button-top"><div class="platform-siap-campaign-button-title"><span>${String(index+1).padStart(2,'0')}</span><div><strong>Botão ${index+1}</strong><small>Checkout direto</small></div></div>
+      <label class="platform-siap-button-toggle"><input type="checkbox" name="button_enabled_${index}" aria-label="Exibir botão ${index+1}"><span class="platform-siap-toggle-track" aria-hidden="true"></span><span>Exibir</span></label></div>
       <div class="platform-siap-campaign-button-grid"><label>Plano<select name="button_plan_${index}"><option value="monthly">Mensal</option><option value="quarterly">Trimestral</option><option value="semiannual">Semestral</option><option value="annual">Anual</option></select></label>
       <label>Texto do botão<input name="button_label_${index}" maxlength="30" placeholder="Ex.: Semestral"></label></div>
       <div class="platform-siap-campaign-button-grid"><label>Cor do botão<input type="color" name="button_color_${index}" value="#e7c46f"></label><label>Cor do texto<input type="color" name="button_text_color_${index}" value="#0b1930"></label></div>
       <small>Abre diretamente o checkout Hotmart vinculado ao plano. O preço vem dos planos de venda.</small>
-    </fieldset>`;
+      <p class="platform-siap-campaign-button-inactive">Ative para configurar mais um plano.</p>
+    </section>`;
   }
   function read() {
     const fields=form().elements;
@@ -38,6 +40,10 @@
   }
   function preview() {
     const item=read();
+    const activeLabel=document.getElementById('platformSiapCampaignActiveLabel');
+    const activeDescription=document.getElementById('platformSiapCampaignActiveDescription');
+    if (activeLabel) activeLabel.textContent=item.active ? 'Campanha ativa' : 'Cabeçalho padrão';
+    if (activeDescription) activeDescription.textContent=item.active ? 'A publicidade aparece para os professores.' : 'A campanha está guardada, mas não aparece.';
     const node=document.getElementById('platformSiapHeaderCampaignPreview');
     node.replaceChildren();
     node.style.backgroundColor=item.active ? item.background_color : '#17345d';
@@ -132,7 +138,7 @@
     mounted=true;
     root().innerHTML=`<section class="platform-panel platform-siap-header-campaign"><div class="platform-panel-head"><div><h4>Campanha no cabeçalho</h4><p>Publicidade fixa até você voltar ao padrão. É independente do aviso que cada usuário pode fechar.</p></div></div>
       <div class="platform-siap-campaign-grid"><form id="platformSiapHeaderCampaignForm">
-        <label class="platform-siap-campaign-active"><span><strong>Campanha no ar</strong><small>Desligue para mostrar o cabeçalho padrão.</small></span><input type="checkbox" name="active" aria-label="Mostrar campanha no cabeçalho"></label>
+        <label class="platform-siap-campaign-active"><span class="platform-siap-campaign-state"><span class="platform-siap-campaign-state-dot" aria-hidden="true"></span><span><strong id="platformSiapCampaignActiveLabel">Campanha ativa</strong><small id="platformSiapCampaignActiveDescription">A publicidade aparece para os professores.</small></span></span><input type="checkbox" name="active" aria-label="Mostrar campanha no cabeçalho"><span class="platform-siap-toggle-track" aria-hidden="true"></span></label>
         <div class="platform-siap-campaign-button-grid"><label>Frase superior<input name="eyebrow" maxlength="30" placeholder="Ex.: PROMOÇÃO"></label><label>Chamada principal<input name="headline" maxlength="60" placeholder="Ex.: BLACK FRIDAY"></label></div>
         <details class="platform-communication-details"><summary><span><strong>Fundo e cores</strong><small>Personalize o visual da campanha.</small></span></summary><div class="platform-communication-details-body">
         <div class="platform-siap-campaign-button-grid"><label>Cor de fundo<input name="background_color" type="color" value="#080e1b"></label><label>Cor do texto<input name="text_color" type="color" value="#fff5d4"></label></div>

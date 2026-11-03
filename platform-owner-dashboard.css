@@ -249,12 +249,16 @@ body.platform-workspace-open { overflow:hidden; }
 .platform-siap-hero p{font-size:12px;line-height:1.4}
 .platform-siap-hero .btn{min-height:40px;padding:8px 14px}
 .platform-siap-announcement-disclosure{margin:0 0 18px}
-.platform-siap-announcement-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;box-sizing:border-box;padding:13px 18px;border:1px solid #cbd9f4;border-radius:11px;background:#edf3ff;color:#173e83;font-size:14px;font-weight:800;cursor:pointer;list-style:none}
+.platform-siap-announcement-disclosure>summary{display:flex;align-items:center;gap:13px;width:100%;box-sizing:border-box;min-height:76px;padding:13px 17px;border:1px solid #d8e2f0;border-radius:15px;background:#fff;color:#193760;cursor:pointer;list-style:none;box-shadow:0 5px 18px #142d5510;transition:border-color .18s,box-shadow .18s,background .18s}
 .platform-siap-announcement-disclosure>summary::-webkit-details-marker{display:none}
-.platform-siap-announcement-disclosure>summary:hover,.platform-siap-announcement-disclosure>summary:focus-visible{background:#e0ebff;border-color:#8caaeb}
-.platform-siap-announcement-disclosure>summary span{font-size:20px;line-height:1;transition:transform .2s}
-.platform-siap-announcement-disclosure[open]>summary span{transform:rotate(180deg)}
-.platform-siap-announcement-disclosure[open]>summary{border-radius:11px 11px 0 0}
+.platform-siap-announcement-disclosure>summary:hover,.platform-siap-announcement-disclosure>summary:focus-visible{background:#f8fbff;border-color:#8eabeb;box-shadow:0 8px 24px #234d9f1a}
+.platform-siap-announcement-disclosure>summary .platform-siap-disclosure-icon{display:grid;place-items:center;flex:none;width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#335cdb,#6837df);color:#fff;font-size:21px;box-shadow:0 5px 12px #315ad334}
+.platform-siap-announcement-disclosure>summary .platform-siap-disclosure-copy{display:grid;gap:3px;min-width:0}
+.platform-siap-announcement-disclosure>summary .platform-siap-disclosure-copy strong{font-size:14px;font-weight:850;line-height:1.3}
+.platform-siap-announcement-disclosure>summary .platform-siap-disclosure-copy small{font-size:11px;font-weight:500;color:#6a7890;line-height:1.3}
+.platform-siap-announcement-disclosure>summary .platform-siap-disclosure-chevron{display:grid;place-items:center;flex:none;width:30px;height:30px;margin-left:auto;border-radius:9px;background:#eef3fc;color:#365cac;font-size:22px;line-height:1;transition:transform .2s}
+.platform-siap-announcement-disclosure[open]>summary .platform-siap-disclosure-chevron{transform:rotate(180deg)}
+.platform-siap-announcement-disclosure[open]>summary{border-radius:15px 15px 0 0;border-color:#9fb7ed}
 .platform-siap-announcement-disclosure .platform-siap-announcement{margin:0;border-top:0;border-radius:0 0 11px 11px}
 @media(max-width:620px){.platform-siap-hero{min-height:0;padding:17px 19px}.platform-siap-hero h3{font-size:25px}.platform-siap-hero .btn{min-height:38px}}
 
@@ -301,3 +305,36 @@ body.platform-workspace-open { overflow:hidden; }
 .platform-siap-announcement-actions{padding-top:5px}
 @media(max-width:1000px){.platform-siap-campaign-grid>div:last-child,.platform-siap-announcement-grid>div:last-child{position:static}}
 @media(max-width:700px){.platform-siap-communication-workspace{padding:12px}.platform-communication-intro{padding:18px}.platform-communication-intro-mark{display:none}.platform-communication-switch{grid-template-columns:1fr}.platform-siap-campaign-buttons-layout{grid-template-columns:1fr}}
+
+/* Controles da campanha com dimensões previsíveis, inclusive com estilos globais de formulários. */
+.platform-siap-campaign-active{position:relative;cursor:pointer;transition:border-color .18s,background .18s}
+.platform-siap-campaign-active:has(input:checked){background:#eef4ff;border-color:#aec5f9}
+.platform-siap-campaign-active:not(:has(input:checked)){background:#f7f8fb;border-color:#dce3ed}
+.platform-siap-campaign-state{display:flex;align-items:center;gap:11px;min-width:0}
+.platform-siap-campaign-state-dot{flex:none;width:9px;height:9px;border-radius:50%;background:#a8b3c4;box-shadow:0 0 0 5px #e8ecf2}
+.platform-siap-campaign-active:has(input:checked) .platform-siap-campaign-state-dot{background:#22a775;box-shadow:0 0 0 5px #d9f5e9}
+.platform-siap-campaign-grid input[type=checkbox].platform-siap-campaign-hidden-toggle,.platform-siap-campaign-active input[type=checkbox],.platform-siap-button-toggle input[type=checkbox]{position:absolute!important;inline-size:1px!important;block-size:1px!important;min-inline-size:0!important;min-block-size:0!important;width:1px!important;height:1px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;opacity:0!important;overflow:hidden;clip-path:inset(50%)}
+.platform-siap-toggle-track{position:relative;display:block;flex:none;width:38px;height:22px;border-radius:999px;background:#a9b6ca;box-shadow:inset 0 1px 3px #1a33562a;transition:background .18s}
+.platform-siap-toggle-track::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0003;transition:transform .18s}
+.platform-siap-campaign-active input:checked+.platform-siap-toggle-track,.platform-siap-button-toggle input:checked+.platform-siap-toggle-track{background:#3565dc}
+.platform-siap-campaign-active input:checked+.platform-siap-toggle-track::after,.platform-siap-button-toggle input:checked+.platform-siap-toggle-track::after{transform:translateX(16px)}
+.platform-siap-campaign-active input:focus-visible+.platform-siap-toggle-track,.platform-siap-button-toggle input:focus-visible+.platform-siap-toggle-track{outline:3px solid #87a8fa;outline-offset:3px}
+.platform-siap-campaign-button{min-width:0;gap:12px;padding:14px;border:1px solid #dde6f2;border-radius:14px;background:#fff;box-shadow:0 3px 10px #142d5508;transition:border-color .18s,box-shadow .18s}
+.platform-siap-campaign-button:has(.platform-siap-button-toggle input:checked){border-color:#aec4f7;box-shadow:0 5px 16px #2d54b512}
+.platform-siap-campaign-button-top{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding-bottom:10px;border-bottom:1px solid #edf1f7}
+.platform-siap-campaign-button-title{display:flex;align-items:center;gap:8px;min-width:0}
+.platform-siap-campaign-button-title>span{display:grid;place-items:center;flex:none;width:29px;height:29px;border-radius:9px;background:#eaf0ff;color:#315cce;font-size:11px;font-weight:900}
+.platform-siap-campaign-button-title strong,.platform-siap-campaign-button-title small{display:block;line-height:1.25}
+.platform-siap-campaign-button-title strong{color:#193760;font-size:12px}.platform-siap-campaign-button-title small{margin-top:2px;color:#78879e;font-size:10px}
+.platform-siap-button-toggle{position:relative;display:flex;align-items:center;gap:6px;flex:none;cursor:pointer;color:#526783;font-size:11px;font-weight:800}
+.platform-siap-button-toggle:has(input:checked){color:#1c4db8}
+.platform-siap-campaign-button-grid label{min-width:0;color:#40536f;font-size:11px;font-weight:750}
+.platform-siap-campaign-button-grid input,.platform-siap-campaign-button-grid select{min-width:0;border-color:#d7e0ee;border-radius:9px;background:#fff}
+.platform-siap-campaign-button-grid input[type=color]{height:35px;min-height:35px;padding:3px}
+.platform-siap-campaign-button>small{padding-top:8px;border-top:1px solid #edf1f7;color:#718099;font-size:10px}
+.platform-siap-campaign-button-inactive{display:none;margin:0;color:#718099;font-size:11px}
+.platform-siap-campaign-button:not(:has(.platform-siap-button-toggle input:checked)) .platform-siap-campaign-button-grid,.platform-siap-campaign-button:not(:has(.platform-siap-button-toggle input:checked))>small{display:none}
+.platform-siap-campaign-button:not(:has(.platform-siap-button-toggle input:checked)) .platform-siap-campaign-button-inactive{display:block}
+.platform-siap-campaign-button:not(:has(.platform-siap-button-toggle input:checked)) .platform-siap-campaign-button-top{padding-bottom:0;border:0}
+.platform-siap-campaign-button[data-campaign-button="2"]{grid-column:1/-1}
+@media(max-width:700px){.platform-siap-campaign-button[data-campaign-button="2"]{grid-column:auto}}
