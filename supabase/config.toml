@@ -1,3 +1,6 @@
+[auth.email.template.invite]
+subject = "CARÔMETRO — convite para acessar a plataforma"
+
 [functions.send-web-push]
 verify_jwt = false
 
