@@ -1514,7 +1514,7 @@
     const plan = document.getElementById('platformSchoolPlan').value;
     const price = Number(document.getElementById('platformSchoolPrice').value);
     if (!schoolName || !adminEmail || !Number.isFinite(price) || price < 0) return;
-    if (!confirm(`Criar a escola “${schoolName}” e tornar ${adminEmail} seu administrador?`)) return;
+    if (!confirm(`Criar a escola “${schoolName}” e enviar um convite de administrador para ${adminEmail}? O acesso será liberado após o aceite e o cadastro.`)) return;
     button.disabled = true;
     button.textContent = 'Criando…';
     try {
@@ -1532,7 +1532,7 @@
       if (data?.admin_state === 'invited' && data.invitation_id) {
         await sendAdminInvite(data.invitation_id, data.admin_email);
       } else {
-        toast('Escola criada e vinculada ao administrador informado.');
+        toast('Escola criada, mas não foi possível confirmar o convite. Verifique a escola antes de criar outra.');
       }
       await openDashboard();
     } finally {
@@ -1676,7 +1676,7 @@
     const active = (schools || []).filter(school => school.school_status !== 'archived');
     const preview = document.getElementById('platformOverviewSchools');
     if (preview) {
-      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p>${adminInvitationActions(school)}</article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> ${schoolStatusBadge(school)}</p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p>${adminInvitationActions(school)}</article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
       bindAdminInvitationActions(preview);
     }
     const distribution = document.getElementById('platformPlanDistribution');
@@ -1760,6 +1760,14 @@
     return `<span class="platform-school-admin none">Sem administrador</span>`;
   }
 
+  function schoolStatusBadge(school) {
+    const status = school.school_status || 'active';
+    if (status === 'active' && school.admin_state === 'pending') {
+      return '<span class="platform-badge pending">Aguardando cadastro</span>';
+    }
+    return `<span class="platform-badge ${esc(status)}">${esc(STATUS_LABELS[status] || status)}</span>`;
+  }
+
   // Deliberadamente com rótulo próprio e cor distinta de adminLine(): o
   // responsável pela assinatura é comercial/financeiro, independente do
   // school_admin, e precisa ser visualmente impossível de confundir com
@@ -1820,7 +1828,7 @@
         return `<tr>
           <td data-label="Escola"><b>${esc(school.school_name)}</b>${adminLine(school)}${billingContactLine(billingContact)}</td>
           <td data-label="Plano"><span class="platform-badge ${esc(plan)}">${esc(PLAN_LABELS[plan] || plan)}</span></td>
-          <td data-label="Status"><span class="platform-badge ${esc(status)}">${esc(STATUS_LABELS[status] || status)}</span></td>
+          <td data-label="Status">${schoolStatusBadge(school)}</td>
           <td data-label="Assinatura"><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td data-label="Usuários">${esc(school.user_count ?? 0)}</td>
           <td data-label="Alunos">${esc(school.student_count ?? 0)}</td>
