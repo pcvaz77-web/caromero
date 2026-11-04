@@ -49,8 +49,8 @@ Deno.serve(async (request) => {
   } catch {
     return json(request, { error: 'Corpo da solicitação inválido.' }, 400)
   }
-  if (action === 'invite_school_admin' || action === 'resend_school_admin') {
-    if (action === 'resend_school_admin') {
+  if (action === 'invite_school_admin' || action === 'resend_school_admin' || action === 'cancel_school_admin_invite') {
+    if (action === 'resend_school_admin' || action === 'cancel_school_admin_invite') {
       if (typeof schoolId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schoolId)) {
         return json(request, { error: 'Escola inválida.' }, 400)
       }
@@ -89,6 +89,22 @@ Deno.serve(async (request) => {
     }
     if (new Date(invitation.expires_at).getTime() <= Date.now()) {
       return json(request, { error: 'Este convite expirou.' }, 400)
+    }
+
+    if (action === 'cancel_school_admin_invite') {
+      const { data: cancelled, error: cancelError } = await admin
+        .from('school_invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invitation.id)
+        .eq('school_id', invitation.school_id)
+        .eq('role', 'school_admin')
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .select('id')
+        .maybeSingle()
+      if (cancelError) return json(request, { error: 'Não foi possível cancelar o convite.' }, 500)
+      if (!cancelled) return json(request, { error: 'Este convite não está mais disponível.' }, 409)
+      return json(request, { cancelled: true })
     }
 
     const { data: school, error: schoolError } = await admin

@@ -1468,15 +1468,40 @@
     }
   }
 
-  function adminResendButton(school) {
+  async function cancelSchoolAdminInvite(button) {
+    const schoolId = button.dataset.cancelSchoolAdmin;
+    const email = button.dataset.adminEmail;
+    const schoolName = button.dataset.schoolName;
+    if (!confirm(`Cancelar o convite de administrador para ${email} na escola “${schoolName}”? O link deixará de funcionar e a escola ficará sem administrador.`)) return;
+    button.disabled = true;
+    button.textContent = 'Cancelando…';
+    try {
+      const data = await invokeManageUser({ action:'cancel_school_admin_invite', schoolId });
+      if (!data?.cancelled) throw new Error('Não foi possível confirmar o cancelamento.');
+      pendingAdminInvite = null;
+      renderAdminInviteStatus('');
+      await openDashboard();
+      toast(`Convite para ${email} cancelado.`);
+    } catch (error) {
+      toast(`Não foi possível cancelar o convite: ${error.message}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Cancelar convite';
+    }
+  }
+
+  function adminInvitationActions(school) {
     return school.admin_state === 'pending'
-      ? `<button class="btn secondary" type="button" data-resend-school-admin="${esc(school.school_id)}" data-admin-email="${esc(school.admin_email)}">Reenviar convite</button>`
+      ? `<button class="btn secondary" type="button" data-resend-school-admin="${esc(school.school_id)}" data-admin-email="${esc(school.admin_email)}">Reenviar convite</button><button class="btn secondary" type="button" data-cancel-school-admin="${esc(school.school_id)}" data-admin-email="${esc(school.admin_email)}" data-school-name="${esc(school.school_name)}">Cancelar convite</button>`
       : '';
   }
 
-  function bindAdminResendButtons(container) {
+  function bindAdminInvitationActions(container) {
     container.querySelectorAll('[data-resend-school-admin]').forEach(button => {
       button.onclick = () => resendSchoolAdminInvite(button);
+    });
+    container.querySelectorAll('[data-cancel-school-admin]').forEach(button => {
+      button.onclick = () => cancelSchoolAdminInvite(button);
     });
   }
 
@@ -1651,8 +1676,8 @@
     const active = (schools || []).filter(school => school.school_status !== 'archived');
     const preview = document.getElementById('platformOverviewSchools');
     if (preview) {
-      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p>${adminResendButton(school)}</article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
-      bindAdminResendButtons(preview);
+      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p>${adminInvitationActions(school)}</article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+      bindAdminInvitationActions(preview);
     }
     const distribution = document.getElementById('platformPlanDistribution');
     if (distribution) {
@@ -1799,12 +1824,12 @@
           <td data-label="Assinatura"><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td data-label="Usuários">${esc(school.user_count ?? 0)}</td>
           <td data-label="Alunos">${esc(school.student_count ?? 0)}</td>
-          <td data-label="Ações" class="platform-school-actions">${adminResendButton(school)} ${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn secondary" type="button" data-edit-school-name data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Editar nome</button> ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td data-label="Ações" class="platform-school-actions">${adminInvitationActions(school)} ${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn secondary" type="button" data-edit-school-name data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Editar nome</button> ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
       body.innerHTML = rows.join('');
-      bindAdminResendButtons(body);
+      bindAdminInvitationActions(body);
 
       body.querySelectorAll('[data-school-status]').forEach(button => {
         button.onclick = () => setSchoolStatus(button);
