@@ -19,6 +19,8 @@
   const accessSummary = document.getElementById('assistantAccessSummary');
   const installSteps = document.getElementById('assistantInstallSteps');
   const installLink = document.getElementById('installAssistantExtension');
+  const paymentReturnHint = document.getElementById('paymentReturnHint');
+  const refreshAccessButton = document.getElementById('refreshAssistantAccess');
   const panelTitle = document.getElementById('accountPanelTitle');
   const selectedPlanTarget = document.getElementById('selectedPlan');
   const trialEndedLink = document.getElementById('trialEndedLink');
@@ -26,7 +28,9 @@
   let currentSession = null;
   let accessStatus = null;
   let examStatus = null;
-  let pendingEmail = '';
+  let paymentPollTimer = null;
+  let paymentPollCount = 0;
+  let checkingPayment = false;
   const extensionIds = [
     'bfbjocbablljmknahhlkjhllpjmihibe',
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
@@ -39,12 +43,11 @@
     document.querySelector('.site-header .brand small').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy .eyebrow').textContent = 'DEMONSTRAÇÃO GRATUITA';
     document.querySelector('.account-copy h1').textContent = 'Experimente antes de contratar';
-    document.getElementById('accountPageIntro').textContent = 'Confirme seu e-mail com o código de 6 dígitos. Depois, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
+    document.getElementById('accountPageIntro').textContent = 'Confirme seu e-mail pelo link enviado à sua caixa de entrada. Depois, instale a extensão e conheça o Assistente SIAP com 2 usos por recurso.';
     loginForm.querySelector('h2').textContent = 'Confirme seu e-mail';
-    loginForm.querySelector('p').textContent = 'Enviaremos um código de 6 dígitos para este e-mail. Digite o código nesta página para liberar a instalação.';
+    loginForm.querySelector('p').textContent = 'Enviaremos um link de acesso para este e-mail. Abra a mensagem e clique no link para liberar a instalação.';
     loginForm.querySelectorAll('p')[1].hidden = true;
-    loginForm.querySelector('button[type="submit"]').textContent = 'Enviar código';
-    document.getElementById('accountCodeStep').querySelector('label').firstChild.textContent = 'Código de 6 dígitos';
+    loginForm.querySelector('button[type="submit"]').textContent = 'Enviar link de acesso';
   }
 
   if (accountFlow) {
@@ -103,6 +106,13 @@
 
   const renderAccessStatus = status => {
     accessStatus = status;
+    const paidAccess = status?.mode === 'subscription' && status.active === true;
+    paymentReturnHint.hidden = paidAccess || trialFlow || examFlow || accountFlow;
+    refreshAccessButton.hidden = paidAccess || trialFlow || examFlow;
+    if (paidAccess && paymentPollTimer) {
+      clearInterval(paymentPollTimer);
+      paymentPollTimer = null;
+    }
     accessSummary.hidden = false;
     accessSummary.dataset.mode = status?.mode || '';
     connectButton.disabled = false;
@@ -185,6 +195,40 @@
     return data;
   };
 
+  const refreshPaymentAccess = async (knownStatus = null) => {
+    if (checkingPayment || !currentSession || trialFlow || examFlow) return;
+    checkingPayment = true;
+    try {
+      const status = knownStatus || await loadAccessStatus();
+      if (status?.mode === 'subscription' && status.active === true) return;
+      const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
+        .select('status,created_at').eq('provider','hotmart').eq('status','pending')
+        .order('created_at',{ascending:false}).limit(1).maybeSingle();
+      const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
+      if (!recent) return;
+      panelTitle.textContent = 'Pagamento em confirmação';
+      accessSummary.hidden = false;
+      accessSummary.textContent = 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento. Assim que ela chegar, esta página mostrará a conexão da extensão.';
+      selectedPlanTarget.hidden = true;
+      legal.hidden = true;
+      checkoutButton.hidden = true;
+      trialEndedLink.hidden = true;
+      paymentReturnHint.hidden = true;
+      refreshAccessButton.hidden = false;
+      installSteps.hidden = false;
+      connectButton.hidden = true;
+      if (!paymentPollTimer) {
+        paymentPollCount = 0;
+        paymentPollTimer = setInterval(() => {
+          if (++paymentPollCount > 30) { clearInterval(paymentPollTimer); paymentPollTimer = null; return; }
+          if (document.visibilityState === 'visible') refreshPaymentAccess();
+        }, 12000);
+      }
+    } finally {
+      checkingPayment = false;
+    }
+  };
+
   const connectCurrentSession = async (silent = false) => {
     if (!currentSession?.access_token || !currentSession?.expires_at) {
       if (!silent) message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
@@ -247,6 +291,7 @@
       document.getElementById('paymentEmailHint').textContent = `No pagamento da Hotmart, use ${session.user.email}. A licença e os créditos serão vinculados a essa conta. Já pagou com outro e-mail? Use “Entrar com outro e-mail”.`;
       await loadPlan();
       const status = await loadAccessStatus();
+      if (status?.mode !== 'subscription' || status.active !== true) await refreshPaymentAccess(status);
       if (!accountFlow && status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
       if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
         message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação do pagamento.');
@@ -260,24 +305,13 @@
     const redirectPath = trialFlow ? location.pathname.replace(/\.html$/, '') : location.pathname;
     const redirectTo = `${location.origin}${redirectPath}?plano=${encodeURIComponent(planKey)}`;
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
-    pendingEmail = error ? '' : email;
-    document.getElementById('accountCodeStep').hidden = !!error;
-    message('loginMessage', error ? 'Não foi possível enviar a confirmação. Tente novamente.' : trialFlow ? 'Código enviado. Confira sua caixa de entrada e o spam; digite os 6 dígitos aqui.' : 'Confira seu e-mail. Abra o link recebido ou digite o código, se houver.', !!error);
-  };
-  document.getElementById('verifyAccountCode').onclick = async () => {
-    const token = document.getElementById('accountOtp').value.trim();
-    if (!pendingEmail || !/^\d{6}$/.test(token)) {
-      message('loginMessage', 'Confira o código recebido no e-mail.', true);
-      return;
-    }
-    const { error } = await db.auth.verifyOtp({ email:pendingEmail, token, type:'email' });
-    if (error) {
-      message('loginMessage', 'Código inválido ou vencido. Confira o e-mail ou solicite outro.', true);
-      return;
-    }
-    await refresh();
+    message('loginMessage', error ? 'Não foi possível enviar o link. Tente novamente.' : 'Link enviado. Confira sua caixa de entrada e o spam; abra a mensagem e clique no link para continuar.', !!error);
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
+  refreshAccessButton.onclick = () => refreshPaymentAccess();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentSession && !refreshAccessButton.hidden) refreshPaymentAccess();
+  });
   checkoutButton.onclick = async () => {
     if (!selectedPlan || !legal.checked) return;
     checkoutButton.disabled = true;

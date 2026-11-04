@@ -137,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderList() {
     const list = document.getElementById('notificationList');
     if (!list) return;
-    const globalItems = platformAnnouncements.map(item => `<article class="notification-item unread platform-announcement-notification" data-platform-announcement="${item.id}"><div class="notification-item-head"><b>${esc(item.title)}</b><span>${formatWhen(item.published_at)}</span></div><p>${esc(item.message_body)}</p><button type="button" class="link platform-announcement-notification-close" data-platform-announcement-close="${item.id}">Fechar aviso</button></article>`).join('');
+    const globalItems = platformAnnouncements.map(item => `<article class="notification-item unread platform-announcement-notification" data-platform-announcement="${item.id}"><div class="notification-item-head"><b>${esc(item.title || (item.notice_image_url ? 'Aviso com imagem' : 'Comunicado da plataforma'))}</b><span>${formatWhen(item.published_at)}</span></div>${item.message_body ? `<p>${esc(item.message_body)}</p>` : ''}<button type="button" class="link platform-announcement-notification-close" data-platform-announcement-close="${item.id}">Fechar aviso</button></article>`).join('');
     const schoolItems = notifications.length
       ? notifications.map(item => {
           const clickable = isNotificationClickable(item);

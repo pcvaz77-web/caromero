@@ -2,10 +2,35 @@
   const TABLE = 'platform_in_app_announcements';
   const DISMISSALS = 'platform_in_app_announcement_dismissals';
   const VIDEO_BUCKET = 'platform-announcement-videos';
+  const IMAGE_BUCKET = 'siap-announcement-media';
+  let selectedKind = 'notice';
+  const THEMES = {classic:['#138052','#ffffff','#ffffff'],black_friday:['#080e1b','#fff5d4','#d7b65f'],
+    teachers:['#123d6b','#ffffff','#e9c768'],public_servant:['#173654','#ffffff','#d9b86b'],
+    black_awareness:['#231b12','#fff1cb','#bd8b45'],students:['#165a86','#ffffff','#f3ca66'],
+    september_yellow:['#f5c84a','#18283b','#183653'],christmas:['#164935','#ffffff','#d4ae61'],
+    new_year:['#142b51','#ffffff','#e4c46f'],custom:['#17345d','#ffffff','#ffffff'],
+    image_only:['#17345d','#13213a','#ffffff']};
   const MAX_VIDEO_BYTES = 45 * 1024 * 1024;
   const ROLE_LABELS = { teacher: 'Professor', coordinator: 'Coordenador', secretary: 'Secretário', school_admin: 'Administrador' };
   const byId = id => document.getElementById(id);
   const clean = value => String(value || '').trim();
+  const validColor = value => /^#[0-9a-f]{6}$/i.test(value);
+  const contrastText = hex => { const rgb = [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)/255).map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4); return rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722 > .35 ? '#13213a' : '#ffffff'; };
+  const validImage = value => { try { const url = new URL(value); return url.protocol === 'https:' ? url.href : null; } catch { return null; } };
+  function applyTheme(node, item) {
+    const key = Object.hasOwn(THEMES,item?.theme_key) ? item.theme_key : 'classic';
+    const defaults = THEMES[key];
+    node.dataset.theme = key;
+    node.style.setProperty('--announcement-color',validColor(item?.theme_color) ? item.theme_color : defaults[0]);
+    node.style.setProperty('--announcement-text',validColor(item?.theme_text_color) ? item.theme_text_color : defaults[1]);
+    const button = validColor(item?.button_color) ? item.button_color : defaults[2];
+    node.style.setProperty('--announcement-button',button);
+    node.style.setProperty('--announcement-button-text',contrastText(button));
+    const url = validImage(item?.theme_image_url) || (String(item?.theme_image_url || '').startsWith('blob:') ? item.theme_image_url : null);
+    node.dataset.hasImage = url ? 'true' : 'false';
+    node.dataset.hasCopy = clean(item?.title) || clean(item?.message_body) ? 'true' : 'false';
+    node.style.setProperty('--announcement-image',url ? `url(${JSON.stringify(url)})` : 'none');
+  }
   const escapeHtml = value => {
     const node = document.createElement('div');
     node.textContent = value || '';
@@ -42,7 +67,7 @@
 
   function emitAnnouncements() {
     document.dispatchEvent(new CustomEvent('carometro:platform-announcements', {
-      detail: { announcements: visibleAnnouncements.map(({ id, title, message_body, published_at, video_url }) => ({ id, title, message_body, published_at, video_url })) }
+      detail: { announcements: visibleAnnouncements.map(({ id, title, message_body, published_at, video_url, link_label, link_url, notice_image_url }) => ({ id, title, message_body, published_at, video_url, link_label, link_url, notice_image_url })) }
     }));
   }
 
@@ -107,8 +132,35 @@
     if (!item) return;
     byId('platformAnnouncementBannerTitle').textContent = item.title;
     byId('platformAnnouncementBannerBody').textContent = item.message_body;
-    byId('platformAnnouncementBannerVideo').classList.toggle('hidden', !item.video_storage_path && !videoInfo(item.video_url));
+    const image = byId('platformAnnouncementBannerImage');
+    const isCampaign = item.communication_kind === 'campaign';
+    const imageUrl = isCampaign ? null : validImage(item.notice_image_url);
+    image.classList.toggle('hidden',!imageUrl);
+    image.src = imageUrl || '';
+    byId('platformAnnouncementBannerVideo').classList.toggle('hidden', isCampaign || (!item.video_storage_path && !videoInfo(item.video_url)));
+    const action = byId('platformAnnouncementBannerAction');
+    action.classList.toggle('hidden', !item.link_label || !validImage(item.link_url));
+    if (item.link_label && validImage(item.link_url)) { action.textContent = item.link_label; action.href = item.link_url; }
+    applyTheme(banner,item);
+    renderTicker(banner, 'platformAnnouncementBannerTicker', 'platformAnnouncementBannerTickerLine', item.ticker_text, item.ticker_text_color, item.ticker_background_color);
     banner.dataset.announcementId = item.id;
+  }
+
+  function renderTicker(banner, tickerId, lineId, value, color, background) {
+    const ticker = byId(tickerId);
+    const line = byId(lineId);
+    const phrase = clean(value).replace(/\s+/g, ' ');
+    banner.dataset.hasTicker = phrase ? 'true' : 'false';
+    ticker.classList.toggle('hidden', !phrase);
+    line.textContent = phrase;
+    ticker.title = phrase;
+    ticker.style.color = validColor(color) ? color : '#ffffff';
+    ticker.style.background = `${validColor(background) ? background : '#071a36'}e6`;
+    if (!phrase) return;
+    const width = ticker.clientWidth || banner.clientWidth || 1100;
+    const textWidth = line.scrollWidth || phrase.length * 9;
+    line.style.setProperty('--ticker-start', `${width}px`);
+    line.style.animationDuration = `${Math.max(14, Math.ceil((width + textWidth) / 62))}s`;
   }
 
   async function refreshViewer() {
@@ -134,7 +186,7 @@
     }
     viewerId = signedInUser.id;
     startChannel(signedInUser.id);
-    const announcementsResult = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,published_at').eq('status', 'published').order('published_at', { ascending: false });
+    const announcementsResult = await db.from(TABLE).select('id,communication_kind,title,message_body,ticker_text,ticker_text_color,ticker_background_color,video_url,video_storage_path,link_label,link_url,theme_key,theme_color,theme_text_color,theme_image_url,notice_image_url,button_color,published_at').eq('status', 'published').order('published_at', { ascending: false });
     if (generation !== viewerGeneration || viewerId !== signedInUser.id || app.classList.contains('hidden')) return;
     if (announcementsResult.error) return;
     const published = announcementsResult.data || [];
@@ -263,16 +315,42 @@
   }
 
   function ownerFormData() {
+    const isCampaign = selectedKind === 'campaign';
     const title = clean(byId('platformAnnouncementTitle').value);
     const message_body = clean(byId('platformAnnouncementMessage').value);
-    const video_url = clean(byId('platformAnnouncementVideoUrl').value) || null;
-    const file = byId('platformAnnouncementVideoFile').files?.[0] || null;
+    const ticker_text = clean(byId('platformAnnouncementTickerText').value).replace(/\s+/g, ' ') || null;
+    const ticker_text_color = byId('platformAnnouncementTickerColor').value || '#ffffff';
+    const ticker_background_color = byId('platformAnnouncementTickerBackground').value || '#071a36';
+    const video_url = isCampaign ? null : clean(byId('platformAnnouncementVideoUrl').value) || null;
+    const file = isCampaign ? null : byId('platformAnnouncementVideoFile').files?.[0] || null;
     const target_roles = selectedOwnerRoles();
-    if (title.length < 3 || message_body.length < 3) throw new Error('Informe um título e uma mensagem com pelo menos 3 caracteres.');
+    const theme_key = isCampaign ? byId('platformAnnouncementTheme').value || 'classic' : 'custom';
+    const theme_color = byId('platformAnnouncementThemeColor').value || THEMES[theme_key]?.[0] || THEMES.classic[0];
+    const theme_text_color = byId('platformAnnouncementTextColor').value || THEMES[theme_key]?.[1] || THEMES.classic[1];
+    const theme_image_url = isCampaign ? clean(byId('platformAnnouncementThemeImage').value) || null : null;
+    const theme_file = isCampaign ? byId('platformAnnouncementThemeFile').files?.[0] || null : null;
+    const notice_image_url = isCampaign ? null : clean(byId('platformAnnouncementNoticeImage').value) || null;
+    const notice_file = isCampaign ? null : byId('platformAnnouncementNoticeFile').files?.[0] || null;
+    const button_color = byId('platformAnnouncementButtonColor').value || THEMES[theme_key]?.[2] || THEMES.classic[2];
+    const link_label = clean(byId('platformAnnouncementLinkLabel').value) || null;
+    const link_url = clean(byId('platformAnnouncementLinkUrl').value) || null;
+    if ((title && title.length < 3) || (message_body && message_body.length < 3)) throw new Error('Se preencher título ou mensagem, use pelo menos 3 caracteres.');
+    if (theme_key === 'image_only' && !theme_image_url && !theme_file) throw new Error('No modo Somente imagem, escolha uma imagem de fundo.');
+    if (!title && !message_body && !ticker_text && !theme_image_url && !theme_file && !notice_image_url && !notice_file && !video_url && !file && (isCampaign || !selectedVideoPath)) throw new Error('Escreva um texto ou escolha uma imagem ou vídeo para o aviso.');
+    if (ticker_text && ticker_text.length > 180) throw new Error('O letreiro deve ter até 180 caracteres.');
+    if (!validColor(ticker_text_color)) throw new Error('Escolha uma cor válida para a letra do letreiro.');
+    if (!validColor(ticker_background_color)) throw new Error('Escolha uma cor válida para o fundo do letreiro.');
     if (video_url && !videoInfo(video_url)) throw new Error('Use um link HTTPS do YouTube ou de um arquivo MP4 público.');
     if (file && video_url) throw new Error('Escolha um link ou um arquivo MP4, não os dois.');
     if (target_roles?.length === 0) throw new Error('Selecione ao menos um perfil ou Todos.');
-    return { values: { title, message_body, video_url, video_storage_path: file || video_url ? null : selectedVideoPath, target_roles }, file };
+    if (!Object.hasOwn(THEMES,theme_key) || !validColor(theme_color) || !validColor(theme_text_color)) throw new Error('Escolha cores válidas para o tema.');
+    if (theme_image_url && !validImage(theme_image_url)) throw new Error('Use um link HTTPS válido para a imagem de fundo.');
+    if (notice_image_url && !validImage(notice_image_url)) throw new Error('Use um link HTTPS válido para a imagem do aviso.');
+    if (theme_file && (!['image/jpeg','image/png','image/webp'].includes(theme_file.type) || theme_file.size > 10*1024*1024)) throw new Error('A imagem deve ser JPG, PNG ou WebP de até 10 MB.');
+    if (notice_file && (!['image/jpeg','image/png','image/webp'].includes(notice_file.type) || notice_file.size > 10*1024*1024)) throw new Error('A imagem do aviso deve ser JPG, PNG ou WebP de até 10 MB.');
+    if (!validColor(button_color)) throw new Error('Escolha uma cor válida para o botão.');
+    if (Boolean(link_label) !== Boolean(link_url) || (link_url && !validImage(link_url))) throw new Error('Preencha nome e link HTTPS do botão.');
+    return { values: { communication_kind:selectedKind, title, message_body, ticker_text, ticker_text_color, ticker_background_color, video_url, video_storage_path: isCampaign || file || video_url ? null : selectedVideoPath, target_roles, theme_key, theme_color, theme_text_color, theme_image_url, notice_image_url, button_color, link_label, link_url }, file, theme_file, notice_file };
   }
 
   function selectedOwnerRoles() {
@@ -287,7 +365,7 @@
   function updateOwnerAudience() {
     const label = audienceLabel(selectedOwnerRoles());
     byId('platformAnnouncementPreviewAudience').textContent = `Visível para: ${label}`;
-    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
+    byId('platformAnnouncementPublish').textContent = selectedKind === 'campaign' ? 'Publicar campanha' : 'Publicar novidade';
   }
 
   async function prepareVideo(input) {
@@ -303,6 +381,16 @@
     const { error } = await db.storage.from(VIDEO_BUCKET).upload(path, uploadFile, { contentType: 'video/mp4', upsert: false });
     if (error) throw new Error(`Não foi possível enviar o MP4: ${error.message}`);
     return { values: { ...input.values, video_storage_path: path }, uploadedPath: path };
+  }
+
+  async function prepareImage(input, fileField, valueField) {
+    const imageFile = input[fileField];
+    if (!imageFile) return { values: input.values, uploadedPath: null };
+    const extension = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'}[imageFile.type];
+    const path = `themes/${crypto.randomUUID()}.${extension}`;
+    const { error } = await db.storage.from(IMAGE_BUCKET).upload(path,imageFile,{contentType:imageFile.type,upsert:false});
+    if (error) throw new Error(`Não foi possível enviar a imagem: ${error.message}`);
+    return { values:{...input.values,[valueField]:db.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl},uploadedPath:path };
   }
 
   async function removeUnusedVideo(path) {
@@ -324,10 +412,84 @@
   }
 
   function renderOwnerPreview() {
-    byId('platformAnnouncementPreviewTitle').textContent = clean(byId('platformAnnouncementTitle').value) || 'Título do aviso';
-    byId('platformAnnouncementPreviewBody').textContent = clean(byId('platformAnnouncementMessage').value) || 'A mensagem aparecerá aqui para os perfis escolhidos.';
+    updateThemeControls();
+    updateImageChoices();
+    byId('platformAnnouncementPreviewTitle').textContent = clean(byId('platformAnnouncementTitle').value);
+    byId('platformAnnouncementPreviewBody').textContent = clean(byId('platformAnnouncementMessage').value);
     updateOwnerAudience();
-    byId('platformAnnouncementPreviewVideo').classList.toggle('hidden', !selectedVideoPath && !byId('platformAnnouncementVideoFile').files?.length && !videoInfo(clean(byId('platformAnnouncementVideoUrl').value)));
+    byId('platformAnnouncementPreviewVideo').classList.toggle('hidden', selectedKind === 'campaign' || (!selectedVideoPath && !byId('platformAnnouncementVideoFile').files?.length && !videoInfo(clean(byId('platformAnnouncementVideoUrl').value))));
+    const preview = byId('platformAnnouncementPreview');
+    const file = selectedKind === 'campaign' ? byId('platformAnnouncementThemeFile').files?.[0] : null;
+    const previous = preview.dataset.previewFileUrl;
+    if (previous) URL.revokeObjectURL(previous);
+    const fileUrl = file ? URL.createObjectURL(file) : '';
+    preview.dataset.previewFileUrl = fileUrl;
+    applyTheme(preview,{theme_key:selectedKind === 'campaign' ? byId('platformAnnouncementTheme').value : 'custom',theme_color:byId('platformAnnouncementThemeColor').value,
+      theme_text_color:byId('platformAnnouncementTextColor').value,theme_image_url:selectedKind === 'campaign' ? fileUrl || byId('platformAnnouncementThemeImage').value : null,
+      button_color:byId('platformAnnouncementButtonColor').value,title:byId('platformAnnouncementTitle').value,message_body:byId('platformAnnouncementMessage').value});
+    const noticeFile = selectedKind === 'notice' ? byId('platformAnnouncementNoticeFile').files?.[0] : null;
+    if (preview.dataset.noticeFileUrl) URL.revokeObjectURL(preview.dataset.noticeFileUrl);
+    preview.dataset.noticeFileUrl = noticeFile ? URL.createObjectURL(noticeFile) : '';
+    const noticeUrl = selectedKind === 'notice' ? preview.dataset.noticeFileUrl || validImage(byId('platformAnnouncementNoticeImage').value) : null;
+    const image = byId('platformAnnouncementPreviewImage');
+    image.classList.toggle('hidden',!noticeUrl);
+    image.src = noticeUrl || '';
+    const action = byId('platformAnnouncementPreviewAction');
+    action.textContent = clean(byId('platformAnnouncementLinkLabel').value) || 'Abrir link';
+    action.classList.toggle('hidden',!clean(byId('platformAnnouncementLinkLabel').value));
+    syncOwnerPreviewSize();
+  }
+
+  function syncOwnerPreviewSize() {
+    const frame = byId('platformAnnouncementPreviewFrame');
+    const preview = byId('platformAnnouncementPreview');
+    if (!frame || !preview) return;
+    const referenceWidth = window.innerWidth <= 800 ? Math.max(320, window.innerWidth - 34) : 1100;
+    const frameWidth = frame.clientWidth || referenceWidth;
+    const scale = Math.min(1, frameWidth / referenceWidth);
+    preview.style.width = `${referenceWidth}px`;
+    preview.style.transform = `scale(${scale})`;
+    renderTicker(preview, 'platformAnnouncementPreviewTicker', 'platformAnnouncementPreviewTickerLine', byId('platformAnnouncementTickerText').value, byId('platformAnnouncementTickerColor').value, byId('platformAnnouncementTickerBackground').value);
+    frame.style.height = `${Math.ceil((preview.offsetHeight || (preview.dataset.theme === 'image_only' ? 216 : 156)) * scale)}px`;
+  }
+
+  function updateThemeControls() {
+    const imageOnly = selectedKind === 'campaign' && byId('platformAnnouncementTheme').value === 'image_only';
+    byId('platformAnnouncementColorDetails').classList.toggle('hidden', imageOnly);
+    byId('platformAnnouncementThemeColors').classList.toggle('hidden', imageOnly);
+    byId('platformAnnouncementButtonColorField').classList.toggle('hidden', imageOnly);
+  }
+
+  function updateImageChoices() {
+    byId('platformAnnouncementRemoveThemeImage').classList.toggle('hidden',
+      !clean(byId('platformAnnouncementThemeImage').value) && !byId('platformAnnouncementThemeFile').files?.length);
+    byId('platformAnnouncementRemoveNoticeImage').classList.toggle('hidden',
+      !clean(byId('platformAnnouncementNoticeImage').value) && !byId('platformAnnouncementNoticeFile').files?.length);
+  }
+
+  function clearImage(urlId, fileId) {
+    byId(urlId).value = '';
+    byId(fileId).value = '';
+    renderOwnerPreview();
+  }
+
+  function setOwnerKind(kind) {
+    selectedKind = kind === 'campaign' ? 'campaign' : 'notice';
+    const campaign = selectedKind === 'campaign';
+    byId('platformAnnouncementNoticeFields').classList.toggle('hidden', campaign);
+    byId('platformAnnouncementCampaignFields').classList.toggle('hidden', !campaign);
+    byId('platformAnnouncementNoticeFields').open = !campaign;
+    byId('platformAnnouncementCampaignFields').open = campaign;
+    byId('platformAnnouncementOwnerArea').dataset.kind = selectedKind;
+    for (const choice of ['notice','campaign']) {
+      byId(`platformAnnouncementKind-${choice}`).setAttribute('aria-selected',String(selectedKind === choice));
+    }
+    byId('platformAnnouncementEditorHeading').textContent = campaign ? 'Preparar campanha' : 'Preparar novidade';
+    byId('platformAnnouncementEditorHelp').textContent = campaign
+      ? 'Escolha o tema, a imagem de fundo e a chamada da campanha.'
+      : 'Escreva uma novidade e, se quiser, inclua imagem ou vídeo no comunicado.';
+    byId('platformAnnouncementPublish').textContent = campaign ? 'Publicar campanha' : 'Publicar novidade';
+    renderOwnerPreview();
   }
 
   function resetOwnerForm() {
@@ -336,13 +498,16 @@
     videoChoiceVersion++;
     byId('platformAnnouncementForm').reset();
     byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = false; });
+    byId('platformAnnouncementRemoveThemeImage').disabled = false;
+    byId('platformAnnouncementRemoveNoticeImage').disabled = false;
     byId('platformAnnouncementSave').disabled = false;
     byId('platformAnnouncementPublish').disabled = false;
     byId('platformAnnouncementRoleAll').checked = true;
     byId('platformAnnouncementRemoveVideo').disabled = false;
     ownerStatus('Novo aviso. Salve um rascunho ou publique quando estiver pronto.');
     updateVideoChoice();
-    renderOwnerPreview();
+    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).disabled = false;
+    setOwnerKind('notice');
   }
 
   function selectOwnerRow(id) {
@@ -353,18 +518,33 @@
     videoChoiceVersion++;
     byId('platformAnnouncementTitle').value = row.title;
     byId('platformAnnouncementMessage').value = row.message_body;
+    byId('platformAnnouncementTickerText').value = row.ticker_text || '';
+    byId('platformAnnouncementTickerColor').value = row.ticker_text_color || '#ffffff';
+    byId('platformAnnouncementTickerBackground').value = row.ticker_background_color || '#071a36';
+    byId('platformAnnouncementTheme').value = row.theme_key || 'classic';
+    byId('platformAnnouncementThemeColor').value = row.theme_color || THEMES.classic[0];
+    byId('platformAnnouncementTextColor').value = row.theme_text_color || THEMES.classic[1];
+    byId('platformAnnouncementThemeImage').value = row.theme_image_url || '';
+    byId('platformAnnouncementThemeFile').value = '';
+    byId('platformAnnouncementNoticeImage').value = row.notice_image_url || '';
+    byId('platformAnnouncementNoticeFile').value = '';
+    byId('platformAnnouncementButtonColor').value = row.button_color || THEMES.classic[2];
+    byId('platformAnnouncementLinkLabel').value = row.link_label || '';
+    byId('platformAnnouncementLinkUrl').value = row.link_url || '';
     byId('platformAnnouncementVideoUrl').value = row.video_url || '';
     byId('platformAnnouncementVideoFile').value = '';
     byId('platformAnnouncementRoleAll').checked = !row.target_roles;
     Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = !!row.target_roles?.includes(role); });
-    byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = row.status !== 'draft'; });
+    byId('platformAnnouncementForm').querySelectorAll('input,textarea,select').forEach(field => { field.disabled = row.status !== 'draft'; });
+    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).disabled = row.status !== 'draft';
+    byId('platformAnnouncementRemoveThemeImage').disabled = row.status !== 'draft';
+    byId('platformAnnouncementRemoveNoticeImage').disabled = row.status !== 'draft';
     byId('platformAnnouncementSave').disabled = row.status !== 'draft';
     byId('platformAnnouncementPublish').disabled = row.status !== 'draft';
-    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
+    setOwnerKind(row.communication_kind || (row.theme_image_url ? 'campaign' : 'notice'));
     ownerStatus(row.status === 'draft' ? 'Rascunho carregado para edição.' : 'Prévia do aviso. Clique em Novo aviso para escrever outro.');
     byId('platformAnnouncementRemoveVideo').disabled = row.status !== 'draft';
     updateVideoChoice();
-    renderOwnerPreview();
   }
 
   function renderOwnerList() {
@@ -372,13 +552,13 @@
     if (!container) return;
     container.innerHTML = ownerRows.length ? ownerRows.map(row => `
       <div class="platform-announcement-row">
-        <div><strong>${escapeHtml(row.title)}</strong><small>${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
+        <div><strong>${escapeHtml(row.title || (row.notice_image_url || row.theme_image_url ? 'Aviso com imagem' : row.message_body || 'Aviso com vídeo'))}</strong><small>${row.communication_kind === 'campaign' ? 'Campanha' : 'Novidade'} · ${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
         <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-delete="${row.id}">Excluir aviso</button>` : ''}</div>
       </div>`).join('') : '<p class="meta">Nenhum aviso criado.</p>';
   }
 
   async function loadOwnerRows() {
-    const { data, error } = await db.from(TABLE).select('id,title,message_body,video_url,video_storage_path,target_roles,status,created_at,published_at').in('status', ['draft', 'published']).order('created_at', { ascending: false }).limit(100);
+    const { data, error } = await db.from(TABLE).select('id,communication_kind,title,message_body,ticker_text,ticker_text_color,ticker_background_color,video_url,video_storage_path,link_label,link_url,theme_key,theme_color,theme_text_color,theme_image_url,notice_image_url,button_color,target_roles,status,created_at,published_at').in('status', ['draft', 'published']).order('created_at', { ascending: false }).limit(100);
     if (error) { ownerStatus(`Não foi possível carregar avisos: ${error.message}`, true); return; }
     ownerRows = data || [];
     renderOwnerList();
@@ -393,18 +573,27 @@
     byId('platformAnnouncementPublish').disabled = true;
     const createdBy = viewerId || user?.id;
     let uploadedPath = null;
+    const uploadedImagePaths = [];
     let persisted = false;
     try {
       if (!createdBy) throw new Error('Sua sessão expirou. Entre novamente.');
       const prepared = await prepareVideo(input);
       uploadedPath = prepared.uploadedPath;
+      const themed = await prepareImage({...input,values:prepared.values},'theme_file','theme_image_url');
+      if (themed.uploadedPath) uploadedImagePaths.push(themed.uploadedPath);
+      const illustrated = await prepareImage({...input,values:themed.values},'notice_file','notice_image_url');
+      if (illustrated.uploadedPath) uploadedImagePaths.push(illustrated.uploadedPath);
       const result = selectedId
-        ? await db.from(TABLE).update(prepared.values).eq('id', selectedId).eq('status', 'draft').select('id').single()
-        : await db.from(TABLE).insert({ ...prepared.values, created_by: createdBy, status: 'draft' }).select('id').single();
+        ? await db.from(TABLE).update(illustrated.values).eq('id', selectedId).eq('status', 'draft').select('id').single()
+        : await db.from(TABLE).insert({ ...illustrated.values, created_by: createdBy, status: 'draft' }).select('id').single();
       if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível salvar o rascunho.');
       persisted = true;
       selectedId = result.data.id;
       selectedVideoPath = prepared.values.video_storage_path;
+      byId('platformAnnouncementThemeImage').value = themed.values.theme_image_url || '';
+      byId('platformAnnouncementThemeFile').value = '';
+      byId('platformAnnouncementNoticeImage').value = illustrated.values.notice_image_url || '';
+      byId('platformAnnouncementNoticeFile').value = '';
       byId('platformAnnouncementVideoFile').value = '';
       videoChoiceVersion++;
       if (row?.video_storage_path && row.video_storage_path !== selectedVideoPath) await removeUnusedVideo(row.video_storage_path);
@@ -414,6 +603,7 @@
       await loadOwnerRows();
     } catch (error) {
       if (!persisted && uploadedPath) await removeUnusedVideo(uploadedPath);
+      if (!persisted && uploadedImagePaths.length) await db.storage.from(IMAGE_BUCKET).remove(uploadedImagePaths);
       ownerStatus(persisted ? 'Rascunho salvo, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : error.message, true);
     } finally {
       byId('platformAnnouncementSave').disabled = false;
@@ -424,11 +614,12 @@
   async function publish() {
     let input;
     try { input = ownerFormData(); } catch (error) { ownerStatus(error.message, true); return; }
-    if (!confirm(`Publicar este aviso para: ${audienceLabel(input.values.target_roles)}? O aviso publicado anteriormente será excluído definitivamente.`)) return;
+    if (!confirm(`Publicar esta ${selectedKind === 'campaign' ? 'campanha' : 'novidade'} para: ${audienceLabel(input.values.target_roles)}? O comunicado publicado anteriormente será excluído definitivamente.`)) return;
     byId('platformAnnouncementPublish').disabled = true;
     byId('platformAnnouncementSave').disabled = true;
     const createdBy = viewerId || user?.id;
     let uploadedPath = null;
+    const uploadedImagePaths = [];
     let persisted = false;
     let published = false;
     try {
@@ -437,11 +628,15 @@
       if (selectedId && draft?.status !== 'draft') throw new Error('Só rascunhos podem ser publicados.');
       const prepared = await prepareVideo(input);
       uploadedPath = prepared.uploadedPath;
+      const themed = await prepareImage({...input,values:prepared.values},'theme_file','theme_image_url');
+      if (themed.uploadedPath) uploadedImagePaths.push(themed.uploadedPath);
+      const illustrated = await prepareImage({...input,values:themed.values},'notice_file','notice_image_url');
+      if (illustrated.uploadedPath) uploadedImagePaths.push(illustrated.uploadedPath);
       if (selectedId) {
-        const result = await db.from(TABLE).update(prepared.values).eq('id', selectedId).eq('status', 'draft').select('id').single();
+        const result = await db.from(TABLE).update(illustrated.values).eq('id', selectedId).eq('status', 'draft').select('id').single();
         if (result.error || !result.data) throw new Error(result.error?.message || 'Não foi possível salvar o rascunho.');
       } else {
-        const created = await db.from(TABLE).insert({ ...prepared.values, created_by: createdBy, status: 'draft' }).select('id').single();
+        const created = await db.from(TABLE).insert({ ...illustrated.values, created_by: createdBy, status: 'draft' }).select('id').single();
         if (created.error || !created.data) throw new Error(created.error?.message || 'Não foi possível criar o aviso.');
         selectedId = created.data.id;
       }
@@ -459,6 +654,7 @@
       await Promise.all([loadOwnerRows(), refreshViewer()]);
     } catch (error) {
       if (!persisted && uploadedPath) await removeUnusedVideo(uploadedPath);
+      if (!persisted && uploadedImagePaths.length) await db.storage.from(IMAGE_BUCKET).remove(uploadedImagePaths);
       ownerStatus(published ? 'Aviso publicado, mas não foi possível atualizar a lista. Reabra Comunicações para conferir.' : persisted ? `Rascunho salvo, mas a publicação falhou; o aviso anterior foi preservado. ${error.message}` : `Não foi possível publicar: ${error.message}`, true);
       await loadOwnerRows();
     } finally {
@@ -469,7 +665,7 @@
 
   async function deletePublished(id) {
     const row = ownerRows.find(item => item.id === id && item.status === 'published');
-    if (!row || !confirm(`Excluir definitivamente o aviso “${row.title}”? Ele deixará de aparecer para todos.`)) return;
+    if (!row || !confirm(`Excluir definitivamente ${row.communication_kind === 'campaign' ? 'a campanha' : 'a novidade'} “${row.title || 'sem título'}”? Ela deixará de aparecer para todos.`)) return;
     const { data, error } = await db.from(TABLE).delete().eq('id', id).eq('status', 'published').select('id,video_storage_path').single();
     if (error || !data) { ownerStatus(error?.message || 'Não foi possível excluir o aviso.', true); return; }
     const videoRemoved = await removeUnusedVideo(data.video_storage_path);
@@ -486,41 +682,69 @@
     const shell = document.createElement('div');
     shell.className = 'platform-announcement-shell';
     shell.innerHTML = `
-      <nav class="platform-announcement-tabs" aria-label="Canais de comunicação">
-        <button type="button" class="active" data-channel="in-app" aria-selected="true">Mensagem direta no Carômetro</button>
-        <button type="button" data-channel="whatsapp" aria-selected="false">Mensagens pelo WhatsApp</button>
-        <button type="button" data-channel="email" aria-selected="false">Campanhas por e-mail</button>
-      </nav>
       <div id="platformAnnouncementOwnerArea">
-        <p class="platform-announcement-intro">Publique uma mensagem para os perfis escolhidos no Carômetro. A publicação substitui e exclui definitivamente o aviso anterior. Cada pessoa pode fechar o aviso individualmente.</p>
-        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4>Novo aviso</h4><p>Título, mensagem e vídeo opcional. Nenhuma ação adicional é exigida de quem receber.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
+        <div class="platform-communication-intro"><div><small>COMUNICAÇÃO NO CARÔMETRO</small><h4>Prepare o comunicado para a plataforma</h4><p>Escolha uma novidade ou campanha, confira a prévia e publique. Um comunicado fica no ar por vez.</p></div><span class="platform-communication-intro-mark" aria-hidden="true">✦</span></div>
+        <div class="platform-communication-switch platform-inapp-kind-switch" role="tablist" aria-label="Tipo de comunicação do Carômetro"><button type="button" role="tab" id="platformAnnouncementKind-notice" aria-selected="true"><span aria-hidden="true">✦</span><strong>Novidade</strong><small>Texto, imagem ou vídeo do comunicado</small></button><button type="button" role="tab" id="platformAnnouncementKind-campaign" aria-selected="false"><span aria-hidden="true">◈</span><strong>Campanha</strong><small>Tema, cores e imagem de fundo</small></button></div>
+        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4 id="platformAnnouncementEditorHeading">Preparar novidade</h4><p id="platformAnnouncementEditorHelp">Escreva uma novidade e, se quiser, inclua imagem ou vídeo no comunicado.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
           <form id="platformAnnouncementForm" class="platform-announcement-form">
-            <div class="field"><label for="platformAnnouncementTitle">Título</label><input id="platformAnnouncementTitle" maxlength="120" required placeholder="Ex.: Novidade no Carômetro"></div>
-            <div class="field"><label for="platformAnnouncementMessage">Mensagem</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" required placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
+            <div class="platform-compose-step"><span>01</span><div><strong>Mensagem</strong><small>O conteúdo principal que as pessoas verão.</small></div></div>
+            <div class="field"><label for="platformAnnouncementTitle">Título (opcional)</label><input id="platformAnnouncementTitle" maxlength="120" placeholder="Ex.: Novidade no Carômetro"></div>
+            <div class="field"><label for="platformAnnouncementMessage">Mensagem (opcional)</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
+            <div class="field platform-announcement-ticker-field"><label for="platformAnnouncementTickerText">Letreiro na base da faixa (opcional)</label><input id="platformAnnouncementTickerText" maxlength="180" placeholder="Ex.: Inscrições abertas para o ENEM 2026"><small>O texto passa em linha contínua da direita para a esquerda. Funciona em Novidade e Campanha.</small><div class="platform-announcement-ticker-colors"><div><label for="platformAnnouncementTickerColor">Cor da letra</label><input id="platformAnnouncementTickerColor" type="color" value="#ffffff"></div><div><label for="platformAnnouncementTickerBackground">Cor do fundo</label><input id="platformAnnouncementTickerBackground" type="color" value="#071a36"></div></div></div>
+            <div class="platform-compose-step"><span>02</span><div><strong>Público</strong><small>Escolha quem receberá este aviso.</small></div></div>
             <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
-            <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
-            <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 45 MB, sem limite de duração. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
+            <details id="platformAnnouncementCampaignFields" class="platform-communication-details hidden"><summary><span><strong>Tema da campanha</strong><small>Data comemorativa e imagem de fundo da faixa.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
+              <div class="field"><label for="platformAnnouncementTheme">Aparência da faixa</label><select id="platformAnnouncementTheme"><option value="classic">Padrão</option><option value="image_only">Somente imagem (sem cor)</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></div>
+              <div class="field"><label for="platformAnnouncementThemeImage">Imagem de fundo (link HTTPS, opcional)</label><input id="platformAnnouncementThemeImage" type="url" maxlength="2048" placeholder="https://..."></div>
+              <div class="field"><label for="platformAnnouncementThemeFile">Ou enviar imagem de fundo</label><input id="platformAnnouncementThemeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG ou WebP até 10 MB. O texto permanece por cima da imagem.</small><button type="button" id="platformAnnouncementRemoveThemeImage" class="link hidden">Remover imagem de fundo</button></div>
+            </div></details>
+            <details id="platformAnnouncementNoticeFields" class="platform-communication-details" open><summary><span><strong>Imagem ou vídeo da novidade</strong><small>O arquivo aparece no comunicado, sem virar fundo da campanha.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
+              <div class="field"><label for="platformAnnouncementNoticeImage">Imagem da informação (link HTTPS, opcional)</label><input id="platformAnnouncementNoticeImage" type="url" maxlength="2048" placeholder="https://..."></div>
+              <div class="field"><label for="platformAnnouncementNoticeFile">Ou enviar imagem da informação</label><input id="platformAnnouncementNoticeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>Essa imagem aparece dentro da faixa, abaixo do texto.</small><button type="button" id="platformAnnouncementRemoveNoticeImage" class="link hidden">Remover imagem do aviso</button></div>
+              <div class="platform-announcement-media-divider"><strong>Vídeo</strong><small>Link público ou arquivo MP4.</small></div>
+              <div class="field"><label for="platformAnnouncementVideoUrl">Link do vídeo (opcional)</label><input id="platformAnnouncementVideoUrl" type="url" maxlength="500" placeholder="Link do YouTube ou de um MP4 público"></div>
+              <div class="field platform-announcement-file-field"><label for="platformAnnouncementVideoFile">Ou envie um MP4 do computador ou celular</label><input id="platformAnnouncementVideoFile" type="file" accept="video/mp4,.mp4"><small>Até 45 MB, sem limite de duração. O vídeo só abre quando a pessoa clicar em “Ver vídeo”.</small><div class="platform-announcement-file-choice"><span id="platformAnnouncementVideoChoice">Nenhum arquivo selecionado.</span><button type="button" id="platformAnnouncementRemoveVideo" class="link hidden">Remover vídeo</button></div></div>
+            </div></details>
+            <details id="platformAnnouncementColorDetails" class="platform-communication-details"><summary><span><strong>Cores da faixa</strong><small>Personalize o fundo, o texto e o botão.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
+              <div id="platformAnnouncementThemeColors" class="platform-announcement-theme-colors"><div class="field"><label for="platformAnnouncementThemeColor">Cor de fundo</label><input id="platformAnnouncementThemeColor" type="color" value="#138052"></div><div class="field"><label for="platformAnnouncementTextColor">Cor do texto</label><input id="platformAnnouncementTextColor" type="color" value="#ffffff"></div></div>
+              <div id="platformAnnouncementButtonColorField" class="field"><label for="platformAnnouncementButtonColor">Cor do botão</label><input id="platformAnnouncementButtonColor" type="color" value="#ffffff"></div>
+            </div></details>
+            <details class="platform-communication-details"><summary><span><strong>Botão com link</strong><small>Opcional: envie para uma página, promoção ou tutorial.</small></span></summary><div class="platform-communication-details-body">
+            <div class="field"><label for="platformAnnouncementLinkLabel">Nome do botão (opcional)</label><input id="platformAnnouncementLinkLabel" maxlength="60" placeholder="Ex.: Ver planos"></div>
+            <div class="field"><label for="platformAnnouncementLinkUrl">Link do botão (opcional)</label><input id="platformAnnouncementLinkUrl" type="url" maxlength="2048" placeholder="https://..."></div>
+            </div></details>
+            <div class="platform-compose-step"><span>03</span><div><strong>Revise e publique</strong><small>Veja a prévia ao lado antes de publicar.</small></div></div>
             <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar aviso</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
           </form></section>
-          <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><p id="platformAnnouncementPreviewAudience" class="platform-announcement-audience">Visível para: Todos</p><div class="platform-announcement-preview"><div><small id="platformAnnouncementPreviewTitle">Título do aviso</small><strong id="platformAnnouncementPreviewBody">A mensagem aparecerá aqui para os perfis escolhidos.</strong><span id="platformAnnouncementPreviewVideo" class="hidden">▶ Ver vídeo</span></div><span aria-hidden="true">×</span></div></section>
+          <div><section class="platform-panel"><div class="platform-panel-head"><h4>Prévia na tela do usuário</h4></div><p id="platformAnnouncementPreviewAudience" class="platform-announcement-audience">Visível para: Todos</p><div id="platformAnnouncementPreviewFrame" class="platform-announcement-preview-frame"><div id="platformAnnouncementPreview" class="platform-announcement-banner platform-announcement-owner-preview"><div class="platform-announcement-banner-copy"><small id="platformAnnouncementPreviewTitle"></small><strong id="platformAnnouncementPreviewBody"></strong><img id="platformAnnouncementPreviewImage" class="platform-announcement-content-image hidden" alt="Imagem da informação"><button type="button" id="platformAnnouncementPreviewVideo" class="platform-announcement-video hidden">▶ Ver vídeo</button><a id="platformAnnouncementPreviewAction" class="platform-announcement-action hidden">Abrir link</a></div><button type="button" class="platform-announcement-dismiss" aria-label="Prévia do botão de fechar">×</button><div id="platformAnnouncementPreviewTicker" class="platform-announcement-ticker hidden" tabindex="0" aria-label="Letreiro do comunicado"><span id="platformAnnouncementPreviewTickerLine" class="platform-announcement-ticker-line"></span></div></div></div></section>
           <section class="platform-panel platform-announcement-history"><div class="platform-panel-head"><h4>Aviso atual e rascunhos</h4></div><div id="platformAnnouncementList" class="platform-announcement-list"></div></section></div></div>
-      </div>
-      <section id="platformAnnouncementWhatsAppArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Mensagens pelo WhatsApp</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>
-      <section id="platformAnnouncementEmailArea" class="platform-panel platform-announcement-placeholder hidden"><h4>Campanhas por e-mail</h4><p>Área reservada para organizar este canal em uma próxima etapa.</p></section>`;
+      </div>`;
     root.replaceChildren(shell);
-    shell.querySelectorAll('[data-channel]').forEach(button => button.onclick = () => {
-      const channel = button.dataset.channel;
-      byId('platformAnnouncementOwnerArea').classList.toggle('hidden', channel !== 'in-app');
-      byId('platformAnnouncementWhatsAppArea').classList.toggle('hidden', channel !== 'whatsapp');
-      byId('platformAnnouncementEmailArea').classList.toggle('hidden', channel !== 'email');
-      shell.querySelectorAll('[data-channel]').forEach(tab => {
-        tab.classList.toggle('active', tab === button);
-        tab.setAttribute('aria-selected', String(tab === button));
-      });
-    });
     byId('platformAnnouncementForm').onsubmit = event => { event.preventDefault(); saveDraft(); };
     byId('platformAnnouncementForm').addEventListener('input', renderOwnerPreview);
+    byId('platformAnnouncementPreviewImage').addEventListener('load', syncOwnerPreviewSize);
+    window.addEventListener('resize', syncOwnerPreviewSize);
+    if (typeof ResizeObserver !== 'undefined') {
+      let previousWidth = 0;
+      new ResizeObserver(entries => {
+        const width = entries[0]?.contentRect.width || 0;
+        if (width && width !== previousWidth) { previousWidth = width; syncOwnerPreviewSize(); }
+      }).observe(byId('platformAnnouncementPreviewFrame'));
+    }
+    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).onclick = () => setOwnerKind(choice);
+    byId('platformAnnouncementTheme').addEventListener('change', () => {
+      const [background,foreground,button] = THEMES[byId('platformAnnouncementTheme').value] || THEMES.classic;
+      byId('platformAnnouncementThemeColor').value = background;
+      byId('platformAnnouncementTextColor').value = foreground;
+      byId('platformAnnouncementButtonColor').value = button;
+      renderOwnerPreview();
+    });
+    for (const id of ['platformAnnouncementThemeColor','platformAnnouncementTextColor','platformAnnouncementButtonColor']) byId(id).addEventListener('input', renderOwnerPreview);
+    byId('platformAnnouncementThemeFile').addEventListener('change', renderOwnerPreview);
+    byId('platformAnnouncementNoticeFile').addEventListener('change', renderOwnerPreview);
+    byId('platformAnnouncementRemoveThemeImage').onclick = () => clearImage('platformAnnouncementThemeImage','platformAnnouncementThemeFile');
+    byId('platformAnnouncementRemoveNoticeImage').onclick = () => clearImage('platformAnnouncementNoticeImage','platformAnnouncementNoticeFile');
     byId('platformAnnouncementRoleAll').addEventListener('change', () => {
       if (byId('platformAnnouncementRoleAll').checked) Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = false; });
       renderOwnerPreview();
@@ -568,6 +792,7 @@
       if (preview) selectOwnerRow(preview.dataset.preview);
       if (remove) deletePublished(remove.dataset.delete);
     };
+    setOwnerKind('notice');
   }
 
   window.openPlatformCommunications = async () => {
@@ -580,7 +805,7 @@
     banner.id = 'platformAnnouncementBanner';
     banner.className = 'platform-announcement-banner hidden';
     banner.setAttribute('role', 'status');
-    banner.innerHTML = '<div class="platform-announcement-banner-copy"><small id="platformAnnouncementBannerTitle"></small><strong id="platformAnnouncementBannerBody"></strong><button type="button" id="platformAnnouncementBannerVideo" class="platform-announcement-video hidden">▶ Ver vídeo</button></div><button type="button" id="platformAnnouncementDismiss" class="platform-announcement-dismiss" aria-label="Fechar aviso" title="Fechar aviso">×</button>';
+    banner.innerHTML = '<div class="platform-announcement-banner-copy"><small id="platformAnnouncementBannerTitle"></small><strong id="platformAnnouncementBannerBody"></strong><img id="platformAnnouncementBannerImage" class="platform-announcement-content-image hidden" alt="Imagem da informação"><button type="button" id="platformAnnouncementBannerVideo" class="platform-announcement-video hidden">▶ Ver vídeo</button><a id="platformAnnouncementBannerAction" class="platform-announcement-action hidden" target="_blank" rel="noopener noreferrer"></a></div><button type="button" id="platformAnnouncementDismiss" class="platform-announcement-dismiss" aria-label="Fechar aviso" title="Fechar aviso">×</button><div id="platformAnnouncementBannerTicker" class="platform-announcement-ticker hidden" tabindex="0" aria-label="Letreiro do comunicado"><span id="platformAnnouncementBannerTickerLine" class="platform-announcement-ticker-line"></span></div>';
     byId('app')?.querySelector('.main')?.prepend(banner);
     const modal = document.createElement('div');
     modal.id = 'platformAnnouncementVideoModal';
@@ -603,6 +828,7 @@
     db.auth.onAuthStateChange((event, session) => { if (event === 'SIGNED_OUT' || !session?.user) refreshViewer(); });
     document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshViewer(); });
     window.addEventListener('online', refreshViewer);
+    window.addEventListener('resize', renderBanner);
     setInterval(() => { if (!document.hidden && !byId('app')?.classList.contains('hidden')) refreshViewer(); }, 30000);
     refreshViewer();
   });

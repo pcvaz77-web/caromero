@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#071a39">
   <title>Assistente SIAP do Professor</title>
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="assistente-siap.css?v=8">
+  <link rel="stylesheet" href="assistente-siap.css?v=12">
   <link rel="stylesheet" href="assistente-siap-support.css">
 </head>
 <body>
@@ -141,7 +141,7 @@
       <div><span class="eyebrow">DUAS FORMAS DE ACESSO</span><h2>Um produto independente, integrado ao ecossistema Carômetro</h2><p>Professores autorizados por uma escola no Carômetro recebem acesso institucional. Quem não utiliza o Carômetro pode contratar uma assinatura individual.</p></div>
       <div class="access-cards">
         <article><b>Acesso pelo Carômetro</b><p>Liberado pelo administrador da escola, conforme as permissões do professor.</p><span>Licença institucional</span></article>
-        <article><b>Assinatura individual</b><p>Contratação direta, com mensal recorrente ou pagamento único trimestral, independente de uma escola.</p><span>Licença pessoal</span></article>
+        <article><b>Assinatura individual</b><p>Contratação direta, com mensal recorrente ou pagamento único trimestral, semestral ou anual, independente de uma escola.</p><span>Licença pessoal</span></article>
       </div>
     </section>
 
@@ -189,6 +189,7 @@
     </section>
 
     <section id="planos" class="section pricing-section" data-public-checkout>
+      <div class="black-friday-banner" id="blackFridayBanner" hidden><span>BLACK FRIDAY · ASSISTENTE SIAP</span><strong>Seu planejamento merece uma grande oferta.</strong><p>Preços especiais por tempo limitado nos planos individuais.</p></div>
       <div class="section-heading"><span class="eyebrow">PLANOS E DEMONSTRAÇÃO</span><h2>Escolha como começar</h2><p>Assine para usar sem limite de demonstração ou experimente gratuitamente antes de decidir.</p></div>
       <div class="pricing-grid">
         <article class="price-card monthly-card">
@@ -200,6 +201,16 @@
           <span class="popular">CONDIÇÃO TEMPORÁRIA</span><span class="plan-label">INDIVIDUAL</span><h3>Trimestral</h3><p class="price">R$ 129,90 / 3 meses</p><p>Pagamento único para usar durante três meses.</p>
           <ul><li>Todos os recursos do plano mensal</li><li>Valor trimestral promocional</li><li>Três meses de acesso</li></ul>
           <button class="checkout-button" type="button" data-assistant-plan="quarterly" disabled>Assinatura em preparação</button>
+        </article>
+        <article class="price-card semiannual-card">
+          <span class="plan-label">INDIVIDUAL</span><h3>Semestral</h3><p class="price">R$ 149,90 / 6 meses</p><p>Pagamento único para usar durante seis meses.</p>
+          <ul><li>Todos os recursos do plano mensal</li><li>Uma cobrança, sem renovação automática</li><li>Seis meses de acesso</li></ul>
+          <button class="checkout-button" type="button" data-assistant-plan="semiannual" disabled>Assinatura em preparação</button>
+        </article>
+        <article class="price-card annual-card">
+          <span class="plan-label">INDIVIDUAL</span><h3>Anual</h3><p class="price">R$ 269,90 / 12 meses</p><p>Pagamento único para usar durante doze meses.</p>
+          <ul><li>Todos os recursos do plano mensal</li><li>Uma cobrança, sem renovação automática</li><li>Doze meses de acesso</li></ul>
+          <button class="checkout-button" type="button" data-assistant-plan="annual" disabled>Assinatura em preparação</button>
         </article>
         <article class="price-card trial-card">
           <span class="plan-label">DEMONSTRAÇÃO</span><h3>Experimentar grátis</h3><p class="price">R$ 0,00</p><p>Disponível uma única vez por e-mail. Verificamos seu direito ao entrar na conta.</p>
@@ -213,7 +224,7 @@
         </article>
       </div>
       <p class="pricing-note">A Correção de Provas integra o Carômetro para quem tem acesso ativo à plataforma.</p>
-      <p class="pricing-note">O mensal tem renovação recorrente. O trimestral é pago uma vez e libera três meses de acesso, sem renovação automática.</p>
+      <p class="pricing-note">O mensal tem renovação recorrente. Os planos trimestral, semestral e anual têm uma cobrança e liberam acesso pelo período contratado, sem renovação automática.</p>
       <p class="pricing-note">Já comprou pelo celular? No computador com a extensão, <a href="assistente-siap-conta.html">entre na sua conta do Assistente SIAP</a> usando o mesmo e-mail da compra.</p>
     </section>
 
@@ -223,7 +234,7 @@
         <details><summary>A extensão faz login no SIAP?</summary><p>Não. O professor entra normalmente no SIAP e a extensão funciona somente depois da autenticação feita no sistema oficial.</p></details>
         <details><summary>O professor pode revisar antes de salvar?</summary><p>Sim. A revisão permanece disponível. No planejamento, o professor também pode optar pelo fluxo automático e pausá-lo quando desejar.</p></details>
         <details><summary>Preciso utilizar o Carômetro?</summary><p>Não. A escola pode conceder o acesso institucional pelo Carômetro, mas a assinatura individual funciona de forma independente.</p></details>
-        <details><summary>Como funciona a assinatura?</summary><p>Escolha o plano mensal ou trimestral e conclua o pagamento no checkout seguro. Depois da confirmação, a licença é vinculada automaticamente ao e-mail usado na compra. A extensão está disponível na Chrome Web Store.</p></details>
+        <details><summary>Como funciona a assinatura?</summary><p>Escolha o plano mensal, trimestral, semestral ou anual e conclua o pagamento no checkout seguro. Depois da confirmação, a licença é vinculada automaticamente ao e-mail usado na compra. A extensão está disponível na Chrome Web Store.</p></details>
       </div>
     </section>
 
@@ -245,6 +256,6 @@
   </footer>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap.js?v=8"></script>
+  <script src="assistente-siap.js?v=11"></script>
 </body>
 </html>

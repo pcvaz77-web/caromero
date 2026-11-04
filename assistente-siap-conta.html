@@ -18,24 +18,20 @@
     <section class="account-copy">
       <span class="eyebrow">PAGAMENTO PROTEGIDO</span>
       <h1>Ative seu acesso individual</h1>
-      <p id="accountPageIntro">Entre com seu e-mail, confirme o plano e prossiga para o checkout seguro.</p>
+      <p id="accountPageIntro">Confirme seu e-mail, pague na Hotmart e volte a esta página para instalar e conectar a extensão.</p>
       <div class="payment-methods" aria-label="Formas de pagamento">
         <span>◆ Pix no trimestral</span><span>▣ Cartão e boleto</span>
       </div>
-      <ul><li>O site não recebe dados do seu cartão.</li><li>A licença é vinculada ao seu e-mail.</li><li>O cancelamento vale para o mensal recorrente; o trimestral é pagamento único.</li></ul>
+      <ul><li>O site não recebe dados do seu cartão.</li><li>A licença é vinculada ao seu e-mail.</li><li>O cancelamento vale para o mensal recorrente; trimestral, semestral e anual têm pagamento único.</li></ul>
     </section>
     <section class="account-card">
       <div id="accountLoading">Verificando sua conta…</div>
       <form id="loginForm" hidden>
         <h2>Entrar por e-mail</h2>
-        <p>Enviaremos uma confirmação para seu e-mail. Se a mensagem trouxer um código, digite-o abaixo; o link de confirmação também funciona.</p>
+        <p>Enviaremos um link de acesso para seu e-mail. Abra a mensagem e clique no link para voltar a esta página com sua conta confirmada.</p>
         <p>Use o mesmo e-mail da compra na Hotmart ou da conta que recebeu a concessão pelo Carômetro.</p>
         <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
         <button class="button" type="submit">Enviar link de acesso</button>
-        <div id="accountCodeStep" hidden>
-          <label>Código recebido<input id="accountOtp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" aria-describedby="loginMessage"></label>
-          <button id="verifyAccountCode" class="button button-outline" type="button">Confirmar código</button>
-        </div>
         <p id="loginMessage" class="account-message" aria-live="polite"></p>
       </form>
       <div id="checkoutPanel" hidden>
@@ -45,7 +41,9 @@
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
+        <p id="paymentReturnHint" class="account-identity" hidden>Depois do pagamento, use “Acessar produto” na Hotmart ou abra o link enviado ao seu e-mail. Você voltará a esta página para instalar e conectar a extensão.</p>
         <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
+        <button id="refreshAssistantAccess" class="button button-outline" type="button" hidden>Já paguei · verificar acesso</button>
         <div id="assistantInstallSteps" class="assistant-install-steps" hidden>
           <strong>Conclua a instalação em duas etapas:</strong>
           <a id="installAssistantExtension" class="button" href="#" target="_blank" rel="noopener noreferrer">1. Instalar o Assistente SIAP</a>
@@ -60,6 +58,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=20"></script>
+  <script src="assistente-siap-conta.js?v=22"></script>
 </body>
 </html>

@@ -4,15 +4,34 @@ const { harness, flush } = require('./helpers/browser-harness.cjs');
 
 test('aviso direto exige destinatarios e prepara os perfis escolhidos', async () => {
   const h = harness('platform-in-app-announcements.js', {
-    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,audienceLabel};})();')
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,audienceLabel,setOwnerKind};})();')
   });
   await h.ready();
+  h.context.URL = URL;
   h.get('platformAnnouncementTitle').value = 'Novo recurso';
   h.get('platformAnnouncementMessage').value = 'Confira a novidade.';
+  h.get('platformAnnouncementTheme').value = 'black_friday';
+  h.get('platformAnnouncementThemeColor').value = '#080e1b';
+  h.get('platformAnnouncementTextColor').value = '#fff5d4';
+  h.get('platformAnnouncementButtonColor').value = '#d7b65f';
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/fundo.jpg';
+  h.get('platformAnnouncementNoticeImage').value = 'https://example.org/noticia.jpg';
   h.get('platformAnnouncementRoleAll').checked = true;
   let input = h.context.window.testAnnouncements.ownerFormData();
   assert.equal(input.values.target_roles, null);
+  assert.equal(input.values.communication_kind, 'notice');
+  assert.equal(input.values.theme_image_url, null);
+  assert.equal(input.values.notice_image_url, 'https://example.org/noticia.jpg');
+  assert.equal(input.values.button_color, '#d7b65f');
   assert.equal(h.context.window.testAnnouncements.audienceLabel(input.values.target_roles), 'Todos');
+
+  h.context.window.testAnnouncements.setOwnerKind('campaign');
+  input = h.context.window.testAnnouncements.ownerFormData();
+  assert.equal(input.values.communication_kind, 'campaign');
+  assert.equal(input.values.theme_image_url, 'https://example.org/fundo.jpg');
+  assert.equal(input.values.notice_image_url, null);
+  assert.equal(input.values.video_url, null);
+  h.context.window.testAnnouncements.setOwnerKind('notice');
 
   h.get('platformAnnouncementRoleAll').checked = false;
   h.get('platformAnnouncementRole-teacher').checked = true;
@@ -24,6 +43,112 @@ test('aviso direto exige destinatarios e prepara os perfis escolhidos', async ()
   h.get('platformAnnouncementRole-teacher').checked = false;
   h.get('platformAnnouncementRole-coordinator').checked = false;
   assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /Selecione ao menos um perfil/);
+});
+
+test('arte de fundo permite aviso sem titulo e mensagem, mas aviso vazio e recusado', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,setOwnerKind};})();')
+  });
+  await h.ready();
+  h.context.URL = URL;
+  h.get('platformAnnouncementRoleAll').checked = true;
+  assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /Escreva um texto ou escolha/);
+  h.context.window.testAnnouncements.setOwnerKind('campaign');
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/arte.png';
+  const input = h.context.window.testAnnouncements.ownerFormData();
+  assert.equal(input.values.title, '');
+  assert.equal(input.values.message_body, '');
+  assert.equal(input.values.theme_image_url, 'https://example.org/arte.png');
+});
+
+test('modo somente imagem exige fundo e permite retirar as duas imagens antes de salvar', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,clearImage,renderOwnerPreview,setOwnerKind};})();')
+  });
+  await h.ready();
+  h.context.URL = URL;
+  h.get('platformAnnouncementRoleAll').checked = true;
+  h.context.window.testAnnouncements.setOwnerKind('campaign');
+  h.get('platformAnnouncementTheme').value = 'image_only';
+  h.get('platformAnnouncementThemeColor').value = '#17345d';
+  h.get('platformAnnouncementTextColor').value = '#13213a';
+  h.get('platformAnnouncementButtonColor').value = '#ffffff';
+  assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /escolha uma imagem de fundo/);
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/fundo.png';
+  h.get('platformAnnouncementNoticeImage').value = 'https://example.org/aviso.png';
+  assert.equal(h.context.window.testAnnouncements.ownerFormData().values.theme_key, 'image_only');
+  h.context.window.testAnnouncements.renderOwnerPreview();
+  assert.equal(h.get('platformAnnouncementThemeColors').classList.contains('hidden'), true);
+  assert.equal(h.get('platformAnnouncementButtonColorField').classList.contains('hidden'), true);
+  h.context.window.testAnnouncements.clearImage('platformAnnouncementNoticeImage','platformAnnouncementNoticeFile');
+  assert.equal(h.get('platformAnnouncementNoticeImage').value, '');
+  h.context.window.testAnnouncements.clearImage('platformAnnouncementThemeImage','platformAnnouncementThemeFile');
+  assert.equal(h.get('platformAnnouncementThemeImage').value, '');
+  assert.throws(() => h.context.window.testAnnouncements.ownerFormData(), /escolha uma imagem de fundo/);
+});
+
+test('prévia reduz a faixa inteira sem alterar suas proporções', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={syncOwnerPreviewSize};})();')
+  });
+  await h.ready();
+  h.context.window.innerWidth = 1360;
+  h.get('platformAnnouncementPreviewFrame').clientWidth = 550;
+  h.get('platformAnnouncementPreview').offsetHeight = 216;
+  h.context.window.testAnnouncements.syncOwnerPreviewSize();
+  assert.equal(h.get('platformAnnouncementPreview').style.width, '1100px');
+  assert.equal(h.get('platformAnnouncementPreview').style.transform, 'scale(0.5)');
+  assert.equal(h.get('platformAnnouncementPreviewFrame').style.height, '108px');
+});
+
+test('imagem com e sem texto identifica a necessidade de contraste local na prévia e na faixa', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={applyTheme,setOwnerKind,renderOwnerPreview};})();')
+  });
+  await h.ready();
+  h.context.URL = URL;
+  h.context.window.testAnnouncements.setOwnerKind('campaign');
+  h.get('platformAnnouncementTheme').value = 'image_only';
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/banner.png';
+  h.context.window.testAnnouncements.renderOwnerPreview();
+  assert.equal(h.get('platformAnnouncementPreview').dataset.hasCopy, 'false');
+  h.get('platformAnnouncementTitle').value = 'Mensagem sobre a imagem';
+  h.context.window.testAnnouncements.renderOwnerPreview();
+  assert.equal(h.get('platformAnnouncementPreview').dataset.hasCopy, 'true');
+  h.context.window.testAnnouncements.applyTheme(h.get('platformAnnouncementBanner'), {
+    theme_key: 'image_only', theme_image_url: 'https://example.org/banner.png', title: '', message_body: ''
+  });
+  assert.equal(h.get('platformAnnouncementBanner').dataset.hasCopy, 'false');
+});
+
+test('letreiro sozinho pode ser salvo em novidade e campanha e aparece na prévia', async () => {
+  const h = harness('platform-in-app-announcements.js', {
+    transform: source => source.replace(/\}\)\(\);\s*$/, 'window.testAnnouncements={ownerFormData,setOwnerKind,renderOwnerPreview};})();')
+  });
+  await h.ready();
+  h.context.URL = URL;
+  h.get('platformAnnouncementRoleAll').checked = true;
+  h.get('platformAnnouncementTickerText').value = 'Inscrições abertas para o ENEM 2026';
+  h.get('platformAnnouncementTickerColor').value = '#ffdf54';
+  h.get('platformAnnouncementTickerBackground').value = '#10214a';
+  let values = h.context.window.testAnnouncements.ownerFormData().values;
+  assert.equal(values.ticker_text, 'Inscrições abertas para o ENEM 2026');
+  assert.equal(values.ticker_text_color, '#ffdf54');
+  assert.equal(values.ticker_background_color, '#10214a');
+  h.context.window.testAnnouncements.setOwnerKind('campaign');
+  h.get('platformAnnouncementTheme').value = 'image_only';
+  h.get('platformAnnouncementThemeImage').value = 'https://example.org/enem.png';
+  values = h.context.window.testAnnouncements.ownerFormData().values;
+  assert.equal(values.ticker_text, 'Inscrições abertas para o ENEM 2026');
+  assert.equal(values.ticker_background_color, '#10214a');
+  h.get('platformAnnouncementPreviewTicker').clientWidth = 1100;
+  h.get('platformAnnouncementPreviewTickerLine').scrollWidth = 500;
+  h.context.window.testAnnouncements.renderOwnerPreview();
+  assert.equal(h.get('platformAnnouncementPreview').dataset.hasTicker, 'true');
+  assert.equal(h.get('platformAnnouncementPreviewTickerLine').textContent, 'Inscrições abertas para o ENEM 2026');
+  assert.equal(h.get('platformAnnouncementPreviewTickerLine').style.animationDuration, '26s');
+  assert.equal(h.get('platformAnnouncementPreviewTicker').style.color, '#ffdf54');
+  assert.equal(h.get('platformAnnouncementPreviewTicker').style.background, '#10214ae6');
 });
 
 for (const rpcFails of [false, true]) test(`publicacao ${rpcFails ? 'preserva o anterior se falhar' : 'substitui o anterior e limpa seus videos'}`, async () => {
@@ -80,7 +205,7 @@ test('aviso global permanece para outra conta apos fechamento individual', async
   const dismissed = new Set();
   const announcement = {
     id: 'notice-1', title: 'Atualização', message_body: 'Há uma novidade para todos.',
-    video_url: null, published_at: '2026-10-20T12:00:00Z'
+    ticker_text: 'Leia o comunicado completo', video_url: null, published_at: '2026-10-20T12:00:00Z'
   };
   const h = harness('platform-in-app-announcements.js', {
     query: (table, operations) => {
@@ -98,6 +223,7 @@ test('aviso global permanece para outra conta apos fechamento individual', async
   await h.ready();
   assert.equal(h.get('platformAnnouncementBannerTitle').textContent, 'Atualização');
   assert.equal(h.get('platformAnnouncementBanner').classList.contains('hidden'), false);
+  assert.equal(h.get('platformAnnouncementBannerTickerLine').textContent, 'Leia o comunicado completo');
 
   await h.get('platformAnnouncementDismiss').onclick();
   assert.equal(h.get('platformAnnouncementBanner').classList.contains('hidden'), true);
