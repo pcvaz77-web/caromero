@@ -1430,8 +1430,8 @@
         toast(`${adminEmail} já está vinculado(a) a esta escola.`);
         return;
       }
-      renderAdminInviteStatus(`Convite enviado para ${adminEmail}. Aguardando definição de senha e confirmação.`);
-      toast('Escola criada. Convite de administrador enviado por e-mail.');
+      renderAdminInviteStatus(`Solicitação de envio aceita para ${adminEmail}. Aguardando confirmação pelo destinatário.`);
+      toast('Convite solicitado por e-mail. A entrega deve ser conferida com o destinatário.');
     } catch (error) {
       pendingAdminInvite = { invitationId, adminEmail };
       renderAdminInviteStatus(`Escola criada, mas o envio do convite falhou: ${error.message}`);
@@ -1448,6 +1448,36 @@
     } finally {
       button.disabled = false;
     }
+  }
+
+  async function resendSchoolAdminInvite(button) {
+    const schoolId = button.dataset.resendSchoolAdmin;
+    const email = button.dataset.adminEmail;
+    button.disabled = true;
+    button.textContent = 'Enviando…';
+    try {
+      const data = await invokeManageUser({ action:'resend_school_admin', schoolId });
+      toast(data.already_linked
+        ? `${email} já está vinculado(a) à escola. Atualize a página.`
+        : `Solicitação de envio aceita para ${email}. Peça ao destinatário que verifique também spam e lixo eletrônico.`);
+    } catch (error) {
+      toast(`Não foi possível reenviar o convite: ${error.message}`);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Reenviar convite';
+    }
+  }
+
+  function adminResendButton(school) {
+    return school.admin_state === 'pending'
+      ? `<button class="btn secondary" type="button" data-resend-school-admin="${esc(school.school_id)}" data-admin-email="${esc(school.admin_email)}">Reenviar convite</button>`
+      : '';
+  }
+
+  function bindAdminResendButtons(container) {
+    container.querySelectorAll('[data-resend-school-admin]').forEach(button => {
+      button.onclick = () => resendSchoolAdminInvite(button);
+    });
   }
 
   async function provisionSchool(event) {
@@ -1621,7 +1651,8 @@
     const active = (schools || []).filter(school => school.school_status !== 'archived');
     const preview = document.getElementById('platformOverviewSchools');
     if (preview) {
-      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p></article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+      preview.innerHTML = active.slice(0, 4).map(school => `<article class="platform-subscription-card"><h4>${esc(school.school_name)}</h4><p>${adminLine(school)}</p><p><span class="platform-badge ${esc(school.plan || 'free')}">${esc((plans.find(plan => plan.plan_key === school.plan)?.display_name) || PLAN_LABELS[school.plan] || school.plan)}</span> <span class="platform-badge ${esc(school.school_status || 'active')}">${esc(STATUS_LABELS[school.school_status] || school.school_status)}</span></p><p>${esc(school.student_count || 0)} aluno(s) · ${esc(school.user_count || 0)} membro(s)</p>${adminResendButton(school)}</article>`).join('') || '<div class="empty">Nenhuma escola cadastrada.</div>';
+      bindAdminResendButtons(preview);
     }
     const distribution = document.getElementById('platformPlanDistribution');
     if (distribution) {
@@ -1700,7 +1731,7 @@
   function adminLine(school) {
     const state = school.admin_state || 'none';
     if (state === 'active') return `<span class="platform-school-admin"><span class="label">Administrador:</span> ${esc(school.admin_email)}</span>`;
-    if (state === 'pending') return `<span class="platform-school-admin pending"><span class="label">Administrador:</span> ${esc(school.admin_email)} · convite pendente</span>`;
+    if (state === 'pending') return `<span class="platform-school-admin pending"><span class="label">Administrador:</span> ${esc(school.admin_email)} · aguardando aceitação (entrega não confirmada)</span>`;
     return `<span class="platform-school-admin none">Sem administrador</span>`;
   }
 
@@ -1768,11 +1799,12 @@
           <td data-label="Assinatura"><span class="platform-badge ${esc(subscriptionStatus)}">${esc(STATUS_LABELS[subscriptionStatus] || subscriptionStatus)}</span></td>
           <td data-label="Usuários">${esc(school.user_count ?? 0)}</td>
           <td data-label="Alunos">${esc(school.student_count ?? 0)}</td>
-          <td data-label="Ações" class="platform-school-actions">${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn secondary" type="button" data-edit-school-name data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Editar nome</button> ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
+          <td data-label="Ações" class="platform-school-actions">${adminResendButton(school)} ${planButton} ${commercialTermsButton} <button class="btn secondary" type="button" data-school-status="${esc(nextStatus)}" data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">${actionLabel} escola</button> ${subscriptionButton} <button class="btn secondary" type="button" data-edit-school-name data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Editar nome</button> ${billingContactButton} <button class="btn danger" type="button" data-archive-school data-school-id="${esc(school.school_id)}" data-school-name="${esc(school.school_name)}">Excluir escola</button></td>
         </tr>`;
       });
 
       body.innerHTML = rows.join('');
+      bindAdminResendButtons(body);
 
       body.querySelectorAll('[data-school-status]').forEach(button => {
         button.onclick = () => setSchoolStatus(button);

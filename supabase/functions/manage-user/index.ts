@@ -43,12 +43,31 @@ Deno.serve(async (request) => {
   let userId: unknown
   let email: unknown
   let invitationId: unknown
+  let schoolId: unknown
   try {
-    ({ action, userId, email, invitationId } = await request.json())
+    ({ action, userId, email, invitationId, schoolId } = await request.json())
   } catch {
     return json(request, { error: 'Corpo da solicitação inválido.' }, 400)
   }
-  if (action === 'invite_school_admin') {
+  if (action === 'invite_school_admin' || action === 'resend_school_admin') {
+    if (action === 'resend_school_admin') {
+      if (typeof schoolId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(schoolId)) {
+        return json(request, { error: 'Escola inválida.' }, 400)
+      }
+      const { data: pending, error: pendingError } = await admin
+        .from('school_invitations')
+        .select('id')
+        .eq('school_id', schoolId)
+        .eq('role', 'school_admin')
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (pendingError) return json(request, { error: 'Não foi possível consultar o convite.' }, 500)
+      if (!pending) return json(request, { error: 'Não há convite válido pendente para esta escola.' }, 404)
+      invitationId = pending.id
+    }
     if (typeof invitationId !== 'string' || !invitationId) {
       return json(request, { error: 'Convite inválido.' }, 400)
     }
