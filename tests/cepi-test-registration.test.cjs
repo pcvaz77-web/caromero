@@ -36,6 +36,16 @@ test('coordenação cadastra a prova e a deixa disponível para os professores',
   } finally { dom.window.close(); }
 });
 
+test('sessão vencida é renovada antes de carregar a lista de provas', async () => {
+  const {dom, errors} = await fixture('manager=1&jwtExpired=1', false);
+  try {
+    assert.equal(dom.window.jwtStats.accessCalls, 2);
+    assert.equal(dom.window.jwtStats.refreshes, 1);
+    assert.doesNotMatch(dom.window.document.getElementById('cepiWorkspaceMessage').textContent, /JWT expired/);
+    assert.deepEqual(errors, []);
+  } finally { dom.window.close(); }
+});
+
 test('lista suspensa permite escolher professor e coordenador da escola', async () => {
   const {dom, waitFor, errors} = await fixture('manager=1');
   try {

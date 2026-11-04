@@ -89,9 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const bankFilters = {query:'',subject:'',grade:'',page:0};
   const $ = id => document.getElementById(id);
   const message = value => { $('cepiWorkspaceMessage').textContent = value || ''; };
+  const expiredJwt = error => /\bJWT expired\b/i.test(String(error?.message || ''));
+  const sessionExpiredMessage = 'Sua sessão expirou. Entre novamente no Carômetro e abra Provas para continuar.';
   const fail = error => message(error?.code === '42P01' || error?.code === 'PGRST205'
     ? 'Esta função ainda depende da ativação das tabelas CEPI no banco. Os demais recursos do Carômetro continuam disponíveis.'
-    : error?.message || 'Não foi possível concluir a operação.');
+    : expiredJwt(error) ? sessionExpiredMessage : error?.message || 'Não foi possível concluir a operação.');
   const manager = () => access?.enabled === true && ['school_admin','coordinator'].includes(memberRole);
   const editor = () => access?.enabled === true && ['school_admin','coordinator','teacher'].includes(memberRole);
   const activeTests = () => tests.filter(test => !test.deleted_at && test.kind !== 'bimestral');
@@ -142,13 +144,32 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function load() {
+    try {
+      return await loadOnce();
+    } catch (error) {
+      if (!expiredJwt(error)) throw error;
+      let refresh;
+      try { refresh = await db.auth.refreshSession(); }
+      catch { throw new Error(sessionExpiredMessage); }
+      const { data, error: refreshError } = refresh;
+      if (refreshError || !data?.session) throw new Error(sessionExpiredMessage);
+      try {
+        return await loadOnce();
+      } catch (retryError) {
+        if (expiredJwt(retryError)) throw new Error(sessionExpiredMessage);
+        throw retryError;
+      }
+    }
+  }
+
+  async function loadOnce() {
     const requestedSchool = window.getActiveSchoolId?.();
     if (!requestedSchool) throw new Error('Selecione uma escola.');
-    const [{data:context,error:accessError},{data:auth,error:authError}] = await Promise.all([
-      db.rpc('get_cepi_access_context', {p_school_id:requestedSchool}), db.auth.getUser()
-    ]);
-    if (accessError || authError) throw accessError || authError;
+    const {data:auth,error:authError} = await db.auth.getUser();
+    if (authError) throw authError;
     if (!auth?.user?.id) throw new Error('Entre novamente para acessar o Meu CEPI.');
+    const {data:context,error:accessError} = await db.rpc('get_cepi_access_context', {p_school_id:requestedSchool});
+    if (accessError) throw accessError;
     const nextAccess = Array.isArray(context) ? context[0] : context;
     if (!nextAccess?.enabled) throw new Error('Meu CEPI não está habilitado nesta escola.');
     const [roleResult,testResult,questionResult,bankResult,headerResult,groupResult,groupClassResult,groupStudentResult,observationResult,classResult,studentResult] = await Promise.all([

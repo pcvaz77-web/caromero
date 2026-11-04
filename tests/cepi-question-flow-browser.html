@@ -56,6 +56,19 @@
   window.getActiveSchoolId=()=>school;
   class Query {constructor(name){this.name=name;this.filters=[]}select(){return this}eq(key,value){this.filters.push([key,value]);return this}is(key,value){this.filters.push([key,value]);return this}order(){return this}in(){return this}range(){const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));return Promise.resolve({data,error:null})}maybeSingle(){return new Promise(resolve=>this.then(result=>resolve({data:result.data[0]||null,error:null})))}insert(value){this.newRow={id:crypto.randomUUID(),...(this.name==='cepi_question_bank'?{active:true}:{}),...value};return this}update(value){this.patch=value;return this}single(){if(this.patch&&location.search.includes('editError=1'))return Promise.resolve({data:null,error:{message:'Falha simulada ao salvar.'}});if(this.name==='cepi_tests'&&this.newRow&&location.search.includes('testSaveError=1'))return Promise.resolve({data:null,error:{message:'Falha simulada ao cadastrar.'}});return new Promise(resolve=>this.then(result=>resolve({data:result.data[0]||null,error:null})))}then(resolve){if(this.newRow){rows[this.name].push(this.newRow);resolve({data:[this.newRow],error:null});return}const data=(rows[this.name]||[]).filter(row=>this.filters.every(([key,value])=>row[key]===value));if(this.patch)for(const row of data)Object.assign(row,this.patch);resolve({data,error:null})}}
   window.db={auth:{getUser:async()=>({data:{user:{id:user}},error:null})},rpc:async(name)=>name==='list_cepi_tutor_candidates'?{data:candidatePeople,error:null}:{data:{enabled:true},error:null},from:name=>new Query(name),storage:{from:()=>({upload:async()=>({error:null}),remove:async()=>({error:null}),createSignedUrl:async()=>({data:{signedUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=='},error:null})})}};
+  if(location.search.includes('jwtExpired=1')){
+    window.jwtStats={accessCalls:0,refreshes:0};
+    const rpc=window.db.rpc;
+    window.db.rpc=async(...args)=>{
+      if(args[0]==='get_cepi_access_context' && ++window.jwtStats.accessCalls===1)
+        return {data:null,error:{message:'JWT expired'}};
+      return rpc(...args);
+    };
+    window.db.auth.refreshSession=async()=>{
+      window.jwtStats.refreshes++;
+      return {data:{session:{access_token:'renewed'}},error:null};
+    };
+  }
   if(location.search.includes('reuse=1')){
     window.db.rpc=async(name,args)=>{
       if(name==='list_cepi_tutor_candidates')return {data:candidatePeople,error:null};
