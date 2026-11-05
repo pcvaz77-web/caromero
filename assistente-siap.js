@@ -81,7 +81,12 @@
     client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order'),
     client.rpc('get_siap_black_friday')
   ]).then(async ([{ data, error }, { data:campaign, error:campaignError }]) => {
-      if (error) return;
+      if (error || !Array.isArray(data) || data.length === 0) {
+        document.querySelectorAll('.pricing-grid .price').forEach(price => {
+          price.textContent = 'Preço indisponível no momento';
+        });
+        return;
+      }
       const blackFriday = !campaignError && campaign?.active === true;
       if (blackFriday) {
         document.body.classList.add('black-friday-active');

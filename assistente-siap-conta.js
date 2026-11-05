@@ -119,7 +119,7 @@
     installSteps.hidden = false;
     if(examFlow) {
       panelTitle.textContent='Correção de Provas';selectedPlanTarget.hidden=false;legal.hidden=false;checkoutButton.hidden=false;trialEndedLink.hidden=true;
-      accessSummary.textContent=examStatus?.active?`Correção disponível · ${examStatus.credits||0} crédito(s) livre(s) · ${examStatus.openBlocks||0} bloco(s) em andamento. Use o mesmo e-mail desta conta em novas compras.`:'Use o mesmo e-mail desta conta no pagamento da Hotmart. Após a confirmação, conecte a extensão.';
+      accessSummary.textContent=examStatus?.active?`Correção disponível · ${examStatus.credits||0} crédito(s) livre(s) · ${examStatus.openBlocks||0} bloco(s) em andamento. Use o mesmo e-mail desta conta em novas compras.`:'Após a confirmação do pagamento, conecte a extensão a esta conta.';
       connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';return;
     }
     if (status?.mode === 'subscription' && status.active === true) {
@@ -202,13 +202,15 @@
       const status = knownStatus || await loadAccessStatus();
       if (status?.mode === 'subscription' && status.active === true) return;
       const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
-        .select('status,created_at').eq('provider','hotmart').eq('status','pending')
+        .select('status,created_at,provider').in('provider',['hotmart','mercado_pago']).eq('status','pending')
         .order('created_at',{ascending:false}).limit(1).maybeSingle();
       const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
       if (!recent) return;
       panelTitle.textContent = 'Pagamento em confirmação';
       accessSummary.hidden = false;
-      accessSummary.textContent = 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento. Assim que ela chegar, esta página mostrará a conexão da extensão.';
+      accessSummary.textContent = payment.provider === 'hotmart'
+        ? 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento.'
+        : 'Aguardando a confirmação do Mercado Pago. A licença será vinculada a esta conta após a aprovação.';
       selectedPlanTarget.hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
@@ -288,7 +290,7 @@
     checkoutPanel.hidden = !session;
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
-      document.getElementById('paymentEmailHint').textContent = `No pagamento da Hotmart, use ${session.user.email}. A licença e os créditos serão vinculados a essa conta. Já pagou com outro e-mail? Use “Entrar com outro e-mail”.`;
+      document.getElementById('paymentEmailHint').textContent = `A licença do Assistente será vinculada à conta ${session.user.email}. Você pode pagar no Mercado Pago sem criar uma conta lá.`;
       await loadPlan();
       const status = await loadAccessStatus();
       if (status?.mode !== 'subscription' || status.active !== true) await refreshPaymentAccess(status);
@@ -316,10 +318,12 @@
     if (!selectedPlan || !legal.checked) return;
     checkoutButton.disabled = true;
     checkoutButton.textContent = 'Abrindo pagamento…';
-    let { data, error } = await db.functions.invoke(examFlow?'siap-exam-commerce':'create-hotmart-assistant-checkout', { body:examFlow?{action:'checkout',offerKey:planKey,legalAccepted:true}:{ planKey:selectedPlan.plan_key, legalAccepted:true } });
+    const checkoutFunction=examFlow?'siap-exam-commerce':selectedPlan.plan_key==='monthly'
+      ? 'create-siap-assistant-subscription' : 'create-mercado-pago-assistant-once';
+    let { data, error } = await db.functions.invoke(checkoutFunction, { body:examFlow?{action:'checkout',offerKey:planKey,legalAccepted:true}:{ planKey:selectedPlan.plan_key, legalAccepted:true } });
     if(!data && error?.context?.json) {try {data=await error.context.json();} catch {}}
     if (error || !data?.checkoutUrl) {
-      message('checkoutMessage', data?.code === 'existing_subscription_upgrade_required' ? 'Você já possui um plano. Fale com o suporte para incluir a correção sem criar uma segunda cobrança. A compra de créditos avulsos continua disponível.' : data?.code === 'plan_not_available' ? 'Este plano ainda não está disponível.' : 'Não foi possível iniciar o pagamento.', true);
+      message('checkoutMessage', data?.code === 'existing_subscription_upgrade_required' ? 'Você já possui um plano. Fale com o suporte para incluir a correção sem criar uma segunda cobrança. A compra de créditos avulsos continua disponível.' : data?.code === 'other_checkout_pending' ? 'Já existe um pagamento iniciado para esta conta. Conclua-o ou fale com o suporte antes de escolher outro plano.' : data?.code === 'plan_not_available' ? 'Este plano ainda não está disponível.' : 'Não foi possível iniciar o pagamento.', true);
       checkoutButton.disabled = false;
     checkoutButton.textContent = 'Ir para o pagamento seguro';
       return;

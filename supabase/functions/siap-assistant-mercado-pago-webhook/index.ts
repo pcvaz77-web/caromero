@@ -43,7 +43,51 @@ Deno.serve(async request => {
   }
 
   try {
-    if (eventType === 'subscription_preapproval') {
+    if (eventType === 'payment') {
+      const provider=await mercadoPago(`/v1/payments/${encodeURIComponent(dataId)}`,token)
+      const reference=String(provider.external_reference ?? '')
+      const {data:payment,error:lookupError}=await admin.from('siap_assistant_payment_subscriptions').select('*')
+        .eq('provider','mercado_pago').eq('external_reference',reference).maybeSingle()
+      if (lookupError) throw lookupError
+      if (payment) {
+        const sameOrder=String(provider.id)===dataId
+          && Boolean(payment.provider_checkout_id)
+          && String(provider.currency_id ?? '')===String(payment.currency)
+          && Math.abs(Number(provider.transaction_amount)-Number(payment.amount))<0.009
+          && !payment.provider_subscription_id
+        if (!sameOrder) throw new Error('payment_mismatch')
+        const approved=provider.status==='approved'
+        const refunded=['refunded','charged_back'].includes(String(provider.status ?? ''))
+        if (approved && payment.status==='authorized' && payment.last_payment_id!==String(provider.id)) {
+          throw new Error('second_approved_payment_requires_review')
+        }
+        const changes={status:refunded?'cancelled':payment.status,
+          last_payment_id:String(provider.id),last_payment_status:String(provider.status ?? ''),
+          provider_status:String(provider.status ?? ''),last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()}
+        const {error:updateError}=await admin.from('siap_assistant_payment_subscriptions').update(changes).eq('id',payment.id)
+        if (updateError) throw updateError
+        if (approved) {
+          const paidAt=provider.date_approved && !Number.isNaN(Date.parse(provider.date_approved))
+            ? provider.date_approved : new Date().toISOString()
+          const {error:grantError}=await admin.rpc('siap_activate_paid_subscription',{
+            p_payment_subscription_id:payment.id,p_paid_at:paidAt
+          })
+          if (grantError) throw grantError
+        } else if (refunded && payment.last_activated_payment_id===String(provider.id)) {
+          const {data:newer,error:newerError}=await admin.from('siap_assistant_payment_subscriptions')
+            .select('id').eq('user_id',payment.user_id).eq('status','authorized')
+            .gt('current_period_end',new Date().toISOString())
+            .neq('id',payment.id).limit(1)
+          if (newerError) throw newerError
+          if (!newer?.length) {
+            const {error:suspendError}=await admin.from('siap_assistant_licenses').update({
+              suspended_at:new Date().toISOString(),updated_at:new Date().toISOString()
+            }).eq('user_id',payment.user_id)
+            if (suspendError) throw suspendError
+          }
+        }
+      }
+    } else if (eventType === 'subscription_preapproval') {
       const provider = await mercadoPago(`/preapproval/${encodeURIComponent(dataId)}`, token)
       const status = provider.status === 'authorized' ? 'authorized' : provider.status === 'paused' ? 'paused' : ['cancelled','canceled'].includes(provider.status) ? 'cancelled' : 'pending'
       await admin.from('siap_assistant_payment_subscriptions').update({
@@ -59,10 +103,11 @@ Deno.serve(async request => {
           && String(invoice.external_reference ?? '') === String(payment.external_reference)
           && Number(invoice.transaction_amount) === Number(payment.amount)
           && String(invoice.currency_id) === payment.currency
-        await admin.from('siap_assistant_payment_subscriptions').update({
+        const {error:updateError}=await admin.from('siap_assistant_payment_subscriptions').update({
           last_invoice_id:String(invoice.id), last_payment_id:String(invoice?.payment?.id ?? ''),
           last_payment_status:String(invoice?.payment?.status ?? ''), last_webhook_at:new Date().toISOString(), updated_at:new Date().toISOString()
         }).eq('id', payment.id)
+        if (updateError) throw updateError
         if (valid) {
           const { error } = await admin.rpc('siap_activate_paid_subscription', { p_payment_subscription_id:payment.id, p_paid_at:new Date().toISOString() })
           if (error) throw error

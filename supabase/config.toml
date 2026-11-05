@@ -19,6 +19,12 @@ verify_jwt = false
 [functions.create-siap-assistant-subscription]
 verify_jwt = true
 
+[functions.create-mercado-pago-assistant-once]
+verify_jwt = true
+
+[functions.create-mercado-pago-school-once]
+verify_jwt = false
+
 [functions.cancel-siap-assistant-subscription]
 verify_jwt = true
 
