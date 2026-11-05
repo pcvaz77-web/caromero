@@ -389,10 +389,10 @@
     status.classList.toggle('active', active);
     const current = new Map((plans || []).map(plan => [plan.plan_key, plan]));
     const campaignOrder = ['monthly', 'quarterly', 'semiannual', 'annual'];
-    target.innerHTML = `<div class="platform-siap-black-friday-intro"><b>${active ? 'A Black Friday está no ar' : 'Campanha preparada, sem divulgação'}</b><p>Cada plano tem uma oferta normal e outra promocional na Hotmart. Confira os dois checkouts abaixo. Ao ativar ou encerrar, o sistema troca o preço exibido e o link usado nas novas compras.</p></div><div class="platform-siap-black-friday-posters"><span>Cartazes prontos para mensagens:</span><a class="btn secondary" href="/marketing/black-friday/assistente-siap-feed.png" download>Baixar quadrado</a><a class="btn secondary" href="/marketing/black-friday/assistente-siap-story.png" download>Baixar vertical</a></div><div class="platform-siap-black-friday-grid">${campaign.plans.sort((a,b) => campaignOrder.indexOf(a.plan_key) - campaignOrder.indexOf(b.plan_key)).map(item => {
+    target.innerHTML = `<div class="platform-siap-black-friday-intro"><b>${active ? 'A Black Friday está no ar' : 'Campanha preparada, sem divulgação'}</b><p>O preço ativo do catálogo é usado nas novas compras pelo Mercado Pago. As ofertas normais e promocionais da Hotmart continuam cadastradas para pagamentos e contratos anteriores.</p></div><div class="platform-siap-black-friday-posters"><span>Cartazes prontos para mensagens:</span><a class="btn secondary" href="/marketing/black-friday/assistente-siap-feed.png" download>Baixar quadrado</a><a class="btn secondary" href="/marketing/black-friday/assistente-siap-story.png" download>Baixar vertical</a></div><div class="platform-siap-black-friday-grid">${campaign.plans.sort((a,b) => campaignOrder.indexOf(a.plan_key) - campaignOrder.indexOf(b.plan_key)).map(item => {
       const plan = current.get(item.plan_key);
       return `<form class="platform-siap-black-friday-plan" data-black-plan="${esc(item.plan_key)}"><strong>${esc(plan?.display_name || item.plan_key)}</strong><label>De · preço normal (R$)<input name="regular" type="number" min="0.01" step="0.01" value="${esc(item.regular_amount)}" ${active ? 'disabled' : ''} required></label><label>Por · preço Black (R$)<input name="promo" type="number" min="0.01" step="0.01" value="${esc(item.promo_amount ?? '')}" placeholder="Definir" ${active ? 'disabled' : ''} required></label><button class="btn secondary" type="submit" ${active ? 'disabled' : ''}>Salvar preço</button><small>Ofertas na Hotmart: <a href="${esc(item.regular_checkout_url || '#')}" target="_blank" rel="noopener">normal</a> · <a href="${esc(item.promo_checkout_url || '#')}" target="_blank" rel="noopener">Black Friday</a></small></form>`;
-    }).join('')}</div><div class="platform-siap-black-friday-actions"><label class="check"><input id="platformSiapBlackFridayConfirm" type="checkbox"> Conferi os quatro checkouts ${active ? 'normais' : 'promocionais'} na Hotmart</label><button id="platformSiapBlackFridayToggle" class="btn ${active ? 'secondary' : 'primary'}" type="button" disabled>${active ? 'Desativar Black Friday' : 'Ativar Black Friday'}</button><p>O botão troca os links e preços das novas compras no Assistente e na página de vendas. Os cupons promocionais continuam ativos na Hotmart até você desativá-los lá.</p></div>`;
+    }).join('')}</div><div class="platform-siap-black-friday-actions"><label class="check"><input id="platformSiapBlackFridayConfirm" type="checkbox"> Conferi os quatro checkouts ${active ? 'normais' : 'promocionais'} na Hotmart</label><button id="platformSiapBlackFridayToggle" class="btn ${active ? 'secondary' : 'primary'}" type="button" disabled>${active ? 'Desativar Black Friday' : 'Ativar Black Friday'}</button><p>O botão troca os preços do catálogo e as ofertas antigas da Hotmart. Novos checkouts do Mercado Pago usam o preço ativo no momento da criação; cupons da Hotmart precisam ser desativados lá.</p></div>`;
     target.querySelectorAll('[data-black-plan]').forEach(form => {
       form.onsubmit = async event => {
         event.preventDefault();
@@ -418,7 +418,7 @@
       try {
         const { error:toggleError } = await db.rpc('platform_set_siap_black_friday_active', { p_active:!active, p_hotmart_confirmed:true });
         if (toggleError) { toast(toggleError.message); return; }
-        toast(active ? 'Black Friday encerrada; preços e links normais restaurados.' : 'Black Friday ativada com os links promocionais.');
+        toast(active ? 'Black Friday encerrada; preços normais restaurados.' : 'Black Friday ativada com os preços promocionais.');
         await openDashboard(); showPlatformPage('siap');
       } finally { toggle.disabled = false; }
     };
@@ -866,7 +866,8 @@
       <label class="check"><input data-field="contact_only" type="checkbox" ${plan.contact_only ? 'checked' : ''}> Somente contato / Sob consulta</label>
       <button class="btn primary" type="submit">Salvar alterações</button>
     </form>${plan.plan_key === 'professional' ? `<form class="platform-premium-annual-form platform-plan-card">
-      <div class="platform-plan-card-head"><b>Premium anual</b><span class="meta">Compra única por 12 meses</span></div>
+      <div class="platform-plan-card-head"><b>Premium · Mercado Pago</b><span class="meta">Ofertas únicas de 6 e 12 meses</span></div>
+      <div class="field"><label>Total por 6 meses (R$)</label><input name="mercado_pago_semiannual_price" type="number" min="0.01" step="0.01" value="${esc(plan.mercado_pago_semiannual_price ?? '')}" required></div>
       <div class="field"><label>Total no cartão (R$)</label><input name="annual_card_price" type="number" min="0.01" step="0.01" value="${esc(plan.annual_card_price ?? '')}" required><small>Até 12 vezes sem juros para a escola. A taxa do parcelamento é descontada do recebimento.</small></div>
       <div class="field"><label>Total no Pix (R$)</label><input name="annual_pix_price" type="number" min="0.01" step="0.01" value="${esc(plan.annual_pix_price ?? '')}" required></div>
       <button class="btn primary" type="submit">Salvar valores anuais</button>
@@ -902,19 +903,20 @@
     target.querySelectorAll('.platform-premium-annual-form').forEach(form => {
       form.onsubmit = async event => {
         event.preventDefault();
+        const semiannual = Number(form.elements.mercado_pago_semiannual_price.value);
         const card = Number(form.elements.annual_card_price.value);
         const pix = Number(form.elements.annual_pix_price.value);
-        if (!Number.isFinite(card) || !Number.isFinite(pix) || card <= 0 || pix <= 0 || pix > card) {
-          toast('Confira os totais anuais do cartão e do Pix.'); return;
+        if (!Number.isFinite(semiannual) || !Number.isFinite(card) || !Number.isFinite(pix) || semiannual <= 0 || card <= 0 || pix <= 0 || pix > card) {
+          toast('Confira os totais semestral e anuais.'); return;
         }
         const button = form.querySelector('button[type="submit"]');
         button.disabled = true;
         try {
           const { error:saveError } = await db.rpc('platform_set_premium_annual_prices', {
-            p_card_price:card, p_pix_price:pix
+            p_semiannual_price:semiannual, p_card_price:card, p_pix_price:pix
           });
           if (saveError) { toast(saveError.message); return; }
-          toast('Valores anuais do Premium salvos.');
+          toast('Ofertas do Premium para o Mercado Pago salvas.');
           await refreshPlansSection();
         } finally { button.disabled = false; }
       };

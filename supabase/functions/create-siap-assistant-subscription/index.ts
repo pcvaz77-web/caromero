@@ -36,7 +36,7 @@ Deno.serve(async request => {
     planKey = String(body?.planKey ?? '')
     legalAccepted = body?.legalAccepted === true
   } catch { /* validado abaixo */ }
-  if (!['monthly', 'semiannual'].includes(planKey)) return json(request, { ok:false, code:'invalid_plan' }, 400)
+  if (planKey !== 'monthly') return json(request, { ok:false, code:'invalid_plan' }, 400)
   if (!legalAccepted) return json(request, { ok:false, code:'legal_acceptance_required' }, 400)
 
   const admin = createClient(url, serviceKey, { auth:{ autoRefreshToken:false, persistSession:false } })
@@ -47,19 +47,36 @@ Deno.serve(async request => {
   }
 
   const { data:existing } = await admin.from('siap_assistant_payment_subscriptions')
-    .select('id,status,checkout_url,external_reference').eq('user_id', user.id).in('status', ['creating','pending','authorized','paused'])
+    .select('id,provider,plan_key,amount,status,checkout_url,external_reference,provider_checkout_id,provider_subscription_id').eq('user_id', user.id).in('status', ['creating','pending','authorized','paused'])
     .order('created_at', { ascending:false }).limit(1).maybeSingle()
   if (existing?.status === 'authorized' || existing?.status === 'paused') {
     return json(request, { ok:false, code:'subscription_already_exists' }, 409)
   }
-  if (existing?.checkout_url) return json(request, { ok:true, checkoutUrl:existing.checkout_url, reused:true })
+  if (existing && existing.provider !== 'mercado_pago') {
+    return json(request, { ok:false, code:'other_checkout_pending' }, 409)
+  }
+  if (existing && (existing.plan_key !== 'monthly' || Number(existing.amount) !== Number(plan.amount))) {
+    return json(request, { ok:false, code:'other_checkout_pending' }, 409)
+  }
+  if (existing?.provider==='mercado_pago' && existing.plan_key==='monthly'
+      && Number(existing.amount)===Number(plan.amount) && existing.checkout_url) {
+    return json(request, { ok:true, checkoutUrl:existing.checkout_url, reused:true })
+  }
+  if (existing?.checkout_url) return json(request, {ok:false,code:'other_checkout_pending'},409)
 
-  let payment: { id:string; external_reference:string } | null = existing
-    ? { id:String(existing.id), external_reference:String(existing.external_reference) }
-    : null
+  let payment: { id:string; external_reference:string } | null = null
+  if (existing) {
+    const {data,error}=await admin.from('siap_assistant_payment_subscriptions').update({
+      provider:'mercado_pago',plan_key:'monthly',amount:Number(plan.amount),payer_email:user.email,
+      legal_accepted_at:new Date().toISOString(),status:'creating',checkout_url:null,
+      provider_checkout_id:null,provider_subscription_id:null,updated_at:new Date().toISOString()
+    }).eq('id',existing.id).select('id,external_reference').single()
+    if (error || !data) return json(request,{ok:false,code:'checkout_conflict'},409)
+    payment={id:String(data.id),external_reference:String(data.external_reference)}
+  }
   if (!payment) {
     const { data, error } = await admin.from('siap_assistant_payment_subscriptions').insert({
-      user_id:user.id, plan_key:plan.plan_key, amount:Number(plan.amount), payer_email:user.email,
+      user_id:user.id, provider:'mercado_pago', plan_key:plan.plan_key, amount:Number(plan.amount), payer_email:user.email,
       legal_accepted_at:new Date().toISOString(), terms_version:'2026-09-06', status:'creating'
     }).select('id,external_reference').single()
     if (error || !data) return json(request, { ok:false, code:'checkout_conflict' }, 409)

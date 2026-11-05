@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
-    setTimeout(() => toast('Pagamento recebido pela Hotmart. Estamos aguardando a confirmação segura para enviar o convite.'), 400);
+    setTimeout(() => toast('Você voltou do pagamento. Enviaremos o convite após a confirmação segura da cobrança.'), 400);
     history.replaceState({}, document.title, location.pathname + location.hash);
   }
 
@@ -136,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>
       <div id="publicPlansGrid" class="public-plans-grid"></div>
       <div class="public-plans-trust"><span>◇ Dados protegidos</span><span>☁ Acesso de qualquer lugar</span><span>♧ Suporte humano</span><span>↗ Evolução sem complicação</span></div>
-      <nav class="public-plans-legal" aria-label="Informações legais"><a href="legal.html#privacidade">Privacidade</a><a href="legal.html#cookies">Cookies</a><a href="legal.html#termos">Termos de Uso</a><a href="legal.html#suporte">Suporte</a><a href="https://consumer.hotmart.com" target="_blank" rel="noopener">Gerenciar assinatura</a></nav>
+      <nav class="public-plans-legal" aria-label="Informações legais"><a href="legal.html#privacidade">Privacidade</a><a href="legal.html#cookies">Cookies</a><a href="legal.html#termos">Termos de Uso</a><a href="legal.html#suporte">Suporte</a><a href="https://consumer.hotmart.com" target="_blank" rel="noopener">Assinaturas antigas da Hotmart</a></nav>
       <footer class="public-plans-rights">© 2026 CARÔMETRO® · Todos os direitos reservados · Marca registrada</footer>
     </main>`;
   document.body.appendChild(publicPlansModal);
@@ -182,6 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="field"><label for="schoolApplicationCity">Cidade</label><input id="schoolApplicationCity" maxlength="120" autocomplete="address-level2" required></div>
         <div class="field"><label for="schoolApplicationState">UF</label><input id="schoolApplicationState" maxlength="2" pattern="[A-Za-z]{2}" autocomplete="address-level1" placeholder="GO" required></div>
         <div class="field span"><label for="schoolApplicationStudents">Quantidade estimada de alunos</label><input id="schoolApplicationStudents" type="number" min="0" max="1000000" step="1" required></div>
+        <div id="schoolApplicationPixPayer" class="field span hidden"><label for="schoolApplicationPayerCpf">CPF do responsável pelo Pix</label><input id="schoolApplicationPayerCpf" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="Somente para gerar a cobrança Pix"><small>O CPF será enviado ao Mercado Pago para emitir o QR Code. Ele não será salvo no Carômetro.</small></div>
       </div>
       <label class="check school-application-legal"><input id="schoolApplicationLegal" type="checkbox" required> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
       <p id="schoolApplicationError" class="error hidden"></p>
@@ -206,9 +207,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const billingField=document.getElementById('schoolBillingOptions');
     const billingOptions=billingField.querySelector('.billing-options');
     const monthly=`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="monthly" checked><span><strong>Mensal · ${esc(formatPlanPrice(plan))}/mês</strong><small>Renovação mensal; cancele quando quiser.</small></span></label>`;
-    const semiannual=plan.semiannual_active&&plan.semiannual_price?`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="semiannual"><span><strong>6 meses · ${esc(Number(plan.semiannual_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>Pagamento único por Pix ou cartão; equivalente a 5 mensalidades.</small></span></label>`:'';
-    const annual=plan.plan_key==='professional'&&plan.annual_card_price&&plan.annual_pix_price?`<label class="billing-option billing-option-pending"><input type="radio" name="schoolBillingCycle" value="annual" disabled><span><strong>Anual · ${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no cartão ou ${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no Pix</strong><small>Cartão em até 12 vezes sem juros para a escola. Checkout anual em preparação.</small></span></label>`:'';
+    const semiannualPrice=plan.plan_key==='professional'&&plan.mercado_pago_semiannual_price
+      ? plan.mercado_pago_semiannual_price : plan.semiannual_price;
+    const semiannual=plan.semiannual_active&&semiannualPrice?`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="semiannual"><span><strong>6 meses · ${esc(Number(semiannualPrice).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>Pagamento único por Pix, cartão ou boleto. Sem renovação automática.</small></span></label>`:'';
+    const annual=plan.plan_key==='professional'&&plan.annual_pix_price?`${plan.annual_card_price?`<label class="billing-option ${plan.annual_card_active?'':'billing-option-pending'}"><input type="radio" name="schoolBillingCycle" value="annual_card" ${plan.annual_card_active?'':'disabled'}><span><strong>Anual no cartão · ${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>${plan.annual_card_active?'Até 12 vezes sem juros para a escola. Pagamento único.':'Parcelamento em validação no Mercado Pago.'}</small></span></label>`:''}<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="annual_pix"><span><strong>Anual no Pix · ${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>Pagamento único por QR Code Pix.</small></span></label>`:'';
     billingOptions.innerHTML=monthly+semiannual+annual;
+    const pixPayer=document.getElementById('schoolApplicationPixPayer');
+    const payerCpf=document.getElementById('schoolApplicationPayerCpf');
+    const updatePixPayer=()=>{
+      const pix=billingOptions.querySelector('input[name="schoolBillingCycle"]:checked')?.value==='annual_pix';
+      pixPayer.classList.toggle('hidden',!pix);
+      payerCpf.required=pix;
+      if(!pix) payerCpf.value='';
+    };
+    billingOptions.onchange=updatePixPayer;
+    updatePixPayer();
     billingField.classList.toggle('hidden',plan.contact_only||plan.price===null);
     document.getElementById('schoolApplicationError').classList.add('hidden');
     applicationModal.classList.remove('hidden');
@@ -226,7 +239,12 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const studentsValue = document.getElementById('schoolApplicationStudents').value;
       const planKey = document.getElementById('schoolApplicationPlan').value;
-      const billingCycle=form.querySelector('input[name="schoolBillingCycle"]:checked')?.value||'monthly';
+      const selectedCycle=form.querySelector('input[name="schoolBillingCycle"]:checked')?.value||'monthly';
+      const billingCycle=selectedCycle.startsWith('annual_')?'annual':selectedCycle;
+      const paymentMethod=selectedCycle==='annual_pix'?'pix':selectedCycle==='annual_card'?'credit_card':'any';
+      if(paymentMethod==='pix' && document.getElementById('schoolApplicationPayerCpf').value.replace(/\D/g,'').length!==11) {
+        throw new Error('Informe os 11 dígitos do CPF do responsável pelo Pix.');
+      }
       const { data:applicationId, error } = await db.rpc('submit_school_application', {
         p_plan_key:planKey,
         p_school_name:document.getElementById('schoolApplicationName').value.trim(),
@@ -242,8 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (error) throw error;
       if (['basic','professional'].includes(planKey)) {
         button.textContent = 'Abrindo pagamento seguro…';
-        const { data:payment, error:paymentError } = await db.functions.invoke('create-hotmart-school-checkout', {
-          body:{ applicationId, billingCycle }
+        const checkoutFunction=billingCycle==='monthly'?'create-mercado-pago-subscription':'create-mercado-pago-school-once';
+        const { data:payment, error:paymentError } = await db.functions.invoke(checkoutFunction, {
+          body:{ applicationId, billingCycle, paymentMethod, cpf:document.getElementById('schoolApplicationPayerCpf').value }
         });
         if (paymentError || payment?.error || !payment?.checkout_url) {
           throw new Error(payment?.error || paymentError?.message || 'Não foi possível abrir o pagamento.');
@@ -306,7 +325,8 @@ document.addEventListener('DOMContentLoaded', () => {
           ${comparePrice ? `<span class="public-plan-compare-price"><span class="public-plan-old-price">de ${esc(comparePrice)}</span><span class="public-plan-price-connector">por</span></span>` : ''}
           <strong class="public-plan-price">${esc(formatPlanPrice(plan))}${plan.price !== null && !plan.contact_only ? '<small>/mês</small>' : ''}</strong>
         </div>
-        ${plan.plan_key === 'professional' && plan.annual_card_price && plan.annual_pix_price ? `<p class="public-plan-annual-offer"><strong>Premium anual:</strong> ${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no cartão em até 12 vezes sem juros para a escola, ou ${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no Pix. <small>Checkout anual em preparação.</small></p>` : ''}
+        ${plan.plan_key === 'professional' && plan.mercado_pago_semiannual_price ? `<p class="public-plan-annual-offer"><strong>Premium semestral:</strong> ${esc(Number(plan.mercado_pago_semiannual_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} por 6 meses, em pagamento único.</p>` : ''}
+        ${plan.plan_key === 'professional' && plan.annual_pix_price ? `<p class="public-plan-annual-offer"><strong>Premium anual:</strong> ${plan.annual_card_active?`${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no cartão em até 12 vezes sem juros para a escola, ou `:''}${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no Pix.${plan.annual_card_active?'':' Cartão em validação.'}</p>` : ''}
         <button class="btn ${plan.highlighted ? 'primary' : 'secondary'} full" type="button" data-public-plan-cta="${esc(plan.plan_key)}">${esc(plan.cta_label || (plan.contact_only ? 'Fale conosco' : 'Começar'))}</button>
         <ul>${benefits.map(item => `<li>✓ ${esc(item)}</li>`).join('')}</ul>
       </article>`;

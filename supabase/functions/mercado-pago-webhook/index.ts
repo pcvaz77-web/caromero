@@ -28,6 +28,14 @@ const api = async (path: string, accessToken: string) => {
   return response.json()
 }
 
+const addUtcMonths = (date:Date, months:number) => {
+  const year=date.getUTCFullYear()
+  const month=date.getUTCMonth()+months
+  const lastDay=new Date(Date.UTC(year,month+1,0)).getUTCDate()
+  return new Date(Date.UTC(year,month,Math.min(date.getUTCDate(),lastDay),
+    date.getUTCHours(),date.getUTCMinutes(),date.getUTCSeconds(),date.getUTCMilliseconds()))
+}
+
 Deno.serve(async request => {
   if (request.method !== 'POST') return new Response('Method not allowed', { status:405 })
   const accessToken = Deno.env.get('MERCADO_PAGO_ACCESS_TOKEN')
@@ -61,7 +69,62 @@ Deno.serve(async request => {
   try {
     let paymentRow: any = null
     let activation: any = null
-    if (eventType === 'subscription_preapproval') {
+    if (eventType === 'payment') {
+      const provider=await api(`/v1/payments/${encodeURIComponent(dataId)}`,accessToken)
+      const {data:row,error:lookupError}=await admin.from('platform_payment_subscriptions').select('*')
+        .eq('provider','mercado_pago').eq('external_reference',String(provider.external_reference ?? '')).maybeSingle()
+      if (lookupError) throw lookupError
+      paymentRow=row
+      if (row && row.billing_cycle!=='monthly') {
+        const samePayment=String(provider.id)===dataId
+          && Boolean(row.provider_checkout_id)
+          && String(provider.currency_id ?? '')===String(row.currency)
+          && Math.abs(Number(provider.transaction_amount)-Number(row.amount))<0.009
+          && (row.payment_method!=='pix' || provider.payment_method_id==='pix')
+          && !row.provider_subscription_id
+        if (!samePayment) throw new Error('payment_mismatch')
+        if (row.payment_method==='pix' && String(row.provider_checkout_id)!==dataId) throw new Error('pix_payment_mismatch')
+        const approved=provider.status==='approved'
+        if (approved && row.school_id && row.last_payment_id!==dataId) throw new Error('second_approved_payment_requires_review')
+        const refunded=['refunded','charged_back'].includes(String(provider.status ?? ''))
+        const {error:updateError}=await admin.from('platform_payment_subscriptions').update({
+          status:approved?'authorized':refunded?'cancelled':row.status,
+          provider_status:String(provider.status ?? ''),last_payment_id:dataId,
+          last_payment_status:String(provider.status ?? ''),last_webhook_at:new Date().toISOString(),updated_at:new Date().toISOString()
+        }).eq('id',row.id)
+        if(updateError) throw updateError
+        if(approved){
+          const {data:activated,error:activationError}=await admin.rpc('platform_activate_paid_subscription',{
+            p_payment_subscription_id:row.id
+          })
+          if(activationError) throw activationError
+          activation=activated
+          const schoolId=activation?.school_id ?? row.school_id
+          if(schoolId){
+            const paidAt=provider.date_approved && !Number.isNaN(Date.parse(provider.date_approved))
+              ? new Date(provider.date_approved) : new Date()
+            const expiresAt=addUtcMonths(paidAt,Number(row.period_months)).toISOString()
+            const {error:expiryError}=await admin.from('school_subscriptions').update({
+              status:'active',grant_expires_at:expiresAt,updated_at:new Date().toISOString()
+            }).eq('school_id',schoolId)
+            if(expiryError) throw expiryError
+          }
+          let invitationId=activation?.invitation_id
+          if(!invitationId && schoolId && activation?.already_activated){
+            const {data:pendingInvite}=await admin.from('school_invitations').select('id')
+              .eq('school_id',schoolId).eq('email',row.payer_email).eq('role','school_admin')
+              .eq('status','pending').order('created_at',{ascending:false}).limit(1).maybeSingle()
+            invitationId=pendingInvite?.id
+          }
+          if(invitationId) await sendAdministratorInvite(admin,invitationId)
+        }else if(refunded && row.school_id){
+          const {error:accessError}=await admin.rpc('platform_sync_paid_subscription_access',{
+            p_payment_subscription_id:row.id,p_access_active:false
+          })
+          if(accessError) throw accessError
+        }
+      }
+    } else if (eventType === 'subscription_preapproval') {
       const subscription = await api(`/preapproval/${encodeURIComponent(dataId)}`, accessToken)
       const { data } = await admin.from('platform_payment_subscriptions').select('*')
         .eq('provider_subscription_id', String(subscription.id)).maybeSingle()

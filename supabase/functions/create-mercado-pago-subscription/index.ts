@@ -47,15 +47,21 @@ Deno.serve(async request => {
   }
 
   const { data:existing } = await admin.from('platform_payment_subscriptions')
-    .select('id, external_reference, checkout_url, status').eq('application_id', application.id).maybeSingle()
-  if (existing?.checkout_url && ['pending','authorized'].includes(existing.status)) {
+    .select('id, provider, external_reference, checkout_url, status').eq('application_id', application.id).maybeSingle()
+  if (existing?.provider === 'mercado_pago' && existing?.checkout_url && ['pending','authorized'].includes(existing.status)) {
     return json(request, { checkout_url:existing.checkout_url, reused:true })
+  }
+  if (existing && existing.provider !== 'mercado_pago' && existing.status !== 'failed') {
+    return json(request, { error:'Já existe outro pagamento iniciado para esta escola.' }, 409)
   }
   if (existing && !['creating','failed'].includes(existing.status)) {
     return json(request, { error:'Esta solicitação de pagamento precisa de revisão.' }, 409)
   }
   if (existing?.status === 'failed') {
-    await admin.from('platform_payment_subscriptions').update({ status:'creating', updated_at:new Date().toISOString() }).eq('id', existing.id)
+    await admin.from('platform_payment_subscriptions').update({ provider:'mercado_pago',plan_key:application.plan_key,
+      amount:Number(plan.price),payer_email:application.email,billing_cycle:'monthly',period_months:1,
+      checkout_url:null,provider_checkout_id:null,provider_subscription_id:null,status:'creating',
+      updated_at:new Date().toISOString() }).eq('id', existing.id)
     existing.status = 'creating'
   }
 
@@ -63,6 +69,7 @@ Deno.serve(async request => {
   if (!paymentRow) {
     const { data:created, error:insertError } = await admin.from('platform_payment_subscriptions').insert({
       application_id:application.id,
+      provider:'mercado_pago',
       plan_key:application.plan_key,
       amount:Number(plan.price),
       payer_email:application.email,

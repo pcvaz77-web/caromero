@@ -18,7 +18,7 @@
     <section class="account-copy">
       <span class="eyebrow">PAGAMENTO PROTEGIDO</span>
       <h1>Ative seu acesso individual</h1>
-      <p id="accountPageIntro">Confirme seu e-mail, pague na Hotmart e volte a esta página para instalar e conectar a extensão.</p>
+      <p id="accountPageIntro">Confirme seu e-mail, pague no Mercado Pago e volte a esta página para instalar e conectar a extensão.</p>
       <div class="payment-methods" aria-label="Formas de pagamento">
         <span>◆ Pix no trimestral</span><span>▣ Cartão e boleto</span>
       </div>
@@ -29,7 +29,7 @@
       <form id="loginForm" hidden>
         <h2>Entrar por e-mail</h2>
         <p>Enviaremos um link de acesso para seu e-mail. Abra a mensagem e clique no link para voltar a esta página com sua conta confirmada.</p>
-        <p>Use o mesmo e-mail da compra na Hotmart ou da conta que recebeu a concessão pelo Carômetro.</p>
+        <p>Use o e-mail da sua conta do Assistente ou da concessão recebida pelo Carômetro.</p>
         <label>E-mail<input id="accountEmail" type="email" autocomplete="email" required></label>
         <button class="button" type="submit">Enviar link de acesso</button>
         <p id="loginMessage" class="account-message" aria-live="polite"></p>
@@ -41,7 +41,7 @@
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
-        <p id="paymentReturnHint" class="account-identity" hidden>Depois do pagamento, use “Acessar produto” na Hotmart ou abra o link enviado ao seu e-mail. Você voltará a esta página para instalar e conectar a extensão.</p>
+        <p id="paymentReturnHint" class="account-identity" hidden>Depois do pagamento, volte a esta página. A licença será liberada após a confirmação do Mercado Pago.</p>
         <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
         <button id="refreshAssistantAccess" class="button button-outline" type="button" hidden>Já paguei · verificar acesso</button>
         <div id="assistantInstallSteps" class="assistant-install-steps" hidden>
@@ -58,6 +58,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=22"></script>
+  <script src="assistente-siap-conta.js?v=23"></script>
 </body>
 </html>
