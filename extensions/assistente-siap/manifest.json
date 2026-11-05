@@ -9,7 +9,6 @@
   "host_permissions": [
     "https://siap.educacao.go.gov.br/*",
     "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft",
-    "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/rpc/get_siap_public_header_campaign",
     "https://correcao.sistemacarometro.com.br/*"
   ],
   "externally_connectable": {

@@ -2,7 +2,6 @@ importScripts("exam-config.js", "exam-worker.js");
 const AI_ENDPOINT = "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft";
 const SUPABASE_ANON_KEY = "sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn";
 const ACTIVITY_SETTING_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/platform_settings?select=show_activity_site&id=eq.true";
-const HEADER_CAMPAIGN_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/rpc/get_siap_public_header_campaign";
 let accountGeneration = 0;
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
@@ -30,16 +29,6 @@ async function readActivitySiteVisibility() {
   if (!response.ok) return false;
   const rows = await response.json();
   return Array.isArray(rows) && rows[0]?.show_activity_site === true;
-}
-
-async function readHeaderCampaign() {
-  const response = await fetch(HEADER_CAMPAIGN_URL, {
-    method:"POST", headers:{ "apikey":SUPABASE_ANON_KEY, "Authorization":`Bearer ${SUPABASE_ANON_KEY}`, "Content-Type":"application/json" },
-    body:"{}", cache:"no-store"
-  });
-  if (!response.ok) return {active:false};
-  const campaign = await response.json();
-  return campaign?.active === true ? campaign : {active:false};
 }
 
 async function readConnectedSession() {
@@ -83,13 +72,6 @@ async function broadcastLicense(license) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (message?.type === "ASSISTENTE_SIAP_HEADER_CAMPAIGN") {
-    let origin = "";
-    try { origin = new URL(sender.tab?.url || "").origin; } catch {}
-    if (origin !== "https://siap.educacao.go.gov.br") { respond({active:false}); return; }
-    readHeaderCampaign().then(respond).catch(() => respond({active:false}));
-    return true;
-  }
   if (message?.type === 'SIAP_CEPI_ROOM_GET') {
     let url;
     try { url=new URL(sender.tab?.url||''); } catch {}
