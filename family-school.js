@@ -67,6 +67,13 @@
     const selectedRegistrations = ids => Object.fromEntries(ids.map(id => [id,(registrationDrafts.get(id) || '').trim()]).filter(([,value]) => value));
     let currentView = 'home';
     let secretaryOnly = false;
+    const familyArea = { invite:'invite', addChild:'add_child', occurrence:'occurrences', entry:'entries', cards:'cards' };
+    const canOpen = view => !secretaryOnly || view === 'home' || window.canUseSecretaryFamilyArea?.(familyArea[view]) === true;
+    function refreshChoices() {
+      dialog.querySelectorAll('[data-family-view]').forEach(choice => {
+        choice.classList.toggle('hidden', !canOpen(choice.dataset.familyView));
+      });
+    }
     function setInviteMode(mode) {
       const general=mode==='general';
       get('familyInviteIdentity').classList.toggle('hidden',general);
@@ -307,7 +314,7 @@
     get('familySchoolClose').onclick = close;
     dialog.onclick = event => { if (event.target === dialog) close(); };
     function showView(view) {
-      if (secretaryOnly && view !== 'addChild') return;
+      if (!canOpen(view)) return;
       if (currentView === 'entry' && view !== 'entry') document.dispatchEvent(new Event('carometro:family-entry-hidden'));
       currentView = view;
       get('familyHome').classList.toggle('hidden',view !== 'home');
@@ -325,17 +332,22 @@
       const choice = event.target.closest('[data-family-view]');
       if (choice) showView(choice.dataset.familyView);
     };
-    dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => secretaryOnly ? close() : showView('home'));
+    dialog.querySelectorAll('[data-family-back]').forEach(back => back.onclick = () => showView('home'));
     function refreshNav() {
       const role = window.getActiveSchoolRole?.();
       const allowed = !app.classList.contains('hidden')
-        && (role === 'secretary' || (['school_admin','coordinator'].includes(role) && window.canManageFamilyPortal?.() === true));
+        && ((role === 'secretary' && Object.values(familyArea).some(area => window.canUseSecretaryFamilyArea?.(area) === true))
+          || (['school_admin','coordinator'].includes(role) && window.canManageFamilyPortal?.() === true));
       button.hidden = !allowed;
       button.classList.toggle('hidden', !allowed);
       button.setAttribute('aria-hidden', String(!allowed));
       if (allowed) button.style.removeProperty('display');
       else button.style.setProperty('display','none','important');
       if (!allowed && !dialog.classList.contains('hidden')) close();
+      else if (allowed && secretaryOnly && !dialog.classList.contains('hidden')) {
+        refreshChoices();
+        if (!canOpen(currentView)) showView('home');
+      }
     }
     new MutationObserver(refreshNav).observe(app, { attributes:true, attributeFilter:['class'] });
     document.addEventListener('carometro:school-context-ready', refreshNav);
@@ -563,7 +575,7 @@
         <article class="family-link-row"><b>${esc(row.guardian_name)}</b> · ${esc(row.student_name)}
         <p>${row.phone_e164 ? esc(row.phone_e164) : 'Cadastro por CPF'} · ${row.link_status === 'active' ? 'Ativo' : row.link_status === 'pending' ? 'Convite pendente' : 'Revogado'}</p>
         ${messages.map(m => `<p>${esc(m.message_title)}: ${m.acknowledged_at ? 'Ciência confirmada' : m.viewed_at ? 'Visualizada' : 'Aguardando leitura'}
-          <button class="btn secondary" type="button" data-withdraw="${esc(m.message_id)}">Retirar publicação</button>
+          ${canOpen('occurrence') ? `<button class="btn secondary" type="button" data-withdraw="${esc(m.message_id)}">Retirar publicação</button>` : ''}
           </p>`).join('')}
         ${row.link_status !== 'revoked' ? `<button class="btn secondary" type="button" data-revoke="${esc(row.link_id)}">Revogar acesso</button>` : ''}
         <button class="btn secondary" type="button" data-remove-guardian="${esc(row.link_id)}">Excluir responsável desta escola</button></article>`).join('') : '<p class="meta">Nenhum responsável vinculado nesta escola.</p>';
@@ -605,7 +617,9 @@
       get('familyAddChildStudentSearch').value='';
       get('familyAddChildStudentSearch').disabled=true;
       renderAddChildStudents();
-      const check = await db.rpc(secretaryOnly ? 'family_can_add_existing_child' : 'family_school_manager', { p_school_id:currentSchool });
+      const check = secretaryOnly
+        ? await db.rpc('family_can_school_action', { p_school_id:currentSchool,p_action:'portal' })
+        : await db.rpc('family_school_manager', { p_school_id:currentSchool });
       if (check.error || check.data !== true) {
         if (typeof window.refreshCarometroSchoolPermission === 'function')
           await window.refreshCarometroSchoolPermission().catch(() => {});
@@ -619,7 +633,8 @@
         const qr=window.qrcode(0,'M');qr.addData(get('familyGeneralUrl').value);qr.make();
         get('familyGeneralQr').innerHTML=qr.createSvgTag({ cellSize:4,margin:8,scalable:true });
       } else get('familyGeneralQr').textContent='QR Code indisponível. Copie o link geral.';
-      showView(secretaryOnly ? 'addChild' : 'home');
+      refreshChoices();
+      showView('home');
       try {
         const classResult = await db.from('classes').select('id,name,shift').eq('school_id',currentSchool).is('archived_at',null).order('name');
         if (classResult.error) throw classResult.error;

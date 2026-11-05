@@ -89,7 +89,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const canAdd = () => permission.role === 'admin' || !!permission.can_add_students || (isAdvancedUser() && !!permission.can_edit_all);
   const permissionFields = ['can_add_students', 'can_edit_students', 'can_delete_students', 'can_edit_all', 'can_edit_photo', 'can_edit_name', 'can_edit_class', 'can_edit_report', 'can_edit_guardian_contact', 'can_manage_observation_options', 'can_invite_teachers', 'can_manage_member_permissions', 'can_view_uniform', 'can_edit_uniform', 'can_mark_all_uniform_received', 'can_view_occurrences', 'can_register_occurrences', 'can_edit_occurrences', 'can_delete_occurrences', 'can_manage_counselors', 'can_view_class_summary'];
   const secretaryPermissionFields = permissionFields.filter(field => field !== 'can_manage_counselors').concat('can_import_school_daily_attendance', 'can_receive_notifications');
-  const sessionPermissionFields = [...permissionFields, 'can_import_siap_attendance', 'can_import_school_daily_attendance', 'can_receive_notifications', 'can_manage_family_portal', 'can_publish_family_entry_attendance'];
+  const familySecretaryFields = ['can_family_invite','can_family_add_child','can_family_occurrences','can_family_entries','can_family_cards'];
+  window.canUseSecretaryFamilyArea = area => permission.is_secretary === true
+    && permission.school_id === window.getActiveSchoolId?.()
+    && permission[`can_family_${area}`] === true;
+  const sessionPermissionFields = [...permissionFields, 'can_import_siap_attendance', 'can_import_school_daily_attendance', 'can_receive_notifications', 'can_manage_family_portal', 'can_publish_family_entry_attendance', ...familySecretaryFields];
   const dormantPermissionFields = ['can_view_dashboard', 'can_view_history', 'can_manage_alerts', 'can_record_followups', 'can_export_reports', 'can_use_bulk_actions', 'can_view_audit'];
   const rolePermissionFields = [...permissionFields, ...dormantPermissionFields];
   const isCoordinator = item => item?.role === 'admin' || !!item?.is_coordinator;
@@ -101,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const hasGrantedPermission = item => item.role === 'admin' || permissionFields.some(key => item[key]);
 
-  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_edit_guardian_contact,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_receive_notifications,can_prepare_school_year,can_manage_family_portal,can_publish_family_entry_attendance';
+  const schoolPermissionSelect = 'can_add_students,can_edit_students,can_delete_students,can_edit_all,can_edit_photo,can_edit_name,can_edit_class,can_edit_report,can_edit_guardian_contact,can_manage_observation_options,can_invite_teachers,can_manage_member_permissions,can_view_uniform,can_edit_uniform,can_mark_all_uniform_received,can_view_occurrences,can_register_occurrences,can_edit_occurrences,can_delete_occurrences,can_manage_counselors,can_view_class_summary,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_receive_notifications,can_prepare_school_year,can_manage_family_portal,can_publish_family_entry_attendance,can_family_invite,can_family_add_child,can_family_occurrences,can_family_entries,can_family_cards';
   const permissionFromMembership = membership => {
     if (!membership) return null;
     const rights = Array.isArray(membership.school_member_permissions)
@@ -110,6 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return {
       ...rights,
       can_manage_family_portal:membership.role === 'coordinator' && rights.can_manage_family_portal !== false,
+      ...Object.fromEntries(['can_family_invite','can_family_add_child','can_family_occurrences','can_family_entries','can_family_cards'].map(key => [key, membership.role === 'secretary' && rights[key] !== false])),
       member_id:membership.id,
       school_id:membership.school_id,
       user_id:membership.user_id,
@@ -167,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const { data, error } = await db.rpc('list_school_member_directory_v2', { target_school_id:schoolId });
     if (error) { toast(error.message); return new Map(); }
     const { data:panelRows, error:panelError } = await db.from('school_members')
-      .select('id,school_member_permissions(can_view_class_summary,can_edit_guardian_contact,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_receive_notifications,can_prepare_school_year,can_manage_family_portal,can_publish_family_entry_attendance)')
+      .select('id,school_member_permissions(can_view_class_summary,can_edit_guardian_contact,can_use_siap_assistant,can_import_siap_attendance,can_import_school_daily_attendance,can_receive_notifications,can_prepare_school_year,can_manage_family_portal,can_publish_family_entry_attendance,can_family_invite,can_family_add_child,can_family_occurrences,can_family_entries,can_family_cards)')
       .eq('school_id', schoolId);
     if (panelError) { toast(panelError.message); return new Map(); }
     const panelPermissionByMember = new Map((panelRows || []).map(item => {
@@ -181,7 +186,8 @@ document.addEventListener('DOMContentLoaded', () => {
         can_receive_notifications:!!rights?.can_receive_notifications,
         can_prepare_school_year:!!rights?.can_prepare_school_year,
         can_manage_family_portal:rights?.can_manage_family_portal,
-        can_publish_family_entry_attendance:!!rights?.can_publish_family_entry_attendance
+        can_publish_family_entry_attendance:!!rights?.can_publish_family_entry_attendance,
+        ...Object.fromEntries(familySecretaryFields.map(key => [key, rights?.[key]]))
       }];
     }));
     const map = new Map();
@@ -717,6 +723,26 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('permissionsList').innerHTML = `${advancedPermissions}<section><div class="permissions-heading"><b>Permissões gerais</b><div class="meta">Usuários cadastrados e seus acessos atuais.</div></div><form id="permissionSearchForm" class="permission-search-form"><input id="permissionSearch" class="permission-search" placeholder="Buscar por nome ou e-mail"><button class="btn primary" type="submit">Buscar</button></form>${cards}<div id="permissionEmpty" class="empty hidden">Nenhum usuário encontrado.</div></section>`;
     const advancedCardTarget = document.getElementById('advancedCoordinatorCards');
     document.querySelectorAll('#permissionsList .perm[data-permission-scope="advanced"]').forEach(card => advancedCardTarget.appendChild(card));
+    const familyLabels = [
+      ['can_family_invite','Convidar e cadastrar responsáveis; gerenciar vínculos'],
+      ['can_family_add_child','Acrescentar filho a uma conta existente'],
+      ['can_family_occurrences','Compartilhar e retirar ocorrências'],
+      ['can_family_entries','Registrar, consultar e publicar entradas'],
+      ['can_family_cards','Emitir, substituir e configurar carteirinhas']
+    ];
+    const secretaryCards = [...advancedCardTarget.querySelectorAll('.perm')]
+      .filter(card => card.querySelector('.permission-user .meta')?.textContent.trim().endsWith('· Secretaria'));
+    const secretaryItems = sortedUsers.filter(item => item.is_secretary);
+    secretaryCards.forEach((card,index) => {
+      const item = secretaryItems[index];
+      if (!item) return;
+      const group = document.createElement('details');
+      group.className = 'coordinator-right-group';
+      group.innerHTML = `<summary>Portal da Família</summary><div class="edit-rights">${familyLabels.map(([key,label]) =>
+        `<label class="check"><input type="checkbox" ${item[key] !== false ? 'checked' : ''} ${item.member_status === 'active' ? '' : 'disabled'} onchange="setFamilySecretaryPermission('${item.member_id}','${key}',this.checked)"> ${label}</label>`
+      ).join('')}</div>`;
+      card.append(group);
+    });
     bindMemberAccountActions();
     document.getElementById('openCoordinators').onclick = event => { event.preventDefault(); event.stopPropagation(); openCoordinatorManager(); };
     document.getElementById('openSchoolCalendar').onclick = event => {
@@ -825,6 +851,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const { error } = await db.rpc('set_family_portal_permission', { target_member_id:memberId, permitted:value });
     if (error) { toast(error.message); await openPermissions(); return; }
     toast(value ? 'Portal da Família liberado para este coordenador.' : 'Portal da Família removido deste coordenador.');
+    await openPermissions();
+  };
+  window.setFamilySecretaryPermission = async (memberId, key, value) => {
+    const membership = await currentSchoolMembershipOrWarn();
+    if (!membership || membership.role !== 'school_admin' || !familySecretaryFields.includes(key)) {
+      await openPermissions(); return;
+    }
+    const { error } = await db.rpc('set_family_secretary_permission', {
+      target_member_id:memberId, permission_name:key, permitted:value
+    });
+    toast(error ? error.message : 'Permissão do Portal da Família atualizada.');
     await openPermissions();
   };
   window.setSchoolMemberStatus = async (memberId, status, email) => {
