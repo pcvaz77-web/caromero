@@ -20,12 +20,13 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
   window.getActiveSchoolId=()=>schoolId;
   window.getActiveSchoolRole=()=>role;
   window.canManageFamilyPortal=()=>role!=='secretary';
+  window.canUseSecretaryFamilyArea=()=>role==='secretary';
   window.qrcode=()=>({ addData:()=>{},make:()=>{},createSvgTag:()=>'<svg></svg>' });
   window.db={
     rpc:async (name,args)=>{
       calls.push({ name,args });
       if (name==='family_school_manager') return { data:true,error:null };
-      if (name==='family_can_add_existing_child') return { data:true,error:null };
+      if (name==='family_can_school_action') return { data:true,error:null };
       if (name==='family_cpf_existing_account') return { data:[
         { guardian_id:'guardian-id',guardian_name:'Maria da Silva',cpf_last4:'4725',student_id:studentId,student_name:'Ana',class_name:'1A' },
         ...(childAdded ? [{ guardian_id:'guardian-id',guardian_name:'Maria da Silva',cpf_last4:'4725',student_id:newStudentId,student_name:'Cris',class_name:'1A' }] : []),
@@ -141,10 +142,24 @@ test('escola pré-cadastra contato sem DDI e gera convite individual por CPF', a
     window.document.dispatchEvent(new window.Event('carometro:permission-refresh'));
     window.document.querySelector('.side .nav button').click();
     await new Promise(setImmediate);
-    assert.equal(el('familyHome').classList.contains('hidden'),true);
+    assert.equal(el('familyHome').classList.contains('hidden'),false);
+    assert.equal(el('familyAddChildView').classList.contains('hidden'),true);
+    assert.ok(calls.some(call=>call.name==='family_can_school_action' && call.args.p_action==='portal'));
+    window.document.querySelector('[data-family-view="addChild"]').click();
     assert.equal(el('familyAddChildView').classList.contains('hidden'),false);
-    assert.equal(calls.at(-1).name,'family_can_add_existing_child');
     el('familyAddChildView').querySelector('[data-family-back]').click();
-    assert.equal(el('familySchoolModal').classList.contains('hidden'),true);
+    assert.equal(el('familyHome').classList.contains('hidden'),false);
+    el('familySchoolClose').click();
+    window.canUseSecretaryFamilyArea=area=>area==='add_child';
+    window.document.dispatchEvent(new window.Event('carometro:permission-refresh'));
+    window.document.querySelector('.side .nav button').click();
+    await new Promise(setImmediate);
+    assert.equal(window.document.querySelector('[data-family-view="addChild"]').classList.contains('hidden'),false);
+    assert.equal(window.document.querySelector('[data-family-view="invite"]').classList.contains('hidden'),true);
+    window.document.querySelector('[data-family-view="invite"]').click();
+    assert.equal(el('familyHome').classList.contains('hidden'),false);
+    window.canUseSecretaryFamilyArea=()=>false;
+    window.document.dispatchEvent(new window.Event('carometro:permission-refresh'));
+    assert.equal(window.document.querySelector('.side .nav button').hidden,true);
   } finally { window.close(); }
 });
