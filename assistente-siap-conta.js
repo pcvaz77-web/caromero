@@ -24,6 +24,7 @@
   const installLink = document.getElementById('installAssistantExtension');
   const paymentReturnHint = document.getElementById('paymentReturnHint');
   const refreshAccessButton = document.getElementById('refreshAssistantAccess');
+  const resumePaymentLink = document.getElementById('resumeAssistantPayment');
   const panelTitle = document.getElementById('accountPanelTitle');
   const selectedPlanTarget = document.getElementById('selectedPlan');
   const trialEndedLink = document.getElementById('trialEndedLink');
@@ -109,6 +110,7 @@
 
   const renderAccessStatus = status => {
     accessStatus = status;
+    resumePaymentLink.hidden = true;
     const paidAccess = status?.mode === 'subscription' && status.active === true;
     paymentReturnHint.hidden = paidAccess || trialFlow || examFlow || accountFlow;
     refreshAccessButton.hidden = paidAccess || trialFlow || examFlow;
@@ -180,6 +182,7 @@
     const { data, error } = await db.rpc('get_siap_assistant_access_status');
     if (error || !data) {
       accessStatus = null;
+      resumePaymentLink.hidden = true;
       panelTitle.textContent = trialFlow ? 'Sua demonstração gratuita' : 'Confirme a assinatura';
       selectedPlanTarget.hidden = trialFlow;
       legal.hidden = trialFlow;
@@ -205,15 +208,24 @@
       const status = knownStatus || await loadAccessStatus();
       if (status?.mode === 'subscription' && status.active === true) return;
       const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
-        .select('status,created_at,provider').in('provider',['hotmart','mercado_pago']).eq('status','pending')
+        .select('status,created_at,provider,plan_key,checkout_url').in('provider',['hotmart','mercado_pago']).eq('status','pending')
         .order('created_at',{ascending:false}).limit(1).maybeSingle();
       const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
       if (!recent) return;
       panelTitle.textContent = 'Pagamento em confirmação';
       accessSummary.hidden = false;
-      accessSummary.textContent = payment.provider === 'hotmart'
-        ? 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento.'
-        : 'Aguardando a confirmação do Mercado Pago. A licença será vinculada a esta conta após a aprovação.';
+      const planLabel = {monthly:'mensal',quarterly:'trimestral',semiannual:'semestral',annual:'anual'}[payment.plan_key] || 'selecionado';
+      accessSummary.textContent = `Há um pagamento ${planLabel} iniciado e ainda pendente. A licença será vinculada a esta conta após a aprovação.`;
+      resumePaymentLink.hidden = true;
+      try {
+        const checkoutUrl = new URL(payment.checkout_url);
+        if (checkoutUrl.protocol === 'https:' &&
+          ((payment.provider === 'mercado_pago' && checkoutUrl.hostname === 'www.mercadopago.com.br') ||
+          (payment.provider === 'hotmart' && checkoutUrl.hostname === 'pay.hotmart.com'))) {
+          resumePaymentLink.href = checkoutUrl.href;
+          resumePaymentLink.hidden = false;
+        }
+      } catch { /* O pagamento continua pendente, mas sem link reutilizável. */ }
       selectedPlanTarget.hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
@@ -302,6 +314,7 @@
     loading.hidden = true;
     loginForm.hidden = !!session;
     checkoutPanel.hidden = !session;
+    if (!session) resumePaymentLink.hidden = true;
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
       document.getElementById('paymentEmailHint').textContent = `A licença do Assistente será vinculada à conta ${session.user.email}. Você pode pagar no Mercado Pago sem criar uma conta lá.`;
