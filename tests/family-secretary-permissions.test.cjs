@@ -22,7 +22,7 @@ test('secretaria recebe as cinco áreas por padrão e o administrador revoga só
       create table public.school_member_permissions(member_id uuid primary key,can_manage_family_portal boolean,updated_at timestamptz);
       create table public.student_occurrences(id uuid,school_id uuid);
     `);
-    const migration = readFileSync(path.join(__dirname,'..','supabase/migrations/224_secretary_family_portal_permissions.sql'),'utf8');
+    const migration = readFileSync(path.join(__dirname,'..','supabase/migrations/229_secretary_family_portal_permissions.sql'),'utf8');
     await db.exec(migration.slice(0,migration.indexOf('-- Existing RPCs')) + 'commit;');
     await db.query('insert into public.schools values($1,$3),($2,$3)',[school,other,'active']);
     await db.query('insert into public.school_members values($1,$2,$3,$4,$5),($6,$2,$7,$4,$8)',
@@ -60,7 +60,7 @@ test('migração troca as guardas das RPCs sem alterar as outras validações', 
       create table public.student_occurrences(id uuid,school_id uuid);
       create function public.family_school_manager(p_school_id uuid) returns boolean language sql as $$select false$$;
     `);
-    const migration = readFileSync(path.join(__dirname,'..','supabase/migrations/224_secretary_family_portal_permissions.sql'),'utf8');
+    const migration = readFileSync(path.join(__dirname,'..','supabase/migrations/229_secretary_family_portal_permissions.sql'),'utf8');
     const mapping = migration.match(/for v_item in select \* from \(values([\s\S]*?)\) as mapped/)?.[1];
     assert.ok(mapping);
     const names = [...mapping.matchAll(/\('([a-z_]+)','[a-z_]+'\)/g)].map(match => match[1]);
