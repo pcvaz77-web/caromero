@@ -74,10 +74,10 @@ Deno.serve(async request => {
       amount:Number(plan.price),
       payer_email:application.email,
       status:'creating',
-    }).select('id, external_reference, checkout_url, status').single()
+    }).select('id, provider, external_reference, checkout_url, status').single()
     if (insertError || !created) {
       const { data:concurrent } = await admin.from('platform_payment_subscriptions')
-        .select('id, external_reference, checkout_url, status').eq('application_id', application.id).maybeSingle()
+        .select('id, provider, external_reference, checkout_url, status').eq('application_id', application.id).maybeSingle()
       if (concurrent?.checkout_url) return json(request, { checkout_url:concurrent.checkout_url, reused:true })
       if (!concurrent || concurrent.status !== 'creating') return json(request, { error:'Não foi possível iniciar a assinatura.' }, 409)
       paymentRow = concurrent

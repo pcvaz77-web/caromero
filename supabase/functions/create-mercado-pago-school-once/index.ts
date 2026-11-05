@@ -8,6 +8,8 @@ const reply=(origin:string,body:Record<string,unknown>,status=200)=>new Response
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 Deno.serve(async request=>{
+  let stage='validation'
+  try {
   const origin=request.headers.get('Origin') ?? ''
   if(!origins().includes(origin)) return reply('',{error:'Origem não autorizada.'},403)
   if(request.method==='OPTIONS') return new Response('ok',{headers:cors(origin)})
@@ -31,6 +33,7 @@ Deno.serve(async request=>{
   if(billingCycle==='annual'&&paymentMethod==='credit_card'&&Deno.env.get('MP_ANNUAL_CARD_ENABLED')!=='true') {
     return reply(origin,{error:'O parcelamento anual ainda está em validação.'},503)
   }
+  stage='application_lookup'
   const admin=createClient(url,service,{auth:{autoRefreshToken:false,persistSession:false}})
   const {data:application,error:applicationError}=await admin.from('platform_school_applications')
     .select('id,plan_key,school_name,responsible_name,email,status').eq('id',applicationId).maybeSingle()
@@ -39,6 +42,7 @@ Deno.serve(async request=>{
       ||(billingCycle==='annual'&&application.plan_key!=='professional')) {
     return reply(origin,{error:'Solicitação indisponível para este plano.'},404)
   }
+  stage='plan_lookup'
   const {data:plan,error:planError}=await admin.from('platform_plans')
     .select('publicly_available,semiannual_price,semiannual_active,mercado_pago_semiannual_price,annual_card_price,annual_card_active,annual_pix_price')
     .eq('plan_key',application.plan_key).maybeSingle()
@@ -50,6 +54,7 @@ Deno.serve(async request=>{
   const amount=Number(billingCycle==='semiannual'?(application.plan_key==='professional'?plan.mercado_pago_semiannual_price:plan.semiannual_price)
     :paymentMethod==='pix'?plan.annual_pix_price:plan.annual_card_price)
   if(!Number.isFinite(amount)||amount<=0) return reply(origin,{error:'Preço indisponível.'},409)
+  stage='payment_lookup'
   const {data:existing,error:existingError}=await admin.from('platform_payment_subscriptions')
     .select('id,provider,status,billing_cycle,payment_method,amount,checkout_url,external_reference,provider_checkout_id')
     .eq('application_id',applicationId).maybeSingle()
@@ -60,9 +65,10 @@ Deno.serve(async request=>{
   }
   if(existing && existing.status!=='failed') return reply(origin,{error:'Já existe outro pagamento iniciado para esta escola.'},409)
   const values={provider:'mercado_pago',plan_key:application.plan_key,amount,payer_email:application.email,
-    billing_cycle:billingCycle,period_months:billingCycle==='annual'?12:6,payment_method,
+    billing_cycle:billingCycle,period_months:billingCycle==='annual'?12:6,payment_method:paymentMethod,
     status:'creating',checkout_url:null,provider_checkout_id:null,provider_subscription_id:null,
     updated_at:new Date().toISOString()}
+  stage='payment_record'
   const saved=existing
     ? await admin.from('platform_payment_subscriptions').update(values).eq('id',existing.id).select('id,external_reference').single()
     : await admin.from('platform_payment_subscriptions').insert({...values,application_id:applicationId}).select('id,external_reference').single()
@@ -70,6 +76,8 @@ Deno.serve(async request=>{
   const row=saved.data
   const description=`CARÔMETRO ${application.plan_key==='professional'?'Premium':'Básico'} - ${billingCycle==='annual'?'12':'6'} meses`
   let response:Response
+  stage='provider_request'
+  try {
   if(paymentMethod==='pix'){
     response=await fetch('https://api.mercadopago.com/v1/payments',{
       method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json','X-Idempotency-Key':String(row.id)},
@@ -90,6 +98,11 @@ Deno.serve(async request=>{
         auto_return:'approved',notification_url:`${url}/functions/v1/mercado-pago-webhook`}),
     })
   }
+  } catch (error) {
+    console.error('Mercado Pago checkout request failed', error instanceof Error ? error.message : 'unknown')
+    await admin.from('platform_payment_subscriptions').update({status:'failed',provider_status:'provider_unavailable',updated_at:new Date().toISOString()}).eq('id',row.id)
+    return reply(origin,{error:'O Mercado Pago não respondeu à criação da cobrança.'},502)
+  }
   const provider=await response.json().catch(()=>({}))
   const checkoutUrl=paymentMethod==='pix'?provider?.point_of_interaction?.transaction_data?.ticket_url:provider?.init_point
   if(!response.ok||!provider?.id||!checkoutUrl||!String(checkoutUrl).startsWith('https://www.mercadopago.com.br/')){
@@ -102,4 +115,8 @@ Deno.serve(async request=>{
   }).eq('id',row.id)
   if(updateError) return reply(origin,{error:'Cobrança criada, mas não foi possível registrá-la.'},500)
   return reply(origin,{checkout_url:String(checkoutUrl),provider:'mercado_pago'})
+  } catch (error) {
+    console.error('Mercado Pago school checkout failed',stage,error instanceof Error?error.message:'unknown')
+    return reply(request.headers.get('Origin') ?? '',{error:'Não foi possível iniciar o pagamento.',code:`checkout_${stage}`},500)
+  }
 })
