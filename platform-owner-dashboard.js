@@ -865,7 +865,12 @@
       <label class="check"><input data-field="highlighted" type="checkbox" ${plan.highlighted ? 'checked' : ''}> Destacar como recomendado</label>
       <label class="check"><input data-field="contact_only" type="checkbox" ${plan.contact_only ? 'checked' : ''}> Somente contato / Sob consulta</label>
       <button class="btn primary" type="submit">Salvar alterações</button>
-    </form>`;
+    </form>${plan.plan_key === 'professional' ? `<form class="platform-premium-annual-form platform-plan-card">
+      <div class="platform-plan-card-head"><b>Premium anual</b><span class="meta">Compra única por 12 meses</span></div>
+      <div class="field"><label>Total no cartão (R$)</label><input name="annual_card_price" type="number" min="0.01" step="0.01" value="${esc(plan.annual_card_price ?? '')}" required><small>Até 12 vezes sem juros para a escola. A taxa do parcelamento é descontada do recebimento.</small></div>
+      <div class="field"><label>Total no Pix (R$)</label><input name="annual_pix_price" type="number" min="0.01" step="0.01" value="${esc(plan.annual_pix_price ?? '')}" required></div>
+      <button class="btn primary" type="submit">Salvar valores anuais</button>
+    </form>` : ''}`;
   }
 
   function renderPlans(plans, error, features) {
@@ -877,6 +882,7 @@
     }
     target.innerHTML = (plans || []).map(plan => planCardHtml(plan, features)).join('') || '<div class="empty">Nenhum plano cadastrado.</div>';
     target.querySelectorAll('.platform-plan-card').forEach(form => {
+      if (form.classList.contains('platform-premium-annual-form')) return;
       const refreshConfirmationState = cycle => {
         const input = form.querySelector(`[data-field="${cycle === 'monthly' ? 'price' : 'semiannual_price'}"]`);
         const confirmation = form.querySelector(`[data-field="${cycle}_hotmart_confirmed"]`);
@@ -892,6 +898,26 @@
         refreshConfirmationState(cycle);
       });
       form.onsubmit = savePlanDetails;
+    });
+    target.querySelectorAll('.platform-premium-annual-form').forEach(form => {
+      form.onsubmit = async event => {
+        event.preventDefault();
+        const card = Number(form.elements.annual_card_price.value);
+        const pix = Number(form.elements.annual_pix_price.value);
+        if (!Number.isFinite(card) || !Number.isFinite(pix) || card <= 0 || pix <= 0 || pix > card) {
+          toast('Confira os totais anuais do cartão e do Pix.'); return;
+        }
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        try {
+          const { error:saveError } = await db.rpc('platform_set_premium_annual_prices', {
+            p_card_price:card, p_pix_price:pix
+          });
+          if (saveError) { toast(saveError.message); return; }
+          toast('Valores anuais do Premium salvos.');
+          await refreshPlansSection();
+        } finally { button.disabled = false; }
+      };
     });
   }
 

@@ -23,11 +23,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const style = document.createElement('style');
   style.textContent = `
+    .public-plan-annual-offer { margin:10px 0 16px; padding:12px; border:1px solid #d7dfed; border-radius:10px; color:#24365a; line-height:1.45; }
+    .public-plan-annual-offer small { display:block; margin-top:4px; color:#60708e; }
     .settings-nav { margin-top:10px; text-align:left; background:transparent; color:#c9d3e8; padding:12px; font-weight:650; }
     .settings-nav:hover { color:#fff; background:#2b3c5d; border-radius:8px; }
     .billing-options { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
     .billing-option { position:relative; display:flex; gap:13px; align-items:center; min-height:112px; padding:18px; border:1.5px solid #d7dfed; border-radius:17px; background:linear-gradient(145deg,#fff,#f8faff); box-shadow:0 7px 22px #10204a0a; cursor:pointer; transition:border-color .2s,box-shadow .2s,transform .2s,background .2s; }
     .billing-option:hover { border-color:#9fb1df; transform:translateY(-1px); box-shadow:0 12px 28px #173b8f16; }
+    .billing-option-pending { cursor:default; opacity:.78; }
+    .billing-option-pending:hover { border-color:#d7dfed; transform:none; box-shadow:0 7px 22px #10204a0a; }
     .billing-option:has(input:checked) { border-color:#315fea; background:linear-gradient(145deg,#f8faff,#edf2ff); box-shadow:0 12px 30px #315fea24,0 0 0 1px #315fea inset; }
     .billing-option input { appearance:none; width:24px; height:24px; min-height:24px; flex:0 0 24px; margin:0; padding:0; border:2px solid #acb8cc; border-radius:50%; background:#fff; box-shadow:none; }
     .billing-option input:checked { border:7px solid #315fea; }
@@ -203,7 +207,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const billingOptions=billingField.querySelector('.billing-options');
     const monthly=`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="monthly" checked><span><strong>Mensal · ${esc(formatPlanPrice(plan))}/mês</strong><small>Renovação mensal; cancele quando quiser.</small></span></label>`;
     const semiannual=plan.semiannual_active&&plan.semiannual_price?`<label class="billing-option"><input type="radio" name="schoolBillingCycle" value="semiannual"><span><strong>6 meses · ${esc(Number(plan.semiannual_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))}</strong><small>Pagamento único por Pix ou cartão; equivalente a 5 mensalidades.</small></span></label>`:'';
-    billingOptions.innerHTML=monthly+semiannual;
+    const annual=plan.plan_key==='professional'&&plan.annual_card_price&&plan.annual_pix_price?`<label class="billing-option billing-option-pending"><input type="radio" name="schoolBillingCycle" value="annual" disabled><span><strong>Anual · ${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no cartão ou ${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no Pix</strong><small>Cartão em até 12 vezes sem juros para a escola. Checkout anual em preparação.</small></span></label>`:'';
+    billingOptions.innerHTML=monthly+semiannual+annual;
     billingField.classList.toggle('hidden',plan.contact_only||plan.price===null);
     document.getElementById('schoolApplicationError').classList.add('hidden');
     applicationModal.classList.remove('hidden');
@@ -301,6 +306,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ${comparePrice ? `<span class="public-plan-compare-price"><span class="public-plan-old-price">de ${esc(comparePrice)}</span><span class="public-plan-price-connector">por</span></span>` : ''}
           <strong class="public-plan-price">${esc(formatPlanPrice(plan))}${plan.price !== null && !plan.contact_only ? '<small>/mês</small>' : ''}</strong>
         </div>
+        ${plan.plan_key === 'professional' && plan.annual_card_price && plan.annual_pix_price ? `<p class="public-plan-annual-offer"><strong>Premium anual:</strong> ${esc(Number(plan.annual_card_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no cartão em até 12 vezes sem juros para a escola, ou ${esc(Number(plan.annual_pix_price).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}))} no Pix. <small>Checkout anual em preparação.</small></p>` : ''}
         <button class="btn ${plan.highlighted ? 'primary' : 'secondary'} full" type="button" data-public-plan-cta="${esc(plan.plan_key)}">${esc(plan.cta_label || (plan.contact_only ? 'Fale conosco' : 'Começar'))}</button>
         <ul>${benefits.map(item => `<li>✓ ${esc(item)}</li>`).join('')}</ul>
       </article>`;
