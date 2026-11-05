@@ -37,7 +37,7 @@
     shift: "cphFuncionalidade_cphCampos_txtTurno",
     classroom: "cphFuncionalidade_cphCampos_txtTurma"
   });
-  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false, activitySiteEnabled:false };
+  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false, activitySiteEnabled:false, headerCampaign:null };
   let panel;
   let contentResumeTimer;
   let attendanceResumeTimer;
@@ -83,7 +83,9 @@
     window.addEventListener("resize", applyPlanningDockLayout);
     refreshLicenseStatus();
     refreshActivitySiteStatus();
+    refreshHeaderCampaign();
     window.addEventListener('focus', () => { if (!document.hidden) refreshActivitySiteStatus(); });
+    window.addEventListener('focus', () => { if (!document.hidden) refreshHeaderCampaign(); });
     if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
@@ -159,6 +161,56 @@
       model.activitySiteEnabled = result?.visible === true;
     } catch { model.activitySiteEnabled = false; }
     render();
+  }
+
+  async function refreshHeaderCampaign() {
+    try {
+      model.headerCampaign = await chrome.runtime.sendMessage({type:"ASSISTENTE_SIAP_HEADER_CAMPAIGN"});
+    } catch { model.headerCampaign = null; }
+    render();
+  }
+
+  function renderHeaderCampaign() {
+    const header = panel?.querySelector('.cm-head');
+    if (!header) return;
+    const campaign = model.page !== 'exam' && model.headerCampaign?.active === true ? model.headerCampaign : null;
+    let card = header.querySelector('.cm-header-campaign');
+    if (!campaign || !Array.isArray(campaign.buttons) || !campaign.buttons.length) { card?.remove(); return; }
+    const key = JSON.stringify(campaign);
+    if (card?.dataset.key === key) return;
+    card?.remove();
+    card = document.createElement('section');
+    card.className = 'cm-header-campaign';
+    card.dataset.key = key;
+    const validColor = color => /^#[0-9a-f]{6}$/i.test(String(color || ''));
+    card.style.backgroundColor = validColor(campaign.background_color) ? campaign.background_color : '#080e1b';
+    card.style.color = validColor(campaign.text_color) ? campaign.text_color : '#fff5d4';
+    try {
+      const image = new URL(campaign.background_image_url);
+      if (image.protocol === 'https:') card.style.backgroundImage = `linear-gradient(90deg,#061024df,#06102478),url(${JSON.stringify(image.href)})`;
+    } catch {}
+    for (const [className, value] of [['cm-campaign-eyebrow',campaign.eyebrow],['cm-campaign-headline',campaign.headline]]) {
+      if (!value) continue;
+      const text = document.createElement(className === 'cm-campaign-headline' ? 'strong' : 'small');
+      text.className = className;
+      text.textContent = String(value);
+      card.append(text);
+    }
+    const actions = document.createElement('div');
+    actions.className = 'cm-campaign-actions';
+    for (const entry of campaign.buttons.slice(0,3)) {
+      if (!['monthly','quarterly','semiannual','annual'].includes(entry.plan_key) || !Number.isFinite(Number(entry.amount))) continue;
+      const link = document.createElement('a');
+      link.href = `https://sistemacarometro.com.br/assistente-siap-conta.html?plano=${encodeURIComponent(entry.plan_key)}`;
+      link.target = '_blank'; link.rel = 'noopener noreferrer';
+      if (validColor(entry.color)) link.style.backgroundColor = entry.color;
+      if (validColor(entry.text_color)) link.style.color = entry.text_color;
+      const label = document.createElement('span'); label.textContent = String(entry.label || entry.plan_key);
+      const amount = document.createElement('strong'); amount.textContent = Number(entry.amount).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+      link.append(label,amount); actions.append(link);
+    }
+    card.append(actions);
+    header.insertBefore(card, header.querySelector('.cm-operation-status'));
   }
 
   function licenseCard() {
@@ -494,6 +546,7 @@
       panel.querySelector('[data-action="planning-stop"]')?.addEventListener("click", stopPlanningOperation);
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
+    renderHeaderCampaign();
     const productTitle = panel.querySelector('.cm-title h2');
     if (productTitle) productTitle.textContent = model.page === 'exam' ? 'Carômetro' : 'Assistente SIAP';
     const pageLabel = panel.querySelector(".cm-title p");
