@@ -2,6 +2,9 @@
   'use strict';
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   const db = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  const catalogDb = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
+  });
   // O retorno do link de autenticação pode chegar sem a query string.
   // Nessa situação, nunca presumimos uma compra: o backend decide se a
   // conta ainda pode experimentar, já possui assinatura ou tem concessão.
@@ -273,7 +276,7 @@
       selectedPlanTarget.textContent=data?`${data.display_name} · ${money(data.amount)} · ${data.credits?data.credits+' crédito(s) por bloco, em todas as turmas':data.months+' meses com correção incluída'}`:'Oferta ainda em preparação.';
       checkoutButton.disabled=!selectedPlan||!legal.checked;return;
     }
-    const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
+    const { data, error } = await catalogDb.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
       .eq('plan_key', planKey).eq('active', true).maybeSingle();
     selectedPlan = error ? null : data;
     selectedPlanTarget.innerHTML = selectedPlan
@@ -282,8 +285,19 @@
     checkoutButton.disabled = !selectedPlan || !legal.checked;
   }
 
+  async function validSession() {
+    const { data:{ session:stored } } = await db.auth.getSession();
+    if (!stored) return null;
+    const { data:{ user }, error } = await db.auth.getUser();
+    if (!error && user) return (await db.auth.getSession()).data.session;
+    const renewed = await db.auth.refreshSession();
+    if (!renewed.error && renewed.data.session) return renewed.data.session;
+    await db.auth.signOut({ scope:'local' });
+    return null;
+  }
+
   async function refresh() {
-    const { data:{ session } } = await db.auth.getSession();
+    const session = await validSession();
     currentSession = session;
     loading.hidden = true;
     loginForm.hidden = !!session;
@@ -316,6 +330,12 @@
   });
   checkoutButton.onclick = async () => {
     if (!selectedPlan || !legal.checked) return;
+    currentSession = await validSession();
+    if (!currentSession) {
+      message('checkoutMessage', 'Sua sessão expirou. Confirme seu e-mail novamente para continuar.', true);
+      await refresh();
+      return;
+    }
     checkoutButton.disabled = true;
     checkoutButton.textContent = 'Abrindo pagamento…';
     const checkoutFunction=examFlow?'siap-exam-commerce':selectedPlan.plan_key==='monthly'

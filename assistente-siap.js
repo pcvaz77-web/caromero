@@ -64,6 +64,9 @@
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   if (!config?.backendConfigured || !window.supabase?.createClient) return;
   const client = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  const catalogClient = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
+  });
   client.auth.getSession().then(async ({ data: { session } }) => {
     if (!session) return;
     const { data: access, error } = await client.rpc('get_siap_assistant_access_status');
@@ -78,8 +81,8 @@
     }
   }).catch(() => {});
   Promise.all([
-    client.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order'),
-    client.rpc('get_siap_black_friday')
+    catalogClient.from('siap_assistant_plans').select('plan_key,amount,billing_months').eq('active', true).order('display_order'),
+    catalogClient.rpc('get_siap_black_friday')
   ]).then(async ([{ data, error }, { data:campaign, error:campaignError }]) => {
       if (error || !Array.isArray(data) || data.length === 0) {
         document.querySelectorAll('.pricing-grid .price').forEach(price => {
