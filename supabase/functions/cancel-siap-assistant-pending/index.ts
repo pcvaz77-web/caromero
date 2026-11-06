@@ -38,7 +38,7 @@ Deno.serve(async request => {
 
   const admin = createClient(url, serviceKey, {auth:{autoRefreshToken:false,persistSession:false}})
   const {data:payment,error:lookupError} = await admin.from('siap_assistant_payment_subscriptions')
-    .select('id,provider,plan_key,status,external_reference,provider_checkout_id,provider_subscription_id')
+    .select('id,provider,plan_key,status,amount,currency,external_reference,provider_checkout_id,provider_subscription_id')
     .eq('user_id',user.id).eq('provider','mercado_pago').eq('status','pending')
     .order('created_at',{ascending:false}).limit(1).maybeSingle()
   if (lookupError) return reply(origin, {ok:false,code:'checkout_lookup_failed'}, 500)
@@ -62,11 +62,13 @@ Deno.serve(async request => {
       if (!['quarterly','semiannual','annual'].includes(payment.plan_key) || !payment.provider_checkout_id) {
         return reply(origin, {ok:false,code:'checkout_not_ready'}, 409)
       }
-      const search = await providerJson(`/v1/payments/search?external_reference=${encodeURIComponent(payment.external_reference)}&limit=100`,mercadoPagoToken)
+      const searchPath = `/v1/payments/search?external_reference=${encodeURIComponent(payment.external_reference)}&limit=100`
+      const search = await providerJson(searchPath,mercadoPagoToken)
       if (!Array.isArray(search.results) || Number(search.paging?.total ?? 0) > search.results.length) throw Error('payment_search_incomplete')
-      if (search.results.some((item:Record<string,unknown>) =>
+      const active = search.results.filter((item:Record<string,unknown>) =>
         String(item.external_reference ?? '') === String(payment.external_reference)
-        && !['rejected','cancelled','canceled','refunded','charged_back'].includes(String(item.status ?? '')))) {
+        && !['rejected','cancelled','canceled','refunded','charged_back'].includes(String(item.status ?? '')))
+      if (active.some((item:Record<string,unknown>) => !['pending','in_process','authorized'].includes(String(item.status ?? '')))) {
         return reply(origin, {ok:false,code:'payment_in_progress'}, 409)
       }
       const path = `/checkout/preferences/${encodeURIComponent(payment.provider_checkout_id)}`
@@ -82,6 +84,28 @@ Deno.serve(async request => {
         })})
         const verified = await providerJson(path,mercadoPagoToken)
         if (verified.preference_expired !== true) throw Error('preference_still_active')
+      }
+      for (const item of active) {
+        const paymentPath = `/v1/payments/${encodeURIComponent(String(item.id))}`
+        const current = await providerJson(paymentPath,mercadoPagoToken)
+        if (String(current.external_reference ?? '') !== String(payment.external_reference)
+            || String(current.currency_id ?? '') !== String(payment.currency)
+            || !Number.isFinite(Number(current.transaction_amount))
+            || Math.abs(Number(current.transaction_amount)-Number(payment.amount)) >= 0.009) throw Error('payment_mismatch')
+        if (['cancelled','canceled','rejected'].includes(String(current.status ?? ''))) continue
+        if (!['pending','in_process','authorized'].includes(String(current.status ?? ''))) {
+          return reply(origin, {ok:false,code:'payment_in_progress'}, 409)
+        }
+        await providerJson(paymentPath,mercadoPagoToken,{method:'PUT',body:JSON.stringify({status:'cancelled'})})
+        const verified = await providerJson(paymentPath,mercadoPagoToken)
+        if (!['cancelled','canceled'].includes(String(verified.status ?? ''))) throw Error('payment_still_active')
+      }
+      const finalSearch = await providerJson(searchPath,mercadoPagoToken)
+      if (!Array.isArray(finalSearch.results) || Number(finalSearch.paging?.total ?? 0) > finalSearch.results.length) throw Error('final_payment_search_incomplete')
+      if (finalSearch.results.some((item:Record<string,unknown>) =>
+        String(item.external_reference ?? '') === String(payment.external_reference)
+        && !['rejected','cancelled','canceled','refunded','charged_back'].includes(String(item.status ?? '')))) {
+        return reply(origin, {ok:false,code:'payment_in_progress'}, 409)
       }
     }
 
