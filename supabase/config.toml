@@ -28,6 +28,9 @@ verify_jwt = false
 [functions.cancel-siap-assistant-subscription]
 verify_jwt = true
 
+[functions.cancel-siap-assistant-pending]
+verify_jwt = true
+
 [functions.siap-assistant-mercado-pago-webhook]
 verify_jwt = false
 

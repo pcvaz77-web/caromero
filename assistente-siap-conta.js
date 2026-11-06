@@ -25,6 +25,7 @@
   const paymentReturnHint = document.getElementById('paymentReturnHint');
   const refreshAccessButton = document.getElementById('refreshAssistantAccess');
   const resumePaymentLink = document.getElementById('resumeAssistantPayment');
+  const cancelPendingPaymentButton = document.getElementById('cancelPendingAssistantPayment');
   const panelTitle = document.getElementById('accountPanelTitle');
   const selectedPlanTarget = document.getElementById('selectedPlan');
   const trialEndedLink = document.getElementById('trialEndedLink');
@@ -111,6 +112,7 @@
   const renderAccessStatus = status => {
     accessStatus = status;
     resumePaymentLink.hidden = true;
+    cancelPendingPaymentButton.hidden = true;
     const paidAccess = status?.mode === 'subscription' && status.active === true;
     paymentReturnHint.hidden = paidAccess || trialFlow || examFlow || accountFlow;
     refreshAccessButton.hidden = paidAccess || trialFlow || examFlow;
@@ -207,6 +209,7 @@
     try {
       const status = knownStatus || await loadAccessStatus();
       if (status?.mode === 'subscription' && status.active === true) return;
+      cancelPendingPaymentButton.hidden = true;
       const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
         .select('status,created_at,provider,plan_key,checkout_url').in('provider',['hotmart','mercado_pago']).eq('status','pending')
         .order('created_at',{ascending:false}).limit(1).maybeSingle();
@@ -217,6 +220,7 @@
       const planLabel = {monthly:'mensal',quarterly:'trimestral',semiannual:'semestral',annual:'anual'}[payment.plan_key] || 'selecionado';
       accessSummary.textContent = `Há um pagamento ${planLabel} iniciado e ainda pendente. A licença será vinculada a esta conta após a aprovação.`;
       resumePaymentLink.hidden = true;
+      cancelPendingPaymentButton.hidden = payment.provider !== 'mercado_pago';
       try {
         const checkoutUrl = new URL(payment.checkout_url);
         if (checkoutUrl.protocol === 'https:' &&
@@ -338,6 +342,31 @@
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
   refreshAccessButton.onclick = () => refreshPaymentAccess();
+  cancelPendingPaymentButton.onclick = async () => {
+    if (!currentSession || cancelPendingPaymentButton.disabled) return;
+    cancelPendingPaymentButton.disabled = true;
+    cancelPendingPaymentButton.textContent = 'Cancelando compra…';
+    try {
+      let { data, error } = await db.functions.invoke('cancel-siap-assistant-pending', { body:{} });
+      if (!data && error?.context?.json) { try { data = await error.context.json(); } catch {} }
+      if (error || !data?.cancelled) {
+        message('checkoutMessage', data?.code === 'payment_in_progress'
+          ? 'Há um pagamento em processamento. Aguarde a confirmação antes de iniciar outra compra.'
+          : data?.code === 'pending_payment_not_found'
+            ? 'A compra pendente já foi encerrada. Atualize a página para conferir.'
+            : 'Não foi possível cancelar a compra pendente. Tente novamente ou fale com o suporte.', true);
+      } else {
+        if (paymentPollTimer) { clearInterval(paymentPollTimer); paymentPollTimer = null; }
+        await refresh();
+        message('checkoutMessage', 'Compra pendente cancelada. Você já pode escolher outro plano.');
+      }
+    } catch {
+      message('checkoutMessage', 'Não foi possível cancelar a compra pendente. Tente novamente ou fale com o suporte.', true);
+    } finally {
+      cancelPendingPaymentButton.disabled = false;
+      cancelPendingPaymentButton.textContent = 'Cancelar compra pendente';
+    }
+  };
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && currentSession && !refreshAccessButton.hidden) refreshPaymentAccess();
   });
