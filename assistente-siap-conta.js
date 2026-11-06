@@ -2,6 +2,9 @@
   'use strict';
   const config = window.CAROMETRO_RUNTIME_CONFIG;
   const db = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey);
+  const catalogDb = window.supabase.createClient(config.supabaseUrl, config.supabasePublishableKey, {
+    auth: { persistSession:false, autoRefreshToken:false, detectSessionInUrl:false }
+  });
   // O retorno do link de autenticação pode chegar sem a query string.
   // Nessa situação, nunca presumimos uma compra: o backend decide se a
   // conta ainda pode experimentar, já possui assinatura ou tem concessão.
@@ -21,6 +24,7 @@
   const installLink = document.getElementById('installAssistantExtension');
   const paymentReturnHint = document.getElementById('paymentReturnHint');
   const refreshAccessButton = document.getElementById('refreshAssistantAccess');
+  const resumePaymentLink = document.getElementById('resumeAssistantPayment');
   const panelTitle = document.getElementById('accountPanelTitle');
   const selectedPlanTarget = document.getElementById('selectedPlan');
   const trialEndedLink = document.getElementById('trialEndedLink');
@@ -106,6 +110,7 @@
 
   const renderAccessStatus = status => {
     accessStatus = status;
+    resumePaymentLink.hidden = true;
     const paidAccess = status?.mode === 'subscription' && status.active === true;
     paymentReturnHint.hidden = paidAccess || trialFlow || examFlow || accountFlow;
     refreshAccessButton.hidden = paidAccess || trialFlow || examFlow;
@@ -177,6 +182,7 @@
     const { data, error } = await db.rpc('get_siap_assistant_access_status');
     if (error || !data) {
       accessStatus = null;
+      resumePaymentLink.hidden = true;
       panelTitle.textContent = trialFlow ? 'Sua demonstração gratuita' : 'Confirme a assinatura';
       selectedPlanTarget.hidden = trialFlow;
       legal.hidden = trialFlow;
@@ -202,15 +208,24 @@
       const status = knownStatus || await loadAccessStatus();
       if (status?.mode === 'subscription' && status.active === true) return;
       const { data:payment } = await db.from('siap_assistant_payment_subscriptions')
-        .select('status,created_at,provider').in('provider',['hotmart','mercado_pago']).eq('status','pending')
+        .select('status,created_at,provider,plan_key,checkout_url').in('provider',['hotmart','mercado_pago']).eq('status','pending')
         .order('created_at',{ascending:false}).limit(1).maybeSingle();
       const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
       if (!recent) return;
       panelTitle.textContent = 'Pagamento em confirmação';
       accessSummary.hidden = false;
-      accessSummary.textContent = payment.provider === 'hotmart'
-        ? 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento.'
-        : 'Aguardando a confirmação do Mercado Pago. A licença será vinculada a esta conta após a aprovação.';
+      const planLabel = {monthly:'mensal',quarterly:'trimestral',semiannual:'semestral',annual:'anual'}[payment.plan_key] || 'selecionado';
+      accessSummary.textContent = `Há um pagamento ${planLabel} iniciado e ainda pendente. A licença será vinculada a esta conta após a aprovação.`;
+      resumePaymentLink.hidden = true;
+      try {
+        const checkoutUrl = new URL(payment.checkout_url);
+        if (checkoutUrl.protocol === 'https:' &&
+          ((payment.provider === 'mercado_pago' && checkoutUrl.hostname === 'www.mercadopago.com.br') ||
+          (payment.provider === 'hotmart' && checkoutUrl.hostname === 'pay.hotmart.com'))) {
+          resumePaymentLink.href = checkoutUrl.href;
+          resumePaymentLink.hidden = false;
+        }
+      } catch { /* O pagamento continua pendente, mas sem link reutilizável. */ }
       selectedPlanTarget.hidden = true;
       legal.hidden = true;
       checkoutButton.hidden = true;
@@ -273,7 +288,7 @@
       selectedPlanTarget.textContent=data?`${data.display_name} · ${money(data.amount)} · ${data.credits?data.credits+' crédito(s) por bloco, em todas as turmas':data.months+' meses com correção incluída'}`:'Oferta ainda em preparação.';
       checkoutButton.disabled=!selectedPlan||!legal.checked;return;
     }
-    const { data, error } = await db.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
+    const { data, error } = await catalogDb.from('siap_assistant_plans').select('plan_key,display_name,description,amount,billing_months')
       .eq('plan_key', planKey).eq('active', true).maybeSingle();
     selectedPlan = error ? null : data;
     selectedPlanTarget.innerHTML = selectedPlan
@@ -282,12 +297,24 @@
     checkoutButton.disabled = !selectedPlan || !legal.checked;
   }
 
+  async function validSession() {
+    const { data:{ session:stored } } = await db.auth.getSession();
+    if (!stored) return null;
+    const { data:{ user }, error } = await db.auth.getUser();
+    if (!error && user) return (await db.auth.getSession()).data.session;
+    const renewed = await db.auth.refreshSession();
+    if (!renewed.error && renewed.data.session) return renewed.data.session;
+    await db.auth.signOut({ scope:'local' });
+    return null;
+  }
+
   async function refresh() {
-    const { data:{ session } } = await db.auth.getSession();
+    const session = await validSession();
     currentSession = session;
     loading.hidden = true;
     loginForm.hidden = !!session;
     checkoutPanel.hidden = !session;
+    if (!session) resumePaymentLink.hidden = true;
     if (session) {
       document.getElementById('accountIdentity').textContent = `Conta: ${session.user.email}`;
       document.getElementById('paymentEmailHint').textContent = `A licença do Assistente será vinculada à conta ${session.user.email}. Você pode pagar no Mercado Pago sem criar uma conta lá.`;
@@ -316,6 +343,12 @@
   });
   checkoutButton.onclick = async () => {
     if (!selectedPlan || !legal.checked) return;
+    currentSession = await validSession();
+    if (!currentSession) {
+      message('checkoutMessage', 'Sua sessão expirou. Confirme seu e-mail novamente para continuar.', true);
+      await refresh();
+      return;
+    }
     checkoutButton.disabled = true;
     checkoutButton.textContent = 'Abrindo pagamento…';
     const checkoutFunction=examFlow?'siap-exam-commerce':selectedPlan.plan_key==='monthly'
