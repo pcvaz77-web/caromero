@@ -887,8 +887,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if(currentHeader.error)throw currentHeader.error;
       if(!currentHeader.data?.school_name?.trim())throw new Error('Informe o nome da escola no cabeçalho do Meu CEPI antes de continuar no SIAP.');
       const newMeta={...session.meta,schoolName:currentHeader.data.school_name.trim()};
-      const synced=await correctionApi('heartbeat',{cepiMeta:newMeta},session);
-      if(!synced.cepiMetaUpdated)throw new Error('As correções foram salvas, mas o Assistente SIAP ainda usa o cabeçalho antigo. Atualize a extensão e clique novamente em Registrar correções conferidas.');
+      if(newMeta.schoolName!==session.meta.schoolName){
+        const synced=await correctionApi('heartbeat',{cepiMeta:newMeta},session);
+        if(!synced.cepiMetaUpdated)throw new Error('As correções foram salvas, mas o Assistente SIAP ainda usa o cabeçalho antigo. Atualize a extensão e clique novamente em Registrar correções conferidas.');
+      }
       session.meta=newMeta;
       correctionFeedback('Registrado no Carômetro. Continue no SIAP para efetivar a correção e salvar a prova.','success');
       pollCorrection(test);
