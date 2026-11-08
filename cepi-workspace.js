@@ -357,12 +357,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const verifyHubExtension=async()=>{
       const button=$('cepiHubConnect'),status=$('cepiHubStatus'),install=$('cepiHubInstall');
       button.disabled=true;status.dataset.state='loading';status.textContent='Verificando a extensão neste computador…';
-      const result=typeof window.connectCarometroCorrectionExtension==='function' ? await window.connectCarometroCorrectionExtension().catch(()=>null) : null;
+      const connectorAvailable=typeof window.connectCarometroCorrectionExtension==='function';
+      const result=connectorAvailable ? await window.connectCarometroCorrectionExtension().catch(()=>({ok:false,code:'CONNECTION_FAILED'})) : {ok:false,code:'SITE_CONNECTOR_UNAVAILABLE'};
       if(!status.isConnected||!ensureContext())return;
       const active=result?.ok===true&&result.license?.examAccess?.active===true;
       const ready=active&&window.CepiCorrection.supportsExtension(result.extensionVersion);
       status.dataset.state=ready?'success':'error';
-      status.textContent=ready?'✓ Extensão instalada e conectada. Escolha uma prova com questões completas abaixo.':active?'Atualize a extensão pela loja e recarregue o Carômetro.':'A extensão não respondeu ou o acesso à correção não foi confirmado. Confira a instalação e tente novamente.';
+      status.textContent=ready?'✓ Extensão instalada e conectada. Escolha uma prova com questões completas abaixo.':active?'Atualize a extensão pela loja e recarregue o Carômetro.':result?.ok===true?'A extensão respondeu, mas esta conta não teve o acesso à correção confirmado.':result?.code==='SITE_CONNECTOR_UNAVAILABLE'?'O Carômetro não carregou a integração com a extensão. Recarregue esta página.':result?.code==='SESSION_EXPIRED'||result?.code==='INVALID_SESSION'?'A sessão do Carômetro expirou. Entre novamente e tente conectar.':result?.code==='LICENSE_CONNECTION_FAILED'||result?.code==='LICENSE_REQUEST_FAILED'?'A extensão respondeu, mas não conseguiu validar o acesso. Tente novamente em instantes.':result?.code==='persistent_session_not_allowed'?'A extensão respondeu, mas o serviço não autorizou esta conta para a correção. Confira a conta conectada.':'A extensão não respondeu neste navegador. Recarregue a extensão local e depois esta página.';
       install.hidden=ready;install.style.display=ready?'none':'';button.hidden=ready;button.style.display=ready?'none':'';button.disabled=false;
       if(active&&!ready)install.textContent='Atualizar extensão';
     };
