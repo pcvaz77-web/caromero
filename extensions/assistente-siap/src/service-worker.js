@@ -99,6 +99,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
         if(body.cepiMeta)await chrome.storage.session.set({carometroCepiExamRoom:{id:data.id,desktop:data.desktop,expires:data.expires,meta:body.cepiMeta}});
         else await chrome.storage.session.remove('carometroCepiExamRoom');
       }
+      if(response.ok&&data.ok&&action==='heartbeat'&&body.cepiMeta){
+        const stored=await chrome.storage.session.get('carometroCepiExamRoom');
+        if(stored.carometroCepiExamRoom?.id===room){await chrome.storage.session.set({carometroCepiExamRoom:{...stored.carometroCepiExamRoom,meta:body.cepiMeta}});data.cepiMetaUpdated=true;}
+      }
       if(response.ok&&action==='close'){const stored=await chrome.storage.session.get('carometroCepiExamRoom');if(stored.carometroCepiExamRoom?.id===room)await chrome.storage.session.remove('carometroCepiExamRoom');}
       respond(response.ok ? data : {ok:false,error:data.error||'Correção indisponível.',status:response.status});
     })().catch(error=>respond({ok:false,error:error.message||'Correção indisponível.'}));

@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
   style.textContent += `#cepiGroupForm .cepi-group-heading{padding:18px 20px;border:1px solid #dbe5f6;border-radius:15px;background:linear-gradient(120deg,#f1f5ff,#fff)}#cepiGroupForm .cepi-group-heading h4{margin:0 0 5px;font-size:22px;color:var(--navy)}#cepiGroupForm .cepi-group-heading p{margin:0;color:#53627e}#cepiGroupForm fieldset{min-width:0;margin:0;padding:15px 16px;border:1px solid #d9e3f2;border-radius:12px;background:#f8faff}#cepiGroupForm legend{padding:0 5px;font-weight:800;color:var(--navy)}#cepiGroupForm fieldset>p{margin:3px 0 12px;color:#53627e;font-size:13px}#cepiGroupForm .cepi-group-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px}#cepiGroupForm .cepi-group-options label{display:flex;align-items:center;gap:8px;min-height:42px;margin:0;padding:8px 10px;border:1px solid #d8e1f1;border-radius:9px;background:#fff;cursor:pointer}#cepiGroupForm .cepi-group-options label:has(input:checked),#cepiGroupForm .cepi-group-student:has(input:checked){border-color:#7299ef;background:#e7efff;box-shadow:inset 0 0 0 1px #7299ef;color:#173e87}#cepiGroupForm input[type=checkbox]{width:18px;min-height:18px;height:18px;margin:0;accent-color:var(--blue);flex:none}#cepiGroupForm .cepi-group-students{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;max-height:290px;overflow:auto}#cepiGroupForm .cepi-group-student{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border:1px solid #d8e1f1;border-radius:10px;background:#fff;cursor:pointer;font-size:13px}#cepiGroupForm .cepi-group-student[hidden]{display:none}#cepiGroupForm .cepi-group-avatar{position:relative;display:grid;place-items:center;flex:none;width:36px;height:36px;border-radius:50%;background:#dce6ff;color:#315dbb;overflow:hidden;font-weight:800}#cepiGroupForm .cepi-group-avatar img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}#cepiGroupForm .cepi-group-student small{display:block;color:#53627e;font-weight:500}#cepiGroupForm .cepi-group-student input:disabled{opacity:.6}#cepiGroupForm .cepi-group-count{display:block;margin-top:10px;color:#415273;font-size:13px;font-weight:700}#cepiGroupForm .actions{padding-top:12px;border-top:1px solid #e4eaf4}`;
   style.textContent += `#cepiGroupForm .cepi-club-disciplines .cepi-group-options{grid-template-columns:repeat(auto-fit,minmax(170px,1fr));max-height:240px;overflow:auto}#cepiGroupForm .cepi-club-disciplines .cepi-group-options label[hidden]{display:none}#cepiGroupForm .cepi-discipline-toolbar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}#cepiGroupForm .cepi-discipline-toolbar button{padding:7px 10px;border:1px solid #ccd8ed;border-radius:8px;background:#fff;color:#23488f;font-weight:700;cursor:pointer}#cepiGroupForm .cepi-discipline-toolbar button:hover{background:#e7efff}`;
   style.textContent += `.cepi-useful-list-preview{max-width:100%;overflow:auto;border:1px solid #dce4f0;border-radius:12px}.cepi-useful-table{width:100%;border-collapse:collapse;table-layout:fixed}.cepi-useful-table th,.cepi-useful-table td{padding:10px;border-bottom:1px solid #e2e8f2;text-align:left;vertical-align:top;overflow-wrap:anywhere}.cepi-useful-table th{background:#eaf0ff;color:#173e87;font-weight:800}.cepi-useful-table th:first-child{width:24%}.cepi-useful-table th:nth-child(2),.cepi-useful-table th:nth-child(3){width:28%}.cepi-useful-table th:last-child{width:20%}.cepi-useful-table .student-name{font-weight:800}.cepi-useful-table .allocation strong,.cepi-useful-table .allocation small{display:block}.cepi-useful-table .allocation small{margin-top:3px;color:#52617a;font-size:12px}.cepi-useful-table .allocation+.allocation{margin-top:8px}.cepi-useful-table .missing{color:#69758a}.cepi-useful-head{border-left:5px solid #4262d5;padding:14px 16px;background:#f3f7ff;border-radius:10px}.cepi-useful-head h4{margin:0 0 4px;font-size:20px}.cepi-useful-head p{margin:0;color:#53627e}.cepi-useful-actions{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}@media(max-width:700px){.cepi-useful-list-preview{font-size:12px;min-width:0}.cepi-useful-table{min-width:720px}}`;
+  style.textContent += `.cepi-correction-cancel.btn{background:#c62828;color:#fff;border-color:#a51e1e}.cepi-correction-cancel.btn:hover{background:#a51e1e;color:#fff}.cepi-correction-feedback{margin:12px 0 0;padding:11px 13px;border-radius:9px;font-weight:700}.cepi-correction-feedback:empty{display:none}.cepi-correction-feedback[data-state="success"]{background:#e4f5e9;color:#146335;border:1px solid #a8d9b7}.cepi-correction-feedback[data-state="error"]{background:#fff0ed;color:#9b3427;border:1px solid #efb8ae}.cepi-correction-feedback[data-state="loading"]{background:#edf3ff;color:#294b83;border:1px solid #c5d6fa}`;
   document.head.appendChild(style);
 
   let section = 'provas';
@@ -89,6 +90,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const bankFilters = {query:'',subject:'',grade:'',page:0};
   const $ = id => document.getElementById(id);
   const message = value => { $('cepiWorkspaceMessage').textContent = value || ''; };
+  function correctionFeedback(value, state='error') {
+    const node=$('cepiCorrectionFeedback');
+    if(!node)return;
+    node.textContent=value||'';
+    node.dataset.state=value?state:'';
+  }
   const expiredJwt = error => /\bJWT expired\b/i.test(String(error?.message || ''));
   const sessionExpiredMessage = 'Sua sessão expirou. Entre novamente no Carômetro e abra Provas para continuar.';
   const fail = error => message(error?.code === '42P01' || error?.code === 'PGRST205'
@@ -805,9 +812,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if(!roster.length)throw new Error(emptyClassMessage(classId));
         students=students.filter(student=>student.class_id!==classId||student.enrollment_status!=='active').concat(currentStudents.data);
         const subjectMap=[...new Set(prepared.rows.map(row=>row.subject))].map(subject=>({subject,numbers:prepared.rows.filter(row=>row.subject===subject).map(row=>row.number)}));
-        const created=await correctionApi('create',{context:`${displayTitle(test.title)} · ${labelClass(classId)} · ${test.question_count} questões`,mobileWorkflow:true,cepiMeta:{schoolId,testId:id,schoolName:examHeader?.school_name||'',className:labelClass(classId),academicYear:test.academic_year,bimester:test.bimester,stage:test.stage,examType:test.kind==='bloco'?'bloco':window.CepiBlocks.enemModel(test)?'enem':test.kind,blockNumber:test.block_number,subjectMap}});
+        const cepiMeta={schoolId,testId:id,schoolName:examHeader?.school_name||'',className:labelClass(classId),academicYear:test.academic_year,bimester:test.bimester,stage:test.stage,examType:test.kind==='bloco'?'bloco':window.CepiBlocks.enemModel(test)?'enem':test.kind,blockNumber:test.block_number,subjectMap};
+        const created=await correctionApi('create',{context:`${displayTitle(test.title)} · ${labelClass(classId)} · ${test.question_count} questões`,mobileWorkflow:true,cepiMeta});
         room=created;
-        const session={room,schoolId,testId:id,classId,saved:new Set(),lastStatus:null,heartbeatAt:Date.now()};
+        const session={room,schoolId,testId:id,classId,meta:cepiMeta,saved:new Set(),lastStatus:null,heartbeatAt:Date.now()};
         await correctionApi('key',{key:window.CepiCorrection.key(prepared)},session);
         await correctionApi('roster',{roster,binding:`${schoolId}:${id}:${classId}`},session);
         correction=session;
@@ -824,7 +832,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const target=$('cepiCorrectionLive');if(!target)return;
     const qr=window.qrcode(0,'M');
     qr.addData(`https://correcao.sistemacarometro.com.br/#session=${correction.room.id}&token=${correction.room.mobile}`);qr.make();
-    target.innerHTML=`<div class="cepi-workspace-item"><h4>QR Code pronto · turma ${esc(labelClass(correction.classId))}</h4><p>Abra a câmera do celular e aponte para o código abaixo. Toque no link que aparecer para abrir a página de leitura; nela, selecione o aluno e fotografe o cartão-resposta. O gabarito desta prova já está preparado. O código expira às ${new Date(correction.room.expires).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Não compartilhe esta imagem.</p><div id="cepiCorrectionQr" style="width:min(260px,100%);margin:auto"></div><div id="cepiCorrectionResults">Aguardando cartões dos alunos. Leia o QR Code no celular para começar.</div><div class="cepi-workspace-actions"><button type="button" class="btn primary" id="cepiCorrectionSave">Registrar correções conferidas</button><button type="button" class="btn secondary" id="cepiCorrectionClose">Encerrar leitura</button></div></div>`;
+    target.innerHTML=`<div class="cepi-workspace-item"><h4>QR Code pronto · turma ${esc(labelClass(correction.classId))}</h4><p>Abra a câmera do celular e aponte para o código abaixo. Toque no link que aparecer para abrir a página de leitura; nela, selecione o aluno e fotografe o cartão-resposta. O gabarito desta prova já está preparado. O código expira às ${new Date(correction.room.expires).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}. Não compartilhe esta imagem.</p><div id="cepiCorrectionQr" style="width:min(260px,100%);margin:auto"></div><div id="cepiCorrectionResults">Aguardando cartões dos alunos. Leia o QR Code no celular para começar.</div><div class="cepi-workspace-actions"><button type="button" class="btn primary" id="cepiCorrectionSave">Registrar correções conferidas</button><button type="button" class="btn cepi-correction-cancel" id="cepiCorrectionClose">Cancelar as leituras feitas</button></div><p id="cepiCorrectionFeedback" class="cepi-correction-feedback" role="status" aria-live="polite"></p></div>`;
     $('cepiCorrectionQr').innerHTML=qr.createSvgTag({cellSize:4,margin:8,scalable:true});
     const start=$('cepiCorrectionStart');
     if(start)start.textContent='Mostrar QR Code da sessão';
@@ -835,7 +843,7 @@ document.addEventListener('DOMContentLoaded', () => {
       heading.focus({preventScroll:true});
     }
     $('cepiCorrectionSave').onclick=()=>saveCorrectionResults(test);
-    $('cepiCorrectionClose').onclick=async()=>{try{await correctionApi('close');correction=null;if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}correctionForm(test.id);message('Leitura encerrada.');}catch(error){if(!expireCorrectionSession())message(error.message);}};
+    $('cepiCorrectionClose').onclick=async()=>{if(!window.confirm('Cancelar as leituras desta sessão? Os resultados já registrados no Carômetro continuarão salvos.'))return;try{await correctionApi('close');correction=null;if(correctionPoll){clearInterval(correctionPoll);correctionPoll=null;}correctionForm(test.id);message('Leituras da sessão canceladas.');}catch(error){if(!expireCorrectionSession())correctionFeedback(error.message||'Não foi possível cancelar as leituras.');}};
     if(!correctionPoll)correctionPoll=setInterval(()=>pollCorrection(test),3500);
     pollCorrection(test);
   }
@@ -857,9 +865,11 @@ document.addEventListener('DOMContentLoaded', () => {
     finally{session.polling=false;}
   }
   async function saveCorrectionResults(test) {
-    const session=correction;if(!session||!ensureContext())return;
+    const session=correction;if(!session)return;
+    if(!ensureContext()){correctionFeedback('A escola ativa mudou ou seu acesso expirou. Reabra o Meu CEPI.');return;}
     if(expireCorrectionSession(session))return;
     const button=$('cepiCorrectionSave');if(button)button.disabled=true;
+    correctionFeedback('Registrando correções conferidas…','loading');
     try{
       const status=await correctionApi('status');session.lastStatus=status;
       const classStudents=students.filter(student=>student.class_id===session.classId&&student.enrollment_status==='active').map(student=>student.id);
@@ -873,9 +883,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if(result.error)throw result.error;
         session.saved.add(entry.capture_ref);count++;
       }
-      message(count?`${count} correção(ões) registrada(s). O ranking considera esses resultados.`:'Todos os cartões conferidos já estavam registrados.');
+      const currentHeader=await db.from('cepi_exam_headers').select('school_name').eq('school_id',session.schoolId).maybeSingle();
+      if(currentHeader.error)throw currentHeader.error;
+      if(!currentHeader.data?.school_name?.trim())throw new Error('Informe o nome da escola no cabeçalho do Meu CEPI antes de continuar no SIAP.');
+      const newMeta={...session.meta,schoolName:currentHeader.data.school_name.trim()};
+      const synced=await correctionApi('heartbeat',{cepiMeta:newMeta},session);
+      if(!synced.cepiMetaUpdated)throw new Error('As correções foram salvas, mas o Assistente SIAP ainda usa o cabeçalho antigo. Atualize a extensão e clique novamente em Registrar correções conferidas.');
+      session.meta=newMeta;
+      correctionFeedback('Registrado no Carômetro. Continue no SIAP para efetivar a correção e salvar a prova.','success');
       pollCorrection(test);
-    }catch(error){if(!expireCorrectionSession(session))message(error.message);}
+    }catch(error){if(!expireCorrectionSession(session))correctionFeedback(`Verifique a situação: ${error.message||'Não foi possível registrar as correções.'}`);}
     finally{if(button)button.disabled=false;}
   }
   function resultForm(test) {

@@ -51,6 +51,10 @@
 .cm-body { padding: 14px; }
 .cm-card { margin-bottom: 12px; padding: 14px; background: white; border: 1px solid #dce5f3; border-radius: 16px; box-shadow: 0 5px 16px rgba(23,35,58,.06); }
 .cm-card h3 { margin-bottom: 10px; font-size: 13px; color: #263b63; text-transform: uppercase; letter-spacing: .04em; }
+.cm-cepi-message { margin: 10px 0 12px !important; padding: 9px 10px; border-radius: 9px; line-height: 1.4; }
+.cm-cepi-message[data-state="success"] { background: #e4f5e9; color: #146335; border: 1px solid #a8d9b7; }
+.cm-cepi-message[data-state="error"] { background: #fff0ed; color: #9b3427; border: 1px solid #efb8ae; }
+.cm-cepi-message[data-state="loading"] { background: #edf3ff; color: #294b83; border: 1px solid #c5d6fa; }
 .cm-context { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .cm-context div { min-width: 0; }
 .cm-context span { display: block; color: #6b7c76; font-size: 11px; }

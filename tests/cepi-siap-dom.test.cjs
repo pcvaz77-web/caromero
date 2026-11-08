@@ -14,7 +14,7 @@ function fixture(subject='Química', count=15){
  return {doc,meta,key,status,boxes};
 }
 test('SIAP usa só as questões da disciplina configurada no bloco misto',()=>{
- const f=fixture(),snapshot=Dom.snapshot(f.doc,f.meta,f.key),entries=Dom.plan(snapshot,f.status,f.key);
+ const f=fixture(),snapshot=Dom.snapshot(f.doc,f.meta,f.key),entries=Dom.plan(snapshot,f.status,f.key).entries;
  assert.deepEqual(snapshot.numbers,Array.from({length:15},(_,i)=>i+16));
  assert.equal(entries.length,1);assert.equal(entries[0].marks.length,15);assert.equal(entries[0].marks.filter(Boolean).length,8);
  Dom.preflight(entries[0],1);Dom.apply(entries[0],1);
@@ -26,7 +26,13 @@ test('SIAP bloqueia bloco e quantidade incompatíveis antes de qualquer clique',
  const g=fixture();g.meta.subjectMap[1].numbers.pop();assert.throws(()=>Dom.snapshot(g.doc,g.meta,g.key),/quantidade/);
 });
 test('SIAP bloqueia ausência, aluno indisponível e marcação ambígua',()=>{
- const f=fixture(),snap=Dom.snapshot(f.doc,f.meta,f.key),entry=Dom.plan(snap,f.status,f.key)[0];
- f.boxes[1].checked=true;assert.throws(()=>Dom.preflight(entry,1),/presença/);assert.equal(f.boxes[0].checked,false);
- f.boxes[1].checked=false;f.status.items[0].review.answers[0]='?';assert.throws(()=>Dom.plan(snap,f.status,f.key),/ambíguas/);
+ const f=fixture(),snap=Dom.snapshot(f.doc,f.meta,f.key),entry=Dom.plan(snap,f.status,f.key).entries[0];
+ f.boxes[2].checked=true;assert.throws(()=>Dom.preflight(entry,1),/chamada oposta/);assert.equal(f.boxes[0].checked,false);
+ f.boxes[2].checked=false;f.status.items[0].review.answers[0]='?';assert.throws(()=>Dom.plan(snap,f.status,f.key),/ambíguas/);
+});
+test('SIAP mostra o nome antigo da escola e aceita o cabeçalho atualizado após sincronização',()=>{
+ const f=fixture();f.meta.schoolName='CEPI OUTRA ESCOLA';
+ assert.throws(()=>Dom.snapshot(f.doc,f.meta,f.key),/CEPI OUTRA ESCOLA/);
+ f.meta.schoolName='CEPI SANTA BÁRBARA';
+ assert.ok(Dom.snapshot(f.doc,f.meta,f.key));
 });
