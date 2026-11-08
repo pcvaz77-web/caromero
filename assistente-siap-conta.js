@@ -32,6 +32,7 @@
   let paymentPollCount = 0;
   let checkingPayment = false;
   const extensionIds = [
+    'pididhphgmcfgdcepfmfpeagapdgjpmg',
     'bfbjocbablljmknahhlkjhllpjmihibe',
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
     'mohcmojnkjjkphgjaogcbokjmnijmggl',

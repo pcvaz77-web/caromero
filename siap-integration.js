@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
   const safe = value => esc(String(value || ''));
   const assistantExtensionIds = [
+    'pididhphgmcfgdcepfmfpeagapdgjpmg',
     'fgpjjlikinpcjpmmjehbgbfonnbfibnc',
     'bgmidfdibjbhldockojlfeeablgbldnp',
     'mohcmojnkjjkphgjaogcbokjmnijmggl',

@@ -466,7 +466,13 @@
           try { await refresh(); if (matches(current())) await api('pause', { paused: false }); }
           catch(e) { message = e.message; }
         }
-        loading = false; draw(); if(!state && current().mode==='entry') await action(()=>operations.start()); tick();
+        loading = false; draw();
+        // The selection page can open before its class filters are populated.
+        // draw() reports that state; do not turn it into an unhandled rejection.
+        let entryReady = false;
+        try { entryReady = !state && current().mode === 'entry'; } catch {}
+        if (entryReady) await action(() => operations.start());
+        tick();
       }); else { draw(); tick(); }
     }
   };
