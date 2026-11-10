@@ -7,7 +7,7 @@
   <link rel="icon" href="carometro-icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="assistente-siap.css">
   <link rel="stylesheet" href="assistente-siap-support.css">
-  <link rel="stylesheet" href="assistente-siap-conta.css?v=5">
+  <link rel="stylesheet" href="assistente-siap-conta.css?v=6">
 </head>
 <body class="account-page">
   <header class="site-header">
@@ -41,11 +41,15 @@
         <div id="selectedPlan" class="selected-plan">Carregando plano…</div>
         <label class="account-legal"><input id="acceptLegal" type="checkbox"> Li e aceito os <a href="legal.html#termos" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="legal.html#privacidade" target="_blank" rel="noopener">Política de Privacidade</a>.</label>
         <button id="startCheckout" class="button checkout-primary" type="button" disabled>Ir para o pagamento seguro</button>
-        <p id="paymentReturnHint" class="account-identity" hidden>Depois do pagamento, volte a esta página. A licença será liberada após a confirmação do Mercado Pago.</p>
+        <p id="paymentReturnHint" class="account-identity" hidden>Após pagar, use “Voltar ao site” no Mercado Pago. Se essa opção não aparecer, volte a esta página para verificar a liberação da licença.</p>
         <p id="assistantAccessSummary" class="assistant-access-summary" hidden></p>
+        <div id="assistantNextAction" class="assistant-next-action" hidden aria-live="polite">
+          <strong id="assistantNextActionTitle"></strong>
+          <span id="assistantNextActionDetail"></span>
+        </div>
         <button id="refreshAssistantAccess" class="button button-outline" type="button" hidden>Já paguei · verificar acesso</button>
         <div id="assistantInstallSteps" class="assistant-install-steps" hidden>
-          <strong>Conclua a instalação em duas etapas:</strong>
+          <strong>Próximo passo: instale e conecte o Assistente</strong>
           <a id="installAssistantExtension" class="button" href="#" target="_blank" rel="noopener noreferrer">1. Instalar o Assistente SIAP</a>
           <small>Depois de instalar, volte a esta página e use o botão abaixo.</small>
         </div>
@@ -58,6 +62,6 @@
   </main>
   <script src="carometro-config.js?v=5"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4"></script>
-  <script src="assistente-siap-conta.js?v=24"></script>
+  <script src="assistente-siap-conta.js?v=26"></script>
 </body>
 </html>

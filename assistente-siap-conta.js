@@ -17,6 +17,7 @@
   const checkoutButton = document.getElementById('startCheckout');
   const connectButton = document.getElementById('connectAssistantAccount');
   const accessSummary = document.getElementById('assistantAccessSummary');
+  const nextAction = document.getElementById('assistantNextAction');
   const installSteps = document.getElementById('assistantInstallSteps');
   const installLink = document.getElementById('installAssistantExtension');
   const paymentReturnHint = document.getElementById('paymentReturnHint');
@@ -70,10 +71,17 @@
     }
     return 0;
   };
-  const message = (id, text, error=false) => {
+  const message = (id, text, error=false, success=false) => {
     const target = document.getElementById(id);
     target.textContent = text;
     target.classList.toggle('error', error);
+    target.classList.toggle('success', success && !error);
+  };
+  const showNextAction = (title, detail='', state='ready') => {
+    nextAction.hidden = !title;
+    nextAction.dataset.state = state;
+    document.getElementById('assistantNextActionTitle').textContent = title;
+    document.getElementById('assistantNextActionDetail').textContent = detail;
   };
 
   const connectThroughPageBridge = payload => new Promise(resolve => {
@@ -95,6 +103,7 @@
     const recommendedVersion = String(config.siapAssistantRecommendedVersion || '').trim();
     if (installedVersion && minimumVersion && compareVersions(installedVersion, minimumVersion) < 0) {
       message('checkoutMessage', `Extensão ${installedVersion} conectada, mas precisa ser atualizada antes do uso. Abra a Chrome Web Store.`, true);
+      showNextAction('Próximo passo: atualize a extensão.', 'Use o botão 1 para abrir a Chrome Web Store e instalar a versão disponível.', 'pending');
       return;
     }
     const accessLabel = accessStatus?.mode === 'subscription' ? 'Assinatura ativa'
@@ -102,7 +111,8 @@
       : examStatus?.active ? 'Correção de Provas' : 'Demonstração gratuita';
     message('checkoutMessage', installedVersion && recommendedVersion && compareVersions(installedVersion, recommendedVersion) < 0
       ? `Extensão ${installedVersion} conectada. Há uma atualização recomendada na Chrome Web Store.`
-      : `${accessLabel} conectada${installedVersion ? ` à extensão ${installedVersion}` : ' à extensão'}. Abra o SIAP para continuar.`);
+      : `${accessLabel} conectada${installedVersion ? ` à extensão ${installedVersion}` : ' à extensão'}. Abra o SIAP para continuar.`, false, true);
+    showNextAction('Pronto! Abra o SIAP para usar o Assistente.', 'Sua conta já está conectada à extensão.');
   };
 
   const renderAccessStatus = status => {
@@ -121,7 +131,8 @@
     if(examFlow) {
       panelTitle.textContent='Correção de Provas';selectedPlanTarget.hidden=false;legal.hidden=false;checkoutButton.hidden=false;trialEndedLink.hidden=true;
       accessSummary.textContent=examStatus?.active?`Correção disponível · ${examStatus.credits||0} crédito(s) livre(s) · ${examStatus.openBlocks||0} bloco(s) em andamento. Use o mesmo e-mail desta conta em novas compras.`:'Após a confirmação do pagamento, conecte a extensão a esta conta.';
-      connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';return;
+      connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';
+      showNextAction(examStatus?.active ? 'Próximo passo: instale e conecte a extensão.' : 'Próximo passo: conclua o pagamento.', examStatus?.active ? 'Use os botões 1 e 2 abaixo.' : 'Após a confirmação, volte para conectar sua conta.', examStatus?.active ? 'ready' : 'pending');return;
     }
     if (status?.mode === 'subscription' && status.active === true) {
       panelTitle.textContent = 'Sua assinatura';
@@ -131,6 +142,7 @@
       trialEndedLink.hidden = true;
       connectButton.hidden = false;
       accessSummary.textContent = `Assinatura ativa${status.daysRemaining != null && Number.isFinite(Number(status.daysRemaining)) ? ` · ${Number(status.daysRemaining)} dia(s) restante(s)` : ''}.`;
+      showNextAction('Pagamento aprovado! Agora instale o Assistente SIAP.', 'Use o botão 1 para instalar. Depois volte aqui e use o botão 2 para conectar.');
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
@@ -142,17 +154,20 @@
       trialEndedLink.hidden = true;
       connectButton.hidden = false;
       accessSummary.textContent = `Acesso institucional autorizado pelo Carômetro · ${status.permanent === true || status.daysRemaining == null ? 'concessão permanente' : `${Number(status.daysRemaining)} dia(s) restante(s)`}.`;
+      showNextAction('Acesso liberado! Agora instale o Assistente SIAP.', 'Use o botão 1 para instalar. Depois volte aqui e use o botão 2 para conectar.');
       connectButton.textContent = '2. Conectar extensão a esta conta';
       return;
     }
     if(examStatus?.active) {
       panelTitle.textContent='Sua Correção de Provas';selectedPlanTarget.hidden=true;legal.hidden=true;checkoutButton.hidden=true;trialEndedLink.hidden=true;
       accessSummary.textContent=`Correção disponível · ${examStatus.credits||0} crédito(s) livre(s) · ${examStatus.openBlocks||0} bloco(s) em andamento.`;
-      connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';return;
+      connectButton.hidden=false;installSteps.hidden=false;connectButton.textContent='Conectar extensão a esta conta';
+      showNextAction('Acesso liberado! Agora instale e conecte a extensão.', 'Use os botões abaixo para continuar.');return;
     }
     if (accountFlow) {
       panelTitle.textContent='Acesso não disponível'; selectedPlanTarget.hidden=true;legal.hidden=true;checkoutButton.hidden=true;
       accessSummary.textContent='Esta conta não possui assinatura, concessão ou créditos ativos. Escolha um plano para usar o Assistente.';
+      showNextAction('Próximo passo: escolha um plano.', 'O acesso será liberado depois da aprovação do pagamento.', 'pending');
       installSteps.hidden=true;connectButton.hidden=true;trialEndedLink.hidden=false;return;
     }
     const uses = status?.freeUses || {};
@@ -171,6 +186,11 @@
       : 'Demonstração gratuita encerrada. Escolha um plano para continuar usando o Assistente SIAP.';
     connectButton.textContent = available ? '2. Conectar e experimentar' : 'Demonstração gratuita encerrada';
     connectButton.disabled = !available;
+    if (trialFlow) {
+      showNextAction(available ? 'Teste grátis liberado! Agora instale o Assistente SIAP.' : 'Próximo passo: escolha um plano.', available ? 'Use o botão 1 para instalar. Depois volte aqui e use o botão 2 para conectar.' : 'Veja os planos disponíveis para continuar.', available ? 'ready' : 'pending');
+    } else {
+      showNextAction('E-mail confirmado! Próximo passo: vá para o pagamento.', 'Confira o plano, aceite os termos e clique no botão de pagamento.');
+    }
   };
 
   const loadAccessStatus = async () => {
@@ -188,6 +208,7 @@
       trialEndedLink.hidden = true;
       accessSummary.removeAttribute('data-mode');
       accessSummary.textContent = 'Não foi possível verificar seu acesso agora. Tente novamente.';
+      showNextAction('Acesso ainda não verificado.', 'Tente novamente em alguns instantes.', 'pending');
       connectButton.textContent = 'Acesso não verificado';
       connectButton.disabled = true;
       return null;
@@ -208,6 +229,7 @@
       const recent = payment && Date.now() - new Date(payment.created_at).getTime() < 48 * 60 * 60 * 1000;
       if (!recent) return;
       panelTitle.textContent = 'Pagamento em confirmação';
+      showNextAction('Pagamento iniciado. Aguarde a aprovação.', 'Esta página verifica sua licença automaticamente. Se voltou do Mercado Pago, também pode usar “Já paguei · verificar acesso”.', 'pending');
       accessSummary.hidden = false;
       accessSummary.textContent = payment.provider === 'hotmart'
         ? 'Aguardando a confirmação da Hotmart. Use o mesmo e-mail desta conta no pagamento.'
@@ -218,7 +240,7 @@
       trialEndedLink.hidden = true;
       paymentReturnHint.hidden = true;
       refreshAccessButton.hidden = false;
-      installSteps.hidden = false;
+      installSteps.hidden = true;
       connectButton.hidden = true;
       if (!paymentPollTimer) {
         paymentPollCount = 0;
@@ -235,6 +257,7 @@
   const connectCurrentSession = async (silent = false) => {
     if (!currentSession?.access_token || !currentSession?.expires_at) {
       if (!silent) message('checkoutMessage', 'Sua sessão expirou. Entre novamente para conectar a extensão.', true);
+      if (!silent) showNextAction('Próximo passo: entre novamente na sua conta.', 'Confirme o e-mail pelo link de acesso antes de conectar a extensão.', 'pending');
       return null;
     }
     if (!silent) message('checkoutMessage', 'Validando licença…');
@@ -248,6 +271,7 @@
         }, result => resolve(chrome.runtime.lastError ? null : result)));
         if (response?.ok) {
           if (!silent) showExtensionStatus(response);
+          else showNextAction('Pronto! Abra o SIAP para usar o Assistente.', 'Sua conta já está conectada à extensão.');
           return response;
         }
       }
@@ -255,9 +279,13 @@
     const bridgedResponse = await connectThroughPageBridge(payload);
     if (bridgedResponse?.ok) {
       if (!silent) showExtensionStatus(bridgedResponse);
+      else showNextAction('Pronto! Abra o SIAP para usar o Assistente.', 'Sua conta já está conectada à extensão.');
       return bridgedResponse;
     }
-    if (!silent) message('checkoutMessage', 'A extensão ainda não respondeu. Use o botão “1. Instalar o Assistente SIAP”, conclua a instalação e depois clique novamente em “2. Conectar”.', true);
+    if (!silent) {
+      message('checkoutMessage', 'A extensão ainda não respondeu. Use o botão “1. Instalar o Assistente SIAP”, conclua a instalação e depois clique novamente em “2. Conectar”.', true);
+      showNextAction('Próximo passo: conclua a instalação.', 'Depois volte a esta página e clique em “2. Conectar”.', 'pending');
+    }
     return null;
   };
 
@@ -296,8 +324,8 @@
       const status = await loadAccessStatus();
       if (status?.mode !== 'subscription' || status.active !== true) await refreshPaymentAccess(status);
       if (!accountFlow && status?.active === true && ['subscription','carometro'].includes(status.mode)) await connectCurrentSession(true);
-      if (new URLSearchParams(location.search).get('pagamento') === 'retorno') {
-        message('checkoutMessage', 'Recebemos seu retorno. A licença será atualizada após a confirmação do pagamento.');
+      if (new URLSearchParams(location.search).get('pagamento') === 'retorno' && status?.active !== true) {
+        message('checkoutMessage', 'Você voltou do Mercado Pago. Clique em “Já paguei · verificar acesso” se a licença ainda não aparecer.');
       }
     }
   }
@@ -308,7 +336,7 @@
     const redirectPath = trialFlow ? location.pathname.replace(/\.html$/, '') : location.pathname;
     const redirectTo = `${location.origin}${redirectPath}?plano=${encodeURIComponent(planKey)}`;
     const { error } = await db.auth.signInWithOtp({ email, options:{ emailRedirectTo:redirectTo } });
-    message('loginMessage', error ? 'Não foi possível enviar o link. Tente novamente.' : 'Link enviado. Confira sua caixa de entrada e o spam; abra a mensagem e clique no link para continuar.', !!error);
+    message('loginMessage', error ? 'Não foi possível enviar o link. Tente novamente.' : 'Link enviado! Próximo passo: abra seu e-mail e clique no link de acesso para continuar.', !!error, !error);
   };
   legal.onchange = () => { checkoutButton.disabled = !selectedPlan || !legal.checked; };
   refreshAccessButton.onclick = () => refreshPaymentAccess();

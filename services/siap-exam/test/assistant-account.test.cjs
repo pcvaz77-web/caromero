@@ -23,7 +23,15 @@ function accountPage(initialSession=null, accessStatus={active:true,mode:'carome
       signOut:async()=>{session=null;}
     },
     functions:{invoke:async()=>({data:{ok:true,access:{active:false}}})},
-    rpc:async()=>({data:accessStatus,error:null})
+    rpc:async()=>({data:accessStatus,error:null}),
+    from:table=>{
+      const result=table==='siap_assistant_plans'
+        ? {plan_key:plan,display_name:'Plano anual',description:'Acesso individual',amount:199,billing_months:12}
+        : null;
+      const query={select:()=>query,eq:()=>query,in:()=>query,order:()=>query,limit:()=>query,
+        maybeSingle:async()=>({data:result,error:null})};
+      return query;
+    }
   };
   window.CAROMETRO_RUNTIME_CONFIG={supabaseUrl:'https://test.supabase.co',supabasePublishableKey:'test',siapAssistantStoreUrl:'https://example.com/extension'};
   window.supabase={createClient:()=>db};
@@ -37,6 +45,7 @@ test('concessão com login existente no Carômetro não exige novo código',asyn
   assert.equal(window.document.getElementById('loginForm').hidden,true);
   assert.equal(window.document.getElementById('checkoutPanel').hidden,false);
   assert.equal(window.document.getElementById('connectAssistantAccount').hidden,false);
+  assert.match(window.document.getElementById('assistantNextActionTitle').textContent,/acesso liberado/i);
   assert.deepEqual(calls,[]);
   dom.window.close();
 });
@@ -53,51 +62,61 @@ test('concessão permanente não aparece como zero dias restantes',async()=>{
   dom.window.close();
 });
 
-test('conta externa pode confirmar código recebido antes de conectar',async()=>{
+test('conta externa recebe link de acesso sem campo de código',async()=>{
   const {dom,window,calls}=accountPage();
   await settle();
   const form=window.document.getElementById('loginForm');
   window.document.getElementById('accountEmail').value='comprador@example.com';
   form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await settle();
-  assert.equal(window.document.getElementById('accountCodeStep').hidden,false);
-  window.document.getElementById('accountOtp').value='123456';
-  window.document.getElementById('verifyAccountCode').click();
-  await settle();
+  assert.equal(window.document.getElementById('accountCodeStep'),null);
+  assert.match(window.document.getElementById('loginMessage').textContent,/clique no link/i);
+  assert.equal(window.document.getElementById('loginMessage').classList.contains('success'),true);
   assert.equal(calls[0].action,'send');
-  assert.equal(calls[1].action,'verify');
-  assert.equal(calls[1].args.email,'comprador@example.com');
-  assert.equal(calls[1].args.token,'123456');
-  assert.equal(calls[1].args.type,'email');
-  assert.equal(form.hidden,true);
-  assert.equal(window.document.getElementById('checkoutPanel').hidden,false);
+  assert.equal(calls.length,1);
+  assert.equal(form.hidden,false);
   dom.window.close();
 });
 
-test('teste grátis solicita seis dígitos e só libera instalação após confirmação',async()=>{
+test('teste grátis envia link e libera instalação após retorno autenticado',async()=>{
   const freeStatus={active:true,status:'free',mode:'external',freeUses:{planning:2,content:2,attendance:2,pei:2}};
   const {dom,window,calls}=accountPage(null,freeStatus,'trial');
   await settle();
   const doc=window.document;
-  assert.match(doc.getElementById('loginForm').textContent,/código de 6 dígitos/i);
+  assert.match(doc.getElementById('loginForm').textContent,/link/i);
+  assert.equal(doc.getElementById('accountOtp'),null);
   assert.equal(doc.getElementById('assistantInstallSteps').hidden,true);
   doc.getElementById('accountEmail').value='novo@example.com';
   doc.getElementById('loginForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));
   await settle();
   assert.equal(calls[0].args.options.emailRedirectTo,'https://sistemacarometro.com.br/assistente-siap-conta?plano=trial');
-  assert.equal(doc.getElementById('accountCodeStep').hidden,false);
+  assert.match(doc.getElementById('loginMessage').textContent,/link enviado/i);
   assert.equal(doc.getElementById('assistantInstallSteps').hidden,true);
-  doc.getElementById('accountOtp').value='12345';
-  doc.getElementById('verifyAccountCode').click();
-  await settle();
   assert.equal(calls.length,1);
-  doc.getElementById('accountOtp').value='123456';
-  doc.getElementById('verifyAccountCode').click();
-  await settle();
-  assert.equal(calls[1].args.token,'123456');
-  assert.equal(doc.getElementById('assistantInstallSteps').hidden,false);
-  assert.equal(doc.getElementById('installAssistantExtension').href,'https://example.com/extension');
   dom.window.close();
+
+  const returning=accountPage({access_token:'verified',expires_at:Math.floor(Date.now()/1000)+3600,user:{email:'novo@example.com'}},freeStatus,'trial');
+  await settle();
+  assert.equal(returning.window.document.getElementById('assistantInstallSteps').hidden,false);
+  assert.match(returning.window.document.getElementById('assistantNextActionTitle').textContent,/teste grátis liberado/i);
+  assert.equal(returning.window.document.getElementById('installAssistantExtension').href,'https://example.com/extension');
+  returning.dom.window.close();
+});
+
+test('pagamento aprovado destaca instalação; compra ainda pendente não aparece como aprovada',async()=>{
+  const session={access_token:'buyer-session',expires_at:Math.floor(Date.now()/1000)+3600,user:{email:'comprador@example.com'}};
+  const approved=accountPage(session,{active:true,mode:'subscription',daysRemaining:365},'annual');
+  await settle();
+  assert.match(approved.window.document.getElementById('assistantNextActionTitle').textContent,/pagamento aprovado/i);
+  assert.equal(approved.window.document.getElementById('assistantNextAction').dataset.state,'ready');
+  assert.equal(approved.window.document.getElementById('assistantInstallSteps').hidden,false);
+  approved.dom.window.close();
+
+  const pending=accountPage(session,{active:false,mode:'external',freeUses:{}},'annual');
+  await settle();
+  assert.doesNotMatch(pending.window.document.getElementById('assistantNextActionTitle').textContent,/aprovado/i);
+  assert.equal(pending.window.document.getElementById('assistantInstallSteps').hidden,true);
+  pending.dom.window.close();
 });
 
 test('teste grátis usa o mesmo retorno canônico quando a página é aberta com .html',async()=>{

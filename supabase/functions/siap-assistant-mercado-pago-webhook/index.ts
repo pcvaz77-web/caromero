@@ -17,6 +17,15 @@ async function mercadoPago(path:string, token:string) {
   if (!response.ok) throw new Error(`Mercado Pago HTTP ${response.status}`)
   return response.json()
 }
+async function sendInstallEmail(paymentSubscriptionId:string) {
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-siap-install-email`, {
+    method:'POST',
+    headers:{ Authorization:`Bearer ${serviceKey}`, apikey:serviceKey, 'Content-Type':'application/json' },
+    body:JSON.stringify({ paymentSubscriptionId }),
+  })
+  if (!response.ok) throw new Error(`install_email_http_${response.status}`)
+}
 
 Deno.serve(async request => {
   if (request.method !== 'POST') return new Response('Method not allowed', { status:405 })
@@ -73,6 +82,7 @@ Deno.serve(async request => {
             p_payment_subscription_id:payment.id,p_paid_at:paidAt
           })
           if (grantError) throw grantError
+          await sendInstallEmail(payment.id)
         } else if (refunded && payment.last_activated_payment_id===String(provider.id)) {
           const {data:newer,error:newerError}=await admin.from('siap_assistant_payment_subscriptions')
             .select('id').eq('user_id',payment.user_id).eq('status','authorized')
@@ -111,6 +121,7 @@ Deno.serve(async request => {
         if (valid) {
           const { error } = await admin.rpc('siap_activate_paid_subscription', { p_payment_subscription_id:payment.id, p_paid_at:new Date().toISOString() })
           if (error) throw error
+          await sendInstallEmail(payment.id)
         }
       }
     }

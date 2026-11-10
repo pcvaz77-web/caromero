@@ -34,6 +34,9 @@ verify_jwt = false
 [functions.send-siap-license-reminders]
 verify_jwt = false
 
+[functions.send-siap-install-email]
+verify_jwt = true
+
 [functions.create-asaas-school-checkout]
 verify_jwt = false
 
