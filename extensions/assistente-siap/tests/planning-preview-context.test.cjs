@@ -123,7 +123,7 @@ test('orientações curtas já digitadas viram botões ativos sem permanecer na 
   const context = {
     document:{ getElementById:()=>new TextArea(), querySelectorAll:()=>[] },
     model:{},
-    HTMLTextAreaElement:TextArea, selectedPlanningSaeb:()=>[], planningLinks:()=>[], getPlanningBatch:()=>null,
+    HTMLTextAreaElement:TextArea, selectedPlanningSaeb:()=>[], selectedPlanningContentCount:()=>0, planningLinks:()=>[], getPlanningBatch:()=>null,
     planningSignature:()=> 'aula-63',
     readStoredJson:()=>({ signature:'aula-63', value:'Faça a metodologia curta e sucinta.\nFaça a avaliação curta e sucinta.' }),
     getLessonMultiPreview:()=>null, lessonMultiPreviewCard:()=>'', lessonMultiPreviewDetails:()=>'', lessonMultiPreviewIsCurrent:()=>false, planningObjectiveTopics:()=>[], revisaSkillPicker:()=>'',
@@ -217,7 +217,7 @@ test('a unidade Danças escolhida pelo professor permanece fixa quando não há 
     getElementById: (id) => id === 'ddlEixo' ? axis : null,
     querySelectorAll: (selector) => selector.includes('gdvExpectativas') ? [{ textContent:'Criar sequências coreográficas' }] : [],
   };
-  const context = { sessionStorage, document, Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' }, model:{}, panel:{ querySelector:()=>null }, readContext:()=>({}), getPlanningBatch:()=>null, planningSignature:()=> 'aula-55', readStoredJson:(key)=>JSON.parse(sessionStorage.getItem(key) || 'null'), selectedPlanningSaeb:()=>[], updateOperationStatus:()=>{}, resumePlanningFlow:()=>{} };
+  const context = { sessionStorage, document, Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' }, model:{}, panel:{ querySelector:()=>null }, readContext:()=>({}), getPlanningBatch:()=>null, planningSignature:()=> 'aula-55', readStoredJson:(key)=>JSON.parse(sessionStorage.getItem(key) || 'null'), selectedPlanningSaeb:()=>[], selectedPlanningContentCount:()=>0, updateOperationStatus:()=>{}, resumePlanningFlow:()=>{} };
   const start = vm.runInNewContext(`${between('function startPlanningFlow(', 'function resumePlanningFlow(')}\nstartPlanningFlow`, context);
   start('ai');
   const flow = JSON.parse(sessionStorage.getItem('assistenteSiapPlanningFlow'));
@@ -261,7 +261,7 @@ test('habilidade e conteúdo são repetidos uma vez, sem salvar quando o SIAP n�
       sessionStorage:{ getItem:(key)=>storage.get(key) || null, setItem:(key,value)=>storage.set(key,value), removeItem:(key)=>storage.delete(key) },
       planningSignature:()=> 'aula-55', getPlanningBatch:()=>null,
       document:{ getElementById:()=>({ value:'55' }), querySelectorAll:()=>[] },
-      selectedPlanningSkills:()=>[], planningLinks:(choice)=>choice === kind ? [link] : [],
+      selectedPlanningSkills:()=>[], selectedPlanningContentCount:()=>0, planningLinks:(choice)=>choice === kind ? [link] : [],
       planningLinkForChoice:(links)=>links[0], requestSiapPostBack:(choice)=>{ requested.push(choice); return true; },
       addLog:()=>{}, tryNextPlanningAxis:()=>false,
       stopPlanningFlow:(message)=>{ error = message; }, schedulePlanningResume:()=>{},
@@ -280,6 +280,33 @@ test('habilidade e conteúdo são repetidos uma vez, sem salvar quando o SIAP n�
     assert.match(error, /não foi confirmad[oa]/);
     assert.equal(generated, 0);
   }
+});
+
+test('conteúdo visível na aula com prefixo diferente é reconhecido sem novo clique', () => {
+  const title = { getAttribute:(name)=>name === 'title' ? 'Posicionamento crítico sobre as práticas' : null, textContent:'Posicionamento crítico' };
+  const field = { value:'' };
+  const document = {
+    getElementById:()=>({ value:'177' }),
+    querySelectorAll:(selector)=>selector === '[id*="lstConteudos"] .cabecalhoConteudo span' ? [title]
+      : selector === '[id*="lstConteudos"][id*="txtDescricaoConteudo_"]' ? [field] : [],
+  };
+  const storage = new Map([['assistenteSiapPlanningFlow', JSON.stringify({
+    signature:'aula-177', stage:'wait-content', lockedAxis:true, waitStartedAt:Date.now() - 16000,
+  })]]);
+  let generated = 0;
+  const context = {
+    document, Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
+    sessionStorage:{ getItem:(key)=>storage.get(key) || null, setItem:(key,value)=>storage.set(key,value), removeItem:(key)=>storage.delete(key) },
+    planningSignature:()=> 'aula-177', getPlanningBatch:()=>null, planningLinks:()=>[], selectedPlanningSaeb:()=>[],
+    stopPlanningFlow:(message)=>{ throw Error(message); }, generatePlanningDraft:()=>{ generated++; },
+  };
+  const code = `${between('function selectedPlanningObjectives(', 'function selectedPlanningSkills(')}\n${between('function resumePlanningFlow(', 'function stopPlanningFlow(')}\n({ selectedPlanningObjectives, selectedPlanningContentCount, selectedPlanningContentFields, resumePlanningFlow })`;
+  const flow = vm.runInNewContext(code, context);
+  assert.deepEqual(Array.from(flow.selectedPlanningObjectives()), ['Posicionamento crítico sobre as práticas']);
+  assert.equal(flow.selectedPlanningContentCount(), 1);
+  assert.deepEqual(Array.from(flow.selectedPlanningContentFields()), [field]);
+  flow.resumePlanningFlow();
+  assert.equal(generated, 1);
 });
 
 test('aula individual e quinzena completam zero, algumas ou todas as escolhas curriculares', () => {
@@ -305,7 +332,7 @@ test('aula individual e quinzena completam zero, algumas ou todas as escolhas cu
         Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
         sessionStorage, document, model:{}, panel:{ querySelector:()=>null }, readContext:()=>({}),
         getPlanningBatch:()=>batch, planningSignature:()=> 'aula-1', readStoredJson:()=>null,
-        selectedPlanningSaeb:()=>selected.has('saeb') ? ['D6 - Identificar o tema de um texto.'] : [],
+        selectedPlanningSaeb:()=>selected.has('saeb') ? ['D6 - Identificar o tema de um texto.'] : [], selectedPlanningContentCount:()=>selected.has('content') ? 1 : 0,
         planningLinks:(kind)=>[{ kind }], planningLinkForChoice:(links)=>links[0], selectedPlanningSkills:()=>selected.has('skill') ? ['Habilidade'] : [],
         retryPlanningSelection:()=>false, updateOperationStatus:()=>{}, addLog:()=>{}, schedulePlanningResume:()=>{},
         requestSiapPostBack:(link)=>{ requested.push(link.kind); selected.add(link.kind); return true; },
@@ -340,7 +367,7 @@ test('a IA usa Danças e a habilidade presente, e substitui textos anteriores se
     document, HTMLTextAreaElement:TextArea, Event:class {},
     sessionStorage:{ removeItem:()=>{} }, getPlanningBatch:()=>null,
     model:{ context:{ grade:'6º Ano', subject:'EDUCAÇÃO FÍSICA', term:'3º Bimestre' } },
-    planningCurriculumKey:()=> 'dancas', normalizePlanningGroup:(value)=>String(value || '').toUpperCase(), selectedPlanningSaeb:()=>[], planningLinks:()=>[], concisePlanningText:(value)=>value, conciseMethodologyText:(value)=>value, setOperationStatus:()=>{}, addLog:()=>{}, setTimeout, clearTimeout,
+    planningCurriculumKey:()=> 'dancas', normalizePlanningGroup:(value)=>String(value || '').toUpperCase(), selectedPlanningSaeb:()=>[], selectedPlanningContentFields:()=>[], selectedPlanningObjectives:()=>[], planningLinks:()=>[], concisePlanningText:(value)=>value, conciseMethodologyText:(value)=>value, setOperationStatus:()=>{}, addLog:()=>{}, setTimeout, clearTimeout,
     autoSaveAndReplicatePlanningIfRequested:()=>{ throw new Error('não deve salvar sem conteúdo selecionado'); },
     chrome:{ runtime:{ sendMessage:async ({ payload }) => {
       captured.push(payload);

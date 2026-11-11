@@ -1299,8 +1299,24 @@
   }
 
   function selectedPlanningObjectives() {
-    return [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')]
+    const exact = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')];
+    const titles = exact.length ? exact : [...document.querySelectorAll('[id*="lstConteudos"] .cabecalhoConteudo span')];
+    return titles
       .map((span) => (span.getAttribute("title") || span.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+  }
+
+  function selectedPlanningContentRows() {
+    const exact = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')];
+    return exact.length ? exact : [...document.querySelectorAll('[id*="lstConteudos"][id*="divConteudo_"]')];
+  }
+
+  function selectedPlanningContentCount() {
+    return Math.max(selectedPlanningContentRows().length, selectedPlanningObjectives().length);
+  }
+
+  function selectedPlanningContentFields() {
+    const exact = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')];
+    return exact.length ? exact : [...document.querySelectorAll('[id*="lstConteudos"][id*="txtDescricaoConteudo_"]')];
   }
 
   function selectedPlanningSkills() {
@@ -1594,7 +1610,7 @@
     const methodology = document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia");
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
     const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
-    const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
+    const contentCount = selectedPlanningContentCount();
     const saebCount = selectedPlanningSaeb().length;
     const saebAvailable = Boolean(saebCount || planningLinks("saeb").length);
     const ready = methodology instanceof HTMLTextAreaElement && evaluation instanceof HTMLTextAreaElement;
@@ -2263,7 +2279,7 @@
     const skills = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")]
       .filter((row) => !row.querySelector("th"))
       .map((row) => ({ label:(row.textContent || "").replace(/\s+/g, " ").trim(), button:row.querySelector('input[type="image"]') }));
-    const contents = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')]
+    const contents = selectedPlanningContentRows()
       .map((row) => ({ label:(row.querySelector(".cabecalhoConteudo span")?.getAttribute("title") || row.querySelector(".cabecalhoConteudo span")?.textContent || "").replace(/\s+/g, " ").trim(), button:row.querySelector('[id*="btnRemover"]') }));
     const entries = [...skills.map((entry) => ({ ...entry, kind:"skill" })), ...contents.map((entry) => ({ ...entry, kind:"content" }))];
     const pending = batch.pendingRemoval;
@@ -2290,7 +2306,7 @@
     const fields = [
       [document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia"), previous.fields?.[2], expected.fields?.[2]],
       [document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao"), previous.fields?.[3], expected.fields?.[3]],
-      ...[...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')]
+      ...selectedPlanningContentFields()
         .map((field) => [field, previous.fields?.[1], expected.fields?.[1]])
     ];
     for (const [field, copied, wanted] of fields) {
@@ -3063,7 +3079,7 @@
     }
     const signature = planningSignature();
     const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
-    const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
+    const contentCount = selectedPlanningContentCount();
     const batch = getPlanningBatch();
     const stage = batch?.mode === "lesson-sequence"
       ? lessonSequenceMissingChoices(batch, "skill").length ? "skill" : lessonSequenceMissingChoices(batch, "content").length ? "content" : "fill"
@@ -3100,7 +3116,7 @@
           sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
           addLog("O SIAP não oferece habilidade nesta unidade e neste bimestre. A IA usará a unidade temática escolhida; confira as seleções antes de salvar.");
         } else {
-        if (document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) {
+        if (selectedPlanningContentCount()) {
           return stopPlanningFlow("O conteúdo escolhido foi preservado. Selecione uma habilidade compatível no SIAP e tente novamente.");
         }
         if (tryNextPlanningAxis(flow)) return;
@@ -3139,7 +3155,7 @@
         schedulePlanningResume();
         return;
       }
-      const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
+      const contentCount = selectedPlanningContentCount();
       delete flow.pendingChoice;
       flow.stage = batch?.mode === "lesson-sequence" ? lessonSequenceMissingChoices(batch, "skill").length ? "skill" : lessonSequenceMissingChoices(batch, "content").length ? "content" : "fill" : contentCount ? "fill" : "content";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
@@ -3164,7 +3180,7 @@
       }
     }
     if (flow.stage === "wait-content") {
-      const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
+      const contentCount = selectedPlanningContentCount();
       const pendingContent = batch?.mode === "lesson-sequence" && flow.pendingChoice &&
         lessonSequenceMissingChoices(batch, "content").some((choice) => normalizePlanningGroup(choice) === normalizePlanningGroup(flow.pendingChoice));
       if (!contentCount || pendingContent) {
@@ -3255,7 +3271,7 @@
     const isDance = isPhysicalEducation && normalizePlanningGroup(thematicUnit).includes("DANCA");
     const batchState = getPlanningBatch();
     const approvedTemplate = batchState?.templates?.[batchState.current?.group];
-    const contentFields = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')];
+    const contentFields = selectedPlanningContentFields();
     const contentDescription = isDance
       ? "Exploração de movimentos e sequências coreográficas relacionados à dança e à habilidade escolhida."
       : isPhysicalEducation
@@ -3266,9 +3282,7 @@
     contentFields.forEach((field) => {
       if (!field.value.trim()) field.value = contentDescription;
     });
-    const selectedContentTitles = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')]
-      .map((span) => (span.getAttribute("title") || span.textContent || "").trim().replace(/[\s:;,.]+$/, ""))
-      .filter(Boolean);
+    const selectedContentTitles = selectedPlanningObjectives().map((title) => title.replace(/[\s:;,.]+$/, ""));
     const contents = (selectedContentTitles.length ? selectedContentTitles : contentFields.map((field) => field.value.trim().replace(/[\s:;,.]+$/, "")))
       .filter(Boolean).slice(0, 3);
     const selectedSkill = document.querySelector("#cphFuncionalidade_cphCampos_gdvExpectativas tr")?.textContent?.trim() || "";
@@ -3326,7 +3340,7 @@
     sessionStorage.removeItem("assistenteSiapPlanningAi");
     const methodology = document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia");
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
-    const contentFields = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')]
+    const contentFields = selectedPlanningContentFields()
       .filter((field) => field instanceof HTMLTextAreaElement);
     if (!(methodology instanceof HTMLTextAreaElement) || !(evaluation instanceof HTMLTextAreaElement)) {
       return addLog("Planejamento não preenchido: estrutura diferente da esperada.");
@@ -3336,8 +3350,7 @@
     const batch = getPlanningBatch();
     const selectedSkills = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")]
       .map((row) => row.textContent.trim()).filter(Boolean).slice(0, 20);
-    const selectedContents = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')]
-      .map((span) => (span.getAttribute("title") || span.textContent || "").trim()).filter(Boolean).slice(0, 20);
+    const selectedContents = selectedPlanningObjectives().slice(0, 20);
     const selectedSaeb = selectedPlanningSaeb();
     const saebAvailable = Boolean(selectedSaeb.length || planningLinks("saeb").length);
     const payload = {
@@ -3528,7 +3541,7 @@
   function savePlanning(replicate = false) {
     const save = document.getElementById("cphFuncionalidade_btnAlterar");
     if (!save || save.disabled) return addLog("O botão Salvar não está disponível nesta aula.");
-    if (!document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) return addLog("O SIAP não apresenta conteúdo selecionado para esta aula. Escolha um conteúdo compatível antes de salvar pelo Assistente.");
+    if (!selectedPlanningContentCount()) return addLog("O SIAP não apresenta conteúdo selecionado para esta aula. Escolha um conteúdo compatível antes de salvar pelo Assistente.");
     const methodology = document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia");
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
     if (!methodology?.value?.trim() || !evaluation?.value?.trim()) return addLog("Preencha metodologia e avaliação antes de aplicar o planejamento.");
