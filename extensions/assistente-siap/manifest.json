@@ -42,7 +42,7 @@
    "name": "Assistente SIAP do Professor",
    "permissions": [ "storage" ],
    "update_url": "https://clients2.google.com/service/update2/crx",
-   "version": "0.28.103",
+   "version": "0.28.104",
    "web_accessible_resources": [ {
       "matches": [ "https://siap.educacao.go.gov.br/*" ],
       "resources": [ "src/carometro-icon.svg" ]
