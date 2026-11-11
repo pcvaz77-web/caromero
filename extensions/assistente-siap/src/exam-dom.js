@@ -29,17 +29,20 @@
       const subjects = [...(doc.getElementById(prefix + 'ddlDisciplina')?.options || [])].filter(o => !/selecione/i.test(o.textContent) && o.value && !o.disabled).map(o => ({ value: o.value, subject: o.textContent.trim() }));
       return { mode: 'selection', scope, context, subjects, roster: [], base: scope, signature: scope, label: `${context.classroom} · ${context.grade} · ${context.shift}` };
     }
+    const questionHeader = [...table.rows].find(row => row.cells?.[0]?.textContent?.trim() === 'Aluno');
+    const questionCells = questionHeader ? [...questionHeader.cells].slice(5, 5 + context.total) : [];
+    const questionMode = questionCells.length === context.total && questionCells.every((cell, i) => Number(cell.textContent.trim()) === i + 1);
     const roster = [...table.rows].filter(row => row.querySelector('input[type="checkbox"]')).map(row => {
       const label = row.cells[0]?.textContent.replace(/\s+/g, ' ').trim() || '';
       const boxes = [...row.querySelectorAll('input[type="checkbox"]')];
-      if (!/^\d+\s*-/.test(label) || boxes.length !== 4 || boxes.some(b => !b.id)) throw new Error('A estrutura da lista mudou. Nenhum lançamento será feito.');
-      const unavailable = [...row.querySelectorAll('img')].some(i => /transfer|inativ|aband|cancel|falec/i.test([i.title, i.alt].join(' '))) || boxes.every(b => b.disabled);
+      if (!/^\d+\s*-/.test(label) || boxes.length !== (questionMode ? 4 + context.total : 4) || boxes.some(b => !b.id)) throw new Error('A estrutura da lista mudou. Nenhum lançamento será feito.');
+      const unavailable = [...row.querySelectorAll('img')].some(i => /transfer|inativ|aband|cancel|falec|deixou/i.test([i.title, i.alt].join(' '))) || boxes.every(b => b.disabled);
       return { id: label, name: label.replace(/^\d+\s*-\s*/, ''), unavailable, row, boxes };
     });
     if (!roster.length || new Set(roster.map(r => r.id)).size !== roster.length) throw new Error('Lista de estudantes vazia ou duplicada.');
-    const base = JSON.stringify({ header, ...context, subject: undefined, total: undefined, roster: roster.map(r => [r.id, r.unavailable]) });
+    const base = JSON.stringify({ header, ...context, subject: undefined, total: undefined, questionMode, roster: roster.map(r => [r.id, r.unavailable]) });
     const block = {year:header.match(/20\d{2}/)?.[0],term:context.term.match(/[1-4]/)?.[0],assessment:context.assessment};
-    return { mode: 'entry', block, scope, context, roster, base, signature: JSON.stringify([base, context.subject, context.total]), label: `${context.classroom} · ${context.grade} · ${context.shift} · ${context.term} · ${context.assessment}` };
+    return { mode: 'entry', block, scope, context, roster, questionMode, base, signature: JSON.stringify([base, context.subject, context.total]), label: `${context.classroom} · ${context.grade} · ${context.shift} · ${context.term} · ${context.assessment}` };
   }
   function controls(snapshot, id, call) {
     if (![1, 2].includes(call)) throw new Error('Selecione a primeira ou segunda chamada.');
@@ -50,7 +53,9 @@
     if (present.disabled || absent.disabled) throw new Error('Chamada bloqueada no SIAP.');
     const fields = [...(student.row.cells[5]?.querySelectorAll('input:not([type=hidden])') || [])].filter(i => ['text', 'number', 'tel'].includes(i.type));
     if (fields.length > 1) throw new Error('Campo de acertos ambíguo.');
-    return { present, absent, otherPresent: call === 1 ? secondPresent : firstPresent, field: fields[0] || null };
+    const questions = snapshot.questionMode ? student.boxes.slice(4) : null;
+    if(snapshot.questionMode && questions.length !== snapshot.context.total) throw new Error('Quantidade de questões diferente da avaliação.');
+    return { present, absent, otherPresent: call === 1 ? secondPresent : firstPresent, field: fields[0] || null, questions };
   }
   function preflight(snapshot, entries, call) {
     if (!entries.length) throw new Error('Não há resultados selecionados.');
@@ -62,6 +67,10 @@
       // student and call. Existing SIAP values are deliberately replaced by
       // the reviewed batch; unavailable or ambiguous controls still block.
       if (entry.present && (!Number.isInteger(entry.correct) || entry.correct < 0 || entry.correct > snapshot.context.total)) throw new Error('Total de acertos inválido.');
+      if (entry.present && snapshot.questionMode && (!Array.isArray(entry.marks) || entry.marks.length !== snapshot.context.total || entry.marks.some(mark => typeof mark !== 'boolean') || entry.marks.filter(Boolean).length !== entry.correct)) throw new Error(`Acertos por questão de ${entry.name || entry.id} diferentes do gabarito. Confira a prova.`);
+      // O SIAP só libera as questões depois que a presença é marcada. Não
+      // bloqueie antes dessa transição; a fila confere o desbloqueio depois.
+      if (entry.present && snapshot.questionMode && c.present.checked && c.questions.some(box => box.disabled)) throw new Error(`Questões de ${entry.name || entry.id} ainda bloqueadas no SIAP. Confira a presença.`);
       if (entry.present && c.otherPresent.checked) throw new Error('Aluno já presente na outra chamada. Confira as duas chamadas antes de continuar.');
     }
   }

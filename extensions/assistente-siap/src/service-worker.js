@@ -2,6 +2,9 @@ importScripts("exam-config.js", "exam-worker.js");
 const AI_ENDPOINT = "https://ppkndfwmqdmomkjoemre.supabase.co/functions/v1/generate-siap-ai-draft";
 const SUPABASE_ANON_KEY = "sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn";
 const ACTIVITY_SETTING_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/platform_settings?select=show_activity_site&id=eq.true";
+const SIAP_ANNOUNCEMENT_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/siap_assistant_announcement?select=title,message_body,media_type,media_url,link_label,link_url,theme_key,theme_color,theme_text_color,theme_image_url,notice_color,notice_text_color,notice_button_color,updated_at&active=eq.true&limit=1";
+const SIAP_ANNOUNCEMENT_LEGACY_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/siap_assistant_announcement?select=title,message_body,media_type,media_url,updated_at&active=eq.true&limit=1";
+const SIAP_HEADER_CAMPAIGN_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/v1/rpc/get_siap_header_campaign";
 let accountGeneration = 0;
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
@@ -72,6 +75,28 @@ async function broadcastLicense(license) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (message?.type === 'ASSISTENTE_SIAP_GET_ANNOUNCEMENT') {
+    fetch(SIAP_ANNOUNCEMENT_URL, {
+      headers:{ apikey:SUPABASE_ANON_KEY },
+      cache:'no-store', signal:AbortSignal.timeout(12000)
+    }).then(async response => {
+      if (response.status === 400) response = await fetch(SIAP_ANNOUNCEMENT_LEGACY_URL, {
+        headers:{ apikey:SUPABASE_ANON_KEY }, cache:'no-store', signal:AbortSignal.timeout(12000)
+      });
+      if (!response.ok) return respond({ok:false});
+      const rows = await response.json();
+      respond({ok:true,announcement:Array.isArray(rows) ? rows[0] || null : null});
+    }).catch(() => respond({ok:false}));
+    return true;
+  }
+  if (message?.type === 'ASSISTENTE_SIAP_GET_HEADER_CAMPAIGN') {
+    fetch(SIAP_HEADER_CAMPAIGN_URL,{
+      method:'POST',headers:{apikey:SUPABASE_ANON_KEY,'Content-Type':'application/json'},body:'{}',
+      cache:'no-store',signal:AbortSignal.timeout(12000)
+    }).then(async response => respond(response.ok ? {ok:true,campaign:await response.json()} : {ok:false}))
+      .catch(() => respond({ok:false}));
+    return true;
+  }
   if (message?.type === 'SIAP_CEPI_ROOM_GET') {
     let url;
     try { url=new URL(sender.tab?.url||''); } catch {}

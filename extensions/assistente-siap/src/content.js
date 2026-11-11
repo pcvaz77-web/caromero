@@ -37,7 +37,7 @@
     shift: "cphFuncionalidade_cphCampos_txtTurno",
     classroom: "cphFuncionalidade_cphCampos_txtTurma"
   });
-  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false, activitySiteEnabled:false };
+  let model = { page: initialPageType, days: [], context: {}, busy: false, busyMessage: "", log: [], license: null, accountEmail: null, sessionRequired: false, activitySiteEnabled:false, announcement:null, headerCampaign:null, announcementDismissedAt:null, manualAnalysisCount:0, manualAnalysisPage:"" };
   let panel;
   let contentResumeTimer;
   let attendanceResumeTimer;
@@ -48,8 +48,38 @@
   let planningDockDetached = false;
   let peiFormIdentity = null;
   let planningResumeTimer;
+  let planningSaveCheckRun;
+  let planningSaveCheckAt = 0;
   let planningAiRun;
+  let planningTooltip;
   let consumingFeature = false;
+
+  function hidePlanningTooltip() {
+    planningTooltip?.remove();
+    planningTooltip = null;
+  }
+
+  function showPlanningTooltip(button) {
+    hidePlanningTooltip();
+    if (button.disabled || !button.dataset.tip) return;
+    const tip = document.createElement("div");
+    tip.className = "cm-plan-tooltip";
+    tip.setAttribute("role", "tooltip");
+    tip.textContent = button.dataset.tip;
+    document.documentElement.append(tip);
+    const buttonRect = button.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    const left = Math.max(12, Math.min(buttonRect.left, innerWidth - tipRect.width - 12));
+    const below = buttonRect.bottom + 8;
+    const above = buttonRect.top - tipRect.height - 8;
+    const top = below + tipRect.height <= innerHeight - 12 ? below : Math.max(12, above);
+    tip.style.left = `${left}px`;
+    tip.style.top = `${top}px`;
+    planningTooltip = tip;
+  }
+
+  window.addEventListener("scroll", hidePlanningTooltip, true);
+  window.addEventListener("resize", hidePlanningTooltip);
 
   function installNavigationBridge() {
     chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -76,14 +106,27 @@
 
   async function install() {
     removeCompetitorOverlap();
-    const stored = await chrome.storage.local.get(["panelOpen", "panelClosed", "panelPosition", "launcherPosition", "dryRun", "maxItems"]);
-    // A navegação entre etapas do SIAP não pode alterar a escolha visual do usuário.
-    // Na primeira utilização começa minimizado; depois preserva aberto/minimizado.
-    createShell(stored.panelOpen === true, false, stored);
+    const stored = await chrome.storage.local.get(["panelOpen", "panelClosed", "panelPosition", "dryRun", "maxItems", "announcementDismissedAt"]);
+    model.announcementDismissedAt = stored.announcementDismissedAt || null;
+    // Uma nova aba inicia com o atalho no canto; postbacks nesta aba preservam a escolha visual.
+    const openInThisTab = sessionStorage.getItem("assistenteSiapPanelOpenThisTab") === "true";
+    createShell(stored.panelOpen === true && openInThisTab, false, stored);
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== 'local' || !changes.announcementDismissedAt) return;
+      model.announcementDismissedAt = changes.announcementDismissedAt.newValue || null;
+      if (model.announcement?.updated_at === model.announcementDismissedAt) {
+        panel?.querySelector('.cm-announcement')?.remove();
+        applyAnnouncementTheme();
+      }
+    });
     window.addEventListener("resize", applyPlanningDockLayout);
     refreshLicenseStatus();
     refreshActivitySiteStatus();
+    refreshAnnouncement();
+    refreshHeaderCampaign();
     window.addEventListener('focus', () => { if (!document.hidden) refreshActivitySiteStatus(); });
+    window.addEventListener('focus', () => { if (!document.hidden) refreshAnnouncement(); });
+    window.addEventListener('focus', () => { if (!document.hidden) refreshHeaderCampaign(); });
     if (initialPageType === 'exam') window.addEventListener('focus', () => { if (!document.hidden) refreshLicenseStatus(); });
     if (initialPageType === "exam" && stored.panelOpen === undefined) setOpen(true, false);
     analyze();
@@ -99,6 +142,7 @@
       installManualPlanningSaveTracking();
       setTimeout(resumePlanningFlow, 700);
       setTimeout(resumeReplicateAfterSave, 900);
+      setTimeout(resumeAfterReplicationCancel, 1000);
     }
     if (["planning-overview", "planning-lesson"].includes(initialPageType)) setTimeout(resumePlanningBatch, 1800);
     if (initialPageType === "content") setTimeout(resumeContentBatch, 2000);
@@ -119,40 +163,6 @@
     } catch { /* A sessão do Assistente é verificada novamente ao usar a IA. */ }
   }
 
-  window.SiapExamAccessUpdated = access => {
-    if (!access || typeof access !== 'object') return;
-    model.license = { ...(model.license || {}), examAccess: access };
-    render();
-  };
-
-  function accessSummary(access, now = Date.now()) {
-    if (access?.active !== true) return [];
-    const lines = [];
-    const validity = value => {
-      const end = Date.parse(value);
-      if (!Number.isFinite(end)) return 'Validade não informada';
-      const days = Math.max(0, Math.ceil((end - now) / 86400000));
-      return `Válido até ${new Date(end).toLocaleDateString('pt-BR')} · ${days} dia(s) restante(s)`;
-    };
-    if (access.status === 'carometro') {
-      lines.push('Incluído no Carômetro');
-    } else if (access.status === 'granted') {
-      lines.push('Licença concedida pelo proprietário');
-      lines.push(access.expiresAt === null ? 'Por tempo indeterminado' : validity(access.expiresAt));
-    } else if (access.status === 'subscription') {
-      lines.push('Plano com Correção de Provas ativo');
-      lines.push(validity(access.generalUntil || access.expiresAt));
-    } else {
-      lines.push('Correção por créditos');
-    }
-    const credits = Math.max(0, Math.floor(Number(access.credits) || 0));
-    const blocks = Math.max(0, Math.floor(Number(access.openBlocks) || 0));
-    if (credits || blocks || access.status === 'credits') {
-      lines.push(`${credits} crédito(s) disponível(is) · ${blocks} bloco(s) em andamento`);
-    }
-    return lines;
-  }
-
   async function refreshActivitySiteStatus() {
     try {
       const result = await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_ACTIVITY_SITE_STATUS" });
@@ -161,11 +171,131 @@
     render();
   }
 
+  async function refreshAnnouncement() {
+    try {
+      const result = await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_GET_ANNOUNCEMENT'});
+      if (!result?.ok) return;
+      if (JSON.stringify(result.announcement || null) === JSON.stringify(model.announcement)) return;
+      const loginEmail = panel?.querySelector('.cm-login-email');
+      const typedEmail = loginEmail?.value || '';
+      const emailFocused = document.activeElement === loginEmail;
+      model.announcement = result.announcement || null;
+      if (model.busy) return;
+      render();
+      const refreshedEmail = panel?.querySelector('.cm-login-email');
+      if (refreshedEmail && typedEmail) refreshedEmail.value = typedEmail;
+      if (refreshedEmail && emailFocused) refreshedEmail.focus();
+    } catch { /* O painel continua utilizável sem o comunicado. */ }
+  }
+
+  async function refreshHeaderCampaign() {
+    try {
+      const result = await chrome.runtime.sendMessage({type:'ASSISTENTE_SIAP_GET_HEADER_CAMPAIGN'});
+      if (!result?.ok) return;
+      if (JSON.stringify(result.campaign || null) === JSON.stringify(model.headerCampaign)) return;
+      model.headerCampaign = result.campaign || null;
+      if (!model.busy) render();
+    } catch { /* O cabeçalho padrão permanece disponível. */ }
+  }
+
+  function announcementCard() {
+    const item = model.announcement;
+    if (!item || typeof item.title !== 'string' || typeof item.message_body !== 'string') return '';
+    if (item.updated_at && item.updated_at === model.announcementDismissedAt) return '';
+    let media = '';
+    try {
+      const url = new URL(item.media_url);
+      if (url.protocol === 'https:') {
+        const href = escapeHtml(url.href);
+        if (item.media_type === 'image') media = `<img src="${href}" alt="Imagem do comunicado" loading="lazy">`;
+        if (item.media_type === 'video') {
+          media = `<a class="cm-announcement-action cm-announcement-video-link" href="${href}" target="_blank" rel="noopener noreferrer">Ver vídeo</a>`;
+        }
+      }
+    } catch { /* Link ausente ou inválido: exibir somente o texto. */ }
+    let action = '';
+    if (typeof item.link_label === 'string' && item.link_label.trim() && typeof item.link_url === 'string') {
+      try {
+        const url = new URL(item.link_url);
+        if (url.protocol === 'https:') action = `<a class="cm-announcement-action" href="${escapeHtml(url.href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.link_label.trim())}</a>`;
+      } catch { /* Sem link válido, o comunicado continua visível. */ }
+    }
+    return `<section class="cm-card cm-announcement" aria-label="Novidade do Assistente SIAP"><button type="button" class="cm-announcement-close" aria-label="Fechar comunicado" title="Fechar comunicado">×</button>${item.title || item.message_body ? `<small>${item.theme_key === 'black_friday' ? 'Oferta Black Friday' : 'Novidade do Assistente SIAP'}</small>` : ''}${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ''}${item.message_body ? `<p>${escapeHtml(item.message_body).replace(/\n/g,'<br>')}</p>` : ''}${media}${action}</section>`;
+  }
+
+  function applyAnnouncementTheme() {
+    if (!panel) return;
+    const item = model.announcement;
+    const active = item && item.updated_at !== model.announcementDismissedAt && model.page !== 'exam';
+    const keys = ['classic','black_friday','teachers','public_servant','black_awareness','students','september_yellow','christmas','new_year','custom'];
+    const key = active && keys.includes(item.theme_key) ? item.theme_key : '';
+    if (key) panel.dataset.announcementTheme = key;
+    else delete panel.dataset.announcementTheme;
+    const noticeColor = active && /^#[0-9a-f]{6}$/i.test(item.notice_color || '') ? item.notice_color : '#e8f8ed';
+    const noticeText = active && /^#[0-9a-f]{6}$/i.test(item.notice_text_color || '') ? item.notice_text_color : '#14532d';
+    const noticeButton = active && /^#[0-9a-f]{6}$/i.test(item.notice_button_color || '') ? item.notice_button_color : '#168553';
+    const rgb = [1,3,5].map(i => parseInt(noticeButton.slice(i,i+2),16)/255).map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4);
+    panel.style.setProperty('--cm-notice-color',noticeColor);
+    panel.style.setProperty('--cm-notice-text',noticeText);
+    panel.style.setProperty('--cm-notice-button',noticeButton);
+    panel.style.setProperty('--cm-notice-button-text',rgb[0]*.2126+rgb[1]*.7152+rgb[2]*.0722 > .35 ? '#13213a' : '#ffffff');
+    panel.dataset.announcementImage = 'false';
+  }
+
+  function applyHeaderCampaign() {
+    if (!panel) return;
+    const campaign=model.headerCampaign;
+    const active=campaign?.active === true && model.page !== 'exam';
+    panel.dataset.headerCampaign=active ? 'true' : 'false';
+    const color = active && /^#[0-9a-f]{6}$/i.test(campaign.background_color || '') ? campaign.background_color : '#17345d';
+    const foreground = active && /^#[0-9a-f]{6}$/i.test(campaign.text_color || '') ? campaign.text_color : '#ffffff';
+    panel.style.setProperty('--cm-header-color',color);
+    panel.style.setProperty('--cm-header-text',foreground);
+    let image=null;
+    try { const url=new URL(campaign?.background_image_url); if (url.protocol==='https:') image=url.href; } catch {}
+    panel.style.setProperty('--cm-header-image',active && image ? `url(${JSON.stringify(image)})` : 'none');
+    const promo=panel.querySelector('.cm-bf-promo');
+    if (!promo) return;
+    promo.hidden=!active;
+    promo.replaceChildren();
+    if (!active) return;
+    const heading=document.createElement('span'); heading.className='cm-bf-headline';
+    const eyebrow=document.createElement('small'); eyebrow.textContent=campaign.eyebrow || '';
+    const headline=document.createElement('strong'); headline.textContent=campaign.headline || '';
+    if (campaign.eyebrow) heading.append(eyebrow);
+    if (campaign.headline) heading.append(headline);
+    if (heading.childElementCount) promo.append(heading);
+    const buttons=document.createElement('div'); buttons.className='cm-bf-prices';
+    const validColors=/^#[0-9a-f]{6}$/i;
+    for (const entry of Array.isArray(campaign.buttons) ? campaign.buttons.slice(0,3) : []) {
+      let url;
+      try { url=new URL(entry.checkout_url); } catch { continue; }
+      if (url.protocol!=='https:' || url.hostname!=='pay.hotmart.com') continue;
+      const amount=Number(entry.amount);
+      if (!Number.isFinite(amount) || amount<=0) continue;
+      if (!['monthly','quarterly','semiannual','annual'].includes(entry.plan_key)) continue;
+      // A conta precisa existir antes do checkout para que o webhook da
+      // Hotmart encontre o pedido e libere a licença na extensão.
+      const accountUrl=new URL('https://sistemacarometro.com.br/assistente-siap-conta.html');
+      accountUrl.searchParams.set('plano',entry.plan_key);
+      if (model.accountEmail) accountUrl.hash=`email=${encodeURIComponent(model.accountEmail)}`;
+      const button=document.createElement('a'); button.href=accountUrl.href; button.target='_blank'; button.rel='noopener noreferrer';
+      button.style.background=validColors.test(entry.color || '') ? entry.color : '#e7c46f';
+      button.style.color=validColors.test(entry.text_color || '') ? entry.text_color : '#0b1930';
+      const label=document.createElement('small'); label.textContent=String(entry.label || '').slice(0,30);
+      const price=document.createElement('strong'); price.textContent=new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(amount);
+      button.append(label,price); buttons.append(button);
+    }
+    promo.append(buttons);
+  }
+
   function licenseCard() {
     const license = model.license;
     if (!license) return "";
     const days = Math.max(0, Number(license.daysRemaining || 0));
-    const salesButton = `<div class="cm-actions"><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/assistente-siap.html#planos" target="_blank" rel="noopener noreferrer">Ver planos</a></div>`;
+    const plansUrl = new URL("https://sistemacarometro.com.br/assistente-siap.html");
+    plansUrl.hash = `planos?email=${encodeURIComponent(model.accountEmail || "")}`;
+    const salesButton = `<div class="cm-actions"><a class="cm-btn cm-primary cm-full" href="${plansUrl.href}" target="_blank" rel="noopener noreferrer">Ver planos</a></div>`;
     if (license.status === "grant_ended" || license.status === "expired") return `<section class="cm-card cm-license cm-license-expired"><h3>Licença expirada</h3><p>Sua licença expirou. Clique para continuar usando o Assistente SIAP.</p>${salesButton}</section>`;
     if (license.mode === "external") {
       const uses = license.freeUses || {};
@@ -247,7 +377,7 @@
   function lockAssistantAfterExpiry() {
     clearTimeout(contentResumeTimer);
     clearTimeout(attendanceResumeTimer);
-    ["assistenteSiapPlanningBatch", "assistenteSiapPlanningPreview", "assistenteSiapPlanningFlow", "assistenteSiapPlanningAi", "assistenteSiapAutoSaveReplicate", "assistenteSiapOpenReplicate", "assistenteSiapConfirmReplicate", "assistenteSiapReplicationOpenedAt", CONTENT_BATCH_KEY, ATTENDANCE_BATCH_KEY].forEach((key) => sessionStorage.removeItem(key));
+    ["assistenteSiapPlanningBatch", "assistenteSiapPlanningPreview", "assistenteSiapPlanningFlow", "assistenteSiapPlanningAi", "assistenteSiapAutoSaveReplicate", "assistenteSiapOpenReplicate", "assistenteSiapConfirmReplicate", "assistenteSiapReplicationOpenedAt", "assistenteSiapSaveAfterReplicationCancel", CONTENT_BATCH_KEY, ATTENDANCE_BATCH_KEY].forEach((key) => sessionStorage.removeItem(key));
     model.busyMessage = "";
   }
 
@@ -258,10 +388,21 @@
       <aside id="assistente-siap-panel" aria-label="Assistente SIAP do Professor" ${open ? "" : "hidden"}></aside>`;
     document.documentElement.append(root);
     panel = root.querySelector("#assistente-siap-panel");
+    panel.addEventListener('click', event => {
+      const close = event.target.closest('.cm-announcement-close');
+      if (!close || !panel.contains(close)) return;
+      const updatedAt = model.announcement?.updated_at;
+      if (updatedAt) {
+        model.announcementDismissedAt = updatedAt;
+        chrome.storage.local.set({announcementDismissedAt:updatedAt}).catch(() => {});
+      }
+      close.closest('.cm-announcement')?.remove();
+      applyAnnouncementTheme();
+    });
     const launcher = root.querySelector("#assistente-siap-launcher");
     launcher.hidden = open || closed;
     applyStoredPosition(panel, stored.panelPosition);
-    applyStoredPosition(launcher, stored.launcherPosition);
+    // O atalho sempre inicia no canto; ele ainda pode ser arrastado nesta página.
     installDrag(launcher, launcher, "launcherPosition", () => setOpen(true));
     render();
   }
@@ -287,9 +428,15 @@
 
   function applyPlanningDockLayout() {
     if (!panel) return;
-    const siapPage = Core.pageType(location.pathname) !== "unsupported";
-    const main = siapPage && !panel.hidden && !planningDockDetached && innerWidth >= 1180
-      ? document.querySelector("#FormularioPrincipal > .sis") : null;
+    const pageType = Core.pageType(location.pathname);
+    const overlay = pageType === "planning-lesson";
+    if (overlay && !panel.classList.contains("cm-planning-overlay")) {
+      for (const property of ["left", "top", "right", "bottom"]) panel.style?.removeProperty(property);
+    }
+    panel.classList.toggle("cm-planning-overlay", overlay);
+    const siapPage = pageType !== "unsupported" && pageType !== "planning-overview" && !overlay;
+    const main = siapPage && !panel.hidden && !planningDockDetached
+      ? document.querySelector("#FormularioPrincipal > .sis") || document.getElementById("FormularioPrincipal") : null;
     const dock = Boolean(main);
     panel.classList.toggle("cm-planning-docked", dock);
     if (!main) return restorePlanningDockTarget();
@@ -301,9 +448,11 @@
       }]));
       planningDockNaturalWidth = Math.max(1014, main.scrollWidth);
     }
-    const available = panel.getBoundingClientRect().left - 20;
+    planningDockNaturalWidth = Math.max(planningDockNaturalWidth, main.scrollWidth);
+    const available = Math.max(1, panel.getBoundingClientRect().left - 20);
+    const scale = Math.min(1, available / planningDockNaturalWidth);
     for (const [property, value] of Object.entries({
-      width:`${Math.floor(Math.min(planningDockNaturalWidth, available))}px`, "margin-left":"8px", "margin-right":"0", zoom:"1"
+      width:`${planningDockNaturalWidth}px`, "margin-left":"8px", "margin-right":"0", zoom:String(scale)
     })) {
       if (main.style.getPropertyValue(property) !== value) main.style.setProperty(property, value);
     }
@@ -358,6 +507,7 @@
   function analyze() {
     model.page = Core.pageType(location.pathname);
     model.context = readContext();
+    if (model.page === "planning-overview") capturePlanningOverviewSlots();
     model.days = model.page === "planning-calendar"
       ? readPlanningCalendarDays()
       : model.page === "planning-overview"
@@ -368,6 +518,13 @@
     render();
     applyPlanningDockLayout();
     syncPanelWithSiapDialog();
+  }
+
+  function analyzeOnDemand() {
+    model.manualAnalysisCount++;
+    model.manualAnalysisPage = Core.pageType(location.pathname);
+    analyze();
+    panel.querySelector('[data-action="analyze"]')?.focus({ preventScroll:true });
   }
 
   function clearPanelDialogShift() {
@@ -475,6 +632,10 @@
 
   function render() {
     if (!panel) return;
+    const previousMultiCount = panel.querySelector("#cm-multi-count")?.value;
+    const root = document.getElementById("assistente-siap-root");
+    if (root) root.style.display = model.page === "planning-overview" ? "none" : "";
+    hidePlanningTooltip();
     const peiControls = capturePeiDraftControls();
     const pending = model.days.filter((day) => day.state === "pending" && day.eligible);
     const future = model.days.filter((day) => day.state === "pending" && !day.eligible);
@@ -484,7 +645,7 @@
 
     if (!panel.querySelector(".cm-body")) {
       panel.innerHTML = `<header class="cm-head">
-        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-access-summary" hidden></span><span class="cm-account-identity" hidden></span></div>
+        <div class="cm-logo"><img src="${chrome.runtime.getURL("src/carometro-icon.svg")}" alt=""></div><div class="cm-title"><small>v${EXTENSION_VERSION}</small><h2>Assistente SIAP</h2><p></p><span class="cm-access-summary" hidden></span><span class="cm-account-identity" hidden></span></div><div class="cm-bf-promo" hidden></div>
         <div class="cm-window-actions"><button class="cm-account-toggle" type="button">Entrar</button><button class="cm-minimize" data-action="minimize" aria-label="Minimizar" title="Minimizar">−</button></div>
         <a class="cm-activity-link" href="https://atividades.sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer" aria-label="Atividades para professores (abre em nova guia)" title="Atividades para professores" hidden>Atividades ↗</a>
         <div class="cm-operation-status" role="status" aria-live="polite" hidden><span class="cm-operation-text"></span><div class="cm-operation-actions" hidden><button type="button" data-action="planning-pause">Pausar</button><button type="button" data-action="planning-stop">Parar</button></div></div>
@@ -494,6 +655,8 @@
       panel.querySelector('[data-action="planning-stop"]')?.addEventListener("click", stopPlanningOperation);
       installDrag(panel, panel.querySelector(".cm-head"), "panelPosition");
     }
+    applyAnnouncementTheme();
+    applyHeaderCampaign();
     const productTitle = panel.querySelector('.cm-title h2');
     if (productTitle) productTitle.textContent = model.page === 'exam' ? 'Carômetro' : 'Assistente SIAP';
     const pageLabel = panel.querySelector(".cm-title p");
@@ -504,7 +667,7 @@
       accessSummary.hidden = !accessSummary.textContent;
     }
     const activityLink = panel.querySelector('.cm-activity-link');
-    if (activityLink) activityLink.hidden = !(model.activitySiteEnabled && (model.license?.active === true || model.license?.examAccess?.active === true) && !model.sessionRequired);
+    if (activityLink) activityLink.hidden = !(model.activitySiteEnabled && model.license?.active === true && !model.sessionRequired);
     const identity = panel.querySelector('.cm-account-identity');
     if (identity) {
       identity.hidden = !model.accountEmail || model.sessionRequired;
@@ -515,7 +678,7 @@
     if (accountToggle) {
       const connected = !!model.accountEmail && !model.sessionRequired;
       accountToggle.disabled = false;
-      accountToggle.hidden = model.page === 'exam' || model.sessionRequired;
+      accountToggle.hidden = model.sessionRequired;
       accountToggle.textContent = connected ? 'Sair' : 'Entrar';
       accountToggle.classList.toggle('cm-sign-out', connected);
       accountToggle.onclick = async () => {
@@ -535,14 +698,21 @@
       updateOperationStatus();
       return;
     }
-    if (model.page === 'exam' && model.sessionRequired) {
-      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Correção de provas no Carômetro</h3><p>Abra o Carômetro com sua conta e, em “Correção de provas” ou “Meu CEPI”, conecte a extensão. Você não precisa digitar o e-mail novamente aqui.</p><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer">Abrir Carômetro</a><button class="cm-btn cm-full" type="button" data-exam-check-access>Já conectei · verificar acesso</button></section>';
-      panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
+    if (model.page === 'exam') {
+      const body = panel.querySelector('.cm-body');
+      if (model.sessionRequired) {
+        const storeUrl = 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
+        body.innerHTML = `<section class="cm-card"><h3>Correção de Provas do Carômetro</h3><p>Use sua conta do Carômetro para conectar esta extensão. A correção é gratuita e independente da licença do Assistente SIAP.</p><a class="cm-btn cm-primary cm-full" href="https://sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer">Abrir o Carômetro e conectar</a><a class="cm-btn cm-full" href="${storeUrl}" target="_blank" rel="noopener noreferrer">Instalar ou atualizar a extensão</a></section>`;
+      } else {
+        window.SiapExamPanel?.mount(body);
+      }
       updateOperationStatus();
       return;
     }
     if (model.sessionRequired) {
-      panel.querySelector('.cm-body').innerHTML = '<section class="cm-card"><h3>Entrar no Assistente</h3><form class="cm-login-form"><label>E-mail<input class="cm-login-email cm-input" type="email" autocomplete="email" required></label><button class="cm-btn cm-primary cm-full" type="submit">Entrar</button><p class="cm-login-message" role="status"></p></form><a class="cm-btn cm-full" href="https://sistemacarometro.com.br/assistente-siap.html#planos" target="_blank" rel="noopener noreferrer">Conhecer planos</a></section>';
+      const plansUrl = new URL("https://sistemacarometro.com.br/assistente-siap.html");
+      plansUrl.hash = `planos?email=${encodeURIComponent(model.accountEmail || "")}`;
+      panel.querySelector('.cm-body').innerHTML = `${announcementCard()}<section class="cm-card"><h3>Entrar no Assistente</h3><form class="cm-login-form"><label>E-mail<input class="cm-login-email cm-input" type="email" autocomplete="email" required></label><button class="cm-btn cm-primary cm-full" type="submit">Entrar</button><p class="cm-login-message" role="status"></p></form><a class="cm-btn cm-full" href="${plansUrl.href}" target="_blank" rel="noopener noreferrer">Conhecer planos</a></section>`;
       const loginEmailInput=panel.querySelector('.cm-login-email');
       loginEmailInput.oninvalid=()=>loginEmailInput.setCustomValidity(loginEmailInput.validity.valueMissing?'Informe seu e-mail.':'E-mail inválido. Confira o endereço digitado.');
       loginEmailInput.oninput=()=>loginEmailInput.setCustomValidity('');
@@ -559,72 +729,36 @@
       updateOperationStatus();
       return;
     }
-    if (model.page === "exam") {
-      if (!model.license) {
-        panel.querySelector(".cm-body").textContent = 'Verificando acesso à Correção de Provas…';
-      } else if (model.license.examAccess?.active !== true) {
-        panel.querySelector(".cm-body").innerHTML = `<section class="cm-card"><h3>Correção de Provas</h3><p>${model.license.examAccess?.status === 'unavailable' ? 'Não foi possível verificar este acesso. Tente novamente em instantes.' : 'Entre com uma conta que tenha acesso ativo ao Carômetro.'}</p><button type="button" class="cm-btn cm-primary" data-exam-check-access>Verificar acesso novamente</button></section>`;
-        panel.querySelector('[data-exam-check-access]').onclick = refreshLicenseStatus;
-      } else window.SiapExamPanel?.mount(panel.querySelector(".cm-body"));
-      const body=panel.querySelector('.cm-body');
-      const access = model.license?.examAccess;
-      if (access?.active === true) {
-        body.querySelector('[data-exam-shop]')?.remove();
-        let card = body.querySelector('[data-exam-access]');
-        if (!card) {
-          card = document.createElement('section');
-          card.dataset.examAccess = '';
-          card.className = 'cm-card cm-license cm-exam-access';
-          body.prepend(card);
-        }
-        card.replaceChildren();
-        const title = document.createElement('h3');
-        title.textContent = 'Correção de Provas · Acesso ativo';
-        const badge = document.createElement('span');
-        badge.className = 'cm-exam-active-badge';
-        badge.textContent = '✓ Licença ativa';
-        card.append(badge, title);
-        for (const text of accessSummary(access)) {
-          const line = document.createElement('p');
-          line.textContent = text;
-          card.append(line);
-        }
-        const explanation = document.createElement('p');
-        explanation.className = 'cm-exam-access-help';
-        explanation.textContent = access.status === 'carometro' ? 'A correção de provas já integra seu acesso ao Carômetro. Confira os resultados antes de clicar em Salvar no SIAP.' : 'Seu acesso anterior à correção permanece válido durante a vigência contratada. Confira os resultados antes de clicar em Salvar no SIAP.';
-        const plans = document.createElement('a');
-        plans.className = 'cm-btn cm-exam-plans';
-        plans.href = 'https://sistemacarometro.com.br/assistente-siap.html#correcao-de-provas';
-        plans.target = '_blank';
-        plans.rel = 'noopener noreferrer';
-        plans.textContent = 'Abrir o Carômetro ↗';
-        plans.href = 'https://sistemacarometro.com.br/';
-        card.append(explanation, plans);
-      }
-      if(access && access.active !== true && access.status !== 'unavailable' && !body.querySelector('[data-exam-shop]')) {
-        const shop=document.createElement('section');shop.dataset.examShop='';shop.className='cm-card';
-        shop.innerHTML=`<h3>Correção de Provas no Carômetro</h3><p>Esta função integra o Carômetro para contas com acesso ativo. Entre na plataforma com sua conta e conecte a extensão.</p><a class="cm-btn cm-exam-plans" href="https://sistemacarometro.com.br/" target="_blank" rel="noopener noreferrer">Abrir o Carômetro ↗</a>`;
-        body.prepend(shop);
-      }
-      return;
-    }
     if (model.license && model.license.active !== true && !finishingAuthorizedFreeWork()) {
-      panel.querySelector(".cm-body").innerHTML = `${licenseCard()}${logCard()}`;
+      panel.querySelector(".cm-body").innerHTML = `${announcementCard()}${licenseCard()}${logCard()}`;
       updateOperationStatus();
       return;
     }
     panel.querySelector(".cm-body").innerHTML = `
+      ${announcementCard()}
       ${contextCard()}
       <section class="cm-card"><h3>Diagnóstico</h3>
         ${supported ? `<span class="cm-badge cm-green">Página reconhecida</span>` : `<span class="cm-badge cm-yellow">Somente leitura</span>`}
         <div class="cm-stats"><div class="cm-stat"><strong>${pending.length}</strong><span>Pendentes</span></div><div class="cm-stat"><strong>${saved.length}</strong><span>Salvos</span></div><div class="cm-stat"><strong>${future.length}</strong><span>Futuros</span></div></div>
         <div class="cm-actions"><button class="cm-btn cm-full" data-action="analyze">Analisar novamente</button></div>
+        ${model.manualAnalysisPage === model.page && model.manualAnalysisCount ? `<p class="cm-analysis-feedback" role="status">✓ Análise atualizada · verificação ${model.manualAnalysisCount}.</p>` : ""}
       </section>
       ${workCard(pending, peiControls)}
       ${logCard()}
       ${licenseCard()}`;
     updateOperationStatus();
     bindPanelEvents();
+    const multiCount = panel.querySelector("#cm-multi-count");
+    if (multiCount && previousMultiCount) multiCount.value = previousMultiCount;
+    if (model.lessonMultiProgress?.state === "complete" && !lessonMultiPreviewIsCurrent(getLessonMultiPreview())) {
+      model.lessonMultiProgress = null;
+    }
+    if (model.lessonMultiProgress && panel.querySelector("#cm-multi-progress")) {
+      const { completed, total, state } = model.lessonMultiProgress;
+      updateLessonMultiProgress(completed, total, state);
+      const generate = panel.querySelector('[data-action="multi-preview-generate"]');
+      if (generate) generate.disabled = state === "running";
+    }
   }
 
   function capturePeiDraftControls() {
@@ -658,7 +792,7 @@
     if (planningAiRun) return "Gerando planejamento...";
     const planningFlow = readStoredJson("assistenteSiapPlanningFlow");
     if (planningFlow?.paused) return "Planejamento pausado.";
-    if (planningFlow) return planningFlow.stage === "wait-skill" ? "Aguardando habilidade no SIAP..." : planningFlow.stage === "wait-content" ? "Aguardando conteúdo no SIAP..." : planningFlow.stage === "wait-saeb" ? "Aguardando Matriz SAEB no SIAP..." : "Preparando planejamento...";
+    if (planningFlow) return planningFlow.stage === "wait-skill" ? "Aguardando o SIAP confirmar a habilidade na aula..." : planningFlow.stage === "wait-content" ? "Aguardando o SIAP incluir o conteúdo na aula..." : planningFlow.stage === "wait-saeb" ? "Aguardando Matriz SAEB no SIAP..." : "Preparando planejamento...";
     if (model.busyMessage) return model.busyMessage;
     const planningPreview = getPlanningPreview();
     if (planningPreview?.generationActive) {
@@ -762,7 +896,7 @@
     if (model.page === "pei-list") return `<section class="cm-card"><h3>PEI · Etapa 2</h3><p>Filtre e liste os registros no SIAP. Selecione um estudante e clique em <strong>Visualizar</strong> para preparar um rascunho individual.</p><p class="cm-note">O assistente não guarda matrícula, nome, laudo ou diagnóstico.</p></section>`;
     if (model.page === "pei-edit") return peiCard(peiControls);
     if (model.page === "planning-list") return `<section class="cm-card"><h3>Planejamentos</h3><p>Filtre a turma, clique em <strong>Listar</strong>, selecione uma linha e abra <strong>Visualizar</strong>.</p><p class="cm-note">Na próxima tela, datas azuis indicam aulas ainda sem planejamento.</p></section>`;
-    if (model.page === "planning-overview") return planningOverviewCard(pending);
+    if (model.page === "planning-overview") return "";
     if (model.page === "planning-calendar") return planningCalendarCard(pending);
     if (model.page === "planning-lesson") return planningLessonCard();
     if (!["content", "attendance"].includes(model.page)) return `<section class="cm-card"><h3>Sem automação</h3><p>Esta página não possui uma receita aprovada.</p></section>`;
@@ -852,7 +986,8 @@
       <p><strong>${pending.length}</strong> aula(s) em branco ainda não planejada(s).</p>
       ${pending.length ? "" : `<span class="cm-badge cm-green">Todas as aulas do período estão planejadas</span>`}
       <p class="cm-note">Branco = não planejado. Vermelho = planejado e não validado. A extensão usa as classes internas do SIAP, não apenas a aparência da cor.</p>
-      ${batch ? `<div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>Origem: quinzenas · ${batch.completed || 0} concluído(s) · ${batch.periods.length - batch.periodIndex} período(s) restante(s).</div>
+      ${batch ? batch.mode === "lesson-sequence" ? `<div class="cm-alert"><strong>${batch.paused ? "Sequência pausada" : "Aplicando planejamentos"}</strong><br>Aula ${escapeHtml(batch.plans?.[batch.index]?.lesson || batch.current?.lesson || "—")} · planejamento ${escapeHtml(Math.min((batch.index || 0) + 1, batch.plans?.length || 1))} de ${escapeHtml(batch.plans?.length || 0)}. ${batch.paused ? escapeHtml(batch.pauseMessage || "Confira a última aula salva antes de continuar.") : "Procurando o próximo quadradinho em branco no SIAP."}</div>
+        <div class="cm-actions"><button class="cm-btn" data-action="batch-toggle">${batch.paused ? "Continuar" : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>` : `<div class="cm-alert"><strong>${batch.paused ? "Lote pausado" : "Lote em andamento"}</strong><br>Origem: quinzenas · ${batch.completed || 0} concluído(s) · ${(batch.periods?.length || 0) - (batch.periodIndex || 0)} período(s) restante(s).</div>
         <div class="cm-actions"><button class="cm-btn" data-action="batch-toggle">${batch.paused ? "Continuar" : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>`
         : `${planningBatchSetup(overview, preview)}`}
       <div class="cm-actions"><button class="cm-btn cm-full" data-action="analyze">Atualizar diagnóstico</button></div>
@@ -887,6 +1022,115 @@
     });
     groups.forEach((group) => group.classes.forEach((lessons) => lessons.sort((a, b) => a.domIndex - b.domIndex)));
     return { items, groups: [...groups.values()] };
+  }
+
+  function planningSlotKey(item) {
+    return `${item.classCode || canonicalClassroom(item.classroom)}|${item.lesson}|${normalizePlanningGroup(item.grade)}|${normalizePlanningGroup(item.subject)}`;
+  }
+
+  function planningSlotsFromDocument(source, periodValue, periodLabel = "") {
+    return [...source.querySelectorAll("#cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor .aula.naoPlanejada")]
+      .map((block) => ({ ...overviewItem(block), classCode:block.getAttribute("codigoturma") || "", periodValue, periodLabel }))
+      .filter((item) => item.lesson && item.classroom && item.grade && item.subject);
+  }
+
+  function capturePlanningOverviewSlots() {
+    const select = document.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+    if (!select || !document.getElementById("cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor")) return;
+    const previous = readStoredJson("assistenteSiapPlanningSlots") || {};
+    const periods = [...select.options].filter((option) => option.value)
+      .map((option) => ({ value:option.value, label:option.textContent.trim() }));
+    const snapshots = previous.periods?.map((period) => period.value).join("|") === periods.map((period) => period.value).join("|")
+      ? previous.snapshots || {} : {};
+    snapshots[select.value] = { items:planningSlotsFromDocument(document, select.value, select.selectedOptions?.[0]?.textContent?.trim() || ""), signature:planningOverviewSignature(), capturedAt:Date.now() };
+    sessionStorage.setItem("assistenteSiapPlanningSlots", JSON.stringify({ periods, snapshots, lastPeriod:select.value }));
+  }
+
+  function planningSlotMatchesContext(item, context) {
+    return normalizePlanningGroup(item.grade) === normalizePlanningGroup(context.grade) &&
+      normalizePlanningGroup(item.subject) === normalizePlanningGroup(context.subject);
+  }
+
+  function planningSlotQueue(cache, origin, count) {
+    const periods = cache?.periods || [];
+    const start = periods.findIndex((period) => period.value === origin.periodValue);
+    if (start < 0) return [];
+    const context = { grade:origin.grade, subject:origin.subject };
+    const queue = [origin];
+    if (count <= 1) return queue;
+    const seen = new Set([planningSlotKey(origin)]);
+    for (const period of periods.slice(start)) {
+      for (const item of cache.snapshots?.[period.value]?.items || []) {
+        if (!planningSlotMatchesContext(item, context) || seen.has(planningSlotKey(item))) continue;
+        seen.add(planningSlotKey(item));
+        queue.push(item);
+        if (queue.length >= count) return queue;
+      }
+    }
+    return queue;
+  }
+
+  async function fetchPlanningOverviewDocument(periodValue, baseline) {
+    const url = new URL("/AcompanhamentoPlanejamentoProfessorListagem.aspx", location.origin);
+    const parse = async (response) => {
+      if (!response.ok || new URL(response.url).origin !== location.origin) throw new Error("O SIAP não devolveu as quinzenas de planejamento.");
+      const page = new DOMParser().parseFromString(await response.text(), "text/html");
+      if (!page.getElementById("cphFuncionalidade_ddlPeriodoReconhecer") || !page.getElementById("cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor"))
+        throw new Error("O SIAP não confirmou a leitura das quinzenas.");
+      return page;
+    };
+    const base = baseline || await parse(await fetch(url, { credentials:"same-origin", cache:"no-store" }));
+    const select = base.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+    if (!periodValue || select.value === periodValue) return base;
+    const form = select.closest("form") || base.querySelector("form");
+    if (!form || !select.name || ![...select.options].some((option) => option.value === periodValue))
+      throw new Error("Não foi possível consultar a próxima quinzena no SIAP.");
+    const body = new URLSearchParams(new FormData(form));
+    body.set("__EVENTTARGET", select.name);
+    body.set("__EVENTARGUMENT", "");
+    body.set(select.name, periodValue);
+    const action = new URL(form.getAttribute("action"), url);
+    if (action.origin !== location.origin) throw new Error("Destino de quinzena não reconhecido no SIAP.");
+    const page = await parse(await fetch(action, { method:"POST", credentials:"same-origin", cache:"no-store",
+      headers:{ "Content-Type":"application/x-www-form-urlencoded; charset=UTF-8" }, body:body.toString() }));
+    if (page.getElementById("cphFuncionalidade_ddlPeriodoReconhecer")?.value !== periodValue)
+      throw new Error("O SIAP não confirmou a troca para a próxima quinzena.");
+    return page;
+  }
+
+  async function planningSlotsForLesson(context, lesson, count) {
+    let cache = readStoredJson("assistenteSiapPlanningSlots");
+    const matchesOrigin = (item) => Number(item.lesson) === lesson && planningSlotMatchesContext(item, context) &&
+      canonicalClassroom(item.classroom) === canonicalClassroom(context.classroom);
+    let origin = cache?.snapshots?.[cache.lastPeriod]?.items?.find(matchesOrigin);
+    let baseline;
+    if (origin) cache = { ...cache, snapshots:{ [cache.lastPeriod]:cache.snapshots[cache.lastPeriod] } };
+    if (!origin) {
+      baseline = await fetchPlanningOverviewDocument();
+      const select = baseline.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+      const periods = [...select.options].filter((option) => option.value).map((option) => ({ value:option.value, label:option.textContent.trim() }));
+      cache = { periods, snapshots:{}, lastPeriod:"" };
+      for (const period of periods) {
+        const page = await fetchPlanningOverviewDocument(period.value, baseline);
+        const items = planningSlotsFromDocument(page, period.value, period.label);
+        cache.snapshots[period.value] = { items, capturedAt:Date.now() };
+        origin = items.find(matchesOrigin);
+        if (origin) { cache.lastPeriod = period.value; break; }
+      }
+      if (!origin) throw new Error("A aula aberta não aparece em branco nas quinzenas do SIAP. Confira a turma e a aula antes de gerar prévias.");
+    }
+    let queue = planningSlotQueue(cache, origin, count);
+    if (queue.length < count) {
+      baseline ||= await fetchPlanningOverviewDocument();
+      const start = cache.periods.findIndex((period) => period.value === origin.periodValue);
+      for (const period of cache.periods.slice(start + 1)) {
+        const page = await fetchPlanningOverviewDocument(period.value, baseline);
+        cache.snapshots[period.value] = { items:planningSlotsFromDocument(page, period.value, period.label), capturedAt:Date.now() };
+        queue = planningSlotQueue(cache, origin, count);
+        if (queue.length >= count) break;
+      }
+    }
+    return queue;
   }
 
   function getPlanningPreview() {
@@ -979,6 +1223,373 @@
     </section>`;
   }
 
+  function revisaCatalogForCurrentLesson() {
+    const context = readContext();
+    const termKey = /\b3\s*[º°ªo]?\s*bim/i.test(context.term || "") ? "b3" : /\b4\s*[º°ªo]?\s*bim/i.test(context.term || "") ? "b4" : "";
+    if (!termKey) return null;
+    const subject = String(context.subject || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    const subjectKey = subject.includes("PORTUGUES") ? "lp" : subject.includes("MATEMATICA") ? "math" :
+      subject.includes("HISTORIA") ? "history" : subject.includes("GEOGRAFIA") ? "geography" :
+      subject.includes("SOCIOLOGIA") ? "sociology" : subject.includes("FILOSOFIA") ? "philosophy" :
+      subject.includes("BIOLOGIA") ? "biology" : subject.includes("QUIMICA") ? "chemistry" :
+      subject.includes("FISICA") && !subject.includes("EDUCACAO") ? "physics" :
+      subject.includes("CIENCIAS") ? "science" : "";
+    const grade = String(context.grade || "");
+    const gradeKey = /^[6789]\s*[ºª°o]?\s*ano/i.exec(grade)?.[0]?.[0] || (/^[123]\s*[ªº°o]?\s*serie/i.exec(grade.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))?.[0]?.[0] || "");
+    const catalog = typeof window === "undefined" ? null : window.AssistenteSiapRevisaSkills;
+    const extraCatalog = typeof window === "undefined" ? null : window.AssistenteSiapRevisaExtraSkills;
+    const skills = termKey === "b4" && (subjectKey === "lp" || subjectKey === "math")
+      ? catalog?.[gradeKey]?.[subjectKey]
+      : extraCatalog?.[termKey]?.[gradeKey]?.[subjectKey];
+    return Array.isArray(skills) && skills.length ? { termKey, gradeKey, subjectKey, skills } : null;
+  }
+
+  function selectedRevisaSkills() {
+    const catalog = revisaCatalogForCurrentLesson();
+    if (!catalog) return [];
+    let saved;
+    try { saved = JSON.parse(sessionStorage.getItem("assistenteSiapRevisaSelection") || "null"); } catch { saved = null; }
+    if (saved?.signature !== planningSignature() || saved.gradeKey !== catalog.gradeKey || saved.subjectKey !== catalog.subjectKey || (saved.termKey || "b4") !== catalog.termKey) return [];
+    const byCode = new Map(catalog.skills.map((skill) => [skill.code, skill]));
+    return [...new Set(Array.isArray(saved.codes) ? saved.codes : [])].map((code) => byCode.get(code)).filter(Boolean);
+  }
+
+  function revisaSkillPicker(locked = false) {
+    const catalog = revisaCatalogForCurrentLesson();
+    if (!catalog) {
+      const context = readContext();
+      const subject = String(context.subject || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+      if (!/\b[34]\s*[º°ªo]?\s*bim/i.test(context.term || "") || !/PORTUGUES|MATEMATICA|HISTORIA|GEOGRAFIA|SOCIOLOGIA|FILOSOFIA|BIOLOGIA|QUIMICA|CIENCIAS|FISICA/.test(subject) || subject.includes("EDUCACAO FISICA") || !context.grade) return "";
+      return `<p class="cm-revisa-unavailable">Revisa Goiás · ${escapeHtml(context.grade)}: caderno do professor deste bimestre e disciplina ainda não cadastrado. Envie o PDF para habilitar as habilidades.</p>`;
+    }
+    const selected = selectedRevisaSkills();
+    const chosen = new Set(selected.map((skill) => skill.code));
+    return `<div class="cm-revisa-picker"><details id="cm-revisa-details"><summary class="cm-revisa-toggle">Habilidades do Revisa Goiás · ${catalog.termKey === "b3" ? "3º" : "4º"} bimestre <span>${selected.length ? `${selected.length} selecionada(s)` : "Escolher"}</span></summary>
+      <div class="cm-revisa-list" role="group" aria-label="Habilidades do Revisa Goiás">
+        ${catalog.skills.map((skill) => `<button type="button" class="cm-revisa-skill" data-revisa-code="${escapeHtml(skill.code)}" ${chosen.has(skill.code) || locked ? "disabled" : ""}><strong>${chosen.has(skill.code) ? "✓ " : ""}${escapeHtml(skill.code)}</strong><span>${escapeHtml(skill.description)}</span><small>${skill.kind === "recomposition" ? "Recomposição" : "Currículo"}</small></button>`).join("")}
+      </div></details>
+      ${selected.length ? `<div class="cm-revisa-selected">${selected.map((skill) => `<span>${escapeHtml(skill.code)}${locked ? "" : ` <button type="button" data-revisa-remove="${escapeHtml(skill.code)}" aria-label="Remover ${escapeHtml(skill.code)}">×</button>`}</span>`).join("")}</div>` : ""}
+      <p class="cm-note">${locked ? "Para mudar as habilidades, descarte as prévias e gere novamente. " : ""}Caderno do professor · 2026. Em várias aulas, cada habilidade escolhida será usada em uma prévia; o Assistente completará as demais sem repetir. Sem escolha manual, ele distribuirá as habilidades do caderno automaticamente. As habilidades do SIAP continuam independentes.</p></div>`;
+  }
+
+  function methodologyWithRevisaSkills(value, skills, shorter = false) {
+    const concise = conciseMethodologyText(value, shorter);
+    if (!skills?.length) return concise;
+    const codes = skills.map((skill) => skill.code).join(", ");
+    const suffix = `Habilidades do Revisa Goiás: ${codes}.`;
+    const base = concisePlanningText(concise, 2, shorter ? 26 : 36);
+    return `${base} ${suffix}`.trim();
+  }
+
+  function revisaSkillsForSequence(selected, available, index) {
+    const unique = [...new Map([...selected, ...available].map((skill) => [skill.code, skill])).values()];
+    return unique[index] ? [unique[index]] : [];
+  }
+
+  function completeEvaluationText(value, shorter = false) {
+    const text = String(value || "").replace(/\s+/g, " ").trim();
+    if (!/[.!?]$/.test(text) || /\b(?:de|do|da|dos|das|em|com|por|para|e|ou)\s*[.!?]$/i.test(text)) return "";
+    return shorter ? (text.match(/^.*?[.!?](?=\s|$)/)?.[0] || text) : text;
+  }
+
+  function planningObjectiveTopics() {
+    const selected = selectedPlanningObjectives();
+    const available = planningLinks("content").map((link) => (link.textContent || link.getAttribute("title") || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    return [...new Map([...selected, ...available].map((topic) => [normalizePlanningGroup(topic), topic])).values()];
+  }
+
+  function selectedPlanningObjectives() {
+    return [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')]
+      .map((span) => (span.getAttribute("title") || span.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+  }
+
+  function selectedPlanningSkills() {
+    return [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")]
+      .filter((row) => !row.querySelector?.("th"))
+      .map((row) => (row.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+  }
+
+  function planningSelectionSnapshot() {
+    return { skills:selectedPlanningSkills(), objectives:selectedPlanningObjectives(), saeb:selectedPlanningSaeb() };
+  }
+
+  function samePlanningChoices(actual, expected, available = []) {
+    const normalize = (choices) => (choices || []).filter(Boolean).map(normalizePlanningGroup);
+    const actualLabels = normalize(actual);
+    const expectedLabels = normalize(expected);
+    const availableLabels = normalize(available);
+    if (actualLabels.length !== expectedLabels.length) return false;
+    const unmatched = [...actualLabels];
+    for (const label of expectedLabels) {
+      const exact = unmatched.indexOf(label);
+      const hierarchical = exact < 0 && availableLabels.filter((choice) => choice === label).length === 1
+        ? unmatched.findIndex((choice) => choice.startsWith(`${label} > `)) : -1;
+      const index = exact >= 0 ? exact : hierarchical;
+      if (index < 0) return false;
+      unmatched.splice(index, 1);
+    }
+    return true;
+  }
+
+  function lessonMultiPreviewIsCurrent(preview) {
+    if (!preview || preview.signature !== planningSignature() || !preview.sourceSelection ||
+      !preview.plans?.length || preview.plans.some((plan) => !Array.isArray(plan.skills) || !Array.isArray(plan.objectives))) return false;
+    if ((selectedPlanningSaeb().length || availablePlanningSaeb().length) &&
+      (!Array.isArray(preview.sourceSelection.saeb) || preview.plans.some((plan) => !Array.isArray(plan.saeb) || !plan.saeb.length))) return false;
+    const actual = planningSelectionSnapshot();
+    return JSON.stringify((preview.revisaCodes || [])) === JSON.stringify(selectedRevisaSkills().map((skill) => skill.code)) &&
+      ["skills", "objectives", "saeb"].every((key) =>
+      JSON.stringify((actual[key] || []).map(normalizePlanningGroup)) ===
+      JSON.stringify((preview.sourceSelection[key] || []).map(normalizePlanningGroup)));
+  }
+
+  function availablePlanningSaeb() {
+    return [...new Map(planningLinks("saeb").map((link) => (link.textContent || "").replace(/\s+/g, " ").trim())
+      .filter((label) => /\b(?:[1-9]\s*)?D\s*\d+\s*[-–:]/i.test(label)).map((label) => [normalizePlanningGroup(label), label])).values()];
+  }
+
+  function planningTopicForSequence(available, index, selected = []) {
+    const options = [...new Map(available.filter(Boolean).map((value) => [normalizePlanningGroup(value), value])).values()];
+    if (!options.length) return selected[0] || "";
+    const matches = (value, option) => samePlanningChoices([value], [option], available);
+    const remaining = options.filter((option) => !selected.some((value) => matches(value, option)));
+    if (selected.length && index === 0) return selected[0];
+    if (!remaining.length) return selected[0] || options[index % options.length];
+    return remaining[(index - (selected.length ? 1 : 0) + remaining.length) % remaining.length];
+  }
+
+  function getLessonMultiPreview() {
+    return readStoredJson("assistenteSiapLessonMultiPreview");
+  }
+
+  function getReusableLessonPlans() {
+    return readStoredJson("assistenteSiapReusableLessonPlans");
+  }
+
+  function concisePlanningText(value, maxSentences, maxWords) {
+    const sentences = String(value || "").replace(/\s+/g, " ").trim().match(/[^.!?]+[.!?]?/g) || [];
+    let result = sentences.slice(0, maxSentences).map((sentence) => sentence.trim()).join(" ").trim();
+    const words = result.split(/\s+/).filter(Boolean);
+    if (words.length > maxWords) result = `${words.slice(0, maxWords).join(" ").replace(/[,;:]+$/, "")}.`;
+    return result;
+  }
+
+  function conciseMethodologyText(value, shorter = false) {
+    return concisePlanningText(value, 3, shorter ? 30 : 45);
+  }
+
+  function updateLessonMultiProgress(completed, total, state = "running") {
+    const safeTotal = Math.max(1, Number(total) || 1);
+    const safeCompleted = Math.max(0, Math.min(safeTotal, Number(completed) || 0));
+    const previous = model.lessonMultiProgress;
+    if (previous?.state === "running" && state === "running" && previous.total === safeTotal) completed = Math.max(safeCompleted, previous.completed);
+    else completed = safeCompleted;
+    total = safeTotal;
+    model.lessonMultiProgress = { completed, total, state };
+    const progress = panel.querySelector("#cm-multi-progress");
+    if (!progress) return;
+    const percentage = Math.round((completed / total) * 100);
+    progress.hidden = false;
+    progress.dataset.state = state;
+    progress.querySelector(".cm-multi-progress-label").textContent = state === "complete" ? "✓ Prévias concluídas" : state === "error" ? "Geração interrompida" : "Gerando prévias";
+    progress.querySelector(".cm-multi-progress-count").textContent = `${completed} de ${total} · ${percentage}%`;
+    const bar = progress.querySelector("[role='progressbar']");
+    bar.setAttribute("aria-valuemax", String(total));
+    bar.setAttribute("aria-valuenow", String(completed));
+    bar.querySelector(".cm-multi-progress-fill").style.width = `${percentage}%`;
+  }
+
+  function lessonMultiPreviewCard(preview, currentLesson, topics, batch) {
+    if (batch?.mode === "lesson-sequence") return `<div class="cm-alert"><strong>${batch.paused ? (batch.phase === "manual" ? "Execução interrompida no SIAP" : "Sequência pausada") : "Aplicando planejamentos"}</strong><br>Aula ${escapeHtml(batch.current?.lesson || currentLesson)} · planejamento ${escapeHtml(Math.min((batch.index || 0) + 1, batch.plans?.length || 1))} de ${escapeHtml(batch.plans?.length || 0)}. ${batch.paused && batch.phase === "manual" ? escapeHtml(batch.pauseMessage || "Veja o motivo em Atividade desta página.") : "As prévias já foram revisadas; cada aula será aplicada em sequência."}</div><div class="cm-actions"><button class="cm-btn" data-action="batch-toggle">${batch.paused ? "Continuar" : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>`;
+    const valid = lessonMultiPreviewIsCurrent(preview);
+    const stalePreview = !valid && Boolean(preview?.plans?.length);
+    const reusable = getReusableLessonPlans();
+    const context = readContext();
+    const thematicUnit = document.getElementById("ddlEixo")?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const canReuse = !valid && reusable?.plans?.length && reusable.plans.every((plan) => Array.isArray(plan.skills) && Array.isArray(plan.objectives) &&
+      canonicalClassroom(plan.classroom) === canonicalClassroom(reusable.plans[0].classroom)) &&
+      normalizePlanningGroup(reusable.grade) === normalizePlanningGroup(context.grade) &&
+      normalizePlanningGroup(reusable.subject) === normalizePlanningGroup(context.subject) &&
+      normalizePlanningGroup(reusable.thematicUnit) === normalizePlanningGroup(thematicUnit) &&
+      canonicalClassroom(reusable.classroom) !== canonicalClassroom(context.classroom) &&
+      reusable.plans.every((plan) => topics.some((topic) => normalizePlanningGroup(topic) === normalizePlanningGroup(plan.topic)));
+    return `<h4 class="cm-plan-section-title">Planejar várias aulas</h4>
+      <p class="cm-note">A partir da aula ${escapeHtml(currentLesson)} · ${topics.length} objetivo(s) disponível(is) no SIAP.</p>
+      ${stalePreview ? `<div class="cm-alert">Há prévias guardadas nesta aba, mas a aula ou as escolhas do SIAP mudaram. Descarte as prévias para gerar novamente.</div><div class="cm-actions"><button class="cm-btn" data-action="multi-preview-discard">Descartar prévias</button></div>` : ""}
+      ${valid ? `<div id="cm-multi-progress" class="cm-multi-progress" data-state="complete" role="status"><div class="cm-multi-progress-heading"><span class="cm-multi-progress-label">✓ Prévias concluídas</span><strong class="cm-multi-progress-count">${preview.plans.length} de ${preview.plans.length} · 100%</strong></div><div class="cm-multi-progress-track" role="progressbar" aria-label="Prévias concluídas" aria-valuemin="0" aria-valuemax="${preview.plans.length}" aria-valuenow="${preview.plans.length}"><div class="cm-multi-progress-fill" style="width:100%"></div></div></div><div class="cm-alert"><strong>${preview.plans.length} prévia(s) editável(is)</strong><br>Quadradinhos previstos: ${preview.plans.map((plan) => `${escapeHtml(plan.classroom)} · aula ${escapeHtml(plan.lesson)}`).join("; ")}. Confira os objetivos e textos antes de aplicar.</div><div class="cm-actions"><button class="cm-btn" data-action="multi-preview-clear" title="Apaga estas prévias e permite escolher outra quantidade de aulas.">Alterar quantidade</button><button class="cm-btn" data-action="multi-preview-discard" title="Exclui as prévias desta aba sem modificar aulas já salvas no SIAP.">Descartar prévias</button></div>${preview.plans.every((plan) => canonicalClassroom(plan.classroom) === canonicalClassroom(preview.plans[0].classroom)) ? `<div class="cm-actions"><button class="cm-btn cm-full" data-action="multi-reuse-save">Guardar para outra turma compatível</button></div>` : ""}<p id="cm-multi-feedback" class="cm-multi-feedback" role="status" hidden></p>` : `<label class="cm-field cm-multi-count-field"><span>Quantidade de aulas</span><span class="cm-multi-stepper"><button type="button" data-action="multi-count-down" aria-label="Diminuir quantidade de aulas">−</button><input id="cm-multi-count" type="number" min="1" max="20" value="1" aria-label="Quantidade de aulas"><button type="button" data-action="multi-count-up" aria-label="Aumentar quantidade de aulas">+</button></span><small>Até 20 quadradinhos brancos da mesma série e disciplina, começando pela aula ${escapeHtml(currentLesson)}. O Assistente consulta as próximas quinzenas quando necessário. Nenhuma aula é salva ao gerar as prévias.</small></label><div id="cm-multi-progress" class="cm-multi-progress" data-state="running" role="status" hidden><div class="cm-multi-progress-heading"><span class="cm-multi-progress-label">Gerando prévias</span><strong class="cm-multi-progress-count">0 de 1 · 0%</strong></div><div class="cm-multi-progress-track" role="progressbar" aria-label="Prévias geradas" aria-valuemin="0" aria-valuemax="1" aria-valuenow="0"><div class="cm-multi-progress-fill" style="width:0%"></div></div></div><div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="multi-preview-generate" ${topics.length ? "" : "disabled"}>Gerar prévias editáveis</button></div>${canReuse ? `<div class="cm-actions"><button class="cm-btn cm-full" data-action="multi-reuse-load">Carregar ${reusable.plans.length} aula(s) da turma ${escapeHtml(reusable.classroom)}</button></div>` : ""}`}`;
+  }
+
+  function lessonMultiPreviewDetails(preview) {
+    if (!lessonMultiPreviewIsCurrent(preview) || !preview.plans?.length) return "";
+    return `<div class="cm-multi-preview-details"><h4 class="cm-plan-section-title">Prévias editáveis</h4>
+      ${preview.plans.map((plan, index) => `<article class="cm-preview-plan"><strong>${escapeHtml(plan.classroom)} · Aula ${escapeHtml(plan.lesson)}</strong><small>${escapeHtml(plan.grade)} · ${escapeHtml(plan.subject)}${plan.periodLabel ? ` · ${escapeHtml(plan.periodLabel)}` : ""}</small><div class="cm-preview-curriculum"><span>Habilidade${(plan.skills || [plan.skill]).filter(Boolean).length > 1 ? "s" : ""} ${plan.skillSource === "teacher" ? "escolhida pelo professor" : plan.skillSource === "mixed" ? "do professor + escolha do Assistente" : "selecionada pelo Assistente"}</span><p>${escapeHtml((plan.skills || [plan.skill]).filter(Boolean).join(" · ") || "Não identificada")}</p><span>Objetivo${(plan.objectives || [plan.topic]).filter(Boolean).length > 1 ? "s" : ""} ${plan.objectiveSource === "teacher" ? "escolhido pelo professor" : plan.objectiveSource === "mixed" ? "do professor + escolha do Assistente" : "selecionado pelo Assistente"}</span><p>${escapeHtml((plan.objectives || [plan.topic]).filter(Boolean).join(" · "))}</p>${plan.saeb?.length ? `<span>Matriz SAEB ${plan.saebSource === "teacher" ? "selecionada pelo professor" : "selecionada pelo Assistente"}</span><p>${escapeHtml(plan.saeb.join(" · "))}</p>` : ""}${plan.revisaSkills?.length ? `<span>Habilidades do Revisa Goiás ${plan.revisaSource === "assistant" ? "selecionadas pelo Assistente" : "escolhidas pelo professor"}</span><p>${escapeHtml(plan.revisaSkills.map((skill) => `${skill.code} — ${skill.description}`).join(" · "))}</p>` : ""}</div><label class="cm-field"><span>Metodologia</span><textarea rows="4" maxlength="1200" data-multi-index="${index}" data-multi-field="2">${escapeHtml(plan.fields[2])}</textarea></label><label class="cm-field"><span>Avaliação</span><textarea rows="3" maxlength="800" data-multi-index="${index}" data-multi-field="3">${escapeHtml(plan.fields[3])}</textarea></label></article>`).join("")}</div>`;
+  }
+
+  function clearLessonMultiPreview() {
+    const count = getLessonMultiPreview()?.plans?.length || 1;
+    sessionStorage.removeItem("assistenteSiapLessonMultiPreview");
+    model.lessonMultiProgress = null;
+    model.planningActionFeedback = "";
+    render();
+    const input = panel.querySelector("#cm-multi-count");
+    if (input) {
+      input.value = String(count);
+      input.scrollIntoView({ block:"center", behavior:"smooth" });
+      input.focus({ preventScroll:true });
+    }
+  }
+
+  function discardLessonMultiPreview() {
+    sessionStorage.removeItem("assistenteSiapLessonMultiPreview");
+    model.lessonMultiProgress = null;
+    model.planningActionFeedback = "";
+    render();
+    addLog("Prévias descartadas nesta aba. Nenhuma aula do SIAP foi alterada.");
+  }
+
+  async function generateLessonMultiPreview() {
+    if (model.lessonMultiProgress?.state === "running") return;
+    model.planningActionFeedback = "";
+    const currentLesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value);
+    const requestedCount = Number(panel.querySelector("#cm-multi-count")?.value);
+    const topics = planningObjectiveTopics();
+    if (!Number.isInteger(currentLesson) || currentLesson < 1 || !Number.isInteger(requestedCount) || requestedCount < 1 || requestedCount > 20 || !topics.length) {
+      return addLog("Informe de 1 a 20 aulas e confira os objetivos disponíveis no SIAP.");
+    }
+    const signature = planningSignature();
+    const context = readContext();
+    const selectedAxis = document.getElementById("ddlEixo");
+    const thematicUnit = selectedAxis?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const thematicUnitValue = selectedAxis?.value || "";
+    const sourceSelection = planningSelectionSnapshot();
+    const availableSkills = planningLinks("skill").map((link) => (link.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const availableObjectives = planningLinks("content").map((link) => (link.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean);
+    const fallbackSkill = sourceSelection.skills[0] || availableSkills[0] || "";
+    if (!fallbackSkill) return addLog("Não foi possível identificar uma habilidade para as prévias. Confira as opções do SIAP.");
+    const selectedSaeb = sourceSelection.saeb;
+    const availableSaeb = availablePlanningSaeb();
+    const concisePlanning = panel.querySelector('[data-plan-option="concisePlanning"]')?.getAttribute("aria-pressed") === "true";
+    const conciseMethodology = concisePlanning || panel.querySelector('[data-plan-option="conciseMethodology"]')?.getAttribute("aria-pressed") === "true";
+    const conciseEvaluation = concisePlanning || panel.querySelector('[data-plan-option="conciseEvaluation"]')?.getAttribute("aria-pressed") === "true";
+    const guidance = panel.querySelector("#cm-plan-guidance")?.value.trim() || "";
+    const revisaSkills = selectedRevisaSkills();
+    const revisaCodes = revisaSkills.map((skill) => skill.code);
+    if (`Habilidades do Revisa Goiás: ${revisaCodes.join(", ")}.`.length > 800) return addLog("Há habilidades do Revisa demais para o campo de metodologia do SIAP. Reduza a seleção antes de gerar as prévias.");
+    const button = panel.querySelector('[data-action="multi-preview-generate"]');
+    if (button) button.disabled = true;
+    updateLessonMultiProgress(0, requestedCount);
+    let completed = 0;
+    let count = requestedCount;
+    try {
+      const slots = await planningSlotsForLesson(context, currentLesson, requestedCount);
+      if (!slots.length) throw new Error("Nenhum quadradinho em branco foi encontrado para esta série e disciplina.");
+      count = slots.length;
+      const revisaCatalog = revisaCatalogForCurrentLesson();
+      if (revisaCatalog && count > new Set(revisaCatalog.skills.map((skill) => skill.code)).size)
+        throw new Error("O caderno Revisa Goiás tem menos habilidades distintas do que aulas solicitadas. Reduza a quantidade para manter uma habilidade diferente por aula.");
+      updateLessonMultiProgress(0, count);
+      const plans = new Array(count);
+      let nextIndex = 0;
+      await Promise.all(Array.from({ length:Math.min(2, count) }, async () => {
+        while (nextIndex < count) {
+          const index = nextIndex++;
+          const slot = slots[index];
+          const topic = planningTopicForSequence(availableObjectives, index, sourceSelection.objectives);
+          const skill = planningTopicForSequence(availableSkills, index, sourceSelection.skills);
+          const objectives = index === 0 && sourceSelection.objectives.length ? [...sourceSelection.objectives] : [topic];
+          const skills = index === 0 && sourceSelection.skills.length ? [...sourceSelection.skills] : [skill || fallbackSkill];
+          const planSaeb = selectedSaeb.length ? [...selectedSaeb] : availableSaeb.length ? [availableSaeb[index % availableSaeb.length]] : [];
+          const planRevisaSkills = count === 1 && revisaSkills.length ? revisaSkills : revisaSkillsForSequence(revisaSkills, revisaCatalog?.skills || [], index);
+          const planRevisaCodes = planRevisaSkills.map((item) => item.code);
+          const draftPayload = {
+            kind:"planning", grade:slot.grade || "", subject:slot.subject || "", period:context.term || "",
+            thematicUnit,
+            lessonSequence:Number(slot.lesson), selectedSkills:skills, selectedContents:objectives,
+            selectedSaeb:planSaeb, saebAvailable:Boolean(availableSaeb.length || planSaeb.length),
+            guidance:[guidance, planRevisaSkills.length ? `Integre à metodologia a habilidade do Revisa Goiás ${planRevisaCodes.join(", ")}, conforme o contexto educacional enviado. Mantenha as ações da aula objetivas.` : "", `Escreva a metodologia em até três frases e ${conciseMethodology ? 30 : 45} palavras.`,
+              index >= topics.length ? "Aprofunde este objetivo em relação às aulas anteriores." : ""].filter(Boolean).join(" "),
+            educationalContext:planRevisaSkills.length ? `Habilidade do caderno do professor Revisa Goiás, ${revisaCatalogForCurrentLesson()?.termKey === "b3" ? "3º" : "4º"} bimestre de 2026: ${planRevisaSkills.map((item) => `${item.code} — ${item.description}`).join("; ")}` : "",
+            conciseMethodology, conciseEvaluation, tense:"planned"
+          };
+          let fields = [];
+          for (let attempt = 0; attempt < 2; attempt++) {
+            const result = await chrome.runtime.sendMessage({ type:"ASSISTENTE_SIAP_AI_DRAFT", payload:attempt
+              ? { ...draftPayload, guidance:`${draftPayload.guidance} A avaliação anterior terminou incompleta. Entregue uma frase completa, com procedimento e aprendizagem a observar.` }
+              : draftPayload });
+            if (!result?.ok || !Array.isArray(result.fields) || result.fields.length !== 4) throw new Error(result?.message || `Falha na prévia da aula ${slot.lesson} da turma ${slot.classroom}.`);
+            fields = result.fields.map((field) => String(field || "").trim());
+            fields[3] = completeEvaluationText(fields[3], conciseEvaluation);
+            if (fields[3]) break;
+          }
+          if (!fields[3]) throw new Error(`A avaliação da aula ${slot.lesson} veio incompleta. Nenhuma aula foi salva.`);
+          if (concisePlanning) fields[1] = concisePlanningText(fields[1], 1, 30);
+          fields[2] = methodologyWithRevisaSkills(fields[2], planRevisaSkills, conciseMethodology);
+          plans[index] = { lesson:Number(slot.lesson), periodValue:slot.periodValue, periodLabel:slot.periodLabel || "", classCode:slot.classCode || "", topic, objectives, objectiveSource:index === 0 && sourceSelection.objectives.length ? "teacher" : "assistant", skill:skill || skills[0], skills, skillSource:index === 0 && sourceSelection.skills.length ? "teacher" : "assistant", saeb:planSaeb, saebSource:selectedSaeb.length ? "teacher" : planSaeb.length ? "assistant" : "none", revisaSkills:planRevisaSkills, revisaSource:index < revisaSkills.length ? "teacher" : planRevisaSkills.length ? "assistant" : "none", thematicUnit, thematicUnitValue, grade:slot.grade, subject:slot.subject, classroom:slot.classroom, fields };
+          updateLessonMultiProgress(++completed, count);
+        }
+      }));
+      if (signature !== planningSignature() || JSON.stringify(revisaCodes) !== JSON.stringify(selectedRevisaSkills().map((skill) => skill.code)) || ["skills", "objectives", "saeb"].some((key) => JSON.stringify(sourceSelection[key].map(normalizePlanningGroup)) !== JSON.stringify(planningSelectionSnapshot()[key].map(normalizePlanningGroup)))) throw new Error("A aula ou as escolhas mudaram durante a geração. Gere as prévias novamente.");
+      sessionStorage.setItem("assistenteSiapLessonMultiPreview", JSON.stringify({ signature, sourceSelection, revisaCodes, plans, guidance, concisePlanning, conciseMethodology, conciseEvaluation }));
+      updateLessonMultiProgress(count, count, "complete");
+      render();
+      addLog(`${plans.length} prévia(s) gerada(s) para quadradinhos em branco${count < requestedCount ? `; havia somente ${count} aula(s) disponível(is) nesta e nas próximas quinzenas` : ""}. Nenhuma aula foi salva.`);
+    } catch (error) {
+      updateLessonMultiProgress(completed || 0, count, "error");
+      addLog(error?.message || "Não foi possível gerar as prévias. Nenhuma aula foi salva.");
+    } finally {
+      setOperationStatus("");
+      if (button?.isConnected) button.disabled = false;
+    }
+  }
+
+  function saveReusableLessonPlans() {
+    const preview = getLessonMultiPreview();
+    if (!preview?.plans?.length || preview.signature !== planningSignature()) return addLog("Revise as prévias desta aula antes de guardá-las.");
+    if (!preview.plans.every((plan) => canonicalClassroom(plan.classroom) === canonicalClassroom(preview.plans[0].classroom)))
+      return addLog("As prévias abrangem turmas diferentes e não podem ser reutilizadas como sequência de uma única turma.");
+    const first = preview.plans[0];
+    sessionStorage.setItem("assistenteSiapReusableLessonPlans", JSON.stringify({
+      grade:first.grade, subject:first.subject, classroom:first.classroom, thematicUnit:first.thematicUnit, plans:preview.plans,
+      guidance:preview.guidance, concisePlanning:preview.concisePlanning,
+      conciseMethodology:preview.conciseMethodology, conciseEvaluation:preview.conciseEvaluation
+    }));
+    addLog(`${preview.plans.length} planejamento(s) guardado(s) nesta aba para outra turma compatível.`);
+    const feedback = panel.querySelector("#cm-multi-feedback");
+    if (feedback) {
+      feedback.textContent = `✓ ${preview.plans.length} planejamento(s) guardado(s) para outra turma compatível.`;
+      feedback.hidden = false;
+    }
+  }
+
+  function loadReusableLessonPlans() {
+    const reusable = getReusableLessonPlans();
+    if (reusable?.plans?.length && !reusable.plans.every((plan) => canonicalClassroom(plan.classroom) === canonicalClassroom(reusable.plans[0].classroom)))
+      return addLog("Este lote guardado abrange turmas diferentes e não pode ser carregado como sequência de uma turma.");
+    const context = readContext();
+    const topics = planningObjectiveTopics().map(normalizePlanningGroup);
+    const thematicUnit = document.getElementById("ddlEixo")?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const skills = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")].map((row) => row.textContent.trim())
+      .concat(planningLinks("skill").map((link) => link.textContent.trim())).map(normalizePlanningGroup);
+    const valid = reusable?.plans?.length && reusable.plans.every((plan) => Array.isArray(plan.skills) && Array.isArray(plan.objectives)) &&
+      normalizePlanningGroup(reusable.grade) === normalizePlanningGroup(context.grade) &&
+      normalizePlanningGroup(reusable.subject) === normalizePlanningGroup(context.subject) &&
+      normalizePlanningGroup(reusable.thematicUnit) === normalizePlanningGroup(thematicUnit) &&
+      canonicalClassroom(reusable.classroom) !== canonicalClassroom(context.classroom) &&
+      reusable.plans.every((plan) => topics.includes(normalizePlanningGroup(plan.topic)) &&
+        (!plan.skill || skills.includes(normalizePlanningGroup(plan.skill))));
+    if (!valid) return addLog("Esta turma não apresenta a mesma série, disciplina, habilidade e objetivos do lote guardado.");
+    const currentLesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value);
+    if (!Number.isInteger(currentLesson) || currentLesson < 1) return addLog("Número da aula não identificado no SIAP.");
+    const plans = reusable.plans.map((plan, index) => ({ ...plan, lesson:currentLesson + index, classroom:context.classroom }));
+    sessionStorage.setItem("assistenteSiapLessonMultiPreview", JSON.stringify({
+      signature:planningSignature(), sourceSelection:planningSelectionSnapshot(), plans, guidance:reusable.guidance,
+      concisePlanning:reusable.concisePlanning, conciseMethodology:reusable.conciseMethodology,
+      conciseEvaluation:reusable.conciseEvaluation
+    }));
+    render();
+    addLog(`${plans.length} prévia(s) carregada(s) para a turma ${context.classroom}. Revise antes de aplicar.`);
+  }
+
   function planningLessonCard() {
     const methodology = document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia");
     const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
@@ -988,22 +1599,33 @@
     const saebAvailable = Boolean(saebCount || planningLinks("saeb").length);
     const ready = methodology instanceof HTMLTextAreaElement && evaluation instanceof HTMLTextAreaElement;
     const batch = getPlanningBatch();
+    const preview = getLessonMultiPreview();
+    const hasMultiPreview = !batch && lessonMultiPreviewIsCurrent(preview) && Boolean(preview.plans?.length);
+    const savedGuidance = readStoredJson("assistenteSiapPlanningGuidanceDraft");
+    const guidanceDraft = savedGuidance?.signature === planningSignature() ? savedGuidance : {};
+    const guidanceLines = String(guidanceDraft.value || "").split(/\r?\n/);
+    const legacyMethodology = guidanceLines.some((line) => line.trim().toLowerCase() === "faça a metodologia curta e sucinta.");
+    const legacyEvaluation = guidanceLines.some((line) => line.trim().toLowerCase() === "faça a avaliação curta e sucinta.");
+    const guidanceText = guidanceLines.filter((line) => !["faça a metodologia curta e sucinta.", "faça a avaliação curta e sucinta."].includes(line.trim().toLowerCase())).join("\n").trim();
     return `<section class="cm-card"><h3>Assistente de planejamento</h3>
-      ${batch ? `<div class="cm-alert"><strong>${batch.previewOnly ? "Gerando somente a prévia — nenhuma aula será salva" : (batch.paused ? "Aguardando sua revisão" : "Lote em andamento")}</strong><br>${escapeHtml(batch.current?.grade || "")} · ${escapeHtml(batch.current?.subject || "")} · ${escapeHtml(batch.current?.classroom || "")} · Aula ${escapeHtml(batch.current?.lesson || "")}</div>
+      ${batch && batch.mode !== "lesson-sequence" ? `<div class="cm-alert"><strong>${batch.previewOnly ? "Gerando somente a prévia — nenhuma aula será salva" : (batch.paused ? "Aguardando sua revisão" : "Lote em andamento")}</strong><br>${escapeHtml(batch.current?.grade || "")} · ${escapeHtml(batch.current?.subject || "")} · ${escapeHtml(batch.current?.classroom || "")} · Aula ${escapeHtml(batch.current?.lesson || "")}</div>
       ${batch.paused && batch.phase === "review" ? `<label class="cm-check"><input id="cm-batch-lesson-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação desta aula.</span></label>` : ""}
       <div class="cm-actions"><button class="cm-btn" data-action="batch-toggle" ${batch.paused && batch.phase === "review" ? "disabled" : ""}>${batch.paused ? (batch.phase === "review" ? "Salvar esta aula e continuar" : "Retomar leitura") : "Pausar"}</button><button class="cm-btn" data-action="batch-stop">Parar</button></div>` : ""}
       <span class="cm-badge ${ready ? "cm-green" : "cm-red"}">${ready ? "Estrutura reconhecida" : "Estrutura divergente"}</span>
       <p class="cm-note">Habilidades selecionadas: ${skillCount} · Conteúdos selecionados: ${contentCount}${saebAvailable ? ` · Matriz SAEB: ${saebCount}` : ""}.</p>
       <div class="cm-alert">Você pode pedir o planejamento sem escolher nada antes. O Assistente selecionará a unidade temática, a habilidade, o conteúdo e, quando houver, a Matriz SAEB. Se você já escolheu uma ou mais opções, elas serão preservadas; o Assistente completará somente as escolhas ausentes.</div>
-      <label class="cm-field"><span>Orientação opcional para a IA</span><textarea id="cm-plan-guidance" maxlength="1000" rows="3" placeholder="Ex.: usar datashow; metodologia mais elaborada; avaliação curta.">${escapeHtml(readStoredJson("assistenteSiapPlanningGuidanceDraft")?.signature === planningSignature() ? readStoredJson("assistenteSiapPlanningGuidanceDraft")?.value || "" : "")}</textarea></label>
-      <label class="cm-check"><input id="cm-plan-confirm" type="checkbox"><span>Autorizo completar as seleções ausentes e gerar metodologia e avaliação para esta aula. A IA substituirá os textos atuais desses dois campos; revisarei antes de salvar.</span></label>
-      <label class="cm-check"><input id="cm-plan-auto-save-replicate" type="checkbox"><span><strong>Salvar e replicar automaticamente, sem revisão.</strong><br><small>Após completar o planejamento, o assistente confirmará a replicação oferecida pelo SIAP: próxima aula da mesma turma ou todas as turmas compatíveis. Se nenhuma turma estiver disponível, salvará somente esta aula.</small></span></label>
-      <div class="cm-actions"><button class="cm-btn cm-full cm-primary" data-action="plan-ai-draft" disabled>Completar com IA</button></div>
-      <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-draft" disabled>Modelo local · preencher campos vazios</button></div>
-      <hr>
-      <label class="cm-check"><input id="cm-plan-save-confirm" type="checkbox"><span>Revisei habilidade, conteúdo, descrição, metodologia e avaliação.</span></label>
-      <label class="cm-check"><input id="cm-plan-replicate" type="checkbox"><span>Salvar e confirmar a replicação oferecida pelo SIAP nesta ação.</span></label>
-      <div class="cm-actions"><button class="cm-btn cm-full" data-action="plan-save" disabled>Salvar planejamento revisado</button></div>
+      <h4 class="cm-plan-section-title">Personalizar textos</h4>
+      <div class="cm-plan-options" role="group" aria-label="Formato dos textos gerados">
+        <button type="button" class="cm-plan-option" data-plan-option="concisePlanning" aria-pressed="${guidanceDraft.concisePlanning === true}" data-tip="Limita a descrição do conteúdo, a metodologia e a avaliação a textos objetivos e curtos." aria-description="Limita a descrição do conteúdo, a metodologia e a avaliação a textos objetivos e curtos.">Planejamento curto</button>
+        <button type="button" class="cm-plan-option" data-plan-option="conciseMethodology" aria-pressed="${guidanceDraft.conciseMethodology === true || legacyMethodology}" data-tip="Gera uma metodologia mais breve, mantendo as etapas essenciais de como a aula será realizada." aria-description="Gera uma metodologia mais breve, mantendo as etapas essenciais de como a aula será realizada.">Metodologia curta</button>
+        <button type="button" class="cm-plan-option" data-plan-option="conciseEvaluation" aria-pressed="${guidanceDraft.conciseEvaluation === true || legacyEvaluation}" data-tip="Gera uma avaliação em uma frase breve, indicando como será feita e o que será observado na aprendizagem." aria-description="Gera uma avaliação em uma frase breve, indicando como será feita e o que será observado na aprendizagem.">Avaliação curta</button>
+      </div>
+      <label class="cm-field cm-plan-guidance"><span>Sugestão para metodologia e avaliação (opcional)</span><textarea id="cm-plan-guidance" maxlength="1000" rows="2" placeholder="Ex.: usar datashow na metodologia; avaliar com perguntas orais.">${escapeHtml(guidanceText)}</textarea></label>
+      ${!batch ? revisaSkillPicker(hasMultiPreview) : ""}
+      ${!batch || batch.mode === "lesson-sequence" ? lessonMultiPreviewCard(preview, Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value) || 1, planningObjectiveTopics(), batch) : ""}
+      ${!batch ? lessonMultiPreviewDetails(preview) : ""}
+      ${model.planningActionFeedback ? `<p class="cm-plan-action-feedback" role="alert">${escapeHtml(model.planningActionFeedback)}</p>` : ""}
+      ${hasMultiPreview ? `<div class="cm-final-actions" role="group" aria-label="Aplicar planejamento revisado"><button type="button" class="cm-btn cm-apply-reviewed" data-action="plan-apply-save">APLICAR E SALVAR</button><button type="button" class="cm-btn cm-apply-reviewed cm-apply-replicate" data-action="plan-apply-replicate">APLICAR E REPLICAR</button></div>` : ""}
     </section>`;
   }
 
@@ -1052,7 +1674,7 @@
   }
 
   function bindPanelEvents() {
-    panel.querySelector('[data-action="analyze"]')?.addEventListener("click", analyze);
+    panel.querySelector('[data-action="analyze"]')?.addEventListener("click", analyzeOnDemand);
     panel.querySelector('[data-action="select-all"]')?.addEventListener("click", () => panel.querySelectorAll("[data-day]").forEach((input) => { input.checked = true; }));
     panel.querySelector('[data-action="start"]')?.addEventListener("click", reviewRun);
     const peiConfirm = panel.querySelector("#cm-pei-confirm");
@@ -1067,22 +1689,64 @@
     if (peiConfirm) updatePeiButtons();
     peiDraft?.addEventListener("click", generatePeiDraft);
     peiAiDraft?.addEventListener("click", generatePeiAiDraft);
-    const planConfirm = panel.querySelector("#cm-plan-confirm");
     const planDraft = panel.querySelector('[data-action="plan-draft"]');
     const planAiDraft = panel.querySelector('[data-action="plan-ai-draft"]');
-    panel.querySelector("#cm-plan-guidance")?.addEventListener("input", (event) => {
-      sessionStorage.setItem("assistenteSiapPlanningGuidanceDraft", JSON.stringify({ signature:planningSignature(), value:event.currentTarget.value }));
+    const savePlanningGuidanceDraft = () => sessionStorage.setItem("assistenteSiapPlanningGuidanceDraft", JSON.stringify({
+      signature:planningSignature(),
+      value:panel.querySelector("#cm-plan-guidance")?.value || "",
+      concisePlanning:panel.querySelector('[data-plan-option="concisePlanning"]')?.getAttribute("aria-pressed") === "true",
+      conciseMethodology:panel.querySelector('[data-plan-option="conciseMethodology"]')?.getAttribute("aria-pressed") === "true",
+      conciseEvaluation:panel.querySelector('[data-plan-option="conciseEvaluation"]')?.getAttribute("aria-pressed") === "true"
+    }));
+    panel.querySelector("#cm-plan-guidance")?.addEventListener("input", savePlanningGuidanceDraft);
+    panel.querySelectorAll("[data-revisa-code]").forEach((button) => button.addEventListener("click", () => {
+      const catalog = revisaCatalogForCurrentLesson();
+      if (!catalog || !catalog.skills.some((skill) => skill.code === button.dataset.revisaCode)) return;
+      const codes = [...selectedRevisaSkills().map((skill) => skill.code), button.dataset.revisaCode];
+      sessionStorage.setItem("assistenteSiapRevisaSelection", JSON.stringify({ signature:planningSignature(), termKey:catalog.termKey, gradeKey:catalog.gradeKey, subjectKey:catalog.subjectKey, codes }));
+      panel.querySelector("#cm-revisa-details").open = false;
+      render();
+    }));
+    panel.querySelectorAll("[data-revisa-remove]").forEach((button) => button.addEventListener("click", () => {
+      const catalog = revisaCatalogForCurrentLesson();
+      if (!catalog) return;
+      const codes = selectedRevisaSkills().filter((skill) => skill.code !== button.dataset.revisaRemove).map((skill) => skill.code);
+      sessionStorage.setItem("assistenteSiapRevisaSelection", JSON.stringify({ signature:planningSignature(), termKey:catalog.termKey, gradeKey:catalog.gradeKey, subjectKey:catalog.subjectKey, codes }));
+      render();
+    }));
+    panel.querySelector('[data-action="multi-preview-generate"]')?.addEventListener("click", generateLessonMultiPreview);
+    panel.querySelectorAll('[data-action="multi-count-down"], [data-action="multi-count-up"]').forEach((button) => button.addEventListener("click", () => {
+      const input = panel.querySelector("#cm-multi-count");
+      if (!input) return;
+      const value = Number(input.value);
+      input.value = String(Math.max(1, Math.min(20, (Number.isInteger(value) ? value : 1) + (button.dataset.action === "multi-count-up" ? 1 : -1))));
+      input.focus();
+    }));
+    panel.querySelector('[data-action="multi-reuse-save"]')?.addEventListener("click", saveReusableLessonPlans);
+    panel.querySelector('[data-action="multi-reuse-load"]')?.addEventListener("click", loadReusableLessonPlans);
+    panel.querySelector('[data-action="multi-preview-clear"]')?.addEventListener("click", clearLessonMultiPreview);
+    panel.querySelector('[data-action="multi-preview-discard"]')?.addEventListener("click", discardLessonMultiPreview);
+    panel.querySelectorAll("[data-multi-index][data-multi-field]").forEach((input) => input.addEventListener("input", updateLessonMultiPreview));
+    const planChoiceIsActive = (button) => button?.getAttribute("aria-pressed") === "true";
+    const togglePlanChoice = (button) => {
+      if (!button) return;
+      button.setAttribute("aria-pressed", String(!planChoiceIsActive(button)));
+      hidePlanningTooltip();
+    };
+    panel.querySelectorAll(".cm-plan-option").forEach((button) => {
+      button.addEventListener("mouseenter", () => showPlanningTooltip(button));
+      button.addEventListener("focus", () => showPlanningTooltip(button));
+      button.addEventListener("mouseleave", hidePlanningTooltip);
+      button.addEventListener("blur", hidePlanningTooltip);
     });
-    planConfirm?.addEventListener("change", () => {
-      if (planDraft) planDraft.disabled = !planConfirm.checked;
-      if (planAiDraft) planAiDraft.disabled = !planConfirm.checked;
-    });
+    panel.querySelectorAll("[data-plan-option]").forEach((button) => button.addEventListener("click", () => {
+      togglePlanChoice(button);
+      savePlanningGuidanceDraft();
+    }));
     planDraft?.addEventListener("click", () => startPlanningFlow("local"));
     planAiDraft?.addEventListener("click", () => startPlanningFlow("ai"));
-    const saveConfirm = panel.querySelector("#cm-plan-save-confirm");
-    const saveButton = panel.querySelector('[data-action="plan-save"]');
-    saveConfirm?.addEventListener("change", () => { if (saveButton) saveButton.disabled = !saveConfirm.checked; });
-    saveButton?.addEventListener("click", savePlanning);
+    panel.querySelector('[data-action="plan-apply-save"]')?.addEventListener("click", () => applyReviewedPlanning(false));
+    panel.querySelector('[data-action="plan-apply-replicate"]')?.addEventListener("click", () => applyReviewedPlanning(true));
     const batchConfirm = panel.querySelector("#cm-batch-confirm");
     const batchStart = panel.querySelector('[data-action="batch-start"]');
     batchConfirm?.addEventListener("change", () => { if (batchStart) batchStart.disabled = !batchConfirm.checked; });
@@ -1504,6 +2168,449 @@
     }
   }
 
+  function updateLessonMultiPreview(event) {
+    const preview = getLessonMultiPreview();
+    const index = Number(event.currentTarget.dataset.multiIndex);
+    const field = Number(event.currentTarget.dataset.multiField);
+    if (!preview || preview.signature !== planningSignature() || !preview.plans?.[index] || ![2, 3].includes(field)) return;
+    preview.plans[index].fields[field] = event.currentTarget.value.trim();
+    sessionStorage.setItem("assistenteSiapLessonMultiPreview", JSON.stringify(preview));
+  }
+
+  function startLessonSequence(replicate = false) {
+    const preview = getLessonMultiPreview();
+    if (!preview?.plans?.length || !lessonMultiPreviewIsCurrent(preview) || getPlanningBatch()) return reportPlanningActionError("Gere e revise novamente as prévias desta aula antes de aplicar.");
+    if (preview.plans.some((plan) => !plan.fields?.[2]?.trim() || !plan.fields?.[3]?.trim())) return reportPlanningActionError("Preencha metodologia e avaliação de todas as aulas antes de aplicar.");
+    if (!lessonSequenceSaveButton({ index:0, plans:preview.plans })) return reportPlanningActionError("O SIAP não oferece um botão de salvar nesta aula. Confira a página antes de aplicar.");
+    if (preview.plans.every((plan) => canonicalClassroom(plan.classroom) === canonicalClassroom(preview.plans[0].classroom))) {
+      sessionStorage.setItem("assistenteSiapReusableLessonPlans", JSON.stringify({
+        grade:preview.plans[0].grade, subject:preview.plans[0].subject, classroom:preview.plans[0].classroom, thematicUnit:preview.plans[0].thematicUnit,
+        plans:preview.plans, guidance:preview.guidance, concisePlanning:preview.concisePlanning,
+        conciseMethodology:preview.conciseMethodology, conciseEvaluation:preview.conciseEvaluation
+      }));
+    }
+    const templates = Object.fromEntries(preview.plans.map((plan, index) => [`lesson-${index}`, {
+      fields:plan.fields, expectedTopic:plan.topic, expectedTopics:plan.objectives || [plan.topic], expectedSkill:plan.skill, expectedSkills:plan.skills || [plan.skill], expectedSaeb:plan.saeb || [], expectedUnit:plan.thematicUnit, origin:"lesson-sequence"
+    }]));
+    setPlanningBatch({ active:true, mode:"lesson-sequence", runId:`lessons-${Date.now()}`, paused:false, autoSave:true, replicate,
+      phase:"preparing", index:0, plans:preview.plans, current:null, templates,
+      previewMetadata:{ guidance:preview.guidance, concisePlanning:preview.concisePlanning, conciseMethodology:preview.conciseMethodology, conciseEvaluation:preview.conciseEvaluation }
+    });
+    render();
+    resumePlanningBatch();
+  }
+
+  function lessonSequenceSaveButton(batch) {
+    const saveOnly = document.getElementById("cphFuncionalidade_btnAlterar");
+    return saveOnly && !saveOnly.disabled ? saveOnly : null;
+  }
+
+  function ensureLessonSequenceUnit(batch, expected) {
+    const select = document.getElementById("ddlEixo");
+    const unit = normalizePlanningGroup(expected.thematicUnit);
+    const pause = (reason) => {
+      batch.paused = true;
+      batch.phase = "manual";
+      batch.pauseMessage = `Aula ${expected.lesson} da turma ${expected.classroom}: ${reason} Nenhuma alteração foi salva nesta aula.`;
+      setPlanningBatch(batch);
+      addLog(batch.pauseMessage);
+      return false;
+    };
+    if (!select || !unit) return pause("a unidade temática da prévia não foi identificada.");
+    const matching = [...select.options].filter((option) => option.value && normalizePlanningGroup(option.textContent) === unit);
+    const target = matching.find((option) => expected.thematicUnitValue && option.value === expected.thematicUnitValue) ||
+      (matching.length === 1 ? matching[0] : null);
+    if (!target) return pause(matching.length ? "há mais de uma opção com o nome da unidade temática da prévia." : "a unidade temática da prévia não está disponível no SIAP.");
+    const pending = batch.pendingUnitSelection;
+    if (pending) {
+      const confirmed = select.value === pending.value &&
+        (globalThis.performance?.timeOrigin !== pending.pageEpoch || (!pending.defaultSelected && target.defaultSelected));
+      if (!confirmed) {
+        if (Date.now() - pending.startedAt < 20000) return setTimeout(resumePlanningBatch, 500), false;
+        return pause("o SIAP não confirmou a troca da unidade temática.");
+      }
+      delete batch.pendingUnitSelection;
+      setPlanningBatch(batch);
+      addLog(`Unidade temática ${target.textContent.trim()} confirmada para a aula ${expected.lesson} da turma ${expected.classroom}.`);
+    }
+    if (select.value === target.value) return true;
+    const hasSelections = selectedPlanningSkills().length || selectedPlanningObjectives().length || selectedPlanningSaeb().length;
+    if (hasSelections) return pause("esta aula já contém escolhas curriculares em outra unidade temática; confira antes de continuar.");
+    batch.pendingUnitSelection = { value:target.value, pageEpoch:globalThis.performance?.timeOrigin || 0,
+      defaultSelected:Boolean(target.defaultSelected), startedAt:Date.now() };
+    setPlanningBatch(batch);
+    select.value = target.value;
+    select.dispatchEvent(new Event("change", { bubbles:true }));
+    addLog(`Selecionando ${target.textContent.trim()} no SIAP para a aula ${expected.lesson} da turma ${expected.classroom}.`);
+    setTimeout(resumePlanningBatch, 500);
+    return false;
+  }
+
+  function reconcileReplicatedLesson(batch, expected) {
+    if (batch.index < 1) return true;
+    const previous = batch.plans[batch.index - 1];
+    const availableObjectives = planningLinks("content").map((link) => link.textContent || "");
+    const matches = (value, choices, kind) => (choices || []).some((choice) =>
+      samePlanningChoices([value], [choice], kind === "content" ? availableObjectives : []));
+    const pause = (message) => {
+      batch.paused = true;
+      batch.phase = "manual";
+      batch.pauseMessage = message;
+      setPlanningBatch(batch);
+      addLog(message);
+      return false;
+    };
+    const skills = [...document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr")]
+      .filter((row) => !row.querySelector("th"))
+      .map((row) => ({ label:(row.textContent || "").replace(/\s+/g, " ").trim(), button:row.querySelector('input[type="image"]') }));
+    const contents = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')]
+      .map((row) => ({ label:(row.querySelector(".cabecalhoConteudo span")?.getAttribute("title") || row.querySelector(".cabecalhoConteudo span")?.textContent || "").replace(/\s+/g, " ").trim(), button:row.querySelector('[id*="btnRemover"]') }));
+    const entries = [...skills.map((entry) => ({ ...entry, kind:"skill" })), ...contents.map((entry) => ({ ...entry, kind:"content" }))];
+    const pending = batch.pendingRemoval;
+    if (pending) {
+      if (entries.some((entry) => entry.kind === pending.kind && normalizePlanningGroup(entry.label) === pending.label)) {
+        if (Date.now() - pending.startedAt > 15000) return pause("O SIAP não confirmou a remoção do item copiado. Confira a aula antes de continuar.");
+        setTimeout(resumePlanningBatch, 500);
+        return false;
+      }
+      delete batch.pendingRemoval;
+      setPlanningBatch(batch);
+    }
+    for (const entry of entries) {
+      const wanted = entry.kind === "skill" ? expected.skills || [expected.skill] : expected.objectives || [expected.topic];
+      if (matches(entry.label, wanted, entry.kind)) continue;
+      const copied = entry.kind === "skill" ? previous.skills || [previous.skill] : previous.objectives || [previous.topic];
+      if (!matches(entry.label, copied, entry.kind) || !entry.button || entry.button.disabled) return pause("Esta aula contém uma escolha diferente da prévia e da aula replicada. Confira antes de continuar.");
+      batch.pendingRemoval = { kind:entry.kind, label:normalizePlanningGroup(entry.label), startedAt:Date.now() };
+      setPlanningBatch(batch);
+      entry.button.click();
+      setTimeout(resumePlanningBatch, 500);
+      return false;
+    }
+    const fields = [
+      [document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia"), previous.fields?.[2], expected.fields?.[2]],
+      [document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao"), previous.fields?.[3], expected.fields?.[3]],
+      ...[...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_txtDescricaoConteudo_"]')]
+        .map((field) => [field, previous.fields?.[1], expected.fields?.[1]])
+    ];
+    for (const [field, copied, wanted] of fields) {
+      if (!field) continue;
+      const value = String(field.value || "").trim();
+      if (!value || value === String(wanted || "").trim()) continue;
+      if (value !== String(copied || "").trim() && contents.length) return pause("Esta aula contém texto diferente da prévia e da aula replicada. Confira antes de continuar.");
+      field.value = "";
+      field.dispatchEvent(new Event("input", { bubbles:true }));
+      field.dispatchEvent(new Event("change", { bubbles:true }));
+    }
+    return true;
+  }
+
+  function resumeLessonSequenceOverview(batch) {
+    if (batch.phase === "replication-confirmed" && batch.current) {
+      batch.current.saveMethod = "save-only";
+      batch.current.saveStartedAt ||= Date.now();
+      setPlanningBatch(batch);
+      const savedPlan = batch.plans?.[batch.index] || batch.current;
+      const select = document.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+      const period = batch.current.periodValue || savedPlan.periodValue;
+      if (!select) return setTimeout(resumePlanningBatch, 500);
+      if (period && select.value !== period) {
+        batch.phase = "saving";
+        setPlanningBatch(batch);
+        return resumeLessonSequenceOverview(batch);
+      }
+      if (sequenceOverviewBlock(document, savedPlan)?.classList.contains("planejada")) {
+        batch.current.saveVerifiedFromServer = true;
+        batch.phase = "saving";
+        setPlanningBatch(batch);
+        return resumeLessonSequenceOverview(batch);
+      }
+      if (Date.now() - batch.current.saveStartedAt < 30000) {
+        void verifySequenceSaveFromOverview(batch);
+        return setTimeout(resumePlanningBatch, 500);
+      }
+      batch.paused = true;
+      batch.phase = "manual";
+      batch.pauseMessage = `O SIAP confirmou a replicação, mas não confirmou o salvamento da aula ${batch.current.lesson} da turma ${batch.current.classroom}. Confira antes de continuar.`;
+      setPlanningBatch(batch);
+      return addLog(batch.pauseMessage);
+    }
+    if (batch.phase === "saving" && batch.current?.saveMethod === "save-only") {
+      const savedPlan = batch.plans?.[batch.index] || batch.current;
+      const period = batch.current.periodValue || savedPlan?.periodValue;
+      const select = document.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+      if (!select) return setTimeout(resumePlanningBatch, 500);
+      if (period && select.value !== period) {
+        const pending = batch.saveCheckSwitch;
+        if (pending && Date.now() - pending.startedAt >= 20000) {
+          batch.paused = true;
+          batch.phase = "manual";
+          batch.pauseMessage = `O SIAP não confirmou a quinzena da aula ${batch.current.lesson} após salvar. Confira antes de continuar.`;
+          setPlanningBatch(batch);
+          return addLog(batch.pauseMessage);
+        }
+        if (!pending) {
+          batch.saveCheckSwitch = { startedAt:Date.now(), signature:planningOverviewSignature() };
+          setPlanningBatch(batch);
+          select.value = period;
+          select.dispatchEvent(new Event("change", { bubbles:true }));
+        }
+        return setTimeout(resumePlanningBatch, 500);
+      }
+      if (batch.saveCheckSwitch) {
+        if (planningOverviewSignature() === batch.saveCheckSwitch.signature && Date.now() - batch.saveCheckSwitch.startedAt < 5000)
+          return setTimeout(resumePlanningBatch, 500);
+        delete batch.saveCheckSwitch;
+        setPlanningBatch(batch);
+      }
+      const block = sequenceOverviewBlock(document, savedPlan);
+      if (!block?.classList.contains("planejada") && !batch.current.saveVerifiedFromServer) {
+        if (!batch.current.saveCheckStartedAt) {
+          batch.current.saveCheckStartedAt = batch.current.saveStartedAt || Date.now();
+          setPlanningBatch(batch);
+        }
+        if (Date.now() - batch.current.saveCheckStartedAt < 30000) {
+          void verifySequenceSaveFromOverview(batch);
+          return setTimeout(resumePlanningBatch, 500);
+        }
+        batch.paused = true;
+        batch.phase = "manual";
+        batch.pauseMessage = `O quadradinho da aula ${batch.current.lesson} não aparece como planejado no SIAP. Confira antes de continuar; nenhuma próxima aula será aberta.`;
+        setPlanningBatch(batch);
+        return addLog(batch.pauseMessage);
+      }
+      const savedLesson = batch.current.lesson;
+      batch.index += 1;
+      batch.current = null;
+      if (batch.index >= batch.plans.length) {
+        setPlanningBatch(null);
+        sessionStorage.removeItem("assistenteSiapLessonMultiPreview");
+        render();
+        return addLog(`${batch.plans.length} aula(s) da sequência foram salvas. A última foi a aula ${savedLesson}, usando Salvar do SIAP.`);
+      }
+      batch.phase = "locating-next";
+      batch.searchPeriodIndex = 0;
+      batch.searchPeriods = null;
+      setPlanningBatch(batch);
+      addLog(`Aula ${savedLesson} salva. Procurando a aula ${batch.plans[batch.index].lesson} da mesma turma nas quinzenas do SIAP.`);
+    }
+    if (batch.phase !== "locating-next") return;
+    const select = document.getElementById("cphFuncionalidade_ddlPeriodoReconhecer");
+    if (!select) return;
+    if (!batch.searchPeriods) {
+      const expectedPeriod = batch.plans?.[batch.index]?.periodValue;
+      batch.searchPeriods = expectedPeriod ? [expectedPeriod] : [...select.options].map((option) => option.value);
+    }
+    if (batch.searchSwitch) {
+      const elapsed = Date.now() - batch.searchSwitch.startedAt;
+      if (select.value !== batch.searchSwitch.value || (planningOverviewSignature() === batch.searchSwitch.signature && elapsed < 5000)) {
+        if (elapsed < 20000) return setTimeout(resumePlanningBatch, 500);
+        batch.paused = true;
+        batch.phase = "manual";
+        batch.pauseMessage = "O SIAP não confirmou a troca de quinzena para localizar a próxima aula.";
+        setPlanningBatch(batch);
+        return addLog(batch.pauseMessage);
+      }
+      delete batch.searchSwitch;
+      setPlanningBatch(batch);
+    }
+    const period = batch.searchPeriods[batch.searchPeriodIndex || 0];
+    if (!period) {
+      const expected = batch.plans[batch.index];
+      const saved = batch.index;
+      setPlanningBatch(null);
+      render();
+      return addLog(`Sequência interrompida após ${saved} de ${batch.plans.length} aula(s) salvas. A aula ${expected.lesson} da turma ${expected.classroom} não está disponível em branco na quinzena prevista; essa prévia não foi aplicada.`);
+    }
+    if (select.value !== period) {
+      batch.searchSwitch = { value:period, signature:planningOverviewSignature(), startedAt:Date.now() };
+      setPlanningBatch(batch);
+      select.value = period;
+      select.dispatchEvent(new Event("change", { bubbles:true }));
+      setTimeout(resumePlanningBatch, 500);
+      return;
+    }
+    const expected = batch.plans[batch.index];
+    const block = [...document.querySelectorAll("#cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor .aula.naoPlanejada")]
+      .find((candidate) => {
+        const item = overviewItem(candidate);
+        return Number(item.lesson) === Number(expected.lesson) && (!expected.periodValue || select.value === expected.periodValue) &&
+          canonicalClassroom(item.classroom) === canonicalClassroom(expected.classroom) &&
+          normalizePlanningGroup(item.subject) === normalizePlanningGroup(expected.subject) && normalizePlanningGroup(item.grade) === normalizePlanningGroup(expected.grade);
+      });
+    if (block) {
+      batch.phase = "preparing";
+      batch.current = null;
+      delete batch.searchPeriods;
+      delete batch.searchPeriodIndex;
+      setPlanningBatch(batch);
+      if (!requestSiapPostBack(block)) {
+        batch.paused = true;
+        batch.phase = "manual";
+        batch.pauseMessage = `Não foi possível abrir a aula ${expected.lesson} da turma ${expected.classroom}.`;
+        setPlanningBatch(batch);
+        addLog(batch.pauseMessage);
+      }
+      return;
+    }
+    batch.searchPeriodIndex += 1;
+    setPlanningBatch(batch);
+    setTimeout(resumePlanningBatch, 100);
+  }
+
+  function sequenceOverviewBlock(page, plan) {
+    return [...page.querySelectorAll("#cphFuncionalidade_ControleAcompanhamentoPlanejamentoProfessor .aula")]
+      .find((candidate) => {
+        if (Number(candidate.getAttribute("numeroaula")) !== Number(plan.lesson)) return false;
+        const code = candidate.getAttribute("codigoturma");
+        if (plan.classCode && code) return code === plan.classCode;
+        const item = overviewItem(candidate);
+        return canonicalClassroom(item.classroom) === canonicalClassroom(plan.classroom) &&
+          normalizePlanningGroup(item.grade) === normalizePlanningGroup(plan.grade) &&
+          normalizePlanningGroup(item.subject) === normalizePlanningGroup(plan.subject);
+      });
+  }
+
+  async function verifySequenceSaveFromLesson(batch) {
+    if (planningSaveCheckRun || Date.now() - planningSaveCheckAt < 1500) return;
+    planningSaveCheckAt = Date.now();
+    planningSaveCheckRun = (async () => {
+      try {
+        const page = await fetchPlanningOverviewDocument(batch.current.periodValue);
+        if (!sequenceOverviewBlock(page, batch.current)?.classList.contains("planejada")) return;
+        const latest = getPlanningBatch();
+        if (latest?.runId !== batch.runId || latest.index !== batch.index || latest.phase !== "saving" || latest.paused ||
+          Core.pageType(location.pathname) !== "planning-lesson") return;
+        location.assign("/AcompanhamentoPlanejamentoProfessorListagem.aspx");
+      } catch { /* A confirmação é tentada novamente até o prazo do SIAP. */ }
+    })();
+    try { await planningSaveCheckRun; } finally { planningSaveCheckRun = null; }
+  }
+
+  async function verifySequenceSaveFromOverview(batch) {
+    if (planningSaveCheckRun || Date.now() - planningSaveCheckAt < 1500) return;
+    planningSaveCheckAt = Date.now();
+    planningSaveCheckRun = (async () => {
+      try {
+        const plan = batch.plans?.[batch.index] || batch.current;
+        const page = await fetchPlanningOverviewDocument(batch.current.periodValue || plan.periodValue);
+        if (!sequenceOverviewBlock(page, plan)?.classList.contains("planejada")) return;
+        const latest = getPlanningBatch();
+        if (latest?.runId !== batch.runId || latest.index !== batch.index || !["saving", "replication-confirmed"].includes(latest.phase) || latest.paused ||
+          Core.pageType(location.pathname) !== "planning-overview") return;
+        latest.current.saveVerifiedFromServer = true;
+        latest.current.saveMethod = "save-only";
+        latest.current.saveStartedAt ||= Date.now();
+        latest.phase = "saving";
+        setPlanningBatch(latest);
+        resumePlanningBatch();
+      } catch { /* Aguarda a confirmação atualizada do SIAP até o prazo previsto. */ }
+    })();
+    try { await planningSaveCheckRun; } finally { planningSaveCheckRun = null; }
+  }
+
+  function resumeLessonSequence(batch) {
+    if (Core.pageType(location.pathname) === "planning-overview") return resumeLessonSequenceOverview(batch);
+    if (Core.pageType(location.pathname) !== "planning-lesson") {
+      batch.paused = true;
+      batch.phase = "manual";
+      setPlanningBatch(batch);
+      return addLog("O SIAP saiu da página da aula. A sequência foi pausada; confira a última aula salva.");
+    }
+    const lesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value);
+    if (batch.phase === "locating-next") {
+      const expected = batch.plans?.[batch.index];
+      if (expected && lesson === expected.lesson && canonicalClassroom(readContext().classroom) === canonicalClassroom(expected.classroom)) {
+        batch.phase = "preparing";
+        batch.current = null;
+        setPlanningBatch(batch);
+      } else {
+        batch.paused = true;
+        batch.phase = "manual";
+        batch.pauseMessage = `A aula aberta não corresponde à aula ${expected?.lesson || "esperada"} da próxima prévia.`;
+        setPlanningBatch(batch);
+        return addLog(batch.pauseMessage);
+      }
+    }
+    if (batch.phase === "replication-confirmed" || batch.phase === "replication-cancelled") {
+      if (lesson === batch.current?.lesson) {
+        const elapsed = Date.now() - (batch.current?.replicationClosedAt || batch.current?.replicationConfirmedAt || 0);
+        const dialog = document.getElementById("dialogConfirmacao");
+        if (dialog?.getClientRects().length || elapsed < 1200) {
+          if (elapsed > 15000) {
+            batch.paused = true;
+            batch.phase = "manual";
+            setPlanningBatch(batch);
+            return addLog("A janela de replicação não fechou. Confira o SIAP antes de continuar.");
+          }
+          return setTimeout(resumePlanningBatch, 500);
+        }
+        const save = lessonSequenceSaveButton(batch);
+        if (!save) {
+          batch.paused = true;
+          batch.phase = "manual";
+          setPlanningBatch(batch);
+          return addLog("A janela de replicação foi fechada, mas o SIAP não oferece um botão de salvar disponível. Confira a aula.");
+        }
+        batch.current.saveMethod = save.id === "cphFuncionalidade_cphCampos_btnSalvarProximo" ? "save-next" : "save-only";
+        batch.current.saveStartedAt = Date.now();
+        batch.phase = "saving";
+        setPlanningBatch(batch);
+        save.click();
+        return;
+      }
+      batch.phase = "saving";
+      setPlanningBatch(batch);
+    }
+    if (batch.phase === "saving") {
+      if (lesson === batch.current?.lesson) {
+        if (Date.now() - (batch.current?.saveStartedAt || 0) > 60000) {
+          batch.paused = true;
+          batch.phase = "manual";
+          setPlanningBatch(batch);
+          return addLog("O SIAP não confirmou a passagem à próxima aula. Confira o salvamento antes de continuar.");
+        }
+        if (batch.current?.saveMethod === "save-only" && Date.now() - batch.current.saveStartedAt >= 2000)
+          void verifySequenceSaveFromLesson(batch);
+        return setTimeout(resumePlanningBatch, 500);
+      }
+      if (batch.current?.saveMethod === "save-only") {
+        batch.paused = true;
+        batch.phase = "manual";
+        batch.pauseMessage = `O SIAP abriu outra aula antes de confirmar o salvamento da aula ${batch.current.lesson}. Volte à quinzena para conferir o quadradinho.`;
+        setPlanningBatch(batch);
+        return addLog(batch.pauseMessage);
+      }
+      batch.index += 1;
+      if (batch.index >= batch.plans.length) {
+        setPlanningBatch(null);
+        sessionStorage.removeItem("assistenteSiapLessonMultiPreview");
+        render();
+        return addLog(`${batch.plans.length} aula(s) da sequência foram salvas e o SIAP abriu a próxima aula.`);
+      }
+      batch.phase = "preparing";
+      batch.current = null;
+      setPlanningBatch(batch);
+    }
+    const expected = batch.plans[batch.index];
+    if (!expected || lesson !== expected.lesson || canonicalClassroom(readContext().classroom) !== canonicalClassroom(expected.classroom)) {
+      batch.paused = true;
+      batch.phase = "manual";
+      setPlanningBatch(batch);
+      return addLog(`A aula aberta não corresponde à aula ${expected?.lesson || "esperada"} da prévia. Sequência pausada sem preencher esta aula.`);
+    }
+    if (batch.phase === "preparing") {
+      if (!ensureLessonSequenceUnit(batch, expected)) return;
+      if (!reconcileReplicatedLesson(batch, expected)) return;
+      batch.current = { ...expected, planKey:`lesson-${batch.index}`, sequenceIndex:batch.index };
+      batch.phase = "filling";
+      delete batch.pauseMessage;
+      setPlanningBatch(batch);
+      return startPlanningFlow("ai");
+    }
+    if (batch.phase === "filling" && !sessionStorage.getItem("assistenteSiapPlanningFlow") && !batch.aiRequestedAt) return startPlanningFlow("ai");
+  }
+
   function getPlanningBatch() {
     try { return JSON.parse(sessionStorage.getItem("assistenteSiapPlanningBatch") || "null"); } catch { return null; }
   }
@@ -1557,14 +2664,32 @@
       element?.getAttribute("href")
     );
     if (!postback || !Core.isAllowedPostBackTarget(postback.target)) return false;
-    document.dispatchEvent(new CustomEvent("assistente-siap:postback", { detail: JSON.stringify(postback) }));
+    document.dispatchEvent(new CustomEvent("assistente-siap:postback", { detail: JSON.stringify({ ...postback, elementId:element?.id || "" }) }));
     return true;
   }
 
   function resumePlanningBatch() {
     if (model.license?.active === false && !finishingAuthorizedFreeWork()) return lockAssistantAfterExpiry();
     const batch = getPlanningBatch();
-    if (!batch || batch.paused) return;
+    if (!batch) return;
+    if (batch.mode === "lesson-sequence" && batch.paused && batch.phase === "manual" && !batch.current?.saveStartedAt &&
+      batch.index > 0 && batch.recoveryAttemptedForIndex !== batch.index) {
+      const expected = batch.plans?.[batch.index];
+      const lesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value);
+      if (expected && Core.pageType(location.pathname) === "planning-lesson" && lesson === expected.lesson &&
+        canonicalClassroom(readContext().classroom) === canonicalClassroom(expected.classroom)) {
+        batch.recoveryAttemptedForIndex = batch.index;
+        batch.paused = false;
+        batch.autoSave = true;
+        batch.phase = "preparing";
+        batch.current = null;
+        delete batch.pauseMessage;
+        setPlanningBatch(batch);
+        addLog(`Conferindo seleções trazidas pelo SIAP para a aula ${lesson} e retomando a prévia já aprovada.`);
+      }
+    }
+    if (batch.paused) return;
+    if (batch.mode === "lesson-sequence") return resumeLessonSequence(batch);
     // O SIAP pode trocar de tela por postback antes de o observador atualizar o modelo.
     // Leia a página real novamente antes de criar a assinatura persistida do fluxo.
     model.page = Core.pageType(location.pathname);
@@ -1726,6 +2851,46 @@
   function togglePlanningBatch() {
     const batch = getPlanningBatch();
     if (!batch) return;
+    if (batch.mode === "lesson-sequence") {
+      if (batch.phase === "manual") {
+        const lesson = Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value);
+        const current = batch.plans?.[batch.index];
+        if (batch.current?.saveStartedAt) {
+          const page = Core.pageType(location.pathname);
+          if (page !== "planning-overview" && !(page === "planning-lesson" && lesson === batch.current.lesson &&
+            canonicalClassroom(readContext().classroom) === canonicalClassroom(batch.current.classroom)))
+            return addLog("Volte à quinzena ou à aula que estava sendo salva. O Assistente precisa confirmar o quadradinho antes de abrir a próxima prévia.");
+          batch.current.saveStartedAt = Date.now();
+          batch.phase = "saving";
+          batch.paused = false;
+          batch.autoSave = true;
+          delete batch.pauseMessage;
+          setPlanningBatch(batch);
+          render();
+          setTimeout(resumePlanningBatch, 100);
+          return;
+        }
+        if (!batch.current?.saveStartedAt && current && lesson === current.lesson &&
+          canonicalClassroom(readContext().classroom) === canonicalClassroom(current.classroom)) {
+          batch.current = null;
+          batch.phase = "preparing";
+          batch.paused = false;
+          batch.autoSave = true;
+          delete batch.pauseMessage;
+          setPlanningBatch(batch);
+          render();
+          setTimeout(resumePlanningBatch, 100);
+          return;
+        }
+        return addLog("Abra a aula indicada na prévia ou volte à quinzena. O Assistente não avançará sem confirmar o salvamento anterior.");
+      }
+      batch.paused = !batch.paused;
+      batch.autoSave = !batch.paused;
+      setPlanningBatch(batch);
+      render();
+      if (!batch.paused) setTimeout(resumePlanningBatch, 100);
+      return;
+    }
     if (!batch.paused) {
       batch.autoSave = false;
       batch.paused = true;
@@ -1809,6 +2974,7 @@
     sessionStorage.removeItem("assistenteSiapPlanningAi");
     sessionStorage.removeItem("assistenteSiapOpenReplicate");
     sessionStorage.removeItem("assistenteSiapConfirmReplicate");
+    sessionStorage.removeItem("assistenteSiapSaveAfterReplicationCancel");
     addLog("Lote interrompido pelo professor. Nenhuma nova ação será iniciada.");
   }
 
@@ -1829,13 +2995,30 @@
       .filter((link) => decodeURIComponent(link.getAttribute("href") || "").includes(fragment));
   }
 
+  function planningLinkForChoice(links, expected, index) {
+    if (!expected) return links[index % links.length];
+    const normalized = normalizePlanningGroup(expected);
+    return links.find((link) => {
+      const label = normalizePlanningGroup(link.textContent);
+      return label.includes(normalized) || normalized.includes(label);
+    });
+  }
+
+  function lessonSequenceMissingChoices(batch, kind) {
+    if (batch?.mode !== "lesson-sequence" || !batch.current) return [];
+    const expected = kind === "skill" ? batch.current.skills || [batch.current.skill] : batch.current.objectives || [batch.current.topic];
+    const selected = kind === "skill" ? selectedPlanningSkills() : selectedPlanningObjectives();
+    const available = kind === "content" ? planningLinks("content").map((link) => link.textContent || "") : [];
+    return expected.filter((choice) => choice && !selected.some((value) => samePlanningChoices([value], [choice], available)));
+  }
+
   function selectedPlanningSaeb() {
     const container = document.querySelector("#conteudomatrizsaebs .itens");
     if (!container) return [];
     const rows = [...container.querySelectorAll("tr")];
     const entries = rows.length ? rows : [container];
     return entries.map((entry) => String(entry.innerText || entry.textContent || "").replace(/\s+/g, " ").trim())
-      .filter((value) => /\bD\s*\d+\s*[-–:]/i.test(value)).slice(0, 20);
+      .filter((value) => /\b(?:[1-9]\s*)?D\s*\d+\s*[-–:]/i.test(value)).slice(0, 20);
   }
 
   function tryNextPlanningAxis(flow) {
@@ -1851,27 +3034,43 @@
     return true;
   }
 
+  function retryPlanningSelection(flow, kind, selectionIndex) {
+    if (flow.selectionRetryCount >= 1) return false;
+    const link = planningLinkForChoice(planningLinks(kind), flow.pendingChoice, selectionIndex);
+    if (!link) return false;
+    flow.selectionRetryCount = 1;
+    flow.waitStartedAt = Date.now();
+    sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+    if (!requestSiapPostBack(link)) return false;
+    addLog(`O SIAP ainda não mostrou ${kind === "skill" ? "a habilidade" : "o conteúdo"} entre as seleções da aula. Tentando a mesma opção mais uma vez; nada será salvo sem confirmação.`);
+    schedulePlanningResume();
+    return true;
+  }
+
   function startPlanningFlow(mode = "local") {
     model.page = Core.pageType(location.pathname);
     model.context = readContext();
-    if (!getPlanningBatch()) {
-      const autoSaveReplicate = panel.querySelector("#cm-plan-auto-save-replicate")?.checked === true;
-      if (autoSaveReplicate) sessionStorage.setItem("assistenteSiapAutoSaveReplicate", planningSignature());
-      else sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
-    }
+    if (!getPlanningBatch()) sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
     if (mode === "ai") {
-      const guidance = getPlanningBatch()?.previewMetadata?.guidance || panel.querySelector("#cm-plan-guidance")?.value.trim() || "";
-      sessionStorage.setItem("assistenteSiapPlanningAi", JSON.stringify({ guidance }));
+      const batchSettings = getPlanningBatch()?.previewMetadata;
+      const guidance = batchSettings ? batchSettings.guidance || "" : panel.querySelector("#cm-plan-guidance")?.value.trim() || "";
+      const concisePlanning = batchSettings ? batchSettings.concisePlanning === true : panel.querySelector('[data-plan-option="concisePlanning"]')?.getAttribute("aria-pressed") === "true";
+      const conciseMethodology = batchSettings ? batchSettings.conciseMethodology === true : concisePlanning || panel.querySelector('[data-plan-option="conciseMethodology"]')?.getAttribute("aria-pressed") === "true";
+      const conciseEvaluation = batchSettings ? batchSettings.conciseEvaluation === true : concisePlanning || panel.querySelector('[data-plan-option="conciseEvaluation"]')?.getAttribute("aria-pressed") === "true";
+      sessionStorage.setItem("assistenteSiapPlanningAi", JSON.stringify({ guidance, concisePlanning, conciseMethodology, conciseEvaluation }));
     } else {
       sessionStorage.removeItem("assistenteSiapPlanningAi");
     }
     const signature = planningSignature();
     const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
     const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
-    const stage = skillCount ? (contentCount ? "fill" : "content") : "skill";
+    const batch = getPlanningBatch();
+    const stage = batch?.mode === "lesson-sequence"
+      ? lessonSequenceMissingChoices(batch, "skill").length ? "skill" : lessonSequenceMissingChoices(batch, "content").length ? "content" : "fill"
+      : skillCount ? (contentCount ? "fill" : "content") : "skill";
     const axis = document.getElementById("ddlEixo");
     const manuallyChosenAxis = readStoredJson("assistenteSiapManualPlanningAxis");
-    const lockedAxis = Boolean(skillCount || contentCount || selectedPlanningSaeb().length || (manuallyChosenAxis?.signature === signature && manuallyChosenAxis.value === axis?.value));
+    const lockedAxis = Boolean(batch?.mode === "lesson-sequence" || skillCount || contentCount || selectedPlanningSaeb().length || (manuallyChosenAxis?.signature === signature && manuallyChosenAxis.value === axis?.value));
     sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify({ signature, stage, lockedAxis }));
     updateOperationStatus();
     resumePlanningFlow();
@@ -1894,6 +3093,7 @@
     if (flow.stage === "skill") {
       const links = planningLinks("skill");
       const contentLinks = planningLinks("content");
+      if (!links.length && batch?.mode === "lesson-sequence") return stopPlanningFlow("O SIAP não oferece a habilidade adicional prevista nesta aula. Nenhuma aula foi salva.");
       if (!links.length) {
         if (flow.lockedAxis && !batch) {
           flow.stage = "fill";
@@ -1917,26 +3117,33 @@
       if (flow.stage !== "fill") {
         flow.stage = "wait-skill";
         flow.waitStartedAt = Date.now();
+        flow.selectionRetryCount = 0;
+        flow.pendingChoice = batch?.mode === "lesson-sequence" ? lessonSequenceMissingChoices(batch, "skill")[0] : "";
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
-        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar a habilidade no SIAP.");
+        if (!requestSiapPostBack(planningLinkForChoice(links, flow.pendingChoice, selectionIndex))) return stopPlanningFlow("Não foi possível selecionar a habilidade prevista no SIAP.");
         schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-skill") {
-      const skillCount = document.querySelectorAll("#cphFuncionalidade_cphCampos_gdvExpectativas tr").length;
-      if (!skillCount) {
+      const skillCount = selectedPlanningSkills().length;
+      const pendingSkill = batch?.mode === "lesson-sequence" && flow.pendingChoice &&
+        lessonSequenceMissingChoices(batch, "skill").some((choice) => normalizePlanningGroup(choice) === normalizePlanningGroup(flow.pendingChoice));
+      if (!skillCount || pendingSkill) {
         if (Date.now() - (flow.waitStartedAt || 0) >= 15000) {
+          if (retryPlanningSelection(flow, "skill", selectionIndex)) return;
           flow.stage = "skill";
           if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
-          return stopPlanningFlow("O SIAP não confirmou a seleção automática da habilidade nas opções disponíveis. Nenhuma aula foi salva.");
+          return stopPlanningFlow("A habilidade aparece nas opções, mas não foi confirmada entre as seleções da aula. Confira-a no SIAP antes de continuar. Nenhuma aula foi salva.");
         }
         schedulePlanningResume();
         return;
       }
       const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
-      flow.stage = contentCount ? "fill" : "content";
+      delete flow.pendingChoice;
+      flow.stage = batch?.mode === "lesson-sequence" ? lessonSequenceMissingChoices(batch, "skill").length ? "skill" : lessonSequenceMissingChoices(batch, "content").length ? "content" : "fill" : contentCount ? "fill" : "content";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+      if (flow.stage === "skill") return schedulePlanningResume();
     }
     if (flow.stage === "content") {
       const links = planningLinks("content");
@@ -1948,43 +3155,68 @@
       } else {
         flow.stage = "wait-content";
         flow.waitStartedAt = Date.now();
+        flow.selectionRetryCount = 0;
+        flow.pendingChoice = batch?.mode === "lesson-sequence" ? lessonSequenceMissingChoices(batch, "content")[0] : "";
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
-        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o conteúdo no SIAP.");
+        if (!requestSiapPostBack(planningLinkForChoice(links, flow.pendingChoice, selectionIndex))) return stopPlanningFlow("Não foi possível selecionar o objetivo previsto no SIAP.");
         schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-content") {
       const contentCount = document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]').length;
-      if (!contentCount) {
+      const pendingContent = batch?.mode === "lesson-sequence" && flow.pendingChoice &&
+        lessonSequenceMissingChoices(batch, "content").some((choice) => normalizePlanningGroup(choice) === normalizePlanningGroup(flow.pendingChoice));
+      if (!contentCount || pendingContent) {
         if (Date.now() - (flow.waitStartedAt || 0) >= 15000) {
+          if (retryPlanningSelection(flow, "content", selectionIndex)) return;
           flow.stage = "skill";
           if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
-          return stopPlanningFlow("O SIAP não confirmou a seleção automática do conteúdo nas opções disponíveis. Nenhuma aula foi salva.");
+          return stopPlanningFlow("O conteúdo aparece nas opções à esquerda, mas não foi confirmado no quadro da aula. Confira a seleção no SIAP antes de continuar. Nenhuma aula foi salva.");
         }
         schedulePlanningResume();
         return;
       }
-      flow.stage = "fill";
+      delete flow.pendingChoice;
+      flow.stage = batch?.mode === "lesson-sequence" && lessonSequenceMissingChoices(batch, "content").length ? "content" : "fill";
       sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
+      if (flow.stage === "content") return schedulePlanningResume();
     }
     if (flow.stage === "fill" && !flow.saebChecked) {
       flow.saebChecked = true;
       const links = planningLinks("saeb");
-      if (links.length && !selectedPlanningSaeb().length) {
+      const selected = selectedPlanningSaeb();
+      const expected = batch?.mode === "lesson-sequence" ? batch.current?.saeb : null;
+      if (batch?.mode === "lesson-sequence" && links.length && !Array.isArray(expected))
+        return stopPlanningFlow("A prévia anterior não registrou a Matriz SAEB. Gere e revise novamente as prévias antes de aplicar.");
+      if (Array.isArray(expected) && !samePlanningChoices(selected, expected) && selected.length)
+        return stopPlanningFlow("A Matriz SAEB desta aula difere da prévia. Nenhuma aula foi salva.");
+      if (Array.isArray(expected) && expected.length && !links.length && !selected.length)
+        return stopPlanningFlow("O descritor da Matriz SAEB previsto na prévia não está disponível nesta aula. Nenhuma aula foi salva.");
+      if (links.length && !selected.length) {
+        const link = Array.isArray(expected)
+          ? expected.length ? links.find((option) => normalizePlanningGroup(option.textContent) === normalizePlanningGroup(expected[0])) : null
+          : links[selectionIndex % links.length];
+        if (Array.isArray(expected) && expected.length && !link)
+          return stopPlanningFlow("O descritor da Matriz SAEB da prévia não aparece nas opções desta aula. Nenhuma aula foi salva.");
+        if (!link) return stopPlanningFlow("A Matriz SAEB da prévia não foi identificada. Nenhuma aula foi salva.");
         flow.stage = "wait-saeb";
         flow.saebStartedAt = Date.now();
         sessionStorage.setItem("assistenteSiapPlanningFlow", JSON.stringify(flow));
-        if (!requestSiapPostBack(links[selectionIndex % links.length])) return stopPlanningFlow("Não foi possível selecionar o descritor da Matriz SAEB no SIAP.");
+        if (!requestSiapPostBack(link)) return stopPlanningFlow("Não foi possível selecionar o descritor da Matriz SAEB no SIAP.");
         schedulePlanningResume();
         return;
       }
     }
     if (flow.stage === "wait-saeb") {
-      if (!selectedPlanningSaeb().length) {
+      const selected = selectedPlanningSaeb();
+      const expected = batch?.mode === "lesson-sequence" ? batch.current?.saeb : null;
+      if (!selected.length) {
         if (Date.now() - flow.saebStartedAt < 10000) return schedulePlanningResume();
         return stopPlanningFlow("O SIAP não confirmou a seleção da Matriz SAEB. Confira o descritor antes de continuar.");
       }
+      if (Array.isArray(expected) && !samePlanningChoices(selected, expected))
+        return stopPlanningFlow("O SIAP selecionou um descritor da Matriz SAEB diferente da prévia. Nenhuma aula foi salva.");
       flow.stage = "fill";
     }
     if (flow.stage === "fill") {
@@ -2056,7 +3288,12 @@
       : isArt
         ? `Avaliar de forma processual a participação, a experimentação de materiais e técnicas, a relação entre a produção e o conteúdo estudado, a autoria e a capacidade de apreciar e comentar as produções próprias e dos colegas. Registrar avanços para orientar novas propostas.`
         : `Realizar avaliação contínua e formativa na ${model.context.grade || "turma"} por meio da observação da participação, da compreensão das orientações e da aplicação dos conteúdos selecionados nas atividades propostas. Registrar avanços e dificuldades para orientar retomadas e adequações nas aulas seguintes.`;
-    if (!methodology.value.trim()) methodology.value = approvedTemplate?.methodology || generatedMethodology;
+    if (!methodology.value.trim()) {
+      const shorterMethodology = batchState?.previewMetadata?.conciseMethodology === true ||
+        panel.querySelector('[data-plan-option="concisePlanning"]')?.getAttribute("aria-pressed") === "true" ||
+        panel.querySelector('[data-plan-option="conciseMethodology"]')?.getAttribute("aria-pressed") === "true";
+      methodology.value = approvedTemplate?.methodology || conciseMethodologyText(generatedMethodology, shorterMethodology);
+    }
     if (!evaluation.value.trim()) evaluation.value = approvedTemplate?.evaluation || generatedEvaluation;
     [...contentFields, methodology, evaluation].forEach((field) => { field.dispatchEvent(new Event("input", { bubbles: true })); field.dispatchEvent(new Event("change", { bubbles: true })); });
     addLog("Habilidade, conteúdo e campos vazios preparados. Revise tudo antes de salvar.");
@@ -2110,7 +3347,13 @@
       period:model.context.term || "",
       thematicUnit:document.getElementById("ddlEixo")?.selectedOptions?.[0]?.textContent?.trim() || "",
       lessonSequence:Number(document.getElementById("cphFuncionalidade_cphCampos_txtNumeroAula")?.value) || 0,
-      guidance:typeof request.guidance === "string" ? request.guidance : "",
+      guidance:[
+        typeof request.guidance === "string" ? request.guidance : "",
+        `Escreva a metodologia em até três frases e ${request.conciseMethodology === true ? 30 : 45} palavras.`,
+        request.conciseEvaluation === true ? "Faça a avaliação curta e sucinta." : ""
+      ].filter(Boolean).join(" "),
+      conciseMethodology:request.conciseMethodology === true,
+      conciseEvaluation:request.conciseEvaluation === true,
       educationalContext:selectedSaeb.length ? `Descritor da Matriz SAEB selecionado no SIAP: ${selectedSaeb.join("; ")}` : "",
       selectedSkills,
       selectedContents,
@@ -2123,11 +3366,33 @@
     }
     const curriculumKey = planningCurriculumKey(payload);
     const template = batch?.current?.planKey ? batch.templates?.[batch.current.planKey] : null;
-    if (template && !batch.previewOnly && template.curriculumKey !== curriculumKey) {
+    if (batch?.mode === "lesson-sequence" && (!selectedSkills.length || !selectedContents.length || !contentFields.length)) {
       batch.paused = true;
       batch.phase = "manual";
       setPlanningBatch(batch);
-      return addLog("A habilidade, o conteúdo, a Matriz SAEB ou a unidade temática desta aula diferem da prévia. Lote pausado; gere uma nova prévia antes de salvar.");
+      return addLog("O SIAP não confirmou habilidade, objetivo ou descrição desta aula. Sequência pausada sem salvar.");
+    }
+    const expectedTopics = (template?.expectedTopics || [template?.expectedTopic]).filter(Boolean).map(normalizePlanningGroup);
+    const topicMatches = template?.origin === "lesson-sequence"
+      ? samePlanningChoices(selectedContents, template?.expectedTopics || [template?.expectedTopic], planningLinks("content").map((link) => link.textContent || ""))
+      : expectedTopics.every((expected) => selectedContents.some((content) => normalizePlanningGroup(content).includes(expected)));
+    const expectedSkills = (template?.expectedSkills || [template?.expectedSkill]).filter(Boolean).map(normalizePlanningGroup);
+    const skillMatches = template?.origin === "lesson-sequence"
+      ? samePlanningChoices(selectedSkills, template?.expectedSkills || [template?.expectedSkill])
+      : expectedSkills.every((expected) => selectedSkills.some((skill) => normalizePlanningGroup(skill).includes(expected)));
+    const saebMatches = template?.origin === "lesson-sequence"
+      ? samePlanningChoices(selectedSaeb, template.expectedSaeb || []) : true;
+    const expectedUnit = template?.expectedUnit ? normalizePlanningGroup(template.expectedUnit) : "";
+    const unitMatches = !expectedUnit || normalizePlanningGroup(payload.thematicUnit) === expectedUnit;
+    if (template && !batch.previewOnly && (template.origin === "lesson-sequence" ? !topicMatches || !skillMatches || !saebMatches || !unitMatches : template.curriculumKey !== curriculumKey)) {
+      batch.paused = true;
+      batch.phase = "manual";
+      const differences = [!skillMatches && "habilidade", !topicMatches && "objetivo", !saebMatches && "Matriz SAEB", !unitMatches && "unidade temática"].filter(Boolean);
+      batch.pauseMessage = template.origin === "lesson-sequence"
+        ? `Aula ${batch.current?.lesson || payload.lessonSequence}: ${differences.join(", ")} ${differences.length === 1 ? "não corresponde" : "não correspondem"} à prévia. Nenhuma alteração foi salva nesta aula.`
+        : "As escolhas curriculares desta aula não correspondem à prévia. Nenhuma alteração foi salva.";
+      setPlanningBatch(batch);
+      return addLog(batch.pauseMessage);
     }
     const equivalentDraft = batch?.previewOnly ? Object.values(batch.templates || {}).find((draft) => draft.groupKey === batch.current?.groupKey && draft.curriculumKey === curriculumKey) : null;
     if (batch?.active && batch.phase === "filling") {
@@ -2154,6 +3419,9 @@
       if (!result?.ok || !Array.isArray(result.fields) || result.fields.length !== 4) {
         return stopPlanningFlow(result?.message || "A IA não devolveu os quatro campos esperados.");
       }
+      if (!template && request.concisePlanning === true) result.fields[1] = concisePlanningText(result.fields[1], 1, 30);
+      if (!template) result.fields[2] = conciseMethodologyText(result.fields[2], request.conciseMethodology === true);
+      if (!template && request.conciseEvaluation === true) result.fields[3] = concisePlanningText(result.fields[3], 1, 22);
       if (batch?.active) delete batch.aiRequestedAt;
       if (batch?.active && batch.phase === "filling" && batch.previewOnly) {
         batch.templates = batch.templates || {};
@@ -2178,6 +3446,14 @@
         location.href = "/AcompanhamentoPlanejamentoProfessorListagem.aspx";
         return;
       }
+      if (batch?.mode === "lesson-sequence" &&
+        ((methodology.value.trim() && methodology.value.trim() !== String(result.fields[2] || "").trim()) ||
+          (evaluation.value.trim() && evaluation.value.trim() !== String(result.fields[3] || "").trim()))) {
+        batch.paused = true;
+        batch.phase = "manual";
+        setPlanningBatch(batch);
+        return addLog("Esta aula já tem metodologia ou avaliação diferente da prévia. Sequência pausada sem salvar.");
+      }
       contentFields.forEach((field) => { if (!field.value.trim()) field.value = String(result.fields[1] || "").trim(); });
       if (!batch || !methodology.value.trim()) methodology.value = String(result.fields[2] || "").trim();
       if (!batch || !evaluation.value.trim()) evaluation.value = String(result.fields[3] || "").trim();
@@ -2195,7 +3471,25 @@
           return addLog("Bloqueio de segurança: uma prévia nunca pode salvar uma aula.");
         }
         if (batch.autoSave) {
-          if (Array.isArray(batch.selectedQueue) || !openPlanningReplication()) {
+          if (batch.mode === "lesson-sequence") {
+            const saveNext = document.getElementById("cphFuncionalidade_cphCampos_btnSalvarProximo");
+            const save = lessonSequenceSaveButton(batch);
+            if (!save) {
+              batch.paused = true;
+              batch.phase = "manual";
+              batch.pauseMessage = "O SIAP não apresentou um botão de salvar disponível. Aula preenchida, mas sequência pausada sem salvar.";
+              setPlanningBatch(batch);
+              return addLog(batch.pauseMessage);
+            }
+            batch.current.saveMethod = save === saveNext ? "save-next" : "save-only";
+            setPlanningBatch(batch);
+            if (batch.replicate && openPlanningReplication()) return;
+            if (batch.replicate) addLog("O SIAP não oferece replicação nesta aula. Salvando a sequência na turma atual.");
+            batch.current.saveStartedAt = Date.now();
+            batch.phase = "saving";
+            setPlanningBatch(batch);
+            save.click();
+          } else if (Array.isArray(batch.selectedQueue) || !openPlanningReplication()) {
             batch.phase = "saving";
             setPlanningBatch(batch);
             document.getElementById("cphFuncionalidade_btnAlterar")?.click();
@@ -2219,14 +3513,28 @@
     }
   }
 
-  function savePlanning() {
+  function reportPlanningActionError(message) {
+    model.planningActionFeedback = message;
+    addLog(message);
+  }
+
+  function applyReviewedPlanning(replicate = false) {
+    model.planningActionFeedback = "";
+    const preview = getLessonMultiPreview();
+    if (!preview?.plans?.length || !lessonMultiPreviewIsCurrent(preview)) return reportPlanningActionError("As prévias não estão prontas ou as escolhas do SIAP mudaram. Gere e revise as prévias antes de aplicar.");
+    return startLessonSequence(replicate);
+  }
+
+  function savePlanning(replicate = false) {
     const save = document.getElementById("cphFuncionalidade_btnAlterar");
     if (!save || save.disabled) return addLog("O botão Salvar não está disponível nesta aula.");
     if (!document.querySelector('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]')) return addLog("O SIAP não apresenta conteúdo selecionado para esta aula. Escolha um conteúdo compatível antes de salvar pelo Assistente.");
-    const replicate = panel.querySelector("#cm-plan-replicate")?.checked === true;
+    const methodology = document.getElementById("cphFuncionalidade_cphCampos_txtMetodologia");
+    const evaluation = document.getElementById("cphFuncionalidade_cphCampos_txtAvaliacao");
+    if (!methodology?.value?.trim() || !evaluation?.value?.trim()) return addLog("Preencha metodologia e avaliação antes de aplicar o planejamento.");
     if (replicate) {
       if (openPlanningReplication()) return;
-      return addLog("O botão Replicar não está disponível nesta aula. Nada foi salvo; confira a aula antes de tentar novamente.");
+      addLog("O SIAP não oferece replicação nesta aula. Salvando somente a aula atual.");
     }
     save.click();
   }
@@ -2234,14 +3542,16 @@
   function autoSaveAndReplicatePlanningIfRequested() {
     const signature = planningSignature();
     if (sessionStorage.getItem("assistenteSiapAutoSaveReplicate") !== signature) return false;
-    const replicate = document.getElementById("cphFuncionalidade_cphCampos_btnReplicar");
-    if (!replicate || replicate.disabled) {
-      sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
-      addLog("O preenchimento foi concluído, mas o botão Replicar não está disponível. Revise e salve manualmente.");
-      return false;
-    }
     sessionStorage.removeItem("assistenteSiapAutoSaveReplicate");
-    return openPlanningReplication();
+    if (openPlanningReplication()) return true;
+    const save = document.getElementById("cphFuncionalidade_btnAlterar");
+    if (!save || save.disabled) {
+      addLog("O SIAP não oferece replicação nem salvamento nesta aula. Confira os campos antes de continuar.");
+      return true;
+    }
+    addLog("O SIAP não oferece replicação nesta aula. Salvando somente a aula atual.");
+    save.click();
+    return true;
   }
 
   function openPlanningReplication() {
@@ -2271,6 +3581,46 @@
     replicate.click();
   }
 
+  function finishUnavailableReplication(expected, reason = "Replicação indisponível") {
+    sessionStorage.removeItem("assistenteSiapConfirmReplicate");
+    sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
+    const batch = getPlanningBatch();
+    const modal = document.getElementById("dialogConfirmacao");
+    if (modal?.getClientRects().length) {
+      const cancel = document.getElementById("cphFuncionalidade_cphCampos_btnCancelarReplicar");
+      if (!cancel || cancel.disabled || !cancel.getClientRects().length) {
+        if (batch) { batch.paused = true; batch.phase = "manual"; setPlanningBatch(batch); }
+        return addLog("O SIAP não permitiu replicar e não apresentou Cancelar. Confira esta aula.");
+      }
+      if (batch?.mode === "lesson-sequence") {
+        batch.current.replicationClosedAt = Date.now();
+        batch.phase = "replication-cancelled";
+        setPlanningBatch(batch);
+      } else {
+        sessionStorage.setItem("assistenteSiapSaveAfterReplicationCancel", JSON.stringify({ signature:expected, startedAt:Date.now() }));
+      }
+      addLog(`${reason}. Fechando a janela antes de salvar esta aula.`);
+      cancel.click();
+      setTimeout(batch?.mode === "lesson-sequence" ? resumePlanningBatch : resumeAfterReplicationCancel, 1200);
+      return;
+    }
+    const save = batch?.mode === "lesson-sequence" ? lessonSequenceSaveButton(batch) : document.getElementById("cphFuncionalidade_btnAlterar");
+    if (!save || save.disabled) {
+      if (batch) { batch.paused = true; batch.phase = "manual"; setPlanningBatch(batch); }
+      return addLog("O SIAP não permitiu replicar nem salvar esta aula. Confira os campos.");
+    }
+    if (batch) {
+      if (batch.mode === "lesson-sequence") {
+        batch.current.saveMethod = save.id === "cphFuncionalidade_cphCampos_btnSalvarProximo" ? "save-next" : "save-only";
+        batch.current.saveStartedAt = Date.now();
+      }
+      batch.phase = "saving";
+      setPlanningBatch(batch);
+    }
+    addLog(`${reason}. Salvando esta aula sem replicar.`);
+    save.click();
+  }
+
   function completeReplicationIfRequested() {
     const expected = sessionStorage.getItem("assistenteSiapConfirmReplicate");
     if (!expected || expected !== planningSignature()) return;
@@ -2279,50 +3629,85 @@
     const replicationType = document.getElementById("cphFuncionalidade_cphCampos_ddlTipoReplicacao");
     const confirm = document.getElementById("cphFuncionalidade_cphCampos_btnConfirmarReplicar");
     const openedAt = Number(sessionStorage.getItem("assistenteSiapReplicationOpenedAt")) || Date.now();
+    const batch = getPlanningBatch();
     if (confirmationDialog?.getClientRects().length && confirmationDialog.contains(confirm)
       && replicationType?.value === "PROXIMA" && !replicationType.disabled
       && confirm && !confirm.disabled && confirm.getClientRects().length) {
+      if (batch?.mode === "lesson-sequence" && batch.plans?.slice(batch.index + 1).some((plan) =>
+        canonicalClassroom(plan.classroom) === canonicalClassroom(batch.current?.classroom) && Number(plan.lesson) === Number(batch.current?.lesson) + 1))
+        return finishUnavailableReplication(expected, "A próxima aula tem uma prévia própria");
       sessionStorage.removeItem("assistenteSiapConfirmReplicate");
       sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
-      const batch = getPlanningBatch();
+      if (batch?.mode === "lesson-sequence") {
+        batch.current.replicationConfirmedAt = Date.now();
+        batch.phase = "replication-confirmed";
+        setPlanningBatch(batch);
+        addLog("Confirmando a replicação no SIAP; depois a aula será salva pelo botão disponível.");
+        confirm.click();
+        setTimeout(resumePlanningBatch, 1200);
+        return;
+      }
       if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
       addLog("Confirmando a replicação na próxima aula da mesma turma.");
       confirm.click();
       return;
     }
-    if (!dialog || !confirm || confirm.disabled || !dialog.getClientRects().length) {
+    if (!dialog || !dialog.getClientRects().length) {
       if (Date.now() - openedAt < 8000) return setTimeout(completeReplicationIfRequested, 200);
-      sessionStorage.removeItem("assistenteSiapConfirmReplicate");
-      sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
-      const batch = getPlanningBatch();
-      if (batch) { batch.paused = true; batch.phase = "manual"; setPlanningBatch(batch); }
-      return addLog("O SIAP não abriu a confirmação de replicação. Nada foi confirmado; confira esta aula.");
+      return finishUnavailableReplication(expected);
     }
     const inputs = [...dialog.querySelectorAll('input[type="checkbox"]')];
     if (!inputs.length) {
       if (Date.now() - openedAt < 3000) return setTimeout(completeReplicationIfRequested, 200);
     }
-    const targets = inputs.filter((input) => !input.disabled);
+    const reservedClasses = new Set(batch?.mode === "lesson-sequence"
+      ? batch.plans?.slice(batch.index + 1).map((plan) => canonicalClassroom(plan.classroom)) : []);
+    const targets = inputs.filter((input) => {
+      if (input.disabled) return false;
+      if (!reservedClasses.size) return true;
+      const label = (input.closest("label")?.textContent || input.parentElement?.textContent || "").match(/\b\d+[A-Z]\b/i)?.[0];
+      return label && !reservedClasses.has(canonicalClassroom(label));
+    });
     if (!targets.length) {
-      sessionStorage.removeItem("assistenteSiapConfirmReplicate");
-      sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
-      const batch = getPlanningBatch();
-      if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
-      addLog("Nenhuma turma compatível disponível. Salvando somente esta aula.");
-      const save = document.getElementById("cphFuncionalidade_btnAlterar");
-      if (!save || save.disabled) return addLog("O botão Salvar não está disponível. Salve manualmente.");
-      save.click();
-      return;
+      return finishUnavailableReplication(expected, reservedClasses.size ? "As turmas disponíveis têm prévias próprias ou não foram identificadas com segurança" : "Replicação indisponível");
     }
-    targets.forEach((input) => {
-      input.checked = true;
+    if (!confirm || confirm.disabled || !confirm.getClientRects().length) {
+      if (Date.now() - openedAt < 8000) return setTimeout(completeReplicationIfRequested, 200);
+      return finishUnavailableReplication(expected);
+    }
+    inputs.forEach((input) => {
+      const checked = targets.includes(input);
+      if (input.checked === checked) return;
+      input.checked = checked;
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
     sessionStorage.removeItem("assistenteSiapConfirmReplicate");
     sessionStorage.removeItem("assistenteSiapReplicationOpenedAt");
+    if (batch?.mode === "lesson-sequence") {
+      batch.current.replicationConfirmedAt = Date.now();
+      batch.phase = "replication-confirmed";
+    } else if (batch) batch.phase = "saving";
+    if (batch) setPlanningBatch(batch);
+    confirm.click();
+    if (batch?.mode === "lesson-sequence") setTimeout(resumePlanningBatch, 1200);
+  }
+
+  function resumeAfterReplicationCancel() {
+    const pending = readStoredJson("assistenteSiapSaveAfterReplicationCancel");
+    if (!pending) return;
+    if (pending.signature !== planningSignature() || Date.now() - pending.startedAt > 15000) {
+      sessionStorage.removeItem("assistenteSiapSaveAfterReplicationCancel");
+      const batch = getPlanningBatch();
+      if (batch) { batch.paused = true; batch.phase = "manual"; setPlanningBatch(batch); }
+      return addLog("O SIAP não confirmou o fechamento da replicação. Confira a aula antes de salvar.");
+    }
+    if (document.getElementById("dialogConfirmacao")?.getClientRects().length) return setTimeout(resumeAfterReplicationCancel, 500);
+    const save = document.getElementById("cphFuncionalidade_btnAlterar");
+    sessionStorage.removeItem("assistenteSiapSaveAfterReplicationCancel");
+    if (!save || save.disabled) return addLog("O botão Salvar não está disponível. Confira a aula no SIAP.");
     const batch = getPlanningBatch();
     if (batch) { batch.phase = "saving"; setPlanningBatch(batch); }
-    confirm.click();
+    save.click();
   }
 
   function generatePeiDraft() {
@@ -2522,6 +3907,7 @@
         if (model.page === "planning-lesson") {
           resumePlanningFlow();
           completeReplicationIfRequested();
+          resumeAfterReplicationCancel();
         }
         if (["planning-overview", "planning-lesson"].includes(model.page)) resumePlanningBatch();
         if (model.page === "content") resumeContentBatch();
@@ -2538,9 +3924,13 @@
   function setOpen(open, closed = false) {
     const launcher = document.getElementById("assistente-siap-launcher");
     if (!open) planningDockDetached = false;
+    if (open && Core.pageType(location.pathname) === "planning-lesson") {
+      for (const property of ["left", "top", "right", "bottom"]) panel.style.removeProperty(property);
+    }
     panel.hidden = !open;
     applyPlanningDockLayout();
     if (launcher) launcher.hidden = open || closed;
+    sessionStorage.setItem("assistenteSiapPanelOpenThisTab", String(open));
     chrome.storage.local.set({ panelOpen: open, panelClosed: closed });
   }
 
