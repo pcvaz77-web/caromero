@@ -1261,7 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (student && !allowed) toast('Sem permissão para excluir alunos.');
       return;
     }
-    if (!confirm(`Excluir ${student.name}? Esta ação não pode ser desfeita.`)) return;
+    if (!confirm(`Excluir ${student.name} e todos os registros vinculados a este aluno, inclusive observações, ocorrências e avaliações? Esta ação não pode ser desfeita.`)) return;
     const typedName = prompt(`Para confirmar, digite exatamente o nome do aluno: ${student.name}`);
     if (typedName !== student.name) {
       toast('Exclusão cancelada. O nome do aluno não foi confirmado.');
@@ -1270,29 +1270,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     deletingStudentId = id;
     try {
-      let deleteQuery = db.from('students').delete().eq('id', id);
       const schoolId = window.getActiveSchoolId?.();
       if (!schoolId) { toast('Selecione uma escola antes de excluir o aluno.'); return; }
-      deleteQuery = deleteQuery.eq('school_id', schoolId);
-      const { data, error } = await deleteQuery.select('id');
+      const { data, error } = await db.rpc('delete_student_permanently', {
+        p_school_id: schoolId,
+        p_student_id: id
+      });
       if (error) {
-        toast(error.code === '23503'
-          ? 'Este aluno possui registros vinculados que impedem a exclusão.'
-          : error.message);
+        toast(error.message);
         return;
       }
-      if (!data?.length) { toast('Aluno não encontrado nesta escola ou exclusão não autorizada. Confira sua permissão.'); return; }
-
-      let photoCleanupFailed = false;
-      if (student.photoPath) {
-        const { error: photoError } = await db.storage.from('student-photos').remove([student.photoPath]);
-        photoCleanupFailed = !!photoError;
+      let mediaCleanupFailed = false;
+      if (data?.photo_path) {
+        const { error: photoError } = await db.storage.from('student-photos').remove([data.photo_path]);
+        mediaCleanupFailed = !!photoError;
+      }
+      const attachmentPaths = data?.attachment_paths || [];
+      for (let index = 0; index < attachmentPaths.length; index += 100) {
+        const { error: attachmentError } = await db.storage.from('occurrence-attachments').remove(attachmentPaths.slice(index, index + 100));
+        if (attachmentError) mediaCleanupFailed = true;
       }
       students = students.filter(item => item.id !== id);
       if (detailStudentId === id) detailStudentId = null;
       render();
       await load();
-      toast(photoCleanupFailed ? 'Aluno excluído. A foto antiga permaneceu protegida no armazenamento.' : 'Aluno excluído.');
+      toast(mediaCleanupFailed ? 'Aluno e registros excluídos. Alguns arquivos vinculados não puderam ser removidos.' : 'Aluno e registros vinculados excluídos.');
+    } catch (error) {
+      toast(error?.message || 'Não foi possível excluir o aluno.');
     } finally {
       deletingStudentId = null;
     }
