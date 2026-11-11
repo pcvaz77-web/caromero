@@ -1269,6 +1269,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     deletingStudentId = id;
+    let deleted = false;
     try {
       const schoolId = window.getActiveSchoolId?.();
       if (!schoolId) { toast('Selecione uma escola antes de excluir o aluno.'); return; }
@@ -1280,23 +1281,28 @@ document.addEventListener('DOMContentLoaded', () => {
         toast(error.message);
         return;
       }
-      let mediaCleanupFailed = false;
-      if (data?.photo_path) {
-        const { error: photoError } = await db.storage.from('student-photos').remove([data.photo_path]);
-        mediaCleanupFailed = !!photoError;
-      }
-      const attachmentPaths = data?.attachment_paths || [];
-      for (let index = 0; index < attachmentPaths.length; index += 100) {
-        const { error: attachmentError } = await db.storage.from('occurrence-attachments').remove(attachmentPaths.slice(index, index + 100));
-        if (attachmentError) mediaCleanupFailed = true;
-      }
+      deleted = true;
       students = students.filter(item => item.id !== id);
       if (detailStudentId === id) detailStudentId = null;
       render();
+      let mediaCleanupFailed = false;
+      if (data?.photo_path) {
+        try {
+          const { error: photoError } = await db.storage.from('student-photos').remove([data.photo_path]);
+          if (photoError) mediaCleanupFailed = true;
+        } catch (_) { mediaCleanupFailed = true; }
+      }
+      const attachmentPaths = data?.attachment_paths || [];
+      for (let index = 0; index < attachmentPaths.length; index += 100) {
+        try {
+          const { error: attachmentError } = await db.storage.from('occurrence-attachments').remove(attachmentPaths.slice(index, index + 100));
+          if (attachmentError) mediaCleanupFailed = true;
+        } catch (_) { mediaCleanupFailed = true; }
+      }
       await load();
       toast(mediaCleanupFailed ? 'Aluno e registros excluídos. Alguns arquivos vinculados não puderam ser removidos.' : 'Aluno e registros vinculados excluídos.');
     } catch (error) {
-      toast(error?.message || 'Não foi possível excluir o aluno.');
+      toast(deleted ? 'Aluno e registros excluídos. Atualize a página para confirmar a lista.' : (error?.message || 'Não foi possível excluir o aluno.'));
     } finally {
       deletingStudentId = null;
     }
