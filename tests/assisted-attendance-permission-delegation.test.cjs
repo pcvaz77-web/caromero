@@ -16,7 +16,7 @@ test('Frequência Assistida sai das permissões gerais e entra no Painel da Turm
   assert.doesNotMatch(permissions, /setAttendancePermission/);
   assert.doesNotMatch(attendance, /assistedAttendanceNav/);
   assert.match(attendance, /getAssistedAttendancePanelAction/);
-  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn secondary">Calcular frequência pelas chamadas/);
+  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn primary">Extrair frequência do SIAP/);
   assert.match(classroom, /getAssistedAttendancePanelAction/);
   assert.match(classroom, /bindAssistedAttendancePanelAction/);
   assert.match(classroom, /canViewPanel = .*getActiveSchoolRole\?\.\(\) === 'teacher'/);

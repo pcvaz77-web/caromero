@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }catch(error){status(`Não foi possível limpar ${label}: ${error.message}`);button.disabled=false;}
   }
   window.getSiapImportManagerAction=actionContext=>canManage(actionContext)
-    ? '<button id="openSiapImportManager" type="button" class="btn secondary">Gerenciar capturas do SIAP</button>' : '';
+    ? '<button id="openSiapImportManager" type="button" class="btn primary">Gerenciar capturas do SIAP</button>' : '';
   window.bindSiapImportManagerAction=actionContext=>{
     const button=document.getElementById('openSiapImportManager');
     if(button)button.onclick=async()=>{context=actionContext;modal.classList.remove('hidden');await load();};
