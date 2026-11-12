@@ -11,6 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const date=new Date(value);
     return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'}).format(date);
   };
+  const capturedDate = value => {
+    const date=new Date(value);
+    return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short'}).format(date);
+  };
   const schoolId = () => window.getActiveSchoolId?.() || null;
   const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && permission?.can_import_siap_attendance===true && !!classId && !!schoolId();
   let rows = [];
@@ -53,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!items.length)return '';
     const latest=items[0];
     return items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester)
-      .map(row=>`<span class="siap-absence-badge" title="${escapeAttribute(row.subject)} · ${row.bimester}º bimestre/${row.academic_year} · Fonte: SIAP/Notas · Capturado em: ${escapeAttribute(updatedAt(row.imported_at))}">${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre</span>`).join('');
+      .map(row=>`<span class="siap-absence-badge" title="${escapeAttribute(row.subject)} · ${row.bimester}º bimestre/${row.academic_year} · Fonte: SIAP/Notas · Capturado em: ${escapeAttribute(updatedAt(row.imported_at))}">${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre${row.imported_at?` · ${escape(capturedDate(row.imported_at))}`:''}</span>`).join('');
   };
   window.getStudentSiapAbsenceDetails = studentId => window.getStudentSiapAbsences(studentId)
     .map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre/${row.academic_year}</span><small>Fonte: SIAP · Notas${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
@@ -62,10 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.id='siapAbsencesModal';
   modal.className='modal-bg hidden';
   modal.innerHTML=`<section class="modal siap-absences-dialog"><div class="modal-head"><h3>Faltas bimestrais do SIAP</h3><button type="button" class="close" data-absence-close aria-label="Fechar">×</button></div>
-    <div class="form"><p class="sub">Abra a aba Notas da turma, disciplina e bimestre no SIAP. A extensão lê “Faltas” e “Carga Horária Ministrada”, inclusive no bimestre em andamento.</p>
+    <div class="form"><p class="sub">Abra a aba Notas da turma, disciplina e bimestre no SIAP. A extensão lê “Faltas” e a carga horária, inclusive no bimestre em andamento.</p>
     <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button></div>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
-    <p class="meta">O percentual é usado apenas para definir as etiquetas. O card mostra somente as faltas e o bimestre. A carga prevista não entra na conta.</p>
+    <p class="meta">O percentual só define etiquetas quando a carga ministrada é compatível com todas as faltas da turma. O card mostra as faltas e o bimestre mesmo sem percentual.</p>
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
@@ -92,7 +96,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const eligible=matches.filter(row=>row.studentId&&!row.blocked&&row.absences!==null);
     by('[data-absence-import]').disabled=!eligible.length;
     by('[data-absence-preview]').innerHTML=snapshot
-      ? `<p class="meta">${snapshot.taughtHours} de ${snapshot.plannedHours??'—'} de carga horária · ${eligible.length} alunos identificados · ${matches.filter(row=>row.absences===null).length} sem faltas informadas · ${matches.filter(row=>row.absences!==null&&!row.studentId).length} sem vínculo único.</p>
+      ? `<p class="meta">Carga ministrada: ${snapshot.taughtHours??'não informada'} · prevista: ${snapshot.plannedHours??'não informada'} · ${eligible.length} alunos identificados · ${matches.filter(row=>row.absences===null).length} sem faltas informadas · ${matches.filter(row=>row.absences!==null&&!row.studentId).length} sem vínculo único.${snapshot.usePercentage?' Etiquetas serão calculadas.':' Sem etiquetas desta captura: carga ministrada incompatível ou ausente.'}</p>
         <div class="siap-absence-preview-list">${matches.map((row,index)=>{
           const valid=row.studentId&&!row.blocked&&row.absences!==null;
           const reason=row.absences===null?'Campo vazio':row.blocked?'Matrícula bloqueada no SIAP':row.duplicate?'Nome duplicado no SIAP':
@@ -150,15 +154,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const year=Number(result.context?.year);
       if(!Number.isInteger(bimester)||!Number.isInteger(year)||!result.context?.subject||!Array.isArray(result.entries))
         throw new Error('Ano, bimestre, disciplina ou alunos não identificados no SIAP.');
-      if(!Number.isInteger(result.taughtHours)||result.taughtHours<=0||result.taughtHours>9999)
-        throw new Error('Carga Horária Ministrada inválida. A frequência não foi calculada.');
+      if(result.taughtHours!==null&&(!Number.isInteger(result.taughtHours)||result.taughtHours<0||result.taughtHours>9999))
+        throw new Error('Carga Horária Ministrada em formato inválido.');
       if(result.entries.some(entry=>entry.absences!==null&&(!Number.isInteger(entry.absences)||entry.absences<0||entry.absences>9999)))
         throw new Error('O SIAP retornou uma quantidade de faltas inválida.');
-      if(result.entries.some(entry=>!entry.blocked&&entry.absences!==null&&entry.absences>result.taughtHours))
-        throw new Error('Há alunos com mais faltas que a carga horária ministrada. Confira se os dois campos representam o mesmo bimestre e unidade antes de importar.');
+      result.usePercentage=Number.isInteger(result.taughtHours)&&result.taughtHours>0&&
+        result.entries.every(entry=>entry.absences===null||entry.absences<=result.taughtHours);
       snapshot=result;
-      by('[data-absence-context]').textContent=`${targetClassName} · ${result.context.subject} · ${bimester}º bimestre/${year} · ${result.taughtHours} ministradas`;
-      renderPreview();status('Confira os nomes e as faltas antes de importar.');
+      by('[data-absence-context]').textContent=`${targetClassName} · ${result.context.subject} · ${bimester}º bimestre/${year}`;
+      renderPreview();status(result.usePercentage?'Confira os nomes e as faltas antes de importar.':'Confira as faltas. A carga ministrada não permite calcular etiquetas nesta captura.');
     }catch(error){snapshot=null;renderPreview();status(error.message);}
     finally{button.disabled=false;}
   };
@@ -177,12 +181,13 @@ document.addEventListener('DOMContentLoaded', () => {
         p_school_id:schoolId(),p_class_id:targetClassId,p_year:Number(snapshot.context.year),
         p_bimester:bimester,p_subject:snapshot.context.subject,
         p_taught_hours:snapshot.taughtHours,p_planned_hours:snapshot.plannedHours,
+        p_use_percentage:snapshot.usePercentage,
         p_rows:selected.map(row=>({student_id:row.studentId,absences:row.absences}))
       });
       if(error)throw error;
       await loadRows();
       document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
-      status(`${data} aluno(s) atualizados. Campos vazios e nomes sem vínculo único não foram alterados.`);
+      status(`${data} aluno(s) atualizados.${snapshot.usePercentage?' Etiquetas calculadas.':' Somente as faltas foram importadas; nenhuma etiqueta foi gerada.'} Campos vazios e nomes sem vínculo único não foram alterados.`);
     }catch(error){status(`Nenhuma importação concluída: ${error.message}`);}
     finally{button.disabled=false;}
   };
@@ -202,7 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodRows=classRows.filter(row=>row.academic_year===year&&row.bimester===bimester);
     const byStudent=new Map();
     periodRows.forEach(row=>{const list=byStudent.get(row.student_id)||[];list.push(row);byStudent.set(row.student_id,list);});
-    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas por disciplina</h4><p>Dados da aba Notas do SIAP · bimestre em andamento pode mudar · percentual usado apenas nas etiquetas</p></div>
+    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas por disciplina</h4><p>Dados da aba Notas do SIAP · bimestre em andamento pode mudar · etiquetas apenas quando a base é compatível</p></div>
       <select data-absence-period aria-label="Ano e bimestre das faltas">${periods.map(value=>{const [y,b]=value.split('|');return `<option value="${value}" ${value===chosen?'selected':''}>${b}º bimestre/${y}</option>`;}).join('')}</select></div>
       <div class="siap-absence-table">${students.filter(student=>student.classId===classId&&byStudent.has(student.id))
         .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))

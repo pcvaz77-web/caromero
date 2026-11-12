@@ -238,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if(schoolId!==window.getActiveSchoolId?.())return;
     absenceRows.forEach(row=>{
+      if(row.percentage===null||row.percentage===undefined)return;
       const percentage=Number(row.percentage);
       if(!Number.isFinite(percentage))return;
       const candidate={...row,source_key:'teacher_notes',status:classify(percentage),

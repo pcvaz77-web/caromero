@@ -52,3 +52,8 @@ test('Notas de bimestre mais recente substituem etiqueta antiga',async()=>{
   assert.equal(result.source_key,'teacher_notes');
   assert.equal(result.status,'frequent');
 });
+
+test('faltas sem denominador compatível não criam etiqueta',async()=>{
+  const result=await calculate(null,[notes(16,null)]);
+  assert.equal(result,undefined);
+});

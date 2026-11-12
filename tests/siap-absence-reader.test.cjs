@@ -66,6 +66,8 @@ test('interrompe a tela modelo quando as matrículas não coincidem',()=>{
   assert.throws(()=>snapshot({mismatch:true})(),/ordem das faltas/);
 });
 
-test('não calcula frequência sem carga horária ministrada positiva',()=>{
-  assert.throws(()=>snapshot({invalidHours:true})(),/maior que zero/);
+test('preserva faltas mesmo com carga ministrada zero',()=>{
+  const result=snapshot({invalidHours:true})();
+  assert.equal(result.taughtHours,0);
+  assert.deepEqual(Array.from(result.entries,item=>item.absences),[0,3]);
 });

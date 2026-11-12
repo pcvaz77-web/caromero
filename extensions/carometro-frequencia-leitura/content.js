@@ -471,9 +471,8 @@
       if(!/^\d{1,4}$/.test(raw))throw new Error(`${label} está em formato desconhecido.`);
       return Number(raw);
     };
-    const taughtHours=readHours('Carga Horária Ministrada',true);
+    const taughtHours=readHours('Carga Horária Ministrada',false);
     const plannedHours=readHours('Carga Horária Prevista',false);
-    if(taughtHours<=0)throw new Error('A carga horária ministrada precisa ser maior que zero para calcular a frequência.');
     let entries;
     if (location.pathname.toLowerCase()==='/notasedicao.aspx') {
       const candidates=[...document.querySelectorAll('table')].map(table=>{
