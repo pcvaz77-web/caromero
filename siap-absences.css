@@ -1,4 +1,5 @@
 .siap-absences-dialog{width:min(760px,100%)}
+body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttendanceModal{z-index:370!important}
 .siap-absences-dialog .form{display:grid;gap:12px}
 .siap-absence-preview-list{max-height:340px;overflow:auto;border:1px solid #dce4f1;border-radius:10px}
 .siap-absence-preview-row{display:grid;grid-template-columns:22px minmax(0,1fr) 90px;align-items:center;gap:9px;margin:0;padding:8px 12px;border-bottom:1px solid #e9edf5;font-size:13px}

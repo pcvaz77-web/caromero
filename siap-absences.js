@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
     status('Nenhuma tela capturada.');renderPreview();modal.classList.remove('hidden');
   }
   window.getSiapAbsencePanelAction=({classId}={})=>canCapture(classId)
-    ? '<button id="openSiapAbsences" type="button" class="btn primary">Capturar faltas em Notas</button>' : '';
+    ? '<button id="openSiapAbsences" type="button" class="btn primary">Extrair faltas do SIAP</button>' : '';
   window.bindSiapAbsencePanelAction=({classId,className}={})=>{
     const button=document.getElementById('openSiapAbsences');
     if(button)button.onclick=()=>openCapture(classId,className);
