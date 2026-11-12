@@ -184,18 +184,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const teacherStatus = window.getSiapAttendanceStatus;
   const orderedMonths = values => [...new Set(values || [])].sort((left,right)=>MONTHS.indexOf(left)-MONTHS.indexOf(right));
-  const effectivePeriod = item => item?.source_key==='teacher_notes'
-    ? `${item.bimester}º bimestre/${item.academic_year}`
-    : capturedPeriodLabel({
-      dateValues:item?.source_dates || [],
-      monthValues:orderedMonths(item?.months),
-      fallback:'Período não informado'
-    });
+  const effectivePeriod = item => capturedPeriodLabel({
+    dateValues:item?.source_dates || [],
+    monthValues:orderedMonths(item?.months),
+    fallback:'Período não informado'
+  });
 
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
-    await loadThresholds();
     let { data, error } = await db.rpc('get_effective_siap_attendance_labels_v3',{p_school_id:schoolId});
     if (error?.code === 'PGRST202') {
       // Enquanto a migration não estiver aplicada, preserva a frequência
@@ -220,51 +217,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:null,teacher_is_counselor:false,updated_at:null});
       });
     }
-    // A captura de Notas participa da mesma etiqueta e dos mesmos filtros.
-    // Dentro do bimestre, preserva o alerta mais grave entre as duas fontes;
-    // em empate, usa a leitura mais recente. Nunca soma as duas capturas.
-    const severity={frequent:0,absent:1,active_search:2};
-    const absenceRows=[];
-    for(let offset=0;;offset+=1000){
-      const page=await db.from('siap_bimester_absences')
-        .select('student_id,academic_year,bimester,subject,absences,taught_hours,percentage,imported_at')
-        .eq('school_id',schoolId).range(offset,offset+999);
-      if(page.error){
-        if(!['42P01','PGRST205'].includes(page.error.code))console.warn('Não foi possível carregar a frequência por notas:',page.error);
-        break;
-      }
-      absenceRows.push(...(page.data||[]));
-      if((page.data||[]).length<1000)break;
-    }
-    if(schoolId!==window.getActiveSchoolId?.())return;
-    absenceRows.forEach(row=>{
-      if(row.percentage===null||row.percentage===undefined)return;
-      const percentage=Number(row.percentage);
-      if(!Number.isFinite(percentage))return;
-      const candidate={...row,source_key:'teacher_notes',status:classify(percentage),
-        term:`${row.bimester}º Bimestre`,months:[],source_dates:[],updated_at:row.imported_at};
-      const previous=effectiveBadges.get(row.student_id);
-      const previousYear=Number(previous?.academic_year)||0;
-      const previousBimester=Number(String(previous?.term||'').match(/^([1-4])/)?.[1])||0;
-      const newerPeriod=row.academic_year>previousYear||row.academic_year===previousYear&&row.bimester>previousBimester;
-      const samePeriod=row.academic_year===previousYear&&row.bimester===previousBimester;
-      const moreSevere=(severity[candidate.status]??0)>(severity[previous?.status]??0);
-      const moreRecent=Date.parse(candidate.updated_at||'')>Date.parse(previous?.updated_at||'');
-      if(!previous||newerPeriod||samePeriod&&(moreSevere||severity[candidate.status]===severity[previous.status]&&moreRecent))
-        effectiveBadges.set(row.student_id,candidate);
-    });
     window.render?.();
     document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
   }
 
   window.getSchoolDailyAttendanceStatus = studentId => effectiveBadges.get(studentId)?.source_key==='secretary' ? effectiveBadges.get(studentId).status : null;
-  window.getTeacherAttendanceStatus = studentId => ['teacher','teacher_notes'].includes(effectiveBadges.get(studentId)?.source_key) ? effectiveBadges.get(studentId).status : null;
+  window.getTeacherAttendanceStatus = studentId => effectiveBadges.get(studentId)?.source_key==='teacher' ? effectiveBadges.get(studentId).status : null;
   window.getStudentAttendanceDetails = studentId => {
     const item=effectiveBadges.get(studentId);
     if(!item||!STATUS[item.status])return [];
-    const source=item.source_key==='teacher_notes'
-      ? `SIAP · Notas · ${String(item.subject||'').replace(/^\d+\s*-\s*/,'')}`
-      : item.source_key==='teacher'
+    const source=item.source_key==='teacher'
       ? item.teacher_is_counselor === true
         ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`
         : item.teacher_name || 'Professor não identificado'
@@ -274,11 +236,8 @@ document.addEventListener('DOMContentLoaded', () => {
       status:item.status,
       label:STATUS[item.status].label,
       className:STATUS[item.status].className,
-      percentage:item.source_key==='teacher_notes'?null:item.percentage,
+      percentage:item.percentage,
       period:effectivePeriod(item),
-      summary:item.source_key==='teacher_notes'
-        ? `${item.absences} falta${item.absences===1?'':'s'} em ${item.taught_hours} de carga horária ministrada`
-        : '',
       updatedAt:item.updated_at || null
     }];
   };
@@ -288,10 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const key=item?.status;
     if (!key || key === 'frequent') return '';
     const status = STATUS[key];
-    const fromNotes=item.source_key==='teacher_notes';
-    const subject=fromNotes?String(item.subject||'').replace(/^\d+\s*-\s*/,''):'';
-    const detail=fromNotes?` title="${escapeHtml(`${subject} · ${item.bimester}º bimestre · ${item.absences} falta(s) · Fonte: SIAP/Notas`).replace(/"/g,'&quot;')}"`:'';
-    return `<span class="attendance-badge ${status.className}"${detail}>${status.label}${fromNotes?' · Notas':''}</span>`;
+    return `<span class="attendance-badge ${status.className}">${status.label}</span>`;
   };
   window.refreshEffectiveAttendanceLabels = loadEffectiveBadges;
 
