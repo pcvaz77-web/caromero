@@ -1,4 +1,6 @@
 .siap-absences-dialog{width:min(760px,100%)}
+.siap-absence-header-actions{display:flex;align-items:center;gap:10px}
+.siap-absence-install-link{min-height:32px;padding:6px 10px;font-size:12px;white-space:nowrap;text-decoration:none}
 body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttendanceModal{z-index:370!important}
 .siap-absences-dialog .form{display:grid;gap:12px}
 .siap-absence-preview-list{max-height:340px;overflow:auto;border:1px solid #dce4f1;border-radius:10px}
@@ -22,4 +24,4 @@ body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttenda
 .siap-absence-table{display:grid;max-height:360px;overflow:auto}
 .siap-absence-student{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr);gap:12px;padding:9px 0;border-bottom:1px solid #e9edf5;font-size:12px}
 .siap-absence-student span{line-height:1.5}
-@media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-student{grid-template-columns:1fr;gap:3px}}
+@media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-student{grid-template-columns:1fr;gap:3px}.siap-absences-dialog .modal-head{gap:8px}.siap-absence-header-actions{gap:6px}.siap-absence-install-link{padding:6px 8px;font-size:11px}}
