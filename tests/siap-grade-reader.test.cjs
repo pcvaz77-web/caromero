@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const reader = fs.readFileSync(path.join(__dirname, '..', 'extensions', 'carometro-frequencia-leitura', 'content.js'), 'utf8');
 
-function snapshot({ mismatch = false, malformed = false, classic = false, duplicateTable = false, missingFinalCell = false } = {}) {
+function snapshot({ mismatch = false, malformed = false, classic = false, duplicateTable = false, missingFinalCell = false, finalTitle = 'Média Bimestral Final', finalNotLast = false, classicFinalNotLast = false } = {}) {
   const names = ['1. ANA EXEMPLO', '2. BRUNO EXEMPLO', '3. CARLA EXEMPLO'];
   const students = names.map((textContent, index) => ({
     dataset:{ matricula:String(index + 1), bloqueado:'False' }, textContent
@@ -16,8 +16,12 @@ function snapshot({ mismatch = false, malformed = false, classic = false, duplic
     dataset:{ matricula:String(mismatch && index === 1 ? 9 : index + 1), bloqueado:index === 2 ? 'True' : 'False' }, textContent
   }));
   const finalList = {
-    querySelector:() => ({ textContent:' Média Bimestral Final ' }),
+    querySelector:() => ({ textContent:finalTitle }),
     querySelectorAll:() => cells
+  };
+  const intermediateList = {
+    querySelector:() => ({ textContent:' Média Bimestral ' }),
+    querySelectorAll:() => cells.map((cell, index) => ({ ...cell, textContent:index === 0 ? '3,0' : cell.textContent }))
   };
   const classicRows = [
     { cells:['Alunos', 'trabalho avaliativo', 'seminário', 'Nota Extra', 'Faltas', 'Notas Finais'].map(textContent => ({ textContent })) },
@@ -25,6 +29,10 @@ function snapshot({ mismatch = false, malformed = false, classic = false, duplic
     { cells:['2. BRUNO EXEMPLO', '9', '9', '9', '0', malformed ? '0/0' : '0,0'].map(textContent => ({ textContent })) },
     { cells:['3. CARLA EXEMPLO', '', '', '', '0', '--'].map(textContent => ({ textContent })) }
   ];
+  if (classicFinalNotLast) {
+    classicRows[0].cells.push({ textContent:'Outra coluna' });
+    for (const row of classicRows.slice(1)) row.cells.push({ textContent:'2,0' });
+  }
   if (missingFinalCell) classicRows[2].cells.pop();
   const classicTable = { rows:classicRows };
   const fields = {
@@ -44,7 +52,7 @@ function snapshot({ mismatch = false, malformed = false, classic = false, duplic
     document:{
       getElementById:id => fields[id] ? { value:fields[id], textContent:fields[id] } : null,
       querySelectorAll:selector => selector === 'table' ? classic ? duplicateTable ? [classicTable, classicTable] : [classicTable] : [] :
-        selector.includes('listaDeAlunos') ? students : selector.includes('listaDeTotais') ? [finalList] : []
+        selector.includes('listaDeAlunos') ? students : selector.includes('listaDeTotais') ? finalNotLast ? [finalList, intermediateList] : [intermediateList, finalList] : []
     }
   };
   vm.runInNewContext(reader, context);
@@ -58,6 +66,14 @@ test('lê somente a média final e preserva zero separado de campo vazio', () =>
   assert.equal(result.entries.length, 3);
   assert.deepEqual(Array.from(result.entries, item => item.score), [8.1, 0, null]);
   assert.equal(result.entries[2].blocked, true);
+});
+
+test('aceita variações de título apenas na última coluna e rejeita a média intermediária', () => {
+  for (const finalTitle of ['Média Final do Bimestre', 'Nota Final', 'Notas Finais', 'Resultado Final']) {
+    assert.equal(snapshot({ finalTitle })().entries[0].score, 8.1);
+  }
+  assert.throws(() => snapshot({ finalTitle:'Média Bimestral' })(), /última coluna.*nota final/);
+  assert.throws(() => snapshot({ finalNotLast:true })(), /última coluna.*nota final/);
 });
 
 test('interrompe se matrícula e nota não estiverem alinhadas', () => {
@@ -79,4 +95,5 @@ test('interrompe se a nota final clássica for desconhecida ou a tabela ambígua
   assert.throws(() => snapshot({ classic:true, malformed:true })(), /formato desconhecido/);
   assert.throws(() => snapshot({ classic:true, duplicateTable:true })(), /com segurança/);
   assert.throws(() => snapshot({ classic:true, missingFinalCell:true })(), /não contém a coluna Notas Finais/);
+  assert.throws(() => snapshot({ classic:true, classicFinalNotLast:true })(), /não foi identificada com segurança/);
 });

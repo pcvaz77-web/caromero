@@ -41,21 +41,34 @@ function injectFile(tabId) {
 
 async function callReader(tabId, method, args = []) {
   await assertSiapSession(tabId);
-  await injectFile(tabId);
-  const results = await chrome.scripting.executeScript({
-    target:{ tabId },
-    func:(methodName, methodArgs) => {
-      const reader = globalThis[methodName];
-      if (typeof reader !== 'function') throw new Error(`Leitor indisponível: ${methodName}`);
-      return JSON.stringify({ value:reader(...methodArgs) });
-    },
-    args:[method, args]
-  });
-  const injection = results?.[0];
-  if (injection?.error) throw new Error(injection.error.message || String(injection.error));
-  if (typeof injection?.result !== 'string') throw new Error(`O leitor ${method} não devolveu uma resposta válida.`);
-  const payload = JSON.parse(injection.result);
-  return payload.value;
+  let lastError = '';
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    await injectFile(tabId);
+    const results = await chrome.scripting.executeScript({
+      target:{ tabId },
+      func:(methodName, methodArgs) => {
+        try {
+          const reader = globalThis[methodName];
+          if (typeof reader !== 'function') return JSON.stringify({ ok:false, message:`Leitor indisponível: ${methodName}` });
+          return JSON.stringify({ ok:true, value:reader(...methodArgs) });
+        } catch (error) {
+          return JSON.stringify({ ok:false, message:error?.message || String(error) });
+        }
+      },
+      args:[method, args]
+    });
+    const injection = results?.find(item => item.frameId === 0) || results?.[0];
+    if (typeof injection?.result === 'string') {
+      const payload = JSON.parse(injection.result);
+      if (!payload.ok) throw new Error(payload.message || `Falha no leitor ${method}.`);
+      return payload.value;
+    }
+    lastError = results?.length
+      ? `O Chrome executou o leitor sem devolver o resultado (${typeof injection?.result}).`
+      : 'O Chrome não executou o leitor na aba do SIAP.';
+    if (attempt < 2) await wait(150);
+  }
+  throw new Error(`${lastError} Atualize a página do SIAP e tente novamente.`);
 }
 
 async function triggerReaderNavigation(tabId, method, args = []) {

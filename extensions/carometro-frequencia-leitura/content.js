@@ -37,6 +37,10 @@
   }
 
   const normalizedComparable = value => normalize(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const isFinalGradeHeading = value => {
+    const heading = normalizedComparable(value);
+    return /\b(?:media|nota|notas|resultado)\b/.test(heading) && /\b(?:final|finais)\b/.test(heading);
+  };
 
   function contextMatches(request, context) {
     const fields = ['className', 'shift', 'subject', 'term'];
@@ -377,12 +381,12 @@
       const rows = [...table.rows];
       const headerIndex = rows.findIndex(row => {
         const labels = [...row.cells].map(cell => normalizedComparable(cell.textContent));
-        return labels.includes('alunos') && labels.includes('notas finais');
+        return labels.includes('alunos') && isFinalGradeHeading(labels.at(-1));
       });
       if (headerIndex < 0) return null;
       const header = rows[headerIndex];
       const labels = [...header.cells].map(cell => normalizedComparable(cell.textContent));
-      return { rows, headerIndex, studentIndex:labels.indexOf('alunos'), finalIndex:labels.indexOf('notas finais') };
+      return { rows, headerIndex, studentIndex:labels.indexOf('alunos'), finalIndex:labels.length - 1 };
     }).filter(Boolean);
     if (candidates.length !== 1) throw new Error('A tabela de Notas Finais do SIAP não foi identificada com segurança.');
     const { rows, headerIndex, studentIndex, finalIndex } = candidates[0];
@@ -405,8 +409,8 @@
     return entries;
   }
 
-  // Somente a coluna final, identificada pelo título da respectiva tela.
-  // Nenhuma avaliação, recuperação, falta ou botão de salvamento é lido ou acionado aqui.
+  // A posição determina a nota: somente a última coluna de totais é lida.
+  // O título deve indicar nota/média final, ainda que varie entre telas do SIAP.
   globalThis.__carometroGradesSnapshot = () => {
     if (!isGradesPage()) throw new Error('Abra no SIAP a tela Notas da turma e disciplina desejadas.');
     const context = readContext();
@@ -415,8 +419,10 @@
     if (location.pathname.toLowerCase() === '/notasedicao.aspx')
       return { pageToken:PAGE_TOKEN, schoolName:normalize(byId('lblNomeEntidade')?.textContent), context, entries:readClassicGradeEntries() };
     const students = [...document.querySelectorAll('.listaDeAlunos .itens > .item[data-matricula]')];
-    const finalList = [...document.querySelectorAll('.listaDeTotais.totalDeNotas')]
-      .find(list => normalize(list.querySelector('.cabecalho .titulo')?.textContent) === 'Média Bimestral Final');
+    const totalLists = [...document.querySelectorAll('.listaDeTotais.totalDeNotas')];
+    const finalList = totalLists.at(-1);
+    if (!isFinalGradeHeading(finalList?.querySelector('.cabecalho .titulo')?.textContent))
+      throw new Error('A última coluna do SIAP não identifica uma média ou nota final. Nenhuma nota foi lida.');
     const cells = [...(finalList?.querySelectorAll('.itens > .item[data-matricula]') || [])];
     if (!students.length || students.length !== cells.length) throw new Error('A lista de alunos e a coluna final não estão completas.');
     const seen = new Set();
