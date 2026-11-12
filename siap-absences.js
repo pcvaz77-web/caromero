@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const schoolKey = value => normalize(value).replace(/\bcol\b/g, 'colegio').replace(/\best\b/g, 'estadual');
   const escape = value => { const node=document.createElement('span');node.textContent=String(value ?? '');return node.innerHTML; };
   const escapeAttribute = value => escape(value).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/carometro-frequencia-leitura/knidplehphfpgaeeogjpfldhgbfkogbc';
   const updatedAt = value => {
     const date=new Date(value);
     return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'}).format(date);
@@ -65,10 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal=document.createElement('div');
   modal.id='siapAbsencesModal';
   modal.className='modal-bg hidden';
-  modal.innerHTML=`<section class="modal siap-absences-dialog"><div class="modal-head"><h3>Faltas bimestrais do SIAP</h3><button type="button" class="close" data-absence-close aria-label="Fechar">×</button></div>
+  modal.innerHTML=`<section class="modal siap-absences-dialog"><div class="modal-head"><h3>Faltas bimestrais do SIAP</h3><div class="siap-absence-header-actions"><a class="btn secondary siap-absence-install-link" href="${escapeAttribute(extensionStoreUrl)}" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button type="button" class="close" data-absence-close aria-label="Fechar">×</button></div></div>
     <div class="form"><p class="sub">Abra a aba Notas da turma, disciplina e bimestre no SIAP. A extensão lê “Faltas” e a carga horária, inclusive no bimestre em andamento.</p>
-    <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button><a class="btn secondary" href="downloads/carometro-frequencia-leitura-0.7.7.zip" download>Baixar extensão 0.7.7</a></div>
-    <p class="meta">Se a captura não responder, atualize a extensão. Para usar o pacote local, descompacte e carregue a pasta em chrome://extensions.</p>
+    <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button></div>
+    <p class="meta">Se a captura não responder, atualize a extensão pela Chrome Web Store.</p>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
     <p class="meta">Esta captura mostra as faltas por bimestre. As etiquetas de frequência continuam vindo das chamadas por datas.</p>
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
