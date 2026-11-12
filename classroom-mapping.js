@@ -453,19 +453,24 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('classroomMapMeta').textContent = selected?.name || 'Turma';
     modal.classList.remove('hidden');
     const content = document.getElementById('classroomMapContent');
-    const actionContext = { classId:activeClassId, className:selected?.name || 'Turma' };
+    const actionContext = { classId:activeClassId, className:selected?.name || 'Turma', permission };
     const siapActions = window.getSiapPanelActions?.({ permission, canManageClass:activeCanEdit }) || '';
     const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
     const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
     const classExamAction = window.getClassExamPanelAction?.(actionContext) || '';
-    const panelActions = `${siapActions}${attendanceAction}${gradeAction}${classExamAction}`;
+    const absenceAction = window.getSiapAbsencePanelAction?.(actionContext) || '';
+    const importManagerAction = window.getSiapImportManagerAction?.(actionContext) || '';
+    const panelActions = `${siapActions}${absenceAction}${attendanceAction}${gradeAction}${importManagerAction}${classExamAction}`;
     document.getElementById('classroomInstallAction').innerHTML = window.getAttendanceCaptureInstallPanelAction?.(actionContext) || '';
     const bindPanelActions = () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
+      window.bindSiapAbsencePanelAction?.(actionContext);
+      window.bindSiapImportManagerAction?.(actionContext);
       window.bindSiapGradePanelAction?.(actionContext);
       window.bindClassExamPanelAction?.(actionContext);
       window.mountSiapGradePanel?.(actionContext);
+      window.mountSiapAbsencePanel?.(actionContext);
       window.mountFamilyEntryAttendancePanel?.(actionContext);
     };
     if (activeCanEdit) {

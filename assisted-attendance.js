@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
   const isGeneralTeacher = () => window.getActiveSchoolRole?.() === 'teacher';
-  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && !!classId && !!window.getActiveSchoolId?.();
+  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && permission?.can_import_siap_attendance===true && !!classId && !!window.getActiveSchoolId?.();
 
   const modal = document.createElement('div');
   modal.id = 'assistedAttendanceModal';
@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ? `<a class="btn secondary classroom-panel-install-link" href="${escapeHtml(extensionStoreUrl)}" target="_blank" rel="noopener noreferrer" title="Instalar ou atualizar o capturador pela Chrome Web Store">Instalar Extensão</a>`
     : '';
   window.getAssistedAttendancePanelAction = ({ classId } = {}) => [
-    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn primary">Frequência Assistida</button>' : '',
+    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn secondary">Calcular frequência pelas chamadas</button>' : '',
     canConfigureThresholds() ? '<button id="openAttendanceSettings" type="button" class="btn secondary">Configurar frequência</button>' : ''
   ].join('');
   window.bindAssistedAttendancePanelAction = ({ classId, className } = {}) => {

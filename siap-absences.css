@@ -1,0 +1,24 @@
+.siap-absences-dialog{width:min(760px,100%)}
+.siap-absences-dialog .form{display:grid;gap:12px}
+.siap-absence-preview-list{max-height:340px;overflow:auto;border:1px solid #dce4f1;border-radius:10px}
+.siap-absence-preview-row{display:grid;grid-template-columns:22px minmax(0,1fr) 90px;align-items:center;gap:9px;margin:0;padding:8px 12px;border-bottom:1px solid #e9edf5;font-size:13px}
+.siap-absence-preview-row:last-child{border-bottom:0}
+.siap-absence-preview-row input{min-height:0;width:auto}
+.siap-absence-preview-row small{display:block;font-size:11px;color:#667085}
+.siap-absence-preview-row b{text-align:right}
+.siap-absence-preview-row:has(input:disabled){opacity:.58}
+.siap-absence-badge{display:inline-flex;align-items:center;margin:3px 4px 3px 0;padding:5px 9px;border-radius:99px;background:#eaf1ff;color:#244477;font-size:11px;font-weight:800}
+.siap-import-manager-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.siap-import-manager-row strong,.siap-import-manager-row small{display:block}
+.siap-import-manager-row small{margin-top:3px;color:var(--muted)}
+.student-badges{display:flex;flex-wrap:wrap;gap:4px}
+.siap-absence-detail{display:grid;gap:3px;padding:8px 0;border-bottom:1px solid #e9edf5;font-size:12px}
+.siap-absence-detail:last-child{border-bottom:0}
+.siap-absence-detail small{color:#667085}
+.siap-absence-panel{margin-top:14px}
+.siap-absence-panel-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.siap-absence-panel-head select{width:auto;min-height:37px;padding:6px 9px}
+.siap-absence-table{display:grid;max-height:360px;overflow:auto}
+.siap-absence-student{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr);gap:12px;padding:9px 0;border-bottom:1px solid #e9edf5;font-size:12px}
+.siap-absence-student span{line-height:1.5}
+@media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-student{grid-template-columns:1fr;gap:3px}}

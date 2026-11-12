@@ -16,7 +16,7 @@ test('Frequência Assistida sai das permissões gerais e entra no Painel da Turm
   assert.doesNotMatch(permissions, /setAttendancePermission/);
   assert.doesNotMatch(attendance, /assistedAttendanceNav/);
   assert.match(attendance, /getAssistedAttendancePanelAction/);
-  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn primary">Frequência Assistida/);
+  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn secondary">Calcular frequência pelas chamadas/);
   assert.match(classroom, /getAssistedAttendancePanelAction/);
   assert.match(classroom, /bindAssistedAttendancePanelAction/);
   assert.match(classroom, /canViewPanel = .*getActiveSchoolRole\?\.\(\) === 'teacher'/);
@@ -26,8 +26,8 @@ test('professor ativo da escola pode capturar em qualquer turma, sem vinculo de 
   assert.match(attendance, /isGeneralTeacher/);
   assert.match(attendance, /getActiveSchoolRole\?\.\(\) === 'teacher'/);
   assert.doesNotMatch(attendance, /counselorRightsForClass\?\.\(classId\)/);
-  assert.match(attendance, /isGeneralTeacher\(\) && !!classId && !!window\.getActiveSchoolId\?\.\(\)/);
-  assert.match(grades, /getActiveSchoolRole\?\.\(\) === 'teacher' && !!classId && !!window\.getActiveSchoolId\?\.\(\)/);
+  assert.match(attendance, /isGeneralTeacher\(\) && permission\?\.can_import_siap_attendance===true && !!classId/);
+  assert.match(grades, /getActiveSchoolRole\?\.\(\) === 'teacher' && permission\?\.can_import_siap_attendance===true && !!classId/);
   assert.doesNotMatch(grades, /counselorRightsForClass/);
   assert.match(attendance, /captureClassId/);
   assert.match(attendance, /não pertence à turma/);

@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? '' : new Intl.DateTimeFormat('pt-BR', { dateStyle:'short', timeStyle:'short' }).format(date);
   };
-  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && !!classId && !!window.getActiveSchoolId?.();
+  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && permission?.can_import_siap_attendance===true && !!classId && !!window.getActiveSchoolId?.();
   const schoolId = () => window.getActiveSchoolId?.() || null;
   let batches = [];
   let entries = [];
@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Não foi possível carregar as notas bimestrais:', error);
     }
   }
+  window.refreshSiapGrades = loadGrades;
 
   window.getStudentGradeDetails = studentId => {
     const byId = new Map(batches.filter(batch => batch.show_on_card).map(batch => [batch.id, batch]));
