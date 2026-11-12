@@ -26,8 +26,8 @@ test('professor ativo da escola pode capturar em qualquer turma, sem vinculo de 
   assert.match(attendance, /isGeneralTeacher/);
   assert.match(attendance, /getActiveSchoolRole\?\.\(\) === 'teacher'/);
   assert.doesNotMatch(attendance, /counselorRightsForClass\?\.\(classId\)/);
-  assert.match(attendance, /isGeneralTeacher\(\) && !!classId && !!window\.getActiveSchoolId\?\.\(\)/);
-  assert.match(grades, /getActiveSchoolRole\?\.\(\) === 'teacher' && !!classId && !!window\.getActiveSchoolId\?\.\(\)/);
+  assert.match(attendance, /isGeneralTeacher\(\) && permission\?\.can_import_siap_attendance===true && !!classId/);
+  assert.match(grades, /getActiveSchoolRole\?\.\(\) === 'teacher' && permission\?\.can_import_siap_attendance===true && !!classId/);
   assert.doesNotMatch(grades, /counselorRightsForClass/);
   assert.match(attendance, /captureClassId/);
   assert.match(attendance, /não pertence à turma/);

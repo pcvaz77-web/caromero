@@ -8,6 +8,9 @@
 .siap-absence-preview-row b{text-align:right}
 .siap-absence-preview-row:has(input:disabled){opacity:.58}
 .siap-absence-badge{display:inline-flex;align-items:center;margin:3px 4px 3px 0;padding:5px 9px;border-radius:99px;background:#eaf1ff;color:#244477;font-size:11px;font-weight:800}
+.siap-import-manager-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+.siap-import-manager-row strong,.siap-import-manager-row small{display:block}
+.siap-import-manager-row small{margin-top:3px;color:var(--muted)}
 .student-badges{display:flex;flex-wrap:wrap;gap:4px}
 .siap-absence-detail{display:grid;gap:3px;padding:8px 0;border-bottom:1px solid #e9edf5;font-size:12px}
 .siap-absence-detail:last-child{border-bottom:0}

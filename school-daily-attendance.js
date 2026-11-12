@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
       status:item.status,
       label:STATUS[item.status].label,
       className:STATUS[item.status].className,
-      percentage:item.percentage,
+      percentage:item.source_key==='teacher_notes'?null:item.percentage,
       period:effectivePeriod(item),
       summary:item.source_key==='teacher_notes'
         ? `${item.absences} falta${item.absences===1?'':'s'} em ${item.taught_hours} de carga horária ministrada`
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = STATUS[key];
     const fromNotes=item.source_key==='teacher_notes';
     const subject=fromNotes?String(item.subject||'').replace(/^\d+\s*-\s*/,''):'';
-    const detail=fromNotes?` title="${escapeHtml(`${subject} · ${item.bimester}º bimestre · ${item.absences} falta(s) em ${item.taught_hours} ministradas · ${item.percentage}% de frequência`).replace(/"/g,'&quot;')}"`:'';
+    const detail=fromNotes?` title="${escapeHtml(`${subject} · ${item.bimester}º bimestre · ${item.absences} falta(s) · Fonte: SIAP/Notas`).replace(/"/g,'&quot;')}"`:'';
     return `<span class="attendance-badge ${status.className}"${detail}>${status.label}${fromNotes?' · Notas':''}</span>`;
   };
   window.refreshEffectiveAttendanceLabels = loadEffectiveBadges;

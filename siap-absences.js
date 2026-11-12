@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return Number.isNaN(date.getTime())?'':new Intl.DateTimeFormat('pt-BR',{dateStyle:'short',timeStyle:'short'}).format(date);
   };
   const schoolId = () => window.getActiveSchoolId?.() || null;
-  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && !!classId && !!schoolId();
+  const canCapture = classId => window.getActiveSchoolRole?.() === 'teacher' && permission?.can_import_siap_attendance===true && !!classId && !!schoolId();
   let rows = [];
   let snapshot = null;
   let targetClassId = null;
@@ -43,6 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Não foi possível carregar as faltas bimestrais:',error);
     }
   }
+  window.refreshSiapAbsences = loadRows;
 
   window.getStudentSiapAbsences = studentId => rows.filter(row => row.student_id===studentId)
     .sort((a,b) => b.academic_year-a.academic_year || b.bimester-a.bimester || a.subject.localeCompare(b.subject))
@@ -52,10 +53,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!items.length)return '';
     const latest=items[0];
     return items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester)
-      .map(row=>`<span class="siap-absence-badge" title="${escapeAttribute(row.subject)} · ${row.bimester}º bimestre/${row.academic_year} · ${row.taught_hours} de ${row.planned_hours??'—'} de carga horária · Fonte: SIAP/Notas · Atualizado em: ${escapeAttribute(updatedAt(row.imported_at))}">${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bim · ${row.percentage}% freq.</span>`).join('');
+      .map(row=>`<span class="siap-absence-badge" title="${escapeAttribute(row.subject)} · ${row.bimester}º bimestre/${row.academic_year} · Fonte: SIAP/Notas · Capturado em: ${escapeAttribute(updatedAt(row.imported_at))}">${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre</span>`).join('');
   };
   window.getStudentSiapAbsenceDetails = studentId => window.getStudentSiapAbsences(studentId)
-    .map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} em ${row.taught_hours} de carga horária ministrada · ${row.percentage}% de frequência · ${row.bimester}º bimestre/${row.academic_year}</span><small>Fonte: SIAP · Notas${row.imported_at?` · Atualizado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
+    .map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre/${row.academic_year}</span><small>Fonte: SIAP · Notas${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
 
   const modal=document.createElement('div');
   modal.id='siapAbsencesModal';
@@ -64,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="form"><p class="sub">Abra a aba Notas da turma, disciplina e bimestre no SIAP. A extensão lê “Faltas” e “Carga Horária Ministrada”, inclusive no bimestre em andamento.</p>
     <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button></div>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
-    <p class="meta">Frequência = (carga horária ministrada − faltas) ÷ carga horária ministrada. A carga prevista inclui períodos futuros e fica fora da conta. As chamadas permanecem como outra fonte para comparação.</p>
+    <p class="meta">O percentual é usado apenas para definir as etiquetas. O card mostra somente as faltas e o bimestre. A carga prevista não entra na conta.</p>
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
@@ -96,9 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const valid=row.studentId&&!row.blocked&&row.absences!==null;
           const reason=row.absences===null?'Campo vazio':row.blocked?'Matrícula bloqueada no SIAP':row.duplicate?'Nome duplicado no SIAP':
             !row.studentId?row.matchCount?'Nome duplicado no Carômetro':'Não identificado no Carômetro':'';
-          const percentage=valid?Math.round((snapshot.taughtHours-row.absences)*100/snapshot.taughtHours):null;
           return `<label class="siap-absence-preview-row"><input type="checkbox" data-absence-row="${index}" ${valid?'checked':'disabled'}>
-            <span>${escape(row.name)}<small>${escape(reason)}</small></span><b>${row.absences===null?'—':`${row.absences} · ${percentage??'—'}%`}</b></label>`;
+            <span>${escape(row.name)}<small>${escape(reason)}</small></span><b>${row.absences===null?'—':`${row.absences} falta${row.absences===1?'':'s'}`}</b></label>`;
         }).join('')}</div>` : '';
   }
 
@@ -202,11 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodRows=classRows.filter(row=>row.academic_year===year&&row.bimester===bimester);
     const byStudent=new Map();
     periodRows.forEach(row=>{const list=byStudent.get(row.student_id)||[];list.push(row);byStudent.set(row.student_id,list);});
-    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas e frequência por disciplina</h4><p>Frequência calculada com faltas e carga horária ministrada da aba Notas do SIAP · bimestre em andamento pode mudar</p></div>
+    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas por disciplina</h4><p>Dados da aba Notas do SIAP · bimestre em andamento pode mudar · percentual usado apenas nas etiquetas</p></div>
       <select data-absence-period aria-label="Ano e bimestre das faltas">${periods.map(value=>{const [y,b]=value.split('|');return `<option value="${value}" ${value===chosen?'selected':''}>${b}º bimestre/${y}</option>`;}).join('')}</select></div>
       <div class="siap-absence-table">${students.filter(student=>student.classId===classId&&byStudent.has(student.id))
         .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
-        .map(student=>`<div class="siap-absence-student"><strong>${escape(student.name)}</strong><span>${byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject)).map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: <b>${row.absences} faltas / ${row.taught_hours} ministradas · ${row.percentage}% freq.</b>`).join(' · ')}</span></div>`).join('')}</div>`;
+        .map(student=>`<div class="siap-absence-student"><strong>${escape(student.name)}</strong><span>${byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject)).map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: <b>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre</b> <small>Capturado em ${escape(updatedAt(row.imported_at))}</small>`).join(' · ')}</span></div>`).join('')}</div>`;
     section.querySelector('[data-absence-period]').onchange=()=>mountPanel(classId);
   }
   window.mountSiapAbsencePanel=({classId}={})=>{targetClassId=classId;mountPanel(classId);};

@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isMobileDevice = () => matchMedia('(max-width: 900px)').matches || /Android|iPhone|iPod|Mobile/i.test(navigator.userAgent);
   const isGeneralTeacher = () => window.getActiveSchoolRole?.() === 'teacher';
-  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && !!classId && !!window.getActiveSchoolId?.();
+  const canCaptureClass = classId => !isMobileDevice() && isGeneralTeacher() && permission?.can_import_siap_attendance===true && !!classId && !!window.getActiveSchoolId?.();
 
   const modal = document.createElement('div');
   modal.id = 'assistedAttendanceModal';
