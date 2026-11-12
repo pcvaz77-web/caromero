@@ -62,7 +62,7 @@ assert.match(index, /<strong>Fonte:<\/strong>/);
 assert.doesNotMatch(source, /statuses\.sort/);
 assert.match(source, /carometro:school-context-ready', reloadActiveSchoolAttendance/);
 assert.match(source, /carometro:data-loaded', loadEffectiveBadges/);
-assert.match(index, /school-daily-attendance\.js\?v=20/);
+assert.match(index, /school-daily-attendance\.js\?v=21/);
 
 const cleanNameExpression = source.match(/const cleanName = ([^;]+);/)?.[1];
 const normalizeNameExpression = source.match(/const normalizeName = ([^;]+);/)?.[1];

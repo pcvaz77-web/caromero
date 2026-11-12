@@ -446,4 +446,80 @@
     });
     return { pageToken:PAGE_TOKEN, schoolName:normalize(byId('lblNomeEntidade')?.textContent), context, entries };
   };
+
+  // Leitor independente da coluna Faltas. Não depende de notas lançadas e
+  // não altera o comportamento da captura de médias finais.
+  globalThis.__carometroAbsencesSnapshot = () => {
+    if (!isGradesPage()) throw new Error('Abra no SIAP a aba Notas da turma e disciplina desejadas.');
+    const context=readContext();
+    if (['year','className','shift','subject','term'].some(key=>!context[key]))
+      throw new Error('O contexto das notas ainda não terminou de carregar.');
+    const readHours = (label,required) => {
+      const suffix=label==='Carga Horária Ministrada'?'CargaHorariaMinistrada':'CargaHorariaPrevista';
+      const direct=[...document.querySelectorAll('input')].filter(input=>
+        [input.id,input.name].some(value=>String(value||'').toLowerCase().includes(suffix.toLowerCase())));
+      const labels=[...document.querySelectorAll('label,span,div')].filter(node=>
+        normalizedComparable(node.textContent)===normalizedComparable(label)&&
+        ![...node.children].some(child=>normalizedComparable(child.textContent)===normalizedComparable(label)));
+      const labelNode=labels.length===1?labels[0]:null;
+      const next=labelNode?.nextElementSibling;
+      const matching=direct.length===1?direct[0]:labelNode?
+        (labelNode.control||byId(labelNode.htmlFor)||labelNode.parentElement?.querySelector('input')||
+          (next?.matches?.('input')?next:next?.querySelector?.('input'))):null;
+      const raw=normalize(matching?.value);
+      if(!raw){if(required)throw new Error(`${label} não foi encontrada na tela de Notas.`);return null;}
+      if(!/^\d{1,4}$/.test(raw))throw new Error(`${label} está em formato desconhecido.`);
+      return Number(raw);
+    };
+    const taughtHours=readHours('Carga Horária Ministrada',true);
+    const plannedHours=readHours('Carga Horária Prevista',false);
+    if(taughtHours<=0)throw new Error('A carga horária ministrada precisa ser maior que zero para calcular a frequência.');
+    let entries;
+    if (location.pathname.toLowerCase()==='/notasedicao.aspx') {
+      const candidates=[...document.querySelectorAll('table')].map(table=>{
+        const rows=[...table.rows];
+        const headerIndex=rows.findIndex(row=>{
+          const labels=[...row.cells].map(cell=>normalizedComparable(cell.textContent));
+          return labels.includes('alunos')&&labels.includes('faltas')&&isFinalGradeHeading(labels.at(-1));
+        });
+        if(headerIndex<0)return null;
+        const labels=[...rows[headerIndex].cells].map(cell=>normalizedComparable(cell.textContent));
+        return {rows,headerIndex,studentIndex:labels.indexOf('alunos'),absenceIndex:labels.indexOf('faltas')};
+      }).filter(Boolean);
+      if(candidates.length!==1)throw new Error('A coluna Faltas não foi identificada com segurança nesta tela.');
+      const {rows,headerIndex,studentIndex,absenceIndex}=candidates[0];
+      entries=rows.slice(headerIndex+1).flatMap(row=>{
+        const cells=[...row.cells];
+        const nameText=normalize(cells[studentIndex]?.textContent);
+        if(!/^\d+\.\s*\S/.test(nameText))return [];
+        if(cells.length<=absenceIndex)throw new Error('A linha do aluno não contém a coluna Faltas.');
+        const raw=normalize(cells[absenceIndex].textContent);
+        if(raw&&!/^\d{1,4}$/.test(raw))throw new Error('O SIAP exibiu faltas em formato desconhecido.');
+        return [{registration:'',name:nameText.replace(/^\d+\.\s*/,''),absences:raw?Number(raw):null,blocked:false}];
+      });
+    } else {
+      const students=[...document.querySelectorAll('.listaDeAlunos .itens > .item[data-matricula]')];
+      const lists=[...document.querySelectorAll('.listaDeTotais')]
+        .filter(list=>normalizedComparable(list.querySelector('.cabecalho .titulo')?.textContent)==='faltas');
+      if(lists.length!==1)throw new Error('A coluna Faltas não foi identificada com segurança nesta tela.');
+      const cells=[...lists[0].querySelectorAll('.itens > .item[data-matricula]')];
+      if(!students.length||students.length!==cells.length)
+        throw new Error('A lista de alunos e a coluna Faltas não estão completas.');
+      const seen=new Set();
+      entries=students.map((student,index)=>{
+        const cell=cells[index];
+        const registration=normalize(student.dataset.matricula);
+        if(!registration||seen.has(registration)||registration!==normalize(cell.dataset.matricula))
+          throw new Error('A ordem das faltas não corresponde à lista de alunos.');
+        seen.add(registration);
+        const raw=normalize(cell.textContent);
+        if(raw&&!/^\d{1,4}$/.test(raw))throw new Error('O SIAP exibiu faltas em formato desconhecido.');
+        return {registration,name:normalize(student.dataset.nome||student.textContent).replace(/^\d+\.\s*/,''),
+          absences:raw?Number(raw):null,blocked:String(cell.dataset.bloqueado).toLowerCase()==='true'};
+      });
+    }
+    if(!entries.length)throw new Error('A coluna Faltas não contém alunos legíveis.');
+    return {pageToken:PAGE_TOKEN,schoolName:normalize(byId('lblNomeEntidade')?.textContent),context,
+      taughtHours,plannedHours,entries};
+  };
 })();

@@ -484,15 +484,15 @@ async function collectAttendance(tabId, request) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT', 'CM_GRADES_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
+  if (!['CM_ATTENDANCE_REQUEST', 'CM_ASSISTED_CAPTURE', 'CM_SCHOOL_DAILY_COLLECT', 'CM_GRADES_CAPTURE', 'CM_ABSENCES_CAPTURE'].includes(message?.type) || sender.tab?.url?.startsWith('https://sistemacarometro.com.br/') !== true) return;
   chrome.tabs.query({ url:'https://siap.educacao.go.gov.br/*' }, tabs => {
-    const siapTab = message.type === 'CM_GRADES_CAPTURE' ? chooseGradesTab(tabs) : message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : message.type === 'CM_ASSISTED_CAPTURE' ? chooseAssistedTab(tabs, message.request?.tabId) : chooseSiapTab(tabs);
+    const siapTab = ['CM_GRADES_CAPTURE','CM_ABSENCES_CAPTURE'].includes(message.type) ? chooseGradesTab(tabs) : message.type === 'CM_SCHOOL_DAILY_COLLECT' ? chooseSchoolDailyTab(tabs) : message.type === 'CM_ASSISTED_CAPTURE' ? chooseAssistedTab(tabs, message.request?.tabId) : chooseSiapTab(tabs);
     if (!siapTab?.id) {
       if (message.type === 'CM_ASSISTED_CAPTURE' && message.request?.tabId != null) {
         sendResponse({ ok:false, code:'SIAP_TAB_CHANGED', message:'A aba do SIAP usada nesta coleta foi fechada ou saiu da tela de frequência. Reabra a mesma chamada antes de continuar; as capturas anteriores permanecem no Carômetro.' });
         return;
       }
-      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:message.type === 'CM_GRADES_CAPTURE'
+      sendResponse({ ok:false, code:'SIAP_NOT_OPEN', message:['CM_GRADES_CAPTURE','CM_ABSENCES_CAPTURE'].includes(message.type)
         ? 'Abra no SIAP a tela Notas da turma e disciplina desejadas.'
         : message.type === 'CM_SCHOOL_DAILY_COLLECT'
         ? 'Abra no SIAP a página Frequência diária, escolha uma turma verde ou vermelha e tente novamente.'
@@ -504,6 +504,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .then(() => callReader(siapTab.id, '__carometroGradesSnapshot'))
         .then(result => sendResponse({ ok:true, result }))
         .catch(error => sendResponse({ ok:false, code:'SIAP_GRADES_FAILED', message:`Não foi possível ler as notas finais: ${error?.message || 'erro desconhecido'}` }));
+      return;
+    }
+    if (message.type === 'CM_ABSENCES_CAPTURE') {
+      assertSiapSession(siapTab.id)
+        .then(() => callReader(siapTab.id, '__carometroAbsencesSnapshot'))
+        .then(result => sendResponse({ ok:true, result }))
+        .catch(error => sendResponse({ ok:false, code:'SIAP_ABSENCES_FAILED', message:`Não foi possível ler as faltas: ${error?.message || 'erro desconhecido'}` }));
       return;
     }
     if (message.type === 'CM_SCHOOL_DAILY_COLLECT') {

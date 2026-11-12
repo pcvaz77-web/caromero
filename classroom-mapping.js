@@ -458,14 +458,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const attendanceAction = window.getAssistedAttendancePanelAction?.(actionContext) || '';
     const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
     const classExamAction = window.getClassExamPanelAction?.(actionContext) || '';
-    const panelActions = `${siapActions}${attendanceAction}${gradeAction}${classExamAction}`;
+    const absenceAction = window.getSiapAbsencePanelAction?.(actionContext) || '';
+    const panelActions = `${siapActions}${absenceAction}${attendanceAction}${gradeAction}${classExamAction}`;
     document.getElementById('classroomInstallAction').innerHTML = window.getAttendanceCaptureInstallPanelAction?.(actionContext) || '';
     const bindPanelActions = () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
+      window.bindSiapAbsencePanelAction?.(actionContext);
       window.bindSiapGradePanelAction?.(actionContext);
       window.bindClassExamPanelAction?.(actionContext);
       window.mountSiapGradePanel?.(actionContext);
+      window.mountSiapAbsencePanel?.(actionContext);
       window.mountFamilyEntryAttendancePanel?.(actionContext);
     };
     if (activeCanEdit) {

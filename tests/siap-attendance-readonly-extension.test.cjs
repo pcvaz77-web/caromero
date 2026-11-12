@@ -18,7 +18,7 @@ function pngSize(filePath) {
 }
 
 assert.equal(manifest.manifest_version, 3);
-assert.equal(manifest.version, '0.7.4');
+assert.equal(manifest.version, '0.7.7');
 assert.deepEqual(manifest.host_permissions, ['https://siap.educacao.go.gov.br/*', 'https://sistemacarometro.com.br/*']);
 assert.deepEqual(manifest.permissions, ['tabs', 'scripting']);
 assert.equal(manifest.action.default_popup, 'popup.html');
@@ -59,7 +59,10 @@ assert.match(content, /select\.selectedIndex = index/);
 assert.match(content, /selectedOptions\?\.\[0\]\?\.textContent/);
 assert.doesNotMatch(content, /const selectedMonth =/);
 assert.doesNotMatch(content, /colorOf\(/);
-assert.match(background, /injection\?\.error/);
+assert.match(background, /injection\?\.result/);
+assert.match(background, /CM_ABSENCES_CAPTURE/);
+assert.match(bridge, /CAROMETRO_ABSENCES_CAPTURE_REQUEST/);
+assert.match(content, /__carometroAbsencesSnapshot/);
 assert.match(background, /triggerReaderNavigation/);
 assert.match(background, /NAVIGATION_ACTION_TIMEOUT_MS/);
 assert.doesNotMatch(background, /btnAlterar|btnExcluir|Salvar|Excluir/);
