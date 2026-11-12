@@ -483,16 +483,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const published = publishedByClass.get(activeClassId) || await fetchMap(activeClassId, false);
       if (!published) {
-        content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>O mapeamento desta turma ainda não foi publicado pelo conselheiro ou pela gestão.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+        content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. O mapeamento ainda não foi publicado.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
         bindPanelActions();
         return;
       }
       publishedByClass.set(activeClassId, published);
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Consulte onde cada estudante se senta no mapeamento atualmente publicado.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${panelActions}</div></div>`;
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${panelActions}</div></div>`;
       document.getElementById('viewPublishedClassroomMap').onclick = () => openViewer(activeClassId);
       bindPanelActions();
     } catch {
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Mapeamento da sala</h4><p>Não foi possível consultar o mapeamento agora. Tente novamente.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. Não foi possível consultar o mapeamento agora.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
       bindPanelActions();
     }
   }
