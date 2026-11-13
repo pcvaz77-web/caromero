@@ -128,6 +128,23 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   window.getSiapAbsencePanelAction=({classId}={})=>canCapture(classId)
     ? '<button id="openSiapAbsences" type="button" class="btn primary">Extrair faltas do SIAP</button>' : '';
+  window.getSiapAbsencePanelExplanation=({classId}={})=>canCapture(classId)
+    ? `<section class="siap-absence-criteria" aria-label="Critérios das etiquetas pelas faltas"><strong>Como as faltas geram etiquetas</strong>
+      <p>Presença = (aulas ministradas − faltas) ÷ aulas ministradas × 100. O sistema soma as disciplinas extraídas no mesmo Bim. e arredonda o percentual. Exemplo: 6 faltas em 19 aulas resultam em 68% de presença.</p>
+      <p data-siap-absence-criteria-limits>Padrão: Frequente a partir de 75%; Faltoso de 60% a 74%; Necessita de Busca Ativa abaixo de 60%.</p>
+      <p>Uma disciplina com carga incompatível impede o cálculo da etiqueta pelas faltas. Os limites podem ser alterados em Configurar frequência.</p></section>` : '';
+  window.refreshSiapAbsencePanelExplanation=async()=>{
+    const label=document.querySelector('[data-siap-absence-criteria-limits]');
+    const currentSchool=schoolId();
+    if(!label||!currentSchool)return;
+    const {data,error}=await db.from('school_siap_attendance_settings')
+      .select('frequent_minimum,absent_minimum').eq('school_id',currentSchool).maybeSingle();
+    if(error||!label.isConnected||currentSchool!==schoolId())return;
+    const frequent=data?Number(data.frequent_minimum):75;
+    const absent=data?Number(data.absent_minimum):60;
+    label.textContent=`${data?'Nesta escola':'Padrão'}: Frequente a partir de ${frequent}%; Faltoso de ${absent}% a ${frequent-1}%; Necessita de Busca Ativa abaixo de ${absent}%.`;
+  };
+  document.addEventListener('carometro:attendance-data-changed',window.refreshSiapAbsencePanelExplanation);
   window.bindSiapAbsencePanelAction=({classId,className}={})=>{
     const button=document.getElementById('openSiapAbsences');
     if(button)button.onclick=()=>openCapture(classId,className);
