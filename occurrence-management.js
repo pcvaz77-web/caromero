@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.className = 'modal-bg occurrence-modal hidden';
   modal.innerHTML = `<section class="modal occurrence-dialog"><div class="modal-head"><div><h3>Ocorrência</h3><div class="meta">Registre e consulte ocorrências por aluno e por data.</div></div><button class="close" id="closeOccurrence" type="button" aria-label="Fechar">×</button></div><div class="form occurrence-form"><div class="occurrence-grid"><div class="field"><label for="occurrenceClass">Turma</label><select id="occurrenceClass"><option value="">Selecione uma turma</option></select></div><div class="field"><label for="occurrenceStudent">Aluno</label><select id="occurrenceStudent" disabled><option value="">Selecione a turma primeiro</option></select></div></div><div class="field occurrence-date-field"><label for="occurrenceDate">Data da nova ocorrência</label><input id="occurrenceDate" type="date"></div><div class="field"><label for="occurrenceText">Descrição</label><textarea id="occurrenceText" maxlength="500" placeholder="Descreva a ocorrência em até 500 caracteres."></textarea><div class="occurrence-text-meta"><span id="occurrenceTextCount">0/500</span><span>A ocorrência fica visível somente nesta aba.</span></div></div><div class="occurrence-attachment-field"><button class="btn secondary occurrence-attachment-picker" id="occurrenceAttachmentPicker" type="button">📎 Anexar documento</button><div id="occurrenceAttachmentState" class="occurrence-attachment-state"><span>Foto ou PDF, até 10 MB.</span></div></div><div class="actions occurrence-actions"><button class="btn secondary" id="searchOccurrences" type="button" aria-expanded="false">Buscar Ocorrência</button><button class="btn primary" id="saveOccurrence" type="button">Salvar ocorrência</button></div><div id="occurrenceDateFilters" class="occurrence-date-filters hidden"><div class="occurrence-grid occurrence-dates"><div class="field"><label for="occurrenceStart">Buscar a partir de</label><input id="occurrenceStart" type="date"></div><div class="field"><label for="occurrenceEnd">Buscar até</label><input id="occurrenceEnd" type="date"></div></div><div class="occurrence-grid occurrence-search-fields"><div class="field"><label for="occurrenceSearchClass">Buscar por turma</label><select id="occurrenceSearchClass"><option value="">Todas as turmas</option></select></div><div class="field"><label for="occurrenceSearchName">Buscar por nome</label><input id="occurrenceSearchName" placeholder="Digite o nome do aluno"></div></div><div class="meta">Os resultados são atualizados assim que você escolher os filtros.</div></div><section class="occurrence-history"><div class="occurrence-history-head"><div><b>Ocorrências registradas</b><div class="meta" id="occurrenceHistoryMeta">Selecione uma turma ou aluno para consultar.</div></div></div><div id="occurrenceHistoryList" class="occurrence-history-list"></div></section></div></section>`;
   document.body.appendChild(modal);
+  modal.querySelector('#occurrenceStudent').closest('.field').insertAdjacentHTML('beforeend', `
+    <label class="occurrence-collective-toggle"><input id="occurrenceCollectiveMode" type="checkbox"> Registrar para vários alunos</label>
+    <div id="occurrenceCollectivePicker" class="occurrence-collective-picker hidden">
+      <div class="occurrence-collective-toolbar"><span id="occurrenceCollectiveCount">Nenhum aluno selecionado</span><button id="occurrenceSelectAll" type="button" class="link">Selecionar todos</button></div>
+      <div id="occurrenceCollectiveList" class="occurrence-collective-list"></div>
+    </div>`);
 
   const attachmentModal = document.createElement('div');
   attachmentModal.id = 'occurrenceAttachmentModal';
@@ -153,6 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   `;
   document.head.appendChild(style);
+  style.textContent += `.occurrence-collective-toggle{display:flex!important;align-items:center;gap:8px;margin:12px 0 0!important;font-size:13px;font-weight:750}.occurrence-collective-toggle input,.occurrence-collective-list input{width:18px;min-height:18px;margin:0;flex:none}.occurrence-collective-picker{margin-top:10px;border:1px solid #dbe4f5;border-radius:10px;background:#f8faff}.occurrence-collective-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border-bottom:1px solid #dbe4f5;font-size:12px;font-weight:750}.occurrence-collective-toolbar .link{width:auto;min-height:0;padding:3px}.occurrence-collective-list{display:grid;max-height:190px;overflow:auto;padding:5px}.occurrence-collective-list label{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border-radius:7px;font-size:12px;font-weight:650}.occurrence-collective-list label:hover{background:#eaf1ff}.occurrence-group-summary{padding:17px 19px;border:1px solid #b9c9ea;border-radius:11px;background:#f2f6ff}.occurrence-group-summary h4{margin:0 0 10px;font-size:17px}.occurrence-group-summary p{margin:8px 0}.occurrence-group-summary ul{margin:8px 0 0;padding-left:22px;columns:2;line-height:1.6}@media(max-width:650px){.occurrence-group-summary ul{columns:1}}`;
 
   const get = id => document.getElementById(id);
   // Fonte de autorização de ocorrências: school_members + school_member_permissions,
@@ -254,7 +261,9 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingAttachment = null;
   let draftedAttachment = null;
   let removeAttachment = false;
+  const collectiveStudentIds = new Set();
   let focusedHistoryStudentId = null;
+  let focusedHistoryBatchId = null;
   const OCCURRENCE_ATTACHMENT_BUCKET = 'occurrence-attachments';
   const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
   const ALLOWED_ATTACHMENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
@@ -316,11 +325,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function selectedClass() { return get('occurrenceClass').value; }
   function selectedStudent() { return get('occurrenceStudent').value; }
+  function isCollectiveMode() { return get('occurrenceCollectiveMode').checked && !editingOccurrence; }
+  function renderCollectiveCount() {
+    const count = collectiveStudentIds.size;
+    get('occurrenceCollectiveCount').textContent = count ? `${count} aluno${count === 1 ? '' : 's'} selecionado${count === 1 ? '' : 's'}` : 'Nenhum aluno selecionado';
+    get('saveOccurrence').textContent = isCollectiveMode() ? `Salvar para ${count} aluno${count === 1 ? '' : 's'}` : editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
+  }
+  function setCollectiveMode(enabled) {
+    get('occurrenceCollectiveMode').checked = enabled;
+    get('occurrenceStudent').classList.toggle('hidden', enabled);
+    get('occurrenceStudent').previousElementSibling.textContent = enabled ? 'Alunos' : 'Aluno';
+    get('occurrenceCollectivePicker').classList.toggle('hidden', !enabled);
+    if (!enabled) collectiveStudentIds.clear();
+    renderCollectiveCount();
+    syncSaveAction();
+  }
+  function fillCollectiveStudents() {
+    const list = get('occurrenceCollectiveList');
+    const options = [...get('occurrenceStudent').options].filter(option => option.value);
+    const available = new Set(options.map(option => option.value));
+    for (const id of collectiveStudentIds) if (!available.has(id)) collectiveStudentIds.delete(id);
+    list.innerHTML = options.length ? options.map(option => `<label><input type="checkbox" data-collective-student="${option.value}" ${collectiveStudentIds.has(option.value) ? 'checked' : ''}><span>${escape(option.textContent)}</span></label>`).join('') : '<p class="meta">Selecione uma turma para listar os alunos.</p>';
+    get('occurrenceSelectAll').disabled = !options.length;
+    renderCollectiveCount();
+  }
   function syncSaveAction() {
     const button = get('saveOccurrence');
     const allowed = editingOccurrence ? canEditOccurrence(editingOccurrence) : canRegisterOccurrence();
-    button.disabled = savingOccurrence || !selectedClass() || !allowed;
-    button.title = button.disabled ? 'O administrador precisa liberar a permissão de Ocorrência para esta turma.' : '';
+    const needsStudents = isCollectiveMode() && collectiveStudentIds.size < 2;
+    button.disabled = savingOccurrence || !selectedClass() || !allowed || needsStudents;
+    button.title = !allowed ? 'O administrador precisa liberar a permissão de Ocorrência para esta turma.' : needsStudents ? 'Selecione pelo menos dois alunos.' : '';
   }
   function fillClasses() {
     const select = get('occurrenceClass');
@@ -348,6 +382,7 @@ document.addEventListener('DOMContentLoaded', () => {
       ? '<option value="">Selecione um aluno</option>' + classStudents.map(item => `<option value="${item.id}">${escape(item.name)}</option>`).join('')
       : '<option value="">Selecione a turma primeiro</option>';
     if (classStudents.some(item => item.id === current)) select.value = current;
+    fillCollectiveStudents();
     syncSaveAction();
   }
   function paintStudentCards() {
@@ -484,7 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const startDate = get('occurrenceStart').value;
     const endDate = get('occurrenceEnd').value;
     const normalizedName = get('occurrenceSearchName').value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
-    const hasSearchFilter = !!(focusedHistoryStudentId || startDate || endDate || searchClassId || normalizedName);
+    const hasSearchFilter = !!(focusedHistoryBatchId || focusedHistoryStudentId || startDate || endDate || searchClassId || normalizedName);
     const list = get('occurrenceHistoryList');
     if (!hasSearchFilter) {
       historyRecords = new Map();
@@ -493,12 +528,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     let query = db.from('student_occurrences')
-      .select('id,student_id,class_id,class_name,occurred_on,occurrence_text,attachment_path,attachment_name,attachment_type,attachment_size,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name),student_occurrence_remarks(id,body,created_by_name,created_at)')
+      .select('id,student_id,class_id,class_name,collective_batch_id,occurred_on,occurrence_text,attachment_path,attachment_name,attachment_type,attachment_size,created_at,created_by,created_by_name,updated_by,updated_by_name,updated_at,students(full_name),student_occurrence_remarks(id,body,created_by_name,created_at)')
       .eq('school_id', occurrenceMembership.school_id)
       .order('occurred_on', { ascending:false })
       .order('created_at', { ascending:false })
       .order('id');
-    if (focusedHistoryStudentId) {
+    if (focusedHistoryBatchId) {
+      query = query.eq('collective_batch_id', focusedHistoryBatchId);
+    } else if (focusedHistoryStudentId) {
       query = query.eq('student_id', focusedHistoryStudentId);
     } else if (normalizedName) {
       const historyStudents = window.getSchoolHistoryData?.().students || students;
@@ -527,11 +564,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const records = data || [];
     historyRecords = new Map(records.map(item => [item.id, item]));
     get('occurrenceHistoryMeta').textContent = records.length ? `${records.length} ocorrência${records.length === 1 ? '' : 's'} encontrada${records.length === 1 ? '' : 's'}.` : 'Nenhuma ocorrência no filtro selecionado.';
-    list.innerHTML = records.length ? records.map(renderOccurrenceItem).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
+    const group = focusedHistoryBatchId && records.length
+      ? `<section class="occurrence-group-summary"><h4>Ocorrência coletiva · ${escape(records[0].class_name || 'Turma')}</h4><p><b>Data:</b> ${formatDate(records[0].occurred_on)}</p><p class="occurrence-item-text">${escape(records[0].occurrence_text)}</p><b>Alunos envolvidos (${records.length})</b><ul>${records.map(item => `<li>${escape(item.students?.full_name || 'Aluno removido')}</li>`).join('')}</ul></section>`
+      : '';
+    list.innerHTML = records.length ? group + records.map(renderOccurrenceItem).join('') : '<div class="occurrence-empty">Nenhuma ocorrência encontrada.</div>';
   }
   async function open() {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
     focusedHistoryStudentId = null;
+    focusedHistoryBatchId = null;
     modal.classList.remove('hidden');
     await load();
     fillClasses();
@@ -549,7 +590,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // aqui só reaproveitamos a busca e a renderização que já existem.
   async function openFocused({ occurrenceId, studentId, classId, reuseLoadedData = false } = {}) {
     if (!canViewOccurrences()) { toast('O administrador precisa liberar o acesso a Ocorrências para este usuário.'); return; }
+    setCollectiveMode(false);
     focusedHistoryStudentId = studentId || null;
+    focusedHistoryBatchId = null;
     get('occurrenceHistoryMeta').textContent = 'Carregando ocorrências deste aluno…';
     get('occurrenceHistoryList').innerHTML = '<div class="occurrence-empty">Carregando…</div>';
     modal.classList.remove('hidden');
@@ -579,9 +622,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   window.openOccurrenceRecord = openFocused;
+  async function openOccurrenceGroup({batchId,classId,reuseLoadedData=false}={}) {
+    if (!batchId || !canViewOccurrences()) return;
+    setCollectiveMode(false);
+    focusedHistoryStudentId = null;
+    focusedHistoryBatchId = batchId;
+    modal.classList.remove('hidden');
+    if (!reuseLoadedData) await load();
+    fillClasses();
+    fillSearchClasses();
+    get('occurrenceClass').value = classId || '';
+    fillStudents();
+    get('occurrenceStudent').value = '';
+    get('occurrenceDateFilters').classList.remove('hidden');
+    get('searchOccurrences').setAttribute('aria-expanded','true');
+    get('occurrenceSearchClass').value = classId || '';
+    get('occurrenceStart').value = '';
+    get('occurrenceEnd').value = '';
+    get('occurrenceSearchName').value = '';
+    if (!reuseLoadedData) await refreshLabelState();
+    await refreshHistory();
+    syncSaveAction();
+  }
+  window.openOccurrenceGroup = openOccurrenceGroup;
   function resetOccurrenceScreen() {
     editingOccurrence = null;
+    setCollectiveMode(false);
     focusedHistoryStudentId = null;
+    focusedHistoryBatchId = null;
     get('occurrenceClass').value = '';
     fillStudents();
     get('occurrenceDate').value = '';
@@ -601,6 +669,64 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshHistory();
     syncSaveAction();
   }
+  async function saveCollective({scope, classItem, text, occurrenceDate, attachment, studentIds}) {
+    const button = get('saveOccurrence');
+    const batchId = crypto.randomUUID();
+    const rows = studentIds.map(studentId => ({
+      id:crypto.randomUUID(), school_id:scope.schoolId, student_id:studentId,
+      class_id:classItem.id, class_name:classItem.name, occurred_on:occurrenceDate,
+      occurrence_text:text, collective_batch_id:batchId
+    }));
+    const uploadedPaths = [];
+    let writeConfirmed = false;
+    let writeAttempted = false;
+    savingOccurrence = true;
+    button.disabled = true;
+    try {
+      if (attachment) {
+        const extensionByType = { 'image/jpeg':'jpg', 'image/png':'png', 'image/webp':'webp', 'application/pdf':'pdf' };
+        for (const [index,row] of rows.entries()) {
+          if (!sameOccurrenceScope(scope)) throw new Error('A escola ou a conta mudou durante o envio.');
+          button.textContent = `Enviando documento ${index + 1}/${rows.length}…`;
+          const path = `${scope.schoolId}/${scope.userId}/${row.id}/${crypto.randomUUID()}.${extensionByType[attachment.type]}`;
+          const upload = await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).upload(path, attachment, { contentType:attachment.type, upsert:false });
+          if (upload.error) throw upload.error;
+          uploadedPaths.push(path);
+          Object.assign(row, { attachment_path:path, attachment_name:attachment.name, attachment_type:attachment.type, attachment_size:attachment.size });
+        }
+      }
+      if (!sameOccurrenceScope(scope)) throw new Error('A escola ou a conta mudou durante o envio.');
+      button.textContent = `Salvando ${rows.length} ocorrências…`;
+      writeAttempted = true;
+      const {data,error} = await db.from('student_occurrences').insert(rows).select('id,student_id');
+      if (error || data?.length !== rows.length) {
+        // Se a resposta não confirma a gravação, não apague anexos que podem
+        // já estar associados a ocorrências. Evita links quebrados no histórico.
+        if (error?.code && uploadedPaths.length) await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove(uploadedPaths);
+        throw error || new Error('Não foi possível confirmar todos os registros. Consulte o histórico antes de tentar novamente.');
+      }
+      writeConfirmed = true;
+      if (!sameOccurrenceScope(scope)) return;
+      for (const studentId of studentIds) {
+        occurrenceStudentIds.add(studentId);
+        occurrenceCounts.set(studentId, (occurrenceCounts.get(studentId) || 0) + 1);
+      }
+      paintStudentCards();
+      publishOccurrenceLabelState();
+      resetOccurrenceScreen();
+      toast(`Ocorrência coletiva salva para ${rows.length} alunos.`);
+      await openOccurrenceGroup({batchId,classId:classItem.id,reuseLoadedData:true});
+    } catch (error) {
+      if (!writeAttempted && uploadedPaths.length) {
+        await db.storage.from(OCCURRENCE_ATTACHMENT_BUCKET).remove(uploadedPaths);
+      }
+      if (sameOccurrenceScope(scope)) toast(writeConfirmed ? 'Ocorrência coletiva salva. Não foi possível atualizar a tela; consulte o histórico.' : error?.message || 'Não foi possível salvar a ocorrência coletiva.');
+    } finally {
+      savingOccurrence = false;
+      renderCollectiveCount();
+      syncSaveAction();
+    }
+  }
   async function save() {
     if (savingOccurrence) return;
     const scope = occurrenceScope();
@@ -611,12 +737,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const text = get('occurrenceText').value.trim();
     const occurrenceDate = get('occurrenceDate').value;
     const classItem = classes.find(item => item.id === classId);
-    if (!editing && (!classItem || !studentId)) { toast('Selecione a turma e o aluno.'); return; }
+    const collective = !editing && isCollectiveMode();
+    const selectedIds = collective ? [...collectiveStudentIds] : [];
+    const classStudentIds = new Set(students.filter(item => item.classId === classId).map(item => item.id));
+    if (collective && (selectedIds.length < 2 || selectedIds.some(id => !classStudentIds.has(id)))) { toast('Selecione pelo menos dois alunos da turma.'); return; }
+    if (!editing && (!classItem || (!collective && !studentId))) { toast('Selecione a turma e o aluno.'); return; }
     if (!editing && !canRegisterOccurrence()) { toast('Sem permissão para registrar ocorrência.'); return; }
     if (editing && !canEditOccurrence(editing)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     if (!occurrenceDate) { toast('Selecione a data da ocorrência.'); return; }
     if (!text) { toast('Digite a descrição da ocorrência.'); return; }
     if (text.length > 500) { toast('A descrição deve ter no máximo 500 caracteres.'); return; }
+    if (collective) { await saveCollective({scope,classItem,text,occurrenceDate,attachment,studentIds:selectedIds}); return; }
     const button = get('saveOccurrence');
     savingOccurrence = true;
     let writeConfirmed = false;
@@ -700,6 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savingOccurrence) return;
     if (!canEditOccurrence(item)) { toast('Sem permissão para editar esta ocorrência.'); return; }
     editingOccurrence = item;
+    setCollectiveMode(false);
     get('occurrenceClass').value = item.class_id || '';
     fillStudents();
     get('occurrenceStudent').value = item.student_id;
@@ -878,8 +1010,21 @@ document.addEventListener('DOMContentLoaded', () => {
   remarkModal.onclick = event => { if (event.target === remarkModal) closeRemarkDialog(); };
   get('saveOccurrenceRemark').onclick = saveRemark;
   get('occurrenceRemarkText').oninput = event => { get('occurrenceRemarkCount').textContent = `${event.target.value.length}/1000`; };
-  get('occurrenceClass').onchange = async () => { focusedHistoryStudentId = null; fillStudents(); await refreshHistory(); };
-  get('occurrenceStudent').onchange = () => { focusedHistoryStudentId = null; refreshHistory(); };
+  get('occurrenceClass').onchange = async () => { focusedHistoryStudentId = null; focusedHistoryBatchId = null; collectiveStudentIds.clear(); fillStudents(); await refreshHistory(); };
+  get('occurrenceStudent').onchange = () => { focusedHistoryStudentId = null; focusedHistoryBatchId = null; refreshHistory(); };
+  get('occurrenceCollectiveMode').onchange = event => { if (editingOccurrence) return; setCollectiveMode(event.target.checked); refreshHistory(); };
+  get('occurrenceCollectiveList').onchange = event => {
+    const id = event.target.dataset.collectiveStudent;
+    if (!id) return;
+    if (event.target.checked) collectiveStudentIds.add(id); else collectiveStudentIds.delete(id);
+    renderCollectiveCount();
+    syncSaveAction();
+  };
+  get('occurrenceSelectAll').onclick = () => {
+    get('occurrenceCollectiveList').querySelectorAll('[data-collective-student]').forEach(input => { input.checked = true; collectiveStudentIds.add(input.dataset.collectiveStudent); });
+    renderCollectiveCount();
+    syncSaveAction();
+  };
   get('searchOccurrences').onclick = () => {
     const filters = get('occurrenceDateFilters');
     const opening = filters.classList.contains('hidden');
@@ -897,10 +1042,10 @@ document.addEventListener('DOMContentLoaded', () => {
     input.setRangeText('\n', input.selectionStart, input.selectionEnd, 'end');
     input.dispatchEvent(new Event('input', { bubbles:true }));
   };
-  ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = () => { focusedHistoryStudentId = null; refreshHistory(); }; });
-  get('occurrenceSearchClass').onchange = () => { focusedHistoryStudentId = null; refreshHistory(); };
+  ['occurrenceStart', 'occurrenceEnd'].forEach(id => { get(id).onchange = () => { focusedHistoryStudentId = null; focusedHistoryBatchId = null; refreshHistory(); }; });
+  get('occurrenceSearchClass').onchange = () => { focusedHistoryStudentId = null; focusedHistoryBatchId = null; refreshHistory(); };
   let nameSearchTimer;
-  get('occurrenceSearchName').oninput = () => { focusedHistoryStudentId = null; clearTimeout(nameSearchTimer); nameSearchTimer = setTimeout(refreshHistory, 250); };
+  get('occurrenceSearchName').oninput = () => { focusedHistoryStudentId = null; focusedHistoryBatchId = null; clearTimeout(nameSearchTimer); nameSearchTimer = setTimeout(refreshHistory, 250); };
   get('occurrenceHistoryList').onclick = event => {
     const editId = event.target.closest('[data-occurrence-edit]')?.dataset.occurrenceEdit;
     const deleteId = event.target.closest('[data-occurrence-delete]')?.dataset.occurrenceDelete;
