@@ -50,7 +50,7 @@ test('total por aluno e média da turma somam apenas disciplinas capturadas no p
   assert.equal(summary.mean,3);
 });
 
-test('perfil resume faltas, aulas e disciplina em uma frase curta',() => {
+test('perfil separa o total destacado e a disciplina mesmo quando há só uma',() => {
   const source=fs.readFileSync(path.join(__dirname,'..','school-daily-attendance.js'),'utf8');
   const start=source.indexOf('  window.getStudentAttendanceDetails = studentId => {');
   const end=source.indexOf('  window.getSiapAttendanceStatus =',start);
@@ -64,7 +64,10 @@ test('perfil resume faltas, aulas e disciplina em uma frase curta',() => {
   vm.createContext(context);
   vm.runInContext(source.slice(start,end),context);
   assert.equal(context.window.getStudentAttendanceDetails('a')[0].summary,
-    'Total: 6 Faltas em 19 aulas ministradas. Educação Física.');
+    'Total: 6 Faltas em 19 aulas ministradas.');
+  assert.deepEqual(Array.from(context.window.getStudentAttendanceDetails('a')[0].subjectLines),[
+    'Educação Física: 6 Faltas em 19 aulas ministradas.'
+  ]);
   const combined=classifyLatest([row('a','55 - EDUCAÇÃO FÍSICA',1,19),row('a','MATEMÁTICA',8,19)],null);
   context.effectiveBadges.set('a',combined);
   assert.equal(context.window.getStudentAttendanceDetails('a')[0].summary,
