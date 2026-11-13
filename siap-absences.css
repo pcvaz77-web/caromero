@@ -28,6 +28,7 @@ body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttenda
 .siap-absences-dialog .siap-absence-import-feedback{margin:3px 0 0;padding:10px 12px;border:1px solid #c9d7f5;border-radius:9px;background:#f5f8ff;color:#263b63;font-size:13px;font-weight:700}
 .siap-absences-dialog .siap-absence-import-success{border-color:#9ed6b4;background:#ecfdf3;color:#086b3f}
 .siap-absences-dialog .siap-absence-import-error{border-color:#f2b8b5;background:#fff1f0;color:#a32924}
+.attendance-source-detail .attendance-summary-total{font-weight:850;color:var(--navy);text-transform:uppercase}
 .siap-absence-panel-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
 .siap-absence-panel-head select{width:auto;min-height:37px;padding:6px 9px}
 .siap-absence-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.siap-absence-summary>div{display:grid;gap:5px;padding:15px;border:1px solid #dce4f1;border-radius:11px;background:#fff}.siap-absence-summary small,.siap-absence-summary span{color:#667085;font-size:11px}.siap-absence-summary strong{font-size:21px;color:#17233a}
