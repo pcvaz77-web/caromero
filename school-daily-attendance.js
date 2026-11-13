@@ -263,15 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const formatSubject = subject => String(subject || '').replace(/^\d+\s*-\s*/, '')
         .toLocaleLowerCase('pt-BR').replace(/(^|[\s/(.-])\p{L}/gu, letter => letter.toLocaleUpperCase('pt-BR'));
       const subjects=item.subject_details || [];
-      const oneSubject=subjects.length===1;
       return [{
       source:'SIAP',
       status:item.status,label:STATUS[item.status].label,className:STATUS[item.status].className,
       percentage:null,period:`${item.bimester}º Bim./${item.academic_year}`,
       bimester:item.bimester,academicYear:item.academic_year,
-      summary:`Total: ${item.total_absences} Falta${item.total_absences===1?'':'s'} em ${item.total_taught_hours} aulas ministradas.${oneSubject?` ${formatSubject(subjects[0].subject)}.`:''}`,
+      summary:`Total: ${item.total_absences} Falta${item.total_absences===1?'':'s'} em ${item.total_taught_hours} aulas ministradas.`,
       summaryEmphasis:true,
-      subjectLines:oneSubject?[]:subjects.map(row => `${formatSubject(row.subject)}: ${row.absences} Falta${row.absences===1?'':'s'} em ${row.taught_hours} aulas ministradas.`),
+      subjectLines:subjects.map(row => `${formatSubject(row.subject)}: ${row.absences} Falta${row.absences===1?'':'s'} em ${row.taught_hours} aulas ministradas.`),
       updatedAt:item.updated_at || null
     }];
     }
