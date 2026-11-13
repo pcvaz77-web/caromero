@@ -74,15 +74,19 @@ document.addEventListener('DOMContentLoaded', () => {
       items.map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º Bim./${row.academic_year}</span><small>Fonte: SIAP${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
   };
 
+  const criteriaHtml=`<section class="siap-absence-criteria" aria-label="Critérios das etiquetas pelas faltas"><strong>Como as faltas geram etiquetas</strong>
+    <p>Presença = (aulas ministradas − faltas) ÷ aulas ministradas × 100. O sistema soma as disciplinas extraídas no mesmo Bim. e arredonda o percentual. Exemplo: 6 faltas em 19 aulas resultam em 68% de presença.</p>
+    <p data-siap-absence-criteria-limits>Padrão: Frequente a partir de 75%; Faltoso de 60% a 74%; Necessita de Busca Ativa abaixo de 60%.</p>
+    <p>Uma disciplina com carga incompatível impede o cálculo da etiqueta pelas faltas. Os limites podem ser alterados em Configurar frequência.</p></section>`;
   const modal=document.createElement('div');
   modal.id='siapAbsencesModal';
   modal.className='modal-bg hidden';
   modal.innerHTML=`<section class="modal siap-absences-dialog"><div class="modal-head"><h3>Faltas bimestrais do SIAP</h3><div class="siap-absence-header-actions"><a class="btn secondary siap-absence-install-link" href="${escapeAttribute(extensionStoreUrl)}" target="_blank" rel="noopener noreferrer">Instalar extensão</a><button type="button" class="close" data-absence-close aria-label="Fechar">×</button></div></div>
     <div class="form"><p class="sub">Abra a aba Notas da turma, disciplina e bimestre no SIAP. A extensão lê “Faltas” e a carga horária, inclusive no bimestre em andamento.</p>
-    <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button></div>
+    <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn siap-absence-capture" data-absence-capture>Capturar tela aberta</button></div>
     <p class="meta">Se a captura não responder, atualize a extensão pela Chrome Web Store.</p>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
-    <p class="meta">As faltas geram etiquetas quando a carga ministrada é válida e não é menor que as faltas. Caso contrário, permanece a etiqueta calculada pelas chamadas.</p>
+    ${criteriaHtml}
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
@@ -124,27 +128,23 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canCapture(classId)) { toast('Somente professores da escola ativa podem importar faltas.');return; }
     snapshot=null;targetClassId=classId;targetClassName=className||'';
     by('[data-absence-context]').textContent=`Turma ${targetClassName}`;
-    status('Nenhuma tela capturada.');renderPreview();modal.classList.remove('hidden');
+    status('Nenhuma tela capturada.');renderPreview();modal.classList.remove('hidden');refreshCriteria();
   }
   window.getSiapAbsencePanelAction=({classId}={})=>canCapture(classId)
     ? '<button id="openSiapAbsences" type="button" class="btn primary">Extrair faltas do SIAP</button>' : '';
-  window.getSiapAbsencePanelExplanation=({classId}={})=>canCapture(classId)
-    ? `<section class="siap-absence-criteria" aria-label="Critérios das etiquetas pelas faltas"><strong>Como as faltas geram etiquetas</strong>
-      <p>Presença = (aulas ministradas − faltas) ÷ aulas ministradas × 100. O sistema soma as disciplinas extraídas no mesmo Bim. e arredonda o percentual. Exemplo: 6 faltas em 19 aulas resultam em 68% de presença.</p>
-      <p data-siap-absence-criteria-limits>Padrão: Frequente a partir de 75%; Faltoso de 60% a 74%; Necessita de Busca Ativa abaixo de 60%.</p>
-      <p>Uma disciplina com carga incompatível impede o cálculo da etiqueta pelas faltas. Os limites podem ser alterados em Configurar frequência.</p></section>` : '';
-  window.refreshSiapAbsencePanelExplanation=async()=>{
-    const label=document.querySelector('[data-siap-absence-criteria-limits]');
+  async function refreshCriteria(){
+    const label=by('[data-siap-absence-criteria-limits]');
     const currentSchool=schoolId();
-    if(!label||!currentSchool)return;
+    if(!label||!currentSchool||modal.classList.contains('hidden'))return;
     const {data,error}=await db.from('school_siap_attendance_settings')
       .select('frequent_minimum,absent_minimum').eq('school_id',currentSchool).maybeSingle();
-    if(error||!label.isConnected||currentSchool!==schoolId())return;
+    if(!label.isConnected||currentSchool!==schoolId())return;
+    if(error){label.textContent='Não foi possível consultar os limites desta escola. Veja Configurar frequência.';return;}
     const frequent=data?Number(data.frequent_minimum):75;
     const absent=data?Number(data.absent_minimum):60;
     label.textContent=`${data?'Nesta escola':'Padrão'}: Frequente a partir de ${frequent}%; Faltoso de ${absent}% a ${frequent-1}%; Necessita de Busca Ativa abaixo de ${absent}%.`;
-  };
-  document.addEventListener('carometro:attendance-data-changed',window.refreshSiapAbsencePanelExplanation);
+  }
+  document.addEventListener('carometro:attendance-data-changed',refreshCriteria);
   window.bindSiapAbsencePanelAction=({classId,className}={})=>{
     const button=document.getElementById('openSiapAbsences');
     if(button)button.onclick=()=>openCapture(classId,className);
