@@ -32,6 +32,8 @@ test('uma disciplina inconsistente impede etiqueta parcial e o pior resultado v�
   assert.equal(result.status,'active_search');
   assert.equal(result.subject,'Matemática');
   assert.equal(result.total_absences,9);
+  assert.equal(result.total_taught_hours,38);
+  assert.deepEqual(result.subjects,['Educação Física','Matemática']);
   assert.equal(result.subject_count,2);
 });
 
@@ -40,6 +42,19 @@ test('total por aluno e média da turma somam apenas disciplinas capturadas no p
   assert.equal(summary.byStudent.get('a').total,5);
   assert.equal(summary.byStudent.get('b').total,1);
   assert.equal(summary.mean,3);
+});
+
+test('perfil resume faltas, aulas e disciplina em uma frase curta',() => {
+  const source=fs.readFileSync(path.join(__dirname,'..','school-daily-attendance.js'),'utf8');
+  const start=source.indexOf('  window.getStudentAttendanceDetails = studentId => {');
+  const end=source.indexOf('  window.getSiapAttendanceStatus =',start);
+  assert.ok(start>=0 && end>start);
+  const item=classifyLatest([row('a','55 - EDUCAÇÃO FÍSICA',6,19)],null);
+  const context={window:{},effectiveBadges:new Map([['a',item]]),STATUS:{absent:{label:'Faltoso',className:'absent'}}};
+  vm.createContext(context);
+  vm.runInContext(source.slice(start,end),context);
+  assert.equal(context.window.getStudentAttendanceDetails('a')[0].summary,
+    'Total: 6 Faltas em 19 aulas ministradas. Educação Física.');
 });
 
 test('carregamento prioriza faltas válidas e mantém a captura mais recente por datas',async() => {
