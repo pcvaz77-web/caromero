@@ -25,18 +25,18 @@
       const bimester = termBimester(fallback.term);
       if (!Number.isInteger(year) || bimester === null || latest < year * 10 + bimester) return null;
     }
-    const worst = [...current].sort((a,b) => presence(a) - presence(b) || String(a.subject).localeCompare(String(b.subject),'pt-BR'))[0];
-    const percentage = presence(worst);
-    const status = percentage >= limits.frequentMinimum ? 'frequent' : percentage >= limits.absentMinimum ? 'absent' : 'active_search';
     const totalAbsences = current.reduce((sum,row) => sum + Number(row.absences),0);
     const totalTaughtHours = current.reduce((sum,row) => sum + Number(row.taught_hours),0);
-    return {student_id:worst.student_id,source_key:'absence',status,percentage,
-      academic_year:Number(worst.academic_year),bimester:Number(worst.bimester),
-      term:`${worst.bimester}º Bimestre`,months:[],source_dates:[],
-      subject:worst.subject,absence_count:worst.absences,taught_hours:worst.taught_hours,
+    const percentage = Math.round(100 * (totalTaughtHours - totalAbsences) / totalTaughtHours);
+    const status = percentage >= limits.frequentMinimum ? 'frequent' : percentage >= limits.absentMinimum ? 'absent' : 'active_search';
+    const latestImport = current.map(row => row.imported_at).filter(Boolean).sort().at(-1) || null;
+    return {student_id:current[0].student_id,source_key:'absence',status,percentage,
+      academic_year:Number(current[0].academic_year),bimester:Number(current[0].bimester),
+      term:`${current[0].bimester}º Bimestre`,months:[],source_dates:[],
       total_absences:totalAbsences,total_taught_hours:totalTaughtHours,
       subjects:current.map(row => row.subject),subject_count:current.length,
-      updated_at:worst.imported_at};
+      subject_details:current.map(row => ({subject:row.subject,absences:Number(row.absences),taught_hours:Number(row.taught_hours)})),
+      updated_at:latestImport};
   }
   function totalsForPeriod(rows) {
     const byStudent = new Map();

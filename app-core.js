@@ -40,7 +40,7 @@ const attendanceDetails = studentId => {
   if (!items.length) return window.getSiapAttendanceBadge?.(studentId) || '';
   return items.map(item => {
     const updated=attendanceUpdatedLabel(item.updatedAt);
-    return `<div class="attendance-source-layout"><div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${item.summary ? `<small>${esc(item.summary)}</small>` : ''}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>${attendancePercentageChart(item)}</div>`;
+    return `<div class="attendance-source-layout"><div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${item.summary ? `<small>${esc(item.summary)}</small>` : ''}${(item.subjectLines || []).map(line => `<small>${esc(line)}</small>`).join('')}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>${attendancePercentageChart(item)}</div>`;
   }).join('');
 };
 const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;

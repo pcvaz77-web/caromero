@@ -26,15 +26,21 @@ test('carga incompatível ou período mais antigo preserva a etiqueta das chamad
   assert.equal(classifyLatest([row('a','Matemática',5,19,3)],{academic_year:2026,term:'3º Bimestre'}).status,'absent');
 });
 
-test('uma disciplina inconsistente impede etiqueta parcial e o pior resultado válido prevalece',() => {
+test('uma disciplina inconsistente impede etiqueta parcial e as válidas usam o percentual geral',() => {
   assert.equal(classifyLatest([row('a','Educação Física',0,19),row('a','Matemática',16,7)],null),null);
   const result=classifyLatest([row('a','Educação Física',1,19),row('a','Matemática',8,19)],null);
-  assert.equal(result.status,'active_search');
-  assert.equal(result.subject,'Matemática');
+  assert.equal(result.percentage,76);
+  assert.equal(result.status,'frequent');
   assert.equal(result.total_absences,9);
   assert.equal(result.total_taught_hours,38);
   assert.deepEqual(result.subjects,['Educação Física','Matemática']);
+  assert.deepEqual(result.subject_details,[
+    {subject:'Educação Física',absences:1,taught_hours:19},
+    {subject:'Matemática',absences:8,taught_hours:19}
+  ]);
   assert.equal(result.subject_count,2);
+  assert.equal(classifyLatest([row('a','Educação Física',2,19),row('a','Matemática',8,19)],null).status,'absent');
+  assert.equal(classifyLatest([row('a','Educação Física',8,19),row('a','Matemática',8,19)],null).status,'active_search');
 });
 
 test('total por aluno e média da turma somam apenas disciplinas capturadas no período',() => {
@@ -50,11 +56,23 @@ test('perfil resume faltas, aulas e disciplina em uma frase curta',() => {
   const end=source.indexOf('  window.getSiapAttendanceStatus =',start);
   assert.ok(start>=0 && end>start);
   const item=classifyLatest([row('a','55 - EDUCAÇÃO FÍSICA',6,19)],null);
-  const context={window:{},effectiveBadges:new Map([['a',item]]),STATUS:{absent:{label:'Faltoso',className:'absent'}}};
+  const context={window:{},effectiveBadges:new Map([['a',item]]),STATUS:{
+    frequent:{label:'Frequência adequada',className:'frequent'},
+    absent:{label:'Faltoso',className:'absent'},
+    active_search:{label:'Necessita de Busca Ativa',className:'active-search'}
+  }};
   vm.createContext(context);
   vm.runInContext(source.slice(start,end),context);
   assert.equal(context.window.getStudentAttendanceDetails('a')[0].summary,
     'Total: 6 Faltas em 19 aulas ministradas. Educação Física.');
+  const combined=classifyLatest([row('a','55 - EDUCAÇÃO FÍSICA',1,19),row('a','MATEMÁTICA',8,19)],null);
+  context.effectiveBadges.set('a',combined);
+  assert.equal(context.window.getStudentAttendanceDetails('a')[0].summary,
+    'Total: 9 Faltas em 38 aulas ministradas.');
+  assert.deepEqual(Array.from(context.window.getStudentAttendanceDetails('a')[0].subjectLines),[
+    'Educação Física: 1 Falta em 19 aulas ministradas.',
+    'Matemática: 8 Faltas em 19 aulas ministradas.'
+  ]);
 });
 
 test('carregamento prioriza faltas válidas e mantém a captura mais recente por datas',async() => {
