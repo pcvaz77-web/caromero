@@ -21,6 +21,10 @@ body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttenda
 .siap-absence-detail:last-child{border-bottom:0}
 .siap-absence-detail small{color:#667085}
 .siap-absence-panel{margin-top:14px}
+.siap-absence-criteria{margin-top:14px;padding:13px 15px;border:1px solid #c9d7f5;border-radius:10px;background:#f5f8ff;color:#263b63;font-size:12px;line-height:1.5}
+.siap-absence-criteria strong{display:block;margin-bottom:5px;font-size:13px}
+.siap-absence-criteria p{margin:3px 0;color:#40516f}
+.classroom-panel-card .siap-absence-criteria p{margin:3px 0}
 .siap-absence-panel-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
 .siap-absence-panel-head select{width:auto;min-height:37px;padding:6px 9px}
 .siap-absence-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.siap-absence-summary>div{display:grid;gap:5px;padding:15px;border:1px solid #dce4f1;border-radius:11px;background:#fff}.siap-absence-summary small,.siap-absence-summary span{color:#667085;font-size:11px}.siap-absence-summary strong{font-size:21px;color:#17233a}

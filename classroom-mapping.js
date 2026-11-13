@@ -459,6 +459,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const gradeAction = window.getSiapGradePanelAction?.(actionContext) || '';
     const classExamAction = window.getClassExamPanelAction?.(actionContext) || '';
     const absenceAction = window.getSiapAbsencePanelAction?.(actionContext) || '';
+    const absenceExplanation = window.getSiapAbsencePanelExplanation?.(actionContext) || '';
     const importManagerAction = window.getSiapImportManagerAction?.(actionContext) || '';
     const panelActions = `${siapActions}${absenceAction}${attendanceAction}${gradeAction}${importManagerAction}${classExamAction}`;
     document.getElementById('classroomInstallAction').innerHTML = window.getAttendanceCaptureInstallPanelAction?.(actionContext) || '';
@@ -466,6 +467,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.bindSiapPanelActions?.(actionContext);
       window.bindAssistedAttendancePanelAction?.(actionContext);
       window.bindSiapAbsencePanelAction?.(actionContext);
+      window.refreshSiapAbsencePanelExplanation?.();
       window.bindSiapImportManagerAction?.(actionContext);
       window.bindSiapGradePanelAction?.(actionContext);
       window.bindClassExamPanelAction?.(actionContext);
@@ -474,7 +476,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.mountFamilyEntryAttendancePanel?.(actionContext);
     };
     if (activeCanEdit) {
-      content.innerHTML = `<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${panelActions}</div>`;
+      content.innerHTML = `<div class="classroom-panel-actions"><button id="editClassroomMap" type="button" class="btn primary">Editar mapeamento</button>${panelActions}</div>${absenceExplanation}`;
       document.getElementById('editClassroomMap').onclick = openEditor;
       bindPanelActions();
       return;
@@ -483,16 +485,16 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
       const published = publishedByClass.get(activeClassId) || await fetchMap(activeClassId, false);
       if (!published) {
-        content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. O mapeamento ainda não foi publicado.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+        content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. O mapeamento ainda não foi publicado.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}${absenceExplanation}</div>`;
         bindPanelActions();
         return;
       }
       publishedByClass.set(activeClassId, published);
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${panelActions}</div></div>`;
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma.</p><div class="classroom-panel-actions"><button id="viewPublishedClassroomMap" type="button" class="btn primary">Ver mapeamento</button>${panelActions}</div>${absenceExplanation}</div>`;
       document.getElementById('viewPublishedClassroomMap').onclick = () => openViewer(activeClassId);
       bindPanelActions();
     } catch {
-      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. Não foi possível consultar o mapeamento agora.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}</div>`;
+      content.innerHTML = `<div class="classroom-panel-card"><h4>Ferramentas da turma</h4><p>Acesse os recursos disponíveis para esta turma. Não foi possível consultar o mapeamento agora.</p>${panelActions ? `<div class="classroom-panel-actions">${panelActions}</div>` : ''}${absenceExplanation}</div>`;
       bindPanelActions();
     }
   }
