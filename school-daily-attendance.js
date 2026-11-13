@@ -259,13 +259,18 @@ document.addEventListener('DOMContentLoaded', () => {
   window.getStudentAttendanceDetails = studentId => {
     const item=effectiveBadges.get(studentId);
     if(!item||!STATUS[item.status])return [];
-    if(item.source_key==='absence')return [{
+    if(item.source_key==='absence'){
+      const subjects=(item.subjects || [item.subject]).map(subject =>
+        String(subject || '').replace(/^\d+\s*-\s*/, '').toLocaleLowerCase('pt-BR')
+          .replace(/(^|[\s/(.-])\p{L}/gu, letter => letter.toLocaleUpperCase('pt-BR')));
+      return [{
       source:'SIAP',
       status:item.status,label:STATUS[item.status].label,className:STATUS[item.status].className,
       percentage:null,period:`${item.bimester}º Bim./${item.academic_year}`,
-      summary:`Total: ${item.total_absences} falta${item.total_absences===1?'':'s'} em ${item.subject_count} disciplina${item.subject_count===1?'':'s'}. Etiqueta baseada em ${String(item.subject || '').replace(/^\d+\s*-\s*/, '')}: ${item.absence_count} em ${item.taught_hours} aulas ministradas`,
+      summary:`Total: ${item.total_absences} Falta${item.total_absences===1?'':'s'} em ${item.total_taught_hours} aulas ministradas. ${subjects.join(', ')}.`,
       updatedAt:item.updated_at || null
     }];
+    }
     const source=item.source_key==='teacher'
       ? item.teacher_is_counselor === true
         ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`
