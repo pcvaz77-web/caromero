@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
       source:'SIAP',
       status:item.status,label:STATUS[item.status].label,className:STATUS[item.status].className,
       percentage:null,period:`${item.bimester}º Bim./${item.academic_year}`,
-      summary:`${String(item.subject || '').replace(/^\d+\s*-\s*/, '')}: ${item.absence_count} falta${item.absence_count===1?'':'s'} em ${item.taught_hours} aulas ministradas`,
+      summary:`Total: ${item.total_absences} falta${item.total_absences===1?'':'s'} em ${item.subject_count} disciplina${item.subject_count===1?'':'s'}. Etiqueta baseada em ${String(item.subject || '').replace(/^\d+\s*-\s*/, '')}: ${item.absence_count} em ${item.taught_hours} aulas ministradas`,
       updatedAt:item.updated_at || null
     }];
     const source=item.source_key==='teacher'

@@ -31,6 +31,8 @@ test('uma disciplina inconsistente impede etiqueta parcial e o pior resultado v�
   const result=classifyLatest([row('a','Educação Física',1,19),row('a','Matemática',8,19)],null);
   assert.equal(result.status,'active_search');
   assert.equal(result.subject,'Matemática');
+  assert.equal(result.total_absences,9);
+  assert.equal(result.subject_count,2);
 });
 
 test('total por aluno e média da turma somam apenas disciplinas capturadas no período',() => {

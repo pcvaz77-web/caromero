@@ -28,10 +28,12 @@
     const worst = [...current].sort((a,b) => presence(a) - presence(b) || String(a.subject).localeCompare(String(b.subject),'pt-BR'))[0];
     const percentage = presence(worst);
     const status = percentage >= limits.frequentMinimum ? 'frequent' : percentage >= limits.absentMinimum ? 'absent' : 'active_search';
+    const totalAbsences = current.reduce((sum,row) => sum + Number(row.absences),0);
     return {student_id:worst.student_id,source_key:'absence',status,percentage,
       academic_year:Number(worst.academic_year),bimester:Number(worst.bimester),
       term:`${worst.bimester}º Bimestre`,months:[],source_dates:[],
       subject:worst.subject,absence_count:worst.absences,taught_hours:worst.taught_hours,
+      total_absences:totalAbsences,subject_count:current.length,
       updated_at:worst.imported_at};
   }
   function totalsForPeriod(rows) {

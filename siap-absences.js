@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="siap-absence-badge" title="${escapeAttribute(subjects)} · ${latest.bimester}º Bim./${latest.academic_year} · Fonte: SIAP · Capturado em: ${escapeAttribute(updatedAt(captured))}">Total: ${total} falta${total===1?'':'s'} · ${latest.bimester}º Bim.${captured?` · ${escape(capturedDate(captured))}`:''}</span>`;
   };
   window.getStudentSiapAbsenceDetails = studentId => {
+    if (window.getStudentAttendanceDetails?.(studentId)?.some(item => item.source === 'SIAP')) return '';
     const items=window.getStudentSiapAbsences(studentId);
     if(!items.length)return '';
     const latest=items[0];
