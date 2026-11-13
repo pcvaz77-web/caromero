@@ -309,6 +309,27 @@ test('conteúdo visível na aula com prefixo diferente é reconhecido sem novo c
   assert.equal(generated, 1);
 });
 
+test('conteúdo com nome curto repetido é confirmado pelo caminho exibido na aula', () => {
+  const short = 'Posicionamento crítico sobre as práticas não institucionalizadas de participação social';
+  const selected = `${short} > Apreciação e réplica > Campo de atuação na vida pública`;
+  const normalizePlanningGroup = (value) => String(value || '').normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
+  const samePlanningChoices = vm.runInNewContext(
+    `${between('function samePlanningChoices(', 'function lessonMultiPreviewIsCurrent(')}\nsamePlanningChoices`,
+    { normalizePlanningGroup },
+  );
+  assert.equal(samePlanningChoices([selected], [short], [short, short]), true);
+  assert.equal(samePlanningChoices([selected], ['Outro conteúdo'], [short, short, 'Outro conteúdo']), false);
+
+  const batch = { mode:'lesson-sequence', current:{ objectives:[short] } };
+  const missing = vm.runInNewContext(
+    `${between('function lessonSequenceMissingChoices(', 'function selectedPlanningSaeb(')}\nlessonSequenceMissingChoices`,
+    { normalizePlanningGroup, samePlanningChoices, selectedPlanningObjectives:()=>[selected],
+      selectedPlanningSkills:()=>[], planningLinks:()=>[{ textContent:short }, { textContent:short }] },
+  );
+  assert.deepEqual(Array.from(missing(batch, 'content')), []);
+});
+
 test('aula individual e quinzena completam zero, algumas ou todas as escolhas curriculares', () => {
   for (const batchMode of [false, true]) {
     for (const initial of [[], ['skill'], ['content'], ['skill', 'content'], ['skill', 'content', 'saeb']]) {

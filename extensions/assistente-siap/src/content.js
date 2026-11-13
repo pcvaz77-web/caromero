@@ -1338,7 +1338,9 @@
     const unmatched = [...actualLabels];
     for (const label of expectedLabels) {
       const exact = unmatched.indexOf(label);
-      const hierarchical = exact < 0 && availableLabels.filter((choice) => choice === label).length === 1
+      // O SIAP pode listar o mesmo nome curto mais de uma vez, mas registra a
+      // escolha com o caminho completo no quadro da aula.
+      const hierarchical = exact < 0 && availableLabels.includes(label)
         ? unmatched.findIndex((choice) => choice.startsWith(`${label} > `)) : -1;
       const index = exact >= 0 ? exact : hierarchical;
       if (index < 0) return false;
@@ -3188,7 +3190,9 @@
           if (retryPlanningSelection(flow, "content", selectionIndex)) return;
           flow.stage = "skill";
           if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
-          return stopPlanningFlow("O conteúdo aparece nas opções à esquerda, mas não foi confirmado no quadro da aula. Confira a seleção no SIAP antes de continuar. Nenhuma aula foi salva.");
+          return stopPlanningFlow(contentCount
+            ? "O conteúdo selecionado no quadro da aula não corresponde ao da prévia. Confira a escolha no SIAP antes de continuar. Nenhuma aula foi salva."
+            : "O conteúdo aparece nas opções à esquerda, mas não foi confirmado no quadro da aula. Confira a seleção no SIAP antes de continuar. Nenhuma aula foi salva.");
         }
         schedulePlanningResume();
         return;
