@@ -228,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="siap-absence-table">${visible.map(student=>{
         const studentRows=byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject));
         const total=totals.byStudent.get(student.id)?.total || 0;
-        return `<div class="siap-absence-student"><strong>${escape(student.name)}</strong><span><b>Total: ${total} falta${total===1?'':'s'} · ${bimester}º Bim.</b><small>${studentRows.map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} · capturado em ${escape(updatedAt(row.imported_at))}`).join(' · ')}</small></span></div>`;
+        return `<div class="siap-absence-student"><strong>${escape(student.name)} <span class="siap-absence-name-total">· ${total} falta${total===1?'':'s'}</span></strong><span><b>Total: ${total} falta${total===1?'':'s'} · ${bimester}º Bim.</b><small>${studentRows.map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} · capturado em ${escape(updatedAt(row.imported_at))}`).join(' · ')}</small></span></div>`;
       }).join('')}</div>`;
     section.querySelector('[data-absence-period]').onchange=()=>mountPanel(classId);
   }
