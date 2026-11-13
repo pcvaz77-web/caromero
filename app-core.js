@@ -43,7 +43,7 @@ const attendanceDetails = studentId => {
     return `<div class="attendance-source-layout"><div class="attendance-source-detail"><span class="attendance-badge ${esc(item.className)}">${esc(item.label)}</span><small><strong>Fonte:</strong> ${esc(item.source)}</small>${item.period ? `<small><strong>Período:</strong> ${esc(item.period)}</small>` : ''}${item.summary ? `<small>${esc(item.summary)}</small>` : ''}${updated ? `<small><strong>Atualizado em:</strong> ${esc(updated)}</small>` : ''}</div>${attendancePercentageChart(item)}</div>`;
   }).join('');
 };
-const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}${window.getStudentSiapAbsenceBadge?.(student.id) || ''}</div>`;
+const studentBadges = student => `<div class="student-badges">${badge(student.report)}${window.getSiapAttendanceBadge?.(student.id) || ''}</div>`;
 const toast = message => {
   $('toast').textContent = message;
   $('toast').classList.remove('hidden');
