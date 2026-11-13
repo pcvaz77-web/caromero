@@ -127,7 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // destino que já sabemos resolver hoje; qualquer outro target_type (ou um
   // item sem o id/turma necessário) fica sem indicação de link — continua
   // uma notificação normal, só não clicável.
-  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'class', 'class_counselor', 'classroom_map', 'cepi_test', 'class_exam']);
+  const CLICKABLE_TARGET_TYPES = new Set(['student', 'occurrence', 'occurrence_group', 'class', 'class_counselor', 'classroom_map', 'cepi_test', 'class_exam']);
   function isNotificationClickable(item) {
     if (!CLICKABLE_TARGET_TYPES.has(item.target_type)) return false;
     if (item.target_type === 'class_counselor') return !!item.class_id;
@@ -204,6 +204,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const { data, error } = await query.maybeSingle();
         if (error || !data) return null;
         return () => { window.openOccurrenceRecord?.({ occurrenceId: data.id, studentId: data.student_id, classId: data.class_id }); };
+      }
+      if (item.target_type === 'occurrence_group') {
+        if (!item.target_id) return null;
+        const {data,error} = await db.from('student_occurrences')
+          .select('collective_batch_id,class_id')
+          .eq('collective_batch_id',item.target_id)
+          .eq('school_id',schoolId)
+          .limit(1);
+        if (error || !data?.length) return null;
+        return () => { window.openOccurrenceGroup?.({batchId:data[0].collective_batch_id,classId:data[0].class_id}); };
       }
       if (item.target_type === 'class') {
         if (!item.target_id) return null;
@@ -495,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (notifications.length > 50) notifications.length = 50;
         renderList();
         await refreshUnreadCount();
-        if (['occurrence', 'occurrence_deleted'].includes(payload.new.target_type)) {
+        if (['occurrence', 'occurrence_group', 'occurrence_deleted'].includes(payload.new.target_type)) {
           document.dispatchEvent(new Event('carometro:occurrences-changed'));
         }
       })
