@@ -57,11 +57,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const items=window.getStudentSiapAbsences(studentId);
     if(!items.length)return '';
     const latest=items[0];
-    return items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester)
-      .map(row=>`<span class="siap-absence-badge" title="${escapeAttribute(row.subject)} · ${row.bimester}º bimestre/${row.academic_year} · Fonte: SIAP/Notas · Capturado em: ${escapeAttribute(updatedAt(row.imported_at))}">${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre${row.imported_at?` · ${escape(capturedDate(row.imported_at))}`:''}</span>`).join('');
+    const period=items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester);
+    const total=period.reduce((sum,row)=>sum+row.absences,0);
+    const captured=period.map(row=>row.imported_at).filter(Boolean).sort().at(-1);
+    const subjects=period.map(row=>`${row.subject.replace(/^\d+\s*-\s*/,'')}: ${row.absences}`).join(' · ');
+    return `<span class="siap-absence-badge" title="${escapeAttribute(subjects)} · ${latest.bimester}º Bim./${latest.academic_year} · Fonte: SIAP · Capturado em: ${escapeAttribute(updatedAt(captured))}">Total: ${total} falta${total===1?'':'s'} · ${latest.bimester}º Bim.${captured?` · ${escape(capturedDate(captured))}`:''}</span>`;
   };
-  window.getStudentSiapAbsenceDetails = studentId => window.getStudentSiapAbsences(studentId)
-    .map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre/${row.academic_year}</span><small>Fonte: SIAP · Notas${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
+  window.getStudentSiapAbsenceDetails = studentId => {
+    const items=window.getStudentSiapAbsences(studentId);
+    if(!items.length)return '';
+    const latest=items[0];
+    const period=items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester);
+    const total=period.reduce((sum,row)=>sum+row.absences,0);
+    return `<div class="siap-absence-detail"><strong>Total registrado: ${total} falta${total===1?'':'s'}</strong><small>${latest.bimester}º Bim./${latest.academic_year} · ${period.length} disciplina${period.length===1?'':'s'} com captura</small></div>`+
+      items.map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º Bim./${row.academic_year}</span><small>Fonte: SIAP${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
+  };
 
   const modal=document.createElement('div');
   modal.id='siapAbsencesModal';
@@ -71,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div data-absence-context class="meta"></div><div class="actions"><button type="button" class="btn secondary" data-absence-capture>Capturar tela aberta</button></div>
     <p class="meta">Se a captura não responder, atualize a extensão pela Chrome Web Store.</p>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
-    <p class="meta">Esta captura mostra as faltas por bimestre. As etiquetas de frequência continuam vindo das chamadas por datas.</p>
+    <p class="meta">As faltas geram etiquetas quando a carga ministrada é válida e não é menor que as faltas. Caso contrário, permanece a etiqueta calculada pelas chamadas.</p>
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
@@ -96,9 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderPreview() {
     const matches=matchedRows();
     const eligible=matches.filter(row=>row.studentId&&!row.blocked&&row.absences!==null);
+    const withoutValidLoad=eligible.filter(row=>!Number.isInteger(snapshot?.taughtHours)||snapshot.taughtHours<=0||row.absences>snapshot.taughtHours).length;
     by('[data-absence-import]').disabled=!eligible.length;
     by('[data-absence-preview]').innerHTML=snapshot
-      ? `<p class="meta">${eligible.length} alunos identificados · ${matches.filter(row=>row.absences===null).length} sem faltas informadas · ${matches.filter(row=>row.absences!==null&&!row.studentId).length} sem vínculo único. Nenhuma etiqueta será criada por esta captura.</p>
+      ? `<p class="meta">${eligible.length} alunos identificados · ${matches.filter(row=>row.absences===null).length} sem faltas informadas · ${matches.filter(row=>row.absences!==null&&!row.studentId).length} sem vínculo único.${withoutValidLoad?` ${withoutValidLoad} sem base válida para etiqueta nesta disciplina; as faltas ainda podem ser importadas.`:''}</p>
         <div class="siap-absence-preview-list">${matches.map((row,index)=>{
           const valid=row.studentId&&!row.blocked&&row.absences!==null;
           const reason=row.absences===null?'Campo vazio':row.blocked?'Matrícula bloqueada no SIAP':row.duplicate?'Nome duplicado no SIAP':
@@ -161,8 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if(result.entries.some(entry=>entry.absences!==null&&(!Number.isInteger(entry.absences)||entry.absences<0||entry.absences>9999)))
         throw new Error('O SIAP retornou uma quantidade de faltas inválida.');
       snapshot=result;
-      by('[data-absence-context]').textContent=`${targetClassName} · ${result.context.subject} · ${bimester}º bimestre/${year}`;
-      renderPreview();status('Confira os nomes e as faltas antes de importar. Esta leitura não gera etiquetas.');
+      by('[data-absence-context]').textContent=`${targetClassName} · ${result.context.subject} · ${bimester}º Bim./${year}`;
+      renderPreview();status('Confira os nomes e as faltas. A etiqueta será calculada somente quando a carga ministrada for compatível.');
     }catch(error){snapshot=null;renderPreview();status(error.message);}
     finally{button.disabled=false;}
   };
@@ -186,7 +197,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if(error)throw error;
       await loadRows();
       document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
-      status(`${data} aluno(s) atualizados. Nenhuma etiqueta foi gerada. Campos vazios e nomes sem vínculo único não foram alterados.`);
+      status(`${data} aluno(s) atualizados. As etiquetas válidas serão recalculadas; campos vazios e nomes sem vínculo único não foram alterados.`);
     }catch(error){status(`Nenhuma importação concluída: ${error.message}`);}
     finally{button.disabled=false;}
   };
@@ -206,11 +217,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const periodRows=classRows.filter(row=>row.academic_year===year&&row.bimester===bimester);
     const byStudent=new Map();
     periodRows.forEach(row=>{const list=byStudent.get(row.student_id)||[];list.push(row);byStudent.set(row.student_id,list);});
-    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas por disciplina</h4><p>Dados da aba Notas do SIAP · bimestre em andamento pode mudar · etiquetas vêm das chamadas</p></div>
-      <select data-absence-period aria-label="Ano e bimestre das faltas">${periods.map(value=>{const [y,b]=value.split('|');return `<option value="${value}" ${value===chosen?'selected':''}>${b}º bimestre/${y}</option>`;}).join('')}</select></div>
-      <div class="siap-absence-table">${students.filter(student=>student.classId===classId&&byStudent.has(student.id))
-        .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'))
-        .map(student=>`<div class="siap-absence-student"><strong>${escape(student.name)}</strong><span>${byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject)).map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: <b>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º bimestre</b> <small>Capturado em ${escape(updatedAt(row.imported_at))}</small>`).join(' · ')}</span></div>`).join('')}</div>`;
+    const visible=students.filter(student=>student.classId===classId&&byStudent.has(student.id))
+      .sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+    const totals=window.SiapAbsenceCalculations.totalsForPeriod(periodRows.filter(row=>visible.some(student=>student.id===row.student_id)));
+    const subjects=new Set(periodRows.map(row=>row.subject)).size;
+    const mean=totals.mean?.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) || '0,0';
+    section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas da turma</h4><p>Totais das disciplinas já capturadas no SIAP · o Bim. em andamento pode mudar</p></div>
+      <select data-absence-period aria-label="Ano e Bim. das faltas">${periods.map(value=>{const [y,b]=value.split('|');return `<option value="${value}" ${value===chosen?'selected':''}>${b}º Bim./${y}</option>`;}).join('')}</select></div>
+      <div class="siap-absence-summary"><div><small>Média geral da turma</small><strong>${mean} faltas por aluno</strong><span>Média dos totais dos ${visible.length} aluno${visible.length===1?'':'s'} com captura.</span></div><div><small>Disciplinas registradas</small><strong>${subjects}</strong><span>Novas capturas acrescentam faltas ao total.</span></div></div>
+      <div class="siap-absence-table">${visible.map(student=>{
+        const studentRows=byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject));
+        const total=totals.byStudent.get(student.id)?.total || 0;
+        return `<div class="siap-absence-student"><strong>${escape(student.name)}</strong><span><b>Total: ${total} falta${total===1?'':'s'} · ${bimester}º Bim.</b><small>${studentRows.map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} · capturado em ${escape(updatedAt(row.imported_at))}`).join(' · ')}</small></span></div>`;
+      }).join('')}</div>`;
     section.querySelector('[data-absence-period]').onchange=()=>mountPanel(classId);
   }
   window.mountSiapAbsencePanel=({classId}={})=>{targetClassId=classId;mountPanel(classId);};

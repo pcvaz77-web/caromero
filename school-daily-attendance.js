@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const DEFAULT_THRESHOLDS = Object.freeze({ frequentMinimum:75, absentMinimum:60 });
   const selectedMonths = new Set();
   const effectiveBadges = new Map();
+  let effectiveRequest = 0;
   let thresholds = { ...DEFAULT_THRESHOLDS, customized:false };
   let collection = null;
   let reading = false;
@@ -190,33 +191,65 @@ document.addEventListener('DOMContentLoaded', () => {
     fallback:'Período não informado'
   });
 
+  async function loadAbsenceLabels(schoolId, currentBadges) {
+    const calculator = window.SiapAbsenceCalculations;
+    if (!calculator) return;
+    const all = [];
+    for (let offset = 0;; offset += 1000) {
+      const {data,error} = await db.from('siap_bimester_absences')
+        .select('student_id,academic_year,bimester,subject,absences,taught_hours,imported_at')
+        .eq('school_id',schoolId).order('student_id').order('academic_year').order('bimester').order('subject').range(offset,offset + 999);
+      if (error) return;
+      all.push(...(data || []));
+      if ((data || []).length < 1000) break;
+    }
+    const {data:settings,error:settingsError} = await db.from('school_siap_attendance_settings')
+      .select('frequent_minimum,absent_minimum').eq('school_id',schoolId).maybeSingle();
+    const limits = !settingsError && settings
+      ? {frequentMinimum:Number(settings.frequent_minimum),absentMinimum:Number(settings.absent_minimum)}
+      : DEFAULT_THRESHOLDS;
+    const byStudent = new Map();
+    all.forEach(row => byStudent.set(row.student_id,[...(byStudent.get(row.student_id) || []),row]));
+    byStudent.forEach((rows,studentId) => {
+      const label = calculator.classifyLatest(rows,currentBadges.get(studentId),limits);
+      if (label) currentBadges.set(studentId,label);
+    });
+  }
+
   async function loadEffectiveBadges() {
     const schoolId = window.getActiveSchoolId?.();
     if (!schoolId) return;
+    const request = ++effectiveRequest;
     let { data, error } = await db.rpc('get_effective_siap_attendance_labels_v3',{p_school_id:schoolId});
     if (error?.code === 'PGRST202') {
       // Enquanto a migration não estiver aplicada, preserva a frequência
       // publicada sem afirmar que o professor é conselheiro.
       ({ data, error } = await db.rpc('get_effective_siap_attendance_labels_v2',{p_school_id:schoolId}));
     }
-    effectiveBadges.clear();
+    if (request !== effectiveRequest || schoolId !== window.getActiveSchoolId?.()) return;
+    const nextBadges=new Map();
     if (!error) {
       (data || []).forEach(item => {
         const status=STATUS[item.status] ? item.status : classify(Number(item.percentage));
-        effectiveBadges.set(item.student_id,{...item,status});
+        nextBadges.set(item.student_id,{...item,status});
       });
     } else {
       // Compatibilidade durante a aplicação coordenada da migration: nunca
       // mistura duas etiquetas; professor continua prioritário no fallback.
       const fallback=await db.from('siap_school_daily_attendance_current').select('student_id,status,percentage,academic_year,term,months,source_dates,updated_at').eq('school_id',schoolId).order('updated_at',{ascending:false});
       (fallback.data || []).forEach(item=>{
-        if(!effectiveBadges.has(item.student_id))effectiveBadges.set(item.student_id,{...item,source_key:'secretary'});
+        if(!nextBadges.has(item.student_id))nextBadges.set(item.student_id,{...item,source_key:'secretary'});
       });
       students.forEach(student=>{
         const status=teacherStatus?.(student.id);
-        if(status)effectiveBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:null,teacher_is_counselor:false,updated_at:null});
+        if(status)nextBadges.set(student.id,{student_id:student.id,source_key:'teacher',status,months:[],teacher_name:null,teacher_is_counselor:false,updated_at:null});
       });
     }
+    try { await loadAbsenceLabels(schoolId,nextBadges); }
+    catch (absenceError) { console.warn('Não foi possível calcular etiquetas pelas faltas:',absenceError); }
+    if (request !== effectiveRequest || schoolId !== window.getActiveSchoolId?.()) return;
+    effectiveBadges.clear();
+    nextBadges.forEach((item,studentId)=>effectiveBadges.set(studentId,item));
     window.render?.();
     document.dispatchEvent(new CustomEvent('carometro:attendance-status-changed'));
   }
@@ -226,6 +259,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.getStudentAttendanceDetails = studentId => {
     const item=effectiveBadges.get(studentId);
     if(!item||!STATUS[item.status])return [];
+    if(item.source_key==='absence')return [{
+      source:'SIAP',
+      status:item.status,label:STATUS[item.status].label,className:STATUS[item.status].className,
+      percentage:null,period:`${item.bimester}º Bim./${item.academic_year}`,
+      summary:`${String(item.subject || '').replace(/^\d+\s*-\s*/, '')}: ${item.absence_count} falta${item.absence_count===1?'':'s'} em ${item.taught_hours} aulas ministradas`,
+      updatedAt:item.updated_at || null
+    }];
     const source=item.source_key==='teacher'
       ? item.teacher_is_counselor === true
         ? `Professor conselheiro${item.teacher_name ? ` — ${item.teacher_name}` : ''}`

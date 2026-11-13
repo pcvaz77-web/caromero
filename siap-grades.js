@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .map(({ score, batch, imported_at }) => {
         const percentage = Math.round(Number(score) * 10);
         const display = scoreText(score);
-        return `<div class="grade-card-row"><div><strong>${escape(subjectLabel(batch.subject))}</strong><small class="grade-card-score">Nota final: <b>${escape(display)}</b> · ${batch.bimester}º bimestre/${batch.academic_year}</small><small><b>Fonte:</b> SIAP · ${batch.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina'}</small><small><b>Atualizado em:</b> ${escape(dateText(imported_at))}</small></div><span class="grade-ring grade-${tone(percentage)}" style="--grade-value:${percentage}" role="img" aria-label="Nota ${escape(display)}, ${percentage}%"><span>${percentage}%</span></span></div>`;
+        return `<div class="grade-card-row"><div><strong>${escape(subjectLabel(batch.subject))}</strong><small class="grade-card-score">Nota final: <b>${escape(display)}</b> · ${batch.bimester}º Bim./${batch.academic_year}</small><small><b>Fonte:</b> SIAP · ${batch.source_kind === 'secretary' ? 'Secretaria' : 'Professor/disciplina'}</small><small><b>Atualizado em:</b> ${escape(dateText(imported_at))}</small></div><span class="grade-ring grade-${tone(percentage)}" style="--grade-value:${percentage}" role="img" aria-label="Nota ${escape(display)}, ${percentage}%"><span>${percentage}%</span></span></div>`;
       }).join('');
   };
 
@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         throw new Error('Ano, bimestre ou disciplina não identificados na tela do SIAP.');
       capture = { snapshot, classId:dialog.dataset.classId, year, bimester, subject:snapshot.context.subject };
       dialog.querySelector('[data-grade-context]').textContent =
-        `${className} · ${subjectLabel(capture.subject)} · ${bimester}º bimestre/${year}`;
+        `${className} · ${subjectLabel(capture.subject)} · ${bimester}º Bim./${year}`;
       renderPreview();
       status('Confira os nomes, as notas e a opção do card antes de importar.');
     } catch (error) { capture = null; renderPreview(); status(error.message); }
@@ -260,7 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
     section.innerHTML = `<div class="siap-grade-panel-head"><div><h4>Desempenho da turma</h4><p>Notas finais disponíveis · Fonte: SIAP</p></div>
       <select data-grade-period aria-label="Ano e bimestre">${periods.map(value => {
         const [y,b] = value.split('|');
-        return `<option value="${value}" ${value === chosen ? 'selected' : ''}>${b}º bimestre/${y}</option>`;
+        return `<option value="${value}" ${value === chosen ? 'selected' : ''}>${b}º Bim./${y}</option>`;
       }).join('')}</select></div>
       <div class="siap-grade-dashboard"><div class="siap-grade-summary"><span class="siap-grade-eyebrow">Média geral</span>
         <div class="siap-grade-overall ${overall === null ? '' : `grade-text-${tone(overall)}`}">${overall === null ? 'Sem notas' : `${overall}%`}</div>
