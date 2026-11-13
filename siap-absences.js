@@ -87,13 +87,18 @@ document.addEventListener('DOMContentLoaded', () => {
     <p class="meta">Se a captura não responder, atualize a extensão pela Chrome Web Store.</p>
     <p data-absence-status class="meta" role="status"></p><div data-absence-preview></div>
     ${criteriaHtml}
-    <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
+    <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div>
+    <p data-absence-import-feedback class="siap-absence-import-feedback hidden" role="status" aria-live="polite"></p></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
-  const status = (message,success=false) => {
-    const messageBox=by('[data-absence-status]');
-    messageBox.textContent=message;
-    messageBox.classList.toggle('siap-absence-status-success',success);
+  const status = message => { by('[data-absence-status]').textContent=message; };
+  const importFeedback = (message,kind='') => {
+    const feedback=by('[data-absence-import-feedback]');
+    feedback.textContent=message;
+    feedback.classList.toggle('hidden',!message);
+    feedback.classList.toggle('siap-absence-import-success',kind==='success');
+    feedback.classList.toggle('siap-absence-import-error',kind==='error');
+    if(message)feedback.scrollIntoView({block:'nearest'});
   };
   modal.querySelectorAll('[data-absence-close]').forEach(button=>button.onclick=()=>modal.classList.add('hidden'));
   modal.onclick=event=>{if(event.target===modal)modal.classList.add('hidden');};
@@ -132,7 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canCapture(classId)) { toast('Somente professores da escola ativa podem importar faltas.');return; }
     snapshot=null;targetClassId=classId;targetClassName=className||'';
     by('[data-absence-context]').textContent=`Turma ${targetClassName}`;
-    status('Nenhuma tela capturada.');renderPreview();modal.classList.remove('hidden');refreshCriteria();
+    status('Nenhuma tela capturada.');importFeedback('');renderPreview();modal.classList.remove('hidden');refreshCriteria();
   }
   window.getSiapAbsencePanelAction=({classId}={})=>canCapture(classId)
     ? '<button id="openSiapAbsences" type="button" class="btn primary">Extrair faltas do SIAP</button>' : '';
@@ -201,14 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   by('[data-absence-import]').onclick=async()=>{
-    if(!snapshot||!canCapture(targetClassId)){status('A captura não está disponível para esta turma.');return;}
+    if(!snapshot||!canCapture(targetClassId)){importFeedback('A captura não está disponível para esta turma.','error');return;}
     const matches=matchedRows();
     const selected=[...modal.querySelectorAll('[data-absence-row]:checked')]
       .map(input=>matches[Number(input.dataset.absenceRow)])
       .filter(row=>row?.studentId&&!row.blocked&&row.absences!==null);
-    if(!selected.length){status('Selecione ao menos um aluno com faltas válidas.');return;}
+    if(!selected.length){importFeedback('Selecione ao menos um aluno com faltas válidas.','error');return;}
     const bimester=Number(String(snapshot.context.term).match(/^([1-4])º?\s*Bimestre/i)?.[1]);
-    const button=by('[data-absence-import]');button.disabled=true;status('Importando faltas conferidas…');
+    const button=by('[data-absence-import]');button.disabled=true;importFeedback('Importando faltas conferidas…');
     try{
       const {data,error}=await db.rpc('import_siap_bimester_absences',{
         p_school_id:schoolId(),p_class_id:targetClassId,p_year:Number(snapshot.context.year),
@@ -219,8 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if(error)throw error;
       await loadRows();
       document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
-      status(`Dados importados para os cards de ${data} aluno${Number(data)===1?'':'s'}.`,true);
-    }catch(error){status(`Nenhuma importação concluída: ${error.message}`);}
+      importFeedback(`Dados importados para os cards de ${data} aluno${Number(data)===1?'':'s'}.`,'success');
+    }catch(error){importFeedback(`Nenhuma importação concluída: ${error.message}`,'error');}
     finally{button.disabled=false;}
   };
 
