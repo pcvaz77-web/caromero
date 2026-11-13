@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let snapshot = null;
   let targetClassId = null;
   let targetClassName = '';
+  let importedPeriod = null;
   let token = 0;
 
   async function loadRows() {
@@ -64,14 +65,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return `<span class="siap-absence-badge" title="${escapeAttribute(subjects)} · ${latest.bimester}º Bim./${latest.academic_year} · Fonte: SIAP · Capturado em: ${escapeAttribute(updatedAt(captured))}">Total: ${total} falta${total===1?'':'s'} · ${latest.bimester}º Bim.${captured?` · ${escape(capturedDate(captured))}`:''}</span>`;
   };
   window.getStudentSiapAbsenceDetails = studentId => {
-    if (window.getStudentAttendanceDetails?.(studentId)?.some(item => item.source === 'SIAP')) return '';
-    const items=window.getStudentSiapAbsences(studentId);
+    const displayed=window.getStudentAttendanceDetails?.(studentId)?.find(item=>item.source==='SIAP');
+    const items=window.getStudentSiapAbsences(studentId).filter(row=>
+      !displayed || row.academic_year!==displayed.academicYear || row.bimester!==displayed.bimester);
     if(!items.length)return '';
-    const latest=items[0];
-    const period=items.filter(row=>row.academic_year===latest.academic_year&&row.bimester===latest.bimester);
-    const total=period.reduce((sum,row)=>sum+row.absences,0);
-    return `<div class="siap-absence-detail"><strong>Total registrado: ${total} falta${total===1?'':'s'}</strong><small>${latest.bimester}º Bim./${latest.academic_year} · ${period.length} disciplina${period.length===1?'':'s'} com captura</small></div>`+
-      items.map(row => `<div class="siap-absence-detail"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'} · ${row.bimester}º Bim./${row.academic_year}</span><small>Fonte: SIAP${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small></div>`).join('');
+    const periods=new Map();
+    items.forEach(row=>{
+      const key=`${row.academic_year}|${row.bimester}`;
+      periods.set(key,[...(periods.get(key)||[]),row]);
+    });
+    return [...periods.values()].map(period=>{
+      const {academic_year:year,bimester}=period[0];
+      const total=period.reduce((sum,row)=>sum+row.absences,0);
+      return `<div class="siap-absence-detail"><strong>${bimester}º Bim./${year} · Total: ${total} falta${total===1?'':'s'}</strong>`+
+        period.map(row=>`<span>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} falta${row.absences===1?'':'s'}</span><small>Fonte: SIAP${row.imported_at?` · Capturado em: ${escape(updatedAt(row.imported_at))}`:''}</small>`).join('')+'</div>';
+    }).join('');
   };
 
   const criteriaHtml=`<section class="siap-absence-criteria" aria-label="Critérios das etiquetas pelas faltas"><strong>Como as faltas geram etiquetas</strong>
@@ -222,6 +230,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_rows:selected.map(row=>({student_id:row.studentId,absences:row.absences}))
       });
       if(error)throw error;
+      importedPeriod={classId:targetClassId,value:`${snapshot.context.year}|${bimester}`};
       await loadRows();
       document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
       importFeedback(`Dados importados para os cards de ${data} aluno${Number(data)===1?'':'s'}.`,'success');
@@ -239,7 +248,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if(!classRows.length){section.innerHTML='<h4>Faltas por disciplina</h4><p>Ainda não há faltas importadas para esta turma.</p>';return;}
     const periods=[...new Set(classRows.map(row=>`${row.academic_year}|${row.bimester}`))].sort((a,b)=>b.localeCompare(a,'pt-BR',{numeric:true}));
     const previous=section.querySelector('[data-absence-period]')?.value;
-    const chosen=periods.includes(previous)?previous:periods[0];
+    const preferred=importedPeriod?.classId===classId?importedPeriod.value:null;
+    const chosen=periods.includes(preferred)?preferred:periods.includes(previous)?previous:periods[0];
+    importedPeriod=null;
     const [year,bimester]=chosen.split('|').map(Number);
     const periodRows=classRows.filter(row=>row.academic_year===year&&row.bimester===bimester);
     const byStudent=new Map();

@@ -268,6 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
       source:'SIAP',
       status:item.status,label:STATUS[item.status].label,className:STATUS[item.status].className,
       percentage:null,period:`${item.bimester}º Bim./${item.academic_year}`,
+      bimester:item.bimester,academicYear:item.academic_year,
       summary:`Total: ${item.total_absences} Falta${item.total_absences===1?'':'s'} em ${item.total_taught_hours} aulas ministradas.${oneSubject?` ${formatSubject(subjects[0].subject)}.`:''}`,
       summaryEmphasis:true,
       subjectLines:oneSubject?[]:subjects.map(row => `${formatSubject(row.subject)}: ${row.absences} Falta${row.absences===1?'':'s'} em ${row.taught_hours} aulas ministradas.`),
