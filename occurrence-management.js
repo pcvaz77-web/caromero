@@ -160,6 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
   `;
   document.head.appendChild(style);
   style.textContent += `.occurrence-collective-toggle{display:flex!important;align-items:center;gap:8px;margin:12px 0 0!important;font-size:13px;font-weight:750}.occurrence-collective-toggle input,.occurrence-collective-list input{width:18px;min-height:18px;margin:0;flex:none}.occurrence-collective-picker{margin-top:10px;border:1px solid #dbe4f5;border-radius:10px;background:#f8faff}.occurrence-collective-toolbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:9px 11px;border-bottom:1px solid #dbe4f5;font-size:12px;font-weight:750}.occurrence-collective-toolbar .link{width:auto;min-height:0;padding:3px}.occurrence-collective-list{display:grid;max-height:190px;overflow:auto;padding:5px}.occurrence-collective-list label{display:flex;align-items:center;gap:9px;margin:0;padding:8px;border-radius:7px;font-size:12px;font-weight:650}.occurrence-collective-list label:hover{background:#eaf1ff}.occurrence-group-summary{padding:17px 19px;border:1px solid #b9c9ea;border-radius:11px;background:#f2f6ff}.occurrence-group-summary h4{margin:0 0 10px;font-size:17px}.occurrence-group-summary p{margin:8px 0}.occurrence-group-summary ul{margin:8px 0 0;padding-left:22px;columns:2;line-height:1.6}@media(max-width:650px){.occurrence-group-summary ul{columns:1}}`;
+  style.textContent += `.occurrence-dialog .field .occurrence-collective-list{max-height:150px;padding:4px}.occurrence-dialog .field .occurrence-collective-list label{display:flex!important;align-items:center;gap:7px;min-height:28px;margin:0!important;padding:4px 6px!important;font-size:11px!important;font-weight:600;line-height:1.25}.occurrence-dialog .field .occurrence-collective-list label span{min-width:0;overflow-wrap:anywhere}.occurrence-dialog .field .occurrence-collective-list input[type=checkbox],.occurrence-dialog .field .occurrence-collective-toggle input[type=checkbox]{width:16px!important;height:16px!important;min-height:16px!important;padding:0!important;margin:0!important;flex:0 0 16px;box-shadow:none}.occurrence-dialog .field .occurrence-collective-toolbar{padding:7px 9px;font-size:11px}`;
 
   const get = id => document.getElementById(id);
   // Fonte de autorização de ocorrências: school_members + school_member_permissions,
@@ -328,7 +329,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function isCollectiveMode() { return get('occurrenceCollectiveMode').checked && !editingOccurrence; }
   function renderCollectiveCount() {
     const count = collectiveStudentIds.size;
+    const total = get('occurrenceCollectiveList').querySelectorAll('[data-collective-student]').length;
     get('occurrenceCollectiveCount').textContent = count ? `${count} aluno${count === 1 ? '' : 's'} selecionado${count === 1 ? '' : 's'}` : 'Nenhum aluno selecionado';
+    get('occurrenceSelectAll').textContent = total > 0 && count === total ? 'Desmarcar todos' : 'Selecionar todos';
     get('saveOccurrence').textContent = isCollectiveMode() ? `Salvar para ${count} aluno${count === 1 ? '' : 's'}` : editingOccurrence ? 'Salvar alterações' : 'Salvar ocorrência';
   }
   function setCollectiveMode(enabled) {
@@ -337,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
     get('occurrenceStudent').previousElementSibling.textContent = enabled ? 'Alunos' : 'Aluno';
     get('occurrenceCollectivePicker').classList.toggle('hidden', !enabled);
     if (!enabled) collectiveStudentIds.clear();
-    renderCollectiveCount();
+    fillCollectiveStudents();
     syncSaveAction();
   }
   function fillCollectiveStudents() {
@@ -1021,7 +1024,13 @@ document.addEventListener('DOMContentLoaded', () => {
     syncSaveAction();
   };
   get('occurrenceSelectAll').onclick = () => {
-    get('occurrenceCollectiveList').querySelectorAll('[data-collective-student]').forEach(input => { input.checked = true; collectiveStudentIds.add(input.dataset.collectiveStudent); });
+    const inputs = [...get('occurrenceCollectiveList').querySelectorAll('[data-collective-student]')];
+    const selectAll = !inputs.every(input => input.checked);
+    inputs.forEach(input => {
+      input.checked = selectAll;
+      if (selectAll) collectiveStudentIds.add(input.dataset.collectiveStudent);
+      else collectiveStudentIds.delete(input.dataset.collectiveStudent);
+    });
     renderCollectiveCount();
     syncSaveAction();
   };
