@@ -11,18 +11,20 @@ const migration = fs.readFileSync(path.join(root, 'supabase/migrations/130_couns
 const teacherAccessMigration = fs.readFileSync(path.join(root, 'supabase/migrations/156_teacher_siap_any_class.sql'), 'utf8');
 const grades = fs.readFileSync(path.join(root, 'siap-grades.js'), 'utf8');
 
-test('Frequência Assistida sai das permissões gerais e entra no Painel da Turma', () => {
+test('Painel da Turma mantém só a configuração de frequência', () => {
   assert.doesNotMatch(permissions, /> Usar Frequência Assistida</);
   assert.doesNotMatch(permissions, /setAttendancePermission/);
   assert.doesNotMatch(attendance, /assistedAttendanceNav/);
   assert.match(attendance, /getAssistedAttendancePanelAction/);
-  assert.match(attendance, /id="openCounselorAssistedAttendance"[^>]+class="btn primary">Extrair frequência do SIAP/);
+  assert.doesNotMatch(attendance, /id="openCounselorAssistedAttendance"/);
+  assert.doesNotMatch(attendance, /window\.openCounselorAssistedAttendance/);
+  assert.match(attendance, /id="openAttendanceSettings"[^>]+>Configurar frequência/);
   assert.match(classroom, /getAssistedAttendancePanelAction/);
   assert.match(classroom, /bindAssistedAttendancePanelAction/);
   assert.match(classroom, /canViewPanel = .*getActiveSchoolRole\?\.\(\) === 'teacher'/);
 });
 
-test('professor ativo da escola pode capturar em qualquer turma, sem vinculo de conselheiro', () => {
+test('código legado da captura conserva as restrições de turma e escola', () => {
   assert.match(attendance, /isGeneralTeacher/);
   assert.match(attendance, /getActiveSchoolRole\?\.\(\) === 'teacher'/);
   assert.doesNotMatch(attendance, /counselorRightsForClass\?\.\(classId\)/);
@@ -57,4 +59,4 @@ test('professor vê os critérios sem controles de configuração', () => {
   assert.match(attendance, /control\.disabled=!canConfigure/);
 });
 
-console.log('Frequência Assistida e notas: acesso do professor por escola e turma validado.');
+console.log('Configuração das etiquetas e restrições do código legado validadas.');

@@ -89,22 +89,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canConfigureThresholds()) return;
     modal.classList.add('settings-only');
     modal.querySelector('h3').textContent='Configuração da frequência';
-    by('[data-aa-context]').textContent='Defina os percentuais usados nas etiquetas do professor e da Secretaria.';
+    by('[data-aa-context]').textContent='Defina os percentuais usados nas etiquetas calculadas pelas faltas do SIAP e pela Secretaria.';
     modal.classList.remove('hidden');
     await loadThresholds();
   }
-  window.canCaptureCounselorAttendanceForClass = canCaptureClass;
-  window.openCounselorAssistedAttendance = openForCounselorClass;
   window.getAttendanceCaptureInstallPanelAction = ({ classId } = {}) => canCaptureClass(classId)
     ? `<a class="btn secondary classroom-panel-install-link" href="${escapeHtml(extensionStoreUrl)}" target="_blank" rel="noopener noreferrer" title="Instalar ou atualizar o capturador pela Chrome Web Store">Instalar Extensão</a>`
     : '';
-  window.getAssistedAttendancePanelAction = ({ classId } = {}) => [
-    canCaptureClass(classId) ? '<button id="openCounselorAssistedAttendance" type="button" class="btn primary">Extrair frequência do SIAP</button>' : '',
-    canConfigureThresholds() ? '<button id="openAttendanceSettings" type="button" class="btn secondary">Configurar frequência</button>' : ''
-  ].join('');
-  window.bindAssistedAttendancePanelAction = ({ classId, className } = {}) => {
-    const control=document.getElementById('openCounselorAssistedAttendance');
-    if(control)control.onclick=()=>openForCounselorClass({classId,className});
+  window.getAssistedAttendancePanelAction = () => canConfigureThresholds()
+    ? '<button id="openAttendanceSettings" type="button" class="btn secondary">Configurar frequência</button>' : '';
+  window.bindAssistedAttendancePanelAction = () => {
     const settingsControl=document.getElementById('openAttendanceSettings');
     if(settingsControl)settingsControl.onclick=openAttendanceSettings;
   };
