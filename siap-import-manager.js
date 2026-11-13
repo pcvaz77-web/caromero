@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   modal.innerHTML=`<section class="modal"><div class="modal-head"><h3>Gerenciar dados importados do SIAP</h3><button type="button" class="close" data-close-imports aria-label="Fechar">×</button></div>
     <div class="form"><p class="sub">Escolha a disciplina e o bimestre. Limpar uma captura retira seus dados dos cards e das etiquetas; a frequência da Secretaria permanece.</p>
     <p data-import-status class="meta" role="status"></p><div data-import-list></div>
-    <div class="actions"><button type="button" class="btn secondary" data-close-imports>Fechar</button></div></div></section>`;
+    <div class="actions"><button type="button" class="btn siap-import-back" data-close-imports>Voltar</button></div></div></section>`;
   document.body.appendChild(modal);
   const status=message=>{modal.querySelector('[data-import-status]').textContent=message;};
   modal.querySelectorAll('[data-close-imports]').forEach(button=>button.onclick=()=>modal.classList.add('hidden'));
@@ -32,7 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const host=modal.querySelector('[data-import-list]');
     if(!imports.length){host.innerHTML='<p class="meta">Nenhuma importação encontrada para esta turma.</p>';return;}
     const names={absences:'Faltas do SIAP',grades:'Notas finais',calls:'Frequência pelas chamadas'};
-    host.innerHTML=imports.map((item,index)=>`<div class="siap-import-manager-row"><div><strong>${names[item.kind]}</strong><small>${escape(item.subject)} · ${item.bimester}º Bim./${item.year}</small></div><button type="button" class="btn secondary" data-clear-import="${index}">Limpar</button></div>`).join('');
+    host.innerHTML=imports.map((item,index)=>`<div class="siap-import-manager-row"><div><strong>${names[item.kind]}</strong><small>${escape(item.subject)} · ${item.bimester}º Bim./${item.year}</small></div><button type="button" class="btn siap-import-clear" data-clear-import="${index}">Limpar</button></div>`).join('');
     host.querySelectorAll('[data-clear-import]').forEach(button=>button.onclick=()=>clearImport(imports[Number(button.dataset.clearImport)],button));
   }
   async function load(){
