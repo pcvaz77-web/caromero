@@ -319,6 +319,7 @@ test('conteúdo com nome curto repetido é confirmado pelo caminho exibido na au
     { normalizePlanningGroup },
   );
   assert.equal(samePlanningChoices([selected], [short], [short, short]), true);
+  assert.equal(samePlanningChoices([`${short}: > Apreciação e réplica`], [`${short}.`], [short, short]), true);
   assert.equal(samePlanningChoices([selected], ['Outro conteúdo'], [short, short, 'Outro conteúdo']), false);
 
   const batch = { mode:'lesson-sequence', current:{ objectives:[short] } };
@@ -328,6 +329,39 @@ test('conteúdo com nome curto repetido é confirmado pelo caminho exibido na au
       selectedPlanningSkills:()=>[], planningLinks:()=>[{ textContent:short }, { textContent:short }] },
   );
   assert.deepEqual(Array.from(missing(batch, 'content')), []);
+});
+
+test('lê o conteúdo selecionado quando a disciplina não usa span no cabeçalho', () => {
+  const header = { textContent:'Estratégias de leitura:', querySelector:()=>null };
+  const row = { querySelector:(selector)=>selector === '.cabecalhoConteudo' ? header : null };
+  const document = { querySelectorAll:(selector)=>selector === '[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"]' ? [row] : [] };
+  const read = vm.runInNewContext(
+    `${between('function selectedPlanningObjectives(', 'function selectedPlanningSkills(')}\nselectedPlanningObjectives`,
+    { document },
+  );
+  assert.deepEqual(Array.from(read()), ['Estratégias de leitura:']);
+});
+
+test('conteúdo realmente diferente pausa sem repetir o clique no SIAP', () => {
+  const storage = new Map([['assistenteSiapPlanningFlow', JSON.stringify({
+    signature:'aula-179', stage:'wait-content', lockedAxis:true, pendingChoice:'Conteúdo esperado',
+    waitStartedAt:Date.now() - 16000,
+  })]]);
+  let retried = 0, generated = 0, message = '';
+  const context = {
+    Core:{ pageType:()=> 'planning-lesson' }, location:{ pathname:'/PlanejamentoProfessorPlanejamentoAulaEdicao.aspx' },
+    document:{ getElementById:()=>({ value:'179' }), querySelectorAll:()=>[] },
+    sessionStorage:{ getItem:(key)=>storage.get(key) || null }, planningSignature:()=> 'aula-179',
+    getPlanningBatch:()=>({ mode:'lesson-sequence' }), selectedPlanningContentCount:()=>1,
+    lessonSequenceMissingChoices:()=>['Conteúdo esperado'], normalizePlanningGroup:(value)=>value,
+    retryPlanningSelection:()=>{ retried++; return true; },
+    stopPlanningFlow:(value)=>{ message = value; }, generatePlanningAiDraft:()=>{ generated++; },
+  };
+  const resume = vm.runInNewContext(`${between('function resumePlanningFlow(', 'function stopPlanningFlow(')}\nresumePlanningFlow`, context);
+  resume();
+  assert.equal(retried, 0);
+  assert.equal(generated, 0);
+  assert.match(message, /não corresponde ao da prévia/);
 });
 
 test('aula individual e quinzena completam zero, algumas ou todas as escolhas curriculares', () => {

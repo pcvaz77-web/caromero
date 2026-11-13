@@ -1299,6 +1299,15 @@
   }
 
   function selectedPlanningObjectives() {
+    const rows = selectedPlanningContentRows();
+    if (rows.length) {
+      const labels = rows.map((row) => {
+        const header = row.querySelector?.('.cabecalhoConteudo');
+        const label = header?.querySelector?.('span[title]') || header?.querySelector?.('span') || header;
+        return (label?.getAttribute?.('title') || label?.textContent || '').replace(/\s+/g, ' ').trim();
+      }).filter(Boolean);
+      if (labels.length === rows.length) return labels;
+    }
     const exact = [...document.querySelectorAll('[id^="cphFuncionalidade_cphCampos_lstConteudos_divConteudo_"] .cabecalhoConteudo span')];
     const titles = exact.length ? exact : [...document.querySelectorAll('[id*="lstConteudos"] .cabecalhoConteudo span')];
     return titles
@@ -1330,7 +1339,8 @@
   }
 
   function samePlanningChoices(actual, expected, available = []) {
-    const normalize = (choices) => (choices || []).filter(Boolean).map(normalizePlanningGroup);
+    const normalize = (choices) => (choices || []).filter(Boolean).map((choice) => normalizePlanningGroup(choice)
+      .replace(/\s*([:;,.]+)\s*(?=>|$)/g, '').replace(/\s*>\s*/g, ' > '));
     const actualLabels = normalize(actual);
     const expectedLabels = normalize(expected);
     const availableLabels = normalize(available);
@@ -3015,9 +3025,9 @@
 
   function planningLinkForChoice(links, expected, index) {
     if (!expected) return links[index % links.length];
-    const normalized = normalizePlanningGroup(expected);
+    const normalized = normalizePlanningGroup(expected).replace(/\s*([:;,.]+)\s*(?=>|$)/g, '').replace(/\s*>\s*/g, ' > ');
     return links.find((link) => {
-      const label = normalizePlanningGroup(link.textContent);
+      const label = normalizePlanningGroup(link.textContent).replace(/\s*([:;,.]+)\s*(?=>|$)/g, '').replace(/\s*>\s*/g, ' > ');
       return label.includes(normalized) || normalized.includes(label);
     });
   }
@@ -3185,14 +3195,15 @@
       const contentCount = selectedPlanningContentCount();
       const pendingContent = batch?.mode === "lesson-sequence" && flow.pendingChoice &&
         lessonSequenceMissingChoices(batch, "content").some((choice) => normalizePlanningGroup(choice) === normalizePlanningGroup(flow.pendingChoice));
-      if (!contentCount || pendingContent) {
+      if (contentCount && pendingContent) {
+        return stopPlanningFlow("O conteúdo selecionado no quadro da aula não corresponde ao da prévia. Confira a escolha no SIAP antes de continuar. Nenhuma aula foi salva.");
+      }
+      if (!contentCount) {
         if (Date.now() - (flow.waitStartedAt || 0) >= 15000) {
           if (retryPlanningSelection(flow, "content", selectionIndex)) return;
           flow.stage = "skill";
           if (tryNextPlanningAxis(flow)) return schedulePlanningResume();
-          return stopPlanningFlow(contentCount
-            ? "O conteúdo selecionado no quadro da aula não corresponde ao da prévia. Confira a escolha no SIAP antes de continuar. Nenhuma aula foi salva."
-            : "O conteúdo aparece nas opções à esquerda, mas não foi confirmado no quadro da aula. Confira a seleção no SIAP antes de continuar. Nenhuma aula foi salva.");
+          return stopPlanningFlow("O conteúdo aparece nas opções à esquerda, mas não foi confirmado no quadro da aula. Confira a seleção no SIAP antes de continuar. Nenhuma aula foi salva.");
         }
         schedulePlanningResume();
         return;
