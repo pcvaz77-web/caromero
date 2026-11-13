@@ -25,5 +25,6 @@ body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttenda
 .siap-absence-table{display:grid;max-height:360px;overflow:auto}
 .siap-absence-student{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr);gap:12px;padding:9px 0;border-bottom:1px solid #e9edf5;font-size:12px}
 .siap-absence-student span{line-height:1.5}
+.siap-absence-student .siap-absence-name-total{white-space:nowrap;color:#3657b3;font-weight:700}
 .siap-absence-student small{display:block;color:#667085}
 @media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-summary{grid-template-columns:1fr}.siap-absence-student{grid-template-columns:1fr;gap:3px}.siap-absences-dialog .modal-head{gap:8px}.siap-absence-header-actions{gap:6px}.siap-absence-install-link{padding:6px 8px;font-size:11px}}
