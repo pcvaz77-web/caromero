@@ -90,7 +90,11 @@ document.addEventListener('DOMContentLoaded', () => {
     <div class="actions"><button type="button" class="btn secondary" data-absence-close>Fechar</button><button type="button" class="btn primary" data-absence-import disabled>Importar faltas conferidas</button></div></div></section>`;
   document.body.appendChild(modal);
   const by = selector => modal.querySelector(selector);
-  const status = message => { by('[data-absence-status]').textContent=message; };
+  const status = (message,success=false) => {
+    const messageBox=by('[data-absence-status]');
+    messageBox.textContent=message;
+    messageBox.classList.toggle('siap-absence-status-success',success);
+  };
   modal.querySelectorAll('[data-absence-close]').forEach(button=>button.onclick=()=>modal.classList.add('hidden'));
   modal.onclick=event=>{if(event.target===modal)modal.classList.add('hidden');};
 
@@ -215,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if(error)throw error;
       await loadRows();
       document.dispatchEvent(new CustomEvent('carometro:attendance-data-changed'));
-      status(`${data} aluno(s) atualizados. As etiquetas válidas serão recalculadas; campos vazios e nomes sem vínculo único não foram alterados.`);
+      status(`Dados importados para os cards de ${data} aluno${Number(data)===1?'':'s'}.`,true);
     }catch(error){status(`Nenhuma importação concluída: ${error.message}`);}
     finally{button.disabled=false;}
   };
