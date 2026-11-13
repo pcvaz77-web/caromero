@@ -24,6 +24,15 @@ document.addEventListener('DOMContentLoaded', () => {
   let targetClassName = '';
   let importedPeriod = null;
   let token = 0;
+  let classificationLimits = null;
+  const defaultLimits = {frequentMinimum:75,absentMinimum:60};
+
+  async function loadClassificationLimits(school) {
+    const {data,error}=await db.from('school_siap_attendance_settings')
+      .select('frequent_minimum,absent_minimum').eq('school_id',school).maybeSingle();
+    if(error)return null;
+    return data?{frequentMinimum:Number(data.frequent_minimum),absentMinimum:Number(data.absent_minimum)}:defaultLimits;
+  }
 
   async function loadRows() {
     const current = ++token;
@@ -39,13 +48,16 @@ document.addEventListener('DOMContentLoaded', () => {
         all.push(...(data||[]));
         if ((data||[]).length<1000) break;
       }
+      const limits=await loadClassificationLimits(school);
       if (current!==token || school!==schoolId()) return;
       rows=all;
+      classificationLimits=limits;
       window.render?.();
       if (targetClassId) mountPanel(targetClassId);
     } catch (error) {
       if (current!==token) return;
       rows=[];
+      classificationLimits=null;
       console.warn('Não foi possível carregar as faltas bimestrais:',error);
     }
   }
@@ -250,6 +262,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const previous=section.querySelector('[data-absence-period]')?.value;
     const preferred=importedPeriod?.classId===classId?importedPeriod.value:null;
     const chosen=periods.includes(preferred)?preferred:periods.includes(previous)?previous:periods[0];
+    const expanded=new Set(previous===chosen
+      ? [...section.querySelectorAll('.siap-absence-student[open]')].map(item=>item.dataset.absenceStudentId)
+      : []);
     importedPeriod=null;
     const [year,bimester]=chosen.split('|').map(Number);
     const periodRows=classRows.filter(row=>row.academic_year===year&&row.bimester===bimester);
@@ -263,15 +278,31 @@ document.addEventListener('DOMContentLoaded', () => {
     section.innerHTML=`<div class="siap-absence-panel-head"><div><h4>Faltas da turma</h4><p>Totais das disciplinas já capturadas no SIAP · o Bim. em andamento pode mudar</p></div>
       <select data-absence-period aria-label="Ano e Bim. das faltas">${periods.map(value=>{const [y,b]=value.split('|');return `<option value="${value}" ${value===chosen?'selected':''}>${b}º Bim./${y}</option>`;}).join('')}</select></div>
       <div class="siap-absence-summary"><div><small>Média geral da turma</small><strong>${mean} faltas por aluno</strong><span>Média dos totais dos ${visible.length} aluno${visible.length===1?'':'s'} com captura.</span></div><div><small>Disciplinas registradas</small><strong>${subjects}</strong><span>Novas capturas acrescentam faltas ao total.</span></div></div>
+      <div class="siap-absence-legend" aria-label="Cores da frequência"><span class="siap-absence-legend-frequent">Frequente</span><span class="siap-absence-legend-absent">Faltoso</span><span class="siap-absence-legend-active-search">Busca ativa</span></div>
       <div class="siap-absence-table">${visible.map(student=>{
         const studentRows=byStudent.get(student.id).sort((a,b)=>a.subject.localeCompare(b.subject));
         const total=totals.byStudent.get(student.id)?.total || 0;
-        return `<div class="siap-absence-student"><strong>${escape(student.name)} <span class="siap-absence-name-total">· ${total} falta${total===1?'':'s'}</span></strong><span><b>Total: ${total} falta${total===1?'':'s'} · ${bimester}º Bim.</b><small>${studentRows.map(row=>`${escape(row.subject.replace(/^\d+\s*-\s*/,''))}: ${row.absences} · capturado em ${escape(updatedAt(row.imported_at))}`).join(' · ')}</small></span></div>`;
+        const classification=classificationLimits&&window.SiapAbsenceCalculations.classifyLatest(studentRows,null,classificationLimits);
+        const tone=classification?.status==='frequent'?'frequent':classification?.status==='absent'?'absent':classification?.status==='active_search'?'active-search':'unknown';
+        const statusLabel=tone==='frequent'?'Frequente':tone==='absent'?'Faltoso':tone==='active-search'?'Necessita de Busca Ativa':'Sem base válida para classificar';
+        const chart=`<span class="siap-absence-mini-chart siap-absence-mini-${tone}" style="--siap-absence-progress:${classification?.percentage??0}%" role="img" aria-label="${statusLabel}${classification?` · ${classification.percentage}% de presença`:''}" title="${statusLabel}${classification?` · ${classification.percentage}% de presença`:''}"><span>${classification?`${classification.percentage}%`:'—'}</span></span>`;
+        return `<details class="siap-absence-student" data-absence-student-id="${escapeAttribute(student.id)}" ${expanded.has(String(student.id))?'open':''}>
+          <summary><span class="siap-absence-student-main"><strong>${escape(student.name)}</strong> <span class="siap-absence-name-total">· ${total} falta${total===1?'':'s'} - ${bimester}º Bim.</span></span>${chart}<span class="siap-absence-chevron" aria-hidden="true"></span></summary>
+          <div class="siap-absence-student-details">${studentRows.map(row=>`<div class="siap-absence-subject"><strong>${escape(row.subject.replace(/^\d+\s*-\s*/,''))}</strong><span>${row.absences} falta${row.absences===1?'':'s'}</span><small>Fonte: SIAP · ${row.imported_at?`Capturado em ${escape(updatedAt(row.imported_at))}`:'Data não informada'}</small></div>`).join('')}</div>
+        </details>`;
       }).join('')}</div>`;
     section.querySelector('[data-absence-period]').onchange=()=>mountPanel(classId);
   }
   window.mountSiapAbsencePanel=({classId}={})=>{targetClassId=classId;mountPanel(classId);};
   document.addEventListener('carometro:data-loaded',loadRows);
   document.addEventListener('carometro:school-context-ready',loadRows);
-  db.auth.onAuthStateChange((_event,session)=>{if(!session){++token;rows=[];}});
+  document.addEventListener('carometro:attendance-status-changed',async()=>{
+    const school=schoolId();
+    if(!school||!targetClassId)return;
+    const limits=await loadClassificationLimits(school);
+    if(school!==schoolId())return;
+    classificationLimits=limits;
+    mountPanel(targetClassId);
+  });
+  db.auth.onAuthStateChange((_event,session)=>{if(!session){++token;rows=[];classificationLimits=null;}});
 });
