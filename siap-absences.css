@@ -32,9 +32,31 @@ body > #siapAbsencesModal,body > #siapImportManagerModal,body > #assistedAttenda
 .siap-absence-panel-head{display:flex;align-items:start;justify-content:space-between;gap:12px}
 .siap-absence-panel-head select{width:auto;min-height:37px;padding:6px 9px}
 .siap-absence-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.siap-absence-summary>div{display:grid;gap:5px;padding:15px;border:1px solid #dce4f1;border-radius:11px;background:#fff}.siap-absence-summary small,.siap-absence-summary span{color:#667085;font-size:11px}.siap-absence-summary strong{font-size:21px;color:#17233a}
-.siap-absence-table{display:grid;max-height:360px;overflow:auto}
-.siap-absence-student{display:grid;grid-template-columns:minmax(140px,1fr) minmax(0,2fr);gap:12px;padding:9px 0;border-bottom:1px solid #e9edf5;font-size:12px}
-.siap-absence-student span{line-height:1.5}
-.siap-absence-student .siap-absence-name-total{white-space:nowrap;color:#3657b3;font-weight:700}
-.siap-absence-student small{display:block;color:#667085}
-@media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-summary{grid-template-columns:1fr}.siap-absence-student{grid-template-columns:1fr;gap:3px}.siap-absences-dialog .modal-head{gap:8px}.siap-absence-header-actions{gap:6px}.siap-absence-install-link{padding:6px 8px;font-size:11px}}
+.siap-absence-legend{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px 15px;margin:0 2px 8px;color:#667085;font-size:11px}
+.siap-absence-legend span{display:inline-flex;align-items:center;gap:5px}
+.siap-absence-legend span::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--siap-absence-color)}
+.siap-absence-legend-frequent{--siap-absence-color:#129466}.siap-absence-legend-absent{--siap-absence-color:#d59a19}.siap-absence-legend-active-search{--siap-absence-color:#cf4b52}
+.siap-absence-table{display:grid;align-content:start;max-height:420px;overflow:auto;border:1px solid #e1e8f3;border-radius:12px;background:#fff}
+.siap-absence-student{border-bottom:1px solid #e9edf5;font-size:12px}
+.siap-absence-student:last-child{border-bottom:0}
+.siap-absence-student[open]{background:#f7f9fe}
+.siap-absence-student summary{display:grid;grid-template-columns:minmax(0,1fr) 36px 10px;align-items:center;gap:10px;min-height:49px;padding:7px 13px;list-style:none;cursor:pointer;line-height:1.4}
+.siap-absence-student summary::-webkit-details-marker{display:none}
+.siap-absence-student summary:hover{background:#f0f5ff}
+.siap-absence-student summary:focus-visible{outline:2px solid #4269d4;outline-offset:-2px;border-radius:7px}
+.siap-absence-student-main{min-width:0}
+.siap-absence-student-main strong{color:#17233a}
+.siap-absence-student .siap-absence-name-total{color:#3657b3;font-weight:750}
+.siap-absence-mini-chart{--siap-absence-color:#91a1ba;display:grid;place-items:center;position:relative;box-sizing:border-box;width:36px;height:36px;border:2px solid var(--siap-absence-color);border-radius:50%;background:conic-gradient(var(--siap-absence-color) var(--siap-absence-progress),#e7ecf4 0);color:var(--siap-absence-color);font-size:10px;font-weight:800;line-height:1}
+.siap-absence-mini-chart::before{content:"";position:absolute;inset:4px;border-radius:50%;background:#fff}
+.siap-absence-mini-chart>span{position:relative}
+.siap-absence-mini-frequent{--siap-absence-color:#129466}.siap-absence-mini-absent{--siap-absence-color:#d59a19}.siap-absence-mini-active-search{--siap-absence-color:#cf4b52}
+.siap-absence-chevron{width:8px;height:8px;border-right:2px solid #667b9e;border-bottom:2px solid #667b9e;transform:rotate(45deg);transition:transform .18s ease}
+.siap-absence-student[open] .siap-absence-chevron{transform:rotate(225deg)}
+.siap-absence-student-details{display:grid;gap:0;margin:0 13px 10px;padding:3px 12px;border-left:2px solid #c9d8f6}
+.siap-absence-subject{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:12px;row-gap:2px;padding:8px 0;border-bottom:1px solid #e4eaf5}
+.siap-absence-subject:last-child{border-bottom:0}
+.siap-absence-subject>strong{color:#263b63;font-size:12px}
+.siap-absence-subject>span{color:#17233a;font-weight:700;white-space:nowrap}
+.siap-absence-subject small{grid-column:1/-1;color:#667085;font-size:11px}
+@media(max-width:700px){.siap-absence-panel-head{flex-direction:column}.siap-absence-summary{grid-template-columns:1fr}.siap-absence-legend{justify-content:flex-start}.siap-absence-student summary{gap:7px}.siap-absences-dialog .modal-head{gap:8px}.siap-absence-header-actions{gap:6px}.siap-absence-install-link{padding:6px 8px;font-size:11px}}
