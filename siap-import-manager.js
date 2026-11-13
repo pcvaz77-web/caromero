@@ -31,8 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function render(){
     const host=modal.querySelector('[data-import-list]');
     if(!imports.length){host.innerHTML='<p class="meta">Nenhuma importação encontrada para esta turma.</p>';return;}
-    const names={absences:'Faltas em Notas',grades:'Notas finais',calls:'Frequência pelas chamadas'};
-    host.innerHTML=imports.map((item,index)=>`<div class="siap-import-manager-row"><div><strong>${names[item.kind]}</strong><small>${escape(item.subject)} · ${item.bimester}º bimestre/${item.year}</small></div><button type="button" class="btn secondary" data-clear-import="${index}">Limpar</button></div>`).join('');
+    const names={absences:'Faltas do SIAP',grades:'Notas finais',calls:'Frequência pelas chamadas'};
+    host.innerHTML=imports.map((item,index)=>`<div class="siap-import-manager-row"><div><strong>${names[item.kind]}</strong><small>${escape(item.subject)} · ${item.bimester}º Bim./${item.year}</small></div><button type="button" class="btn secondary" data-clear-import="${index}">Limpar</button></div>`).join('');
     host.querySelectorAll('[data-clear-import]').forEach(button=>button.onclick=()=>clearImport(imports[Number(button.dataset.clearImport)],button));
   }
   async function load(){
@@ -60,7 +60,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function clearImport(item,button){
     if(!item||!canManage(context))return;
-    const label=`${item.subject} · ${item.bimester}º bimestre/${item.year}`;
+    const label=`${item.subject} · ${item.bimester}º Bim./${item.year}`;
     if(!confirm(`Limpar ${label}? Os dados importados deste tipo sairão dos cards e das etiquetas. Para restaurar, será preciso capturar novamente.`))return;
     button.disabled=true;status(`Limpando ${label}…`);
     try{
