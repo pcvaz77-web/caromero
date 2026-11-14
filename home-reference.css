@@ -241,3 +241,145 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden)::before {
   width:22px!important;height:22px!important;min-height:22px!important;
   background-size:20px 20px!important;
 }
+
+/* Harmonia com a página clara do Carômetro: preserva a disposição, sem neon. */
+body #app .home-reference-hero {
+  margin:0 0 30px;padding:0;overflow:visible;
+  background:transparent;color:#18254c;
+}
+body #app .home-reference-hero .top {
+  grid-template-rows:44px minmax(108px,auto)!important;
+  gap:12px 16px!important;margin-bottom:20px!important;
+}
+body #app .home-reference-toolbar { gap:10px;border:0;padding:0; }
+body #app .home-reference-school {
+  flex:0 1 380px;max-width:380px;min-height:42px!important;
+  padding:8px 14px;border:1px solid #d9e4f3!important;
+  border-radius:12px!important;background:#fff!important;color:#263d67!important;
+  box-shadow:0 4px 14px #273f6910!important;font-size:14px;font-weight:800;
+}
+body #app .home-reference-school-icon { color:#5479ad;font-size:18px; }
+body #app .home-reference-toolbar-right { gap:10px; }
+body #app .home-reference-toolbar #openSiapAssistant:not(.hidden) {
+  min-height:40px!important;height:40px!important;padding:8px 14px!important;
+  border-radius:11px!important;background:linear-gradient(135deg,#4b6fce,#7351d3)!important;
+  font-size:12px!important;font-weight:750!important;
+}
+body #app .home-reference-avatar {
+  flex-basis:38px;width:38px;height:38px;border-radius:50%!important;
+  background:#e7e0fb!important;border-color:#d3c5f5!important;
+  color:#563eab!important;font-size:12px;
+}
+body #app .home-reference-hero .welcome-notification-row {
+  background:transparent!important;border:0;border-radius:0;
+  padding:8px 0!important;
+}
+body #app .home-reference-hero #welcomeGreeting {
+  color:#18254c!important;font-size:clamp(19px,1.8vw,24px)!important;
+}
+body #app .home-reference-hero #welcomeGreeting .welcome-salutation { color:#416bc4!important; }
+body #app .home-reference-hero #welcomeGreeting .welcome-person { color:#18254c!important; }
+body #app .home-reference-hero #roleLabel {
+  padding:5px 10px!important;background:#e9e6fb!important;color:#5945aa!important;
+  font-size:11px!important;
+}
+body #app .home-reference-caption { color:#596b86;font-size:13px;line-height:1.35; }
+body #app .home-reference-hero .top-actions { gap:9px!important;align-items:center!important; }
+body #app .home-reference-hero .top-actions .btn:not(.hidden) {
+  flex-basis:84px!important;width:84px!important;max-width:84px!important;min-width:84px!important;
+  height:74px!important;min-height:74px!important;
+  border:1px solid #d6dfec!important;border-radius:11px!important;
+  background:#fff!important;color:#29466f!important;
+  box-shadow:0 4px 12px #20396010!important;
+}
+body #app .home-reference-hero .top-actions .btn:not(.hidden)::after {
+  color:#29466f!important;font-size:11px!important;font-weight:760!important;line-height:1.14!important;
+}
+body #app .home-reference-hero .top-actions .btn:not(.hidden)::before {
+  filter:brightness(0) saturate(100%) invert(27%) sepia(30%) saturate(1219%) hue-rotate(179deg);
+}
+body #app .home-reference-hero #newStudent:not(.hidden) {
+  background:linear-gradient(135deg,#426fcf,#5874ce)!important;border-color:#5472c8!important;
+}
+body #app .home-reference-hero #newStudent::before { filter:none!important; }
+body #app .home-reference-hero #newStudent::after { color:#fff!important; }
+body #app .home-reference-hero .stats {
+  grid-template-columns:1.03fr 1fr!important;gap:18px!important;
+}
+body #app .home-reference-hero .stats > .stat {
+  height:154px!important;min-height:154px!important;
+  padding:22px 25px!important;border:1px solid #d7e4f3!important;
+  border-radius:17px!important;
+  background:linear-gradient(145deg,#fff 0%,#f4f8ff 70%,#eaf2fc 100%)!important;
+  box-shadow:0 7px 22px #263f6e0c!important;color:#28446d!important;
+}
+body #app .home-reference-hero .home-class-count { border-left-color:#d2deed!important; }
+body #app .home-reference-hero .home-student-count::before,
+body #app .home-reference-hero .home-class-count::before {
+  background-color:#4f7cc6;box-shadow:none;
+}
+body #app .home-reference-hero .home-counts span { color:#426298!important;font-size:14px!important; }
+body #app .home-reference-hero .home-counts strong { color:#2c5a99!important;font-size:33px!important; }
+body #app .home-reference-hero .home-counts small { color:#657b99!important;font-size:11px!important; }
+body #app .home-reference-hero .stats > .home-overview {
+  padding:23px 26px 23px 88px!important;border-color:#eccda7!important;
+  background:linear-gradient(135deg,#fffaf2 0%,#fff0dc 68%,#ffe7c7 100%)!important;
+  box-shadow:0 7px 22px #995c1d12!important;
+}
+body #app .home-reference-hero .stats > .home-overview::before {
+  left:21px!important;width:50px!important;height:50px!important;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='7' width='22' height='21' rx='2'/%3E%3Cpath d='M10 4v6M22 4v6M5 13h22M10 18h3M18 18h3M10 23h3M18 23h3'/%3E%3C/svg%3E"),linear-gradient(150deg,#eda654,#db7921)!important;
+  background-size:29px 29px,cover!important;box-shadow:0 5px 12px #b5692926!important;
+}
+body #app .home-reference-hero .stats > .home-overview::after {
+  background-color:#e8a155!important;box-shadow:none!important;opacity:1!important;
+}
+body #app .home-reference-hero .home-overview-head > span {
+  color:#6e421f!important;font-size:19px!important;
+}
+body #app .home-reference-hero .home-reference-slide { margin-top:9px; }
+body #app .home-reference-hero .home-reference-slide-content { gap:6px;color:#533a29!important; }
+body #app .home-reference-hero .home-reference-slide-content strong {
+  color:#614323!important;font-size:16px!important;font-weight:760!important;
+}
+body #app .home-reference-hero .home-reference-slide-content span {
+  color:#6e543e!important;font-size:15px!important;
+}
+body #app .home-reference-hero .home-reference-slide-content small {
+  color:#856d58!important;font-size:12px!important;
+}
+body #app .panel .head { gap:18px; }
+body #app .home-reference-list-tools { display:flex;align-items:center;gap:10px;width:min(440px,60%);margin-left:auto; }
+body #app .home-reference-list-tools .home-reference-search {
+  display:flex;align-items:center;gap:8px;
+  flex:1 1 auto;max-width:none;min-width:220px;min-height:42px!important;
+  padding:0 12px;border:1px solid #d8e1ee!important;border-radius:11px!important;
+  background:#fbfcff!important;color:#5475a5!important;
+  box-shadow:none!important;font-size:21px;
+}
+body #app .home-reference-list-tools #search {
+  width:100%!important;min-width:0;min-height:38px!important;height:38px!important;
+  padding:0!important;border:0!important;background:transparent!important;
+  box-shadow:none!important;color:#263c60!important;font-size:13px!important;
+}
+body #app .home-reference-list-tools #search::placeholder { color:#7587a3!important;opacity:1; }
+body #app .home-reference-list-tools #notificationBell:not(.hidden) {
+  position:relative!important;inset:auto!important;
+  flex:0 0 42px;width:42px!important;height:42px!important;min-width:42px!important;
+  padding:0!important;border:1px solid #d8e1ee!important;border-radius:11px!important;
+  background:#fbfcff!important;color:#4166a7!important;box-shadow:none!important;font-size:19px!important;
+}
+body #app .home-reference-list-tools #notificationBell::before { content:none!important; }
+body #app .home-reference-list-tools #notificationUnreadCount { position:absolute;top:-5px;right:-5px; }
+@media(max-width:1100px) {
+  body #app .home-reference-hero .top { grid-template-columns:1fr!important;grid-template-rows:auto auto auto!important; }
+  body #app .home-reference-hero .welcome-notification-row { grid-column:1!important;grid-row:2!important; }
+  body #app .home-reference-hero .top-actions { grid-column:1!important;grid-row:3!important;justify-content:start!important; }
+}
+@media(max-width:800px) {
+  body #app .home-reference-hero { margin:0 0 22px;padding:0; }
+  body #app .home-reference-hero .stats { grid-template-columns:1fr!important; }
+  body #app .home-reference-hero .stats > .stat { height:auto!important;min-height:145px!important; }
+  body #app .home-reference-list-tools { flex:1 0 100%;width:100%;margin-left:0; }
+  body #app .home-reference-list-tools .home-reference-search { flex:1 1 auto;max-width:none;min-width:0; }
+}
