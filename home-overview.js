@@ -29,16 +29,12 @@ document.addEventListener('DOMContentLoaded', () => {
   classCard.remove();
 
   const classTitle = document.getElementById('listTitle');
-  const ordinals = ['','Primeiro','Segundo','Terceiro','Quarto','Quinto','Sexto','Sétimo','Oitavo','Nono','Décimo'];
   function updateSelectedClass() {
     const selected = classTitle?.textContent.match(/^Alunos\s*[—–-]\s*(.+)$/)?.[1]?.trim();
-    const shorthand = selected?.match(/^(\d{1,2})\s*[º°ª]?\s*([A-Z])$/i);
-    const displayName = shorthand && ordinals[Number(shorthand[1])]
-      ? `${ordinals[Number(shorthand[1])]} ${shorthand[2].toUpperCase()}` : selected;
     classCountItem.querySelector('span').textContent = selected ? 'Turma' : 'Turmas';
     classCount.classList.toggle('hidden', !!selected);
     className.classList.toggle('hidden', !selected);
-    className.textContent = displayName || '';
+    className.textContent = selected || '';
     classCaption.textContent = selected ? 'Turma selecionada' : 'Total de turmas cadastradas';
   }
   if (classTitle) new MutationObserver(updateSelectedClass).observe(classTitle, { childList:true, characterData:true, subtree:true });
