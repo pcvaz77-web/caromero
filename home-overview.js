@@ -33,11 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="homeReminderList" class="home-overview-list"></div>
     <div class="home-overview-highlights">
       <span id="homeOverviewWeekLabel">Atualizações automáticas do Carômetro</span>
-      <div><span>Aluno com mais ocorrências na semana</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
-      <div><span>Turma com mais ocorrências na semana</span><button type="button" id="homeClassOccurrenceLeader" class="home-highlight-link">Carregando…</button></div>
-      <div><span>Aluno que recebeu elogio</span><button type="button" id="homePraiseStudent" class="home-highlight-link">Carregando…</button></div>
-      <div><span>Mais faltas da última extração do SIAP</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>
-      <div><span>Dados da escola</span><button type="button" id="homeSchoolSummary" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="student_occurrences"><span>Aluno com mais ocorrências na semana</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div data-metric-key="class_occurrences"><span>Turma com mais ocorrências na semana</span><button type="button" id="homeClassOccurrenceLeader" class="home-highlight-link">Carregando…</button></div>
+      <div data-metric-key="praise_student"><span>Aluno que recebeu elogio</span><button type="button" id="homePraiseStudent" class="home-highlight-link">Carregando…</button></div>
+      <div data-metric-key="siap_student_absences"><span>Mais faltas da última extração do SIAP</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div data-metric-key="school_data"><span>Dados da escola</span><button type="button" id="homeSchoolSummary" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="new_students"><span>Alunos cadastrados na semana</span><button type="button" id="homeNewStudents" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="classes_without_occurrences"><span>Turmas sem ocorrências na semana</span><button type="button" id="homeClassesWithoutOccurrences" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="class_fewest_occurrences"><span>Turma com menos ocorrências registradas</span><button type="button" id="homeClassFewestOccurrences" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="siap_class_low_absences"><span>Turma com menor média de faltas no SIAP</span><button type="button" id="homeClassLowAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="siap_class_high_absences"><span>Turma com maior média de faltas no SIAP</span><button type="button" id="homeClassHighAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
     </div>`;
   stats.append(overview);
 
@@ -59,8 +64,16 @@ document.addEventListener('DOMContentLoaded', () => {
   let reminders = [];
   let occurrenceLeaderId = null;
   let classOccurrenceLeaderId = null;
+  let classFewestOccurrenceId = null;
   let praiseStudentId = null;
   let absenceLeaderId = null;
+  let classLowAbsenceId = null;
+  let classHighAbsenceId = null;
+  const markReady = (id, ready, secondary = '') => {
+    const row = by(id).closest('[data-metric-key]');
+    row.dataset.ready = ready ? 'true' : 'false';
+    row.dataset.secondary = secondary;
+  };
 
   function weekBounds() {
     const now = new Date();
@@ -113,14 +126,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaders = [...counts].filter(([id]) => names.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 3);
     occurrenceLeaderId = leaders[0]?.[0] || null;
     by('homeOccurrenceLeaders').disabled = !occurrenceLeaderId;
+    markReady('homeOccurrenceLeaders', !!occurrenceLeaderId);
     by('homeOccurrenceLeaders').textContent = leaders.length ? `${names.get(leaders[0][0])} · ${leaders[0][1]} ocorrência${leaders[0][1] === 1 ? '' : 's'}` : 'Nenhuma ocorrência na semana do resumo.';
     const classNames = new Map(classes.map(item => [item.id, item.name]));
     const classLeader = [...classCounts].filter(([id]) => classNames.has(id)).sort((a, b) => b[1] - a[1])[0];
     classOccurrenceLeaderId = classLeader?.[0] || null;
     by('homeClassOccurrenceLeader').disabled = !classLeader;
+    markReady('homeClassOccurrenceLeader', !!classLeader);
     by('homeClassOccurrenceLeader').textContent = classLeader ? `${classNames.get(classLeader[0])} · ${classLeader[1]} ocorrência${classLeader[1] === 1 ? '' : 's'}` : 'Nenhuma turma com ocorrência na semana.';
+    const withoutOccurrences = classes.filter(item => !classCounts.has(item.id));
+    by('homeClassesWithoutOccurrences').textContent = `${withoutOccurrences.length} turma${withoutOccurrences.length === 1 ? '' : 's'} sem ocorrências`;
+    markReady('homeClassesWithoutOccurrences', withoutOccurrences.length > 0, withoutOccurrences.slice(0, 3).map(item => item.name).join(' · '));
+    const fewest = [...classCounts].filter(([id]) => classNames.has(id)).sort((a, b) => a[1] - b[1])[0];
+    classFewestOccurrenceId = fewest?.[0] || null;
+    by('homeClassFewestOccurrences').disabled = !fewest;
+    by('homeClassFewestOccurrences').textContent = fewest ? `${classNames.get(fewest[0])} · ${fewest[1]} ocorrência${fewest[1] === 1 ? '' : 's'}` : 'Nenhuma turma com ocorrência na semana.';
+    markReady('homeClassFewestOccurrences', !!fewest);
     praiseStudentId = praise && names.has(praise) ? praise : null;
     by('homePraiseStudent').disabled = !praiseStudentId;
+    markReady('homePraiseStudent', !!praiseStudentId);
     by('homePraiseStudent').textContent = praiseStudentId ? names.get(praiseStudentId) : 'Nenhum elogio registrado na semana.';
   }
   async function loadAbsences(scope, cutoff) {
@@ -148,18 +172,61 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaders = [...totals].filter(([id]) => names.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 3);
     absenceLeaderId = leaders[0]?.[0] || null;
     by('homeAbsenceLeaders').disabled = !absenceLeaderId;
+    markReady('homeAbsenceLeaders', !!absenceLeaderId);
     by('homeAbsenceLeaders').textContent = leaders.length
       ? `${leaders.map(([id, count]) => `${names.get(id)} (${count})`).join(' · ')} · ${latest.bimester}º bim/${latest.academic_year}`
       : 'Nenhum aluno da escola atual na extração.';
+    const studentClasses = new Map(students.map(item => [item.id, item.classId]));
+    const classNames = new Map(classes.map(item => [item.id, item.name]));
+    const classTotals = new Map();
+    for (const [studentId, count] of totals) {
+      const classId = studentClasses.get(studentId);
+      if (!classId || !classNames.has(classId)) continue;
+      const current = classTotals.get(classId) || { absences:0, students:0 };
+      current.absences += count; current.students += 1;
+      classTotals.set(classId, current);
+    }
+    const averages = [...classTotals].map(([id, value]) => ({ id, average:value.absences / value.students, students:value.students }));
+    averages.sort((a, b) => a.average - b.average);
+    const lowest = averages[0];
+    const highest = averages[averages.length - 1];
+    classLowAbsenceId = lowest?.id || null;
+    classHighAbsenceId = highest?.id || null;
+    for (const [id, item] of [['homeClassLowAbsences', lowest], ['homeClassHighAbsences', highest]]) {
+      by(id).disabled = !item;
+      by(id).textContent = item ? classNames.get(item.id) : 'Nenhuma turma disponível na extração.';
+      markReady(id, !!item, item ? `${item.average.toFixed(1).replace('.', ',')} falta${item.average === 1 ? '' : 's'} por aluno · ${item.students} aluno${item.students === 1 ? '' : 's'}` : '');
+    }
+  }
+  async function loadNewStudents(scope, start, end) {
+    const from = new Date(`${start}T00:00:00`).toISOString();
+    const until = new Date(`${end}T00:00:00`);
+    until.setDate(until.getDate() + 1);
+    const { data, count, error } = await db.from('students')
+      .select('full_name,class_id', { count:'exact' }).eq('school_id', scope.school)
+      .gte('created_at', from).lt('created_at', until.toISOString())
+      .order('created_at', { ascending:false }).limit(1);
+    if (!current(scope)) return;
+    by('homeNewStudents').textContent = error ? 'Cadastros indisponíveis.' : `${count || 0} aluno${count === 1 ? '' : 's'} cadastrado${count === 1 ? '' : 's'}`;
+    markReady('homeNewStudents', !error && count > 0, data?.[0]?.full_name ? `Mais recente: ${data[0].full_name}` : '');
   }
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, request:++request };
+    const highlights = by('homeSchoolSummary').closest('.home-overview-highlights');
+    highlights.dataset.loaded = 'false';
     occurrenceLeaderId = null; absenceLeaderId = null;
-    classOccurrenceLeaderId = null; praiseStudentId = null;
+    classOccurrenceLeaderId = null; classFewestOccurrenceId = null; praiseStudentId = null;
+    classLowAbsenceId = null; classHighAbsenceId = null;
+    for (const row of highlights.querySelectorAll('[data-metric-key]')) {
+      row.dataset.ready = 'false'; row.dataset.secondary = '';
+    }
     by('homeOccurrenceLeaders').disabled = true;
     by('homeClassOccurrenceLeader').disabled = true;
     by('homePraiseStudent').disabled = true;
     by('homeAbsenceLeaders').disabled = true;
+    by('homeClassFewestOccurrences').disabled = true;
+    by('homeClassLowAbsences').disabled = true;
+    by('homeClassHighAbsences').disabled = true;
     if (!scope.school || !scope.user || by('app').classList.contains('hidden')) {
       reminders = []; renderReminders();
       occurrenceLeaderId = null; absenceLeaderId = null;
@@ -169,7 +236,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const week = completedWeek();
     by('homeOverviewWeekLabel').textContent = `Carômetro · semana de ${week.label}`;
     by('homeSchoolSummary').textContent = `${students.length} alunos · ${classes.length} turmas cadastradas`;
-    await Promise.allSettled([loadReminders(scope), loadOccurrences(scope, week.start, week.end), loadAbsences(scope, week.cutoff)]);
+    markReady('homeSchoolSummary', true);
+    await Promise.allSettled([loadReminders(scope), loadOccurrences(scope, week.start, week.end), loadAbsences(scope, week.cutoff), loadNewStudents(scope, week.start, week.end)]);
+    if (current(scope)) highlights.dataset.loaded = 'true';
   }
 
   // Lembretes novos são publicados em Comunicação, no menu da escola.
@@ -204,6 +273,15 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   by('homeClassOccurrenceLeader').onclick = () => {
     if (classOccurrenceLeaderId) window.selectClass?.(classOccurrenceLeaderId);
+  };
+  by('homeClassFewestOccurrences').onclick = () => {
+    if (classFewestOccurrenceId) window.selectClass?.(classFewestOccurrenceId);
+  };
+  by('homeClassLowAbsences').onclick = () => {
+    if (classLowAbsenceId) window.selectClass?.(classLowAbsenceId);
+  };
+  by('homeClassHighAbsences').onclick = () => {
+    if (classHighAbsenceId) window.selectClass?.(classHighAbsenceId);
   };
   by('homePraiseStudent').onclick = () => {
     if (!praiseStudentId) return;

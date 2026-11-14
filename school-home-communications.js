@@ -35,19 +35,42 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="home-communication-preview" aria-live="polite"><small>Prévia no painel</small><strong id="homeCommunicationPreviewText">Seu aviso aparecerá aqui</strong><span id="homeCommunicationPreviewDestination">Apenas aviso · 15 segundos</span><span id="homeCommunicationPreviewSchedule"></span></div>
       <p id="homeCommunicationError" class="error hidden" role="alert"></p>
       <div class="actions"><button type="button" class="btn secondary" data-home-communication-close>Cancelar</button><button type="submit" class="btn primary">Publicar lembrete</button></div>
-    </form><section class="home-communication-management"><h4>Lembretes publicados</h4><div id="homeCommunicationManagementList"></div></section></section>`;
+    </form><section class="home-summary-selection"><h4>Informações automáticas no resumo</h4><p>Escolha quais dados do Carômetro vão passar no painel. Os avisos publicados continuam aparecendo.</p><div id="homeSummaryMetricOptions" class="home-summary-metric-options"></div><button type="button" id="homeSummarySaveMetrics" class="btn secondary">Salvar seleção</button><span id="homeSummaryMetricStatus" role="status"></span></section><section class="home-communication-management"><h4>Lembretes publicados</h4><div id="homeCommunicationManagementList"></div></section></section>`;
   document.body.append(modal);
 
   const by = id => document.getElementById(id);
   const safe = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
   const schoolId = () => window.getActiveSchoolId?.();
   const canPublish = () => ['school_admin', 'coordinator'].includes(window.getActiveSchoolRole?.());
+  const metricOptions = [
+    ['student_occurrences', 'Aluno com mais ocorrências na semana'],
+    ['class_occurrences', 'Turma com mais ocorrências na semana'],
+    ['praise_student', 'Aluno elogiado na semana'],
+    ['siap_student_absences', 'Aluno com mais faltas na última extração do SIAP'],
+    ['school_data', 'Dados da escola: alunos e turmas'],
+    ['new_students', 'Alunos cadastrados na semana'],
+    ['classes_without_occurrences', 'Turmas sem ocorrências na semana'],
+    ['class_fewest_occurrences', 'Turma com menos ocorrências entre as que registraram'],
+    ['siap_class_low_absences', 'Turma com menor média de faltas no SIAP'],
+    ['siap_class_high_absences', 'Turma com maior média de faltas no SIAP']
+  ];
+  const defaultMetricKeys = metricOptions.slice(0, 5).map(([key]) => key);
+  let selectedMetricKeys = [...defaultMetricKeys];
   const localDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   let generation = 0;
   let notices = [];
   let editingSchoolId = null;
   let visibilitySignature = '';
   const formatSchedule = (date, time) => `${date || ''}${time ? ` às ${String(time).slice(0, 5)}` : ''}`;
+  function renderMetricOptions() {
+    by('homeSummaryMetricOptions').innerHTML = metricOptions.map(([key, label]) => `<label><input type="checkbox" value="${key}" ${selectedMetricKeys.includes(key) ? 'checked' : ''}><span>${label}</span></label>`).join('');
+  }
+  function applyMetricKeys(keys) {
+    selectedMetricKeys = metricOptions.map(([key]) => key).filter(key => keys.includes(key));
+    window.carometroHomeSummaryKeys = [...selectedMetricKeys];
+    document.dispatchEvent(new CustomEvent('carometro:home-summary-preferences'));
+    renderMetricOptions();
+  }
 
   function syncAccess() {
     const allowed = !!schoolId() && canPublish() && !by('app').classList.contains('hidden');
@@ -89,13 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, generation:++generation };
     syncAccess();
-    if (!scope.school || !scope.user || by('app').classList.contains('hidden')) { notices = []; render(); return; }
-    const { data, error } = await db.from('school_home_communications')
-      .select('id,title,destination_type,destination_url,starts_on,start_time,ends_on,end_time,created_by,display_seconds')
-      .eq('school_id', scope.school).order('created_at', { ascending:false }).limit(100);
+    if (!scope.school || !scope.user || by('app').classList.contains('hidden')) { notices = []; applyMetricKeys(defaultMetricKeys); render(); return; }
+    const [noticeResult, settingsResult] = await Promise.all([
+      db.from('school_home_communications')
+        .select('id,title,destination_type,destination_url,starts_on,start_time,ends_on,end_time,created_by,display_seconds')
+        .eq('school_id', scope.school).order('created_at', { ascending:false }).limit(100),
+      db.from('school_home_summary_settings').select('metric_keys').eq('school_id', scope.school).maybeSingle()
+    ]);
     if (scope.generation !== generation || scope.school !== schoolId() || scope.user !== user?.id) return;
-    if (error) { list.innerHTML = ''; by('homeCommunicationManagementList').textContent = 'Lembretes indisponíveis.'; return; }
-    notices = data || [];
+    applyMetricKeys(settingsResult.error ? defaultMetricKeys : (settingsResult.data?.metric_keys || defaultMetricKeys));
+    if (noticeResult.error) { list.innerHTML = ''; by('homeCommunicationManagementList').textContent = 'Lembretes indisponíveis.'; return; }
+    notices = noticeResult.data || [];
     render();
   }
 
@@ -108,6 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     by('homeCommunicationUrl').required = false;
     by('homeCommunicationError').classList.add('hidden');
     updatePreview();
+    renderMetricOptions();
     modal.classList.remove('hidden');
     by('homeCommunicationText').focus();
   };
@@ -127,6 +155,18 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   by('homeCommunicationText').addEventListener('input', updatePreview);
   by('homeCommunicationSeconds').addEventListener('change', updatePreview);
+  by('homeSummarySaveMetrics').onclick = async () => {
+    if (!syncAccess() || editingSchoolId !== schoolId()) return;
+    const keys = [...by('homeSummaryMetricOptions').querySelectorAll('input:checked')].map(input => input.value);
+    const button = by('homeSummarySaveMetrics');
+    const status = by('homeSummaryMetricStatus');
+    button.disabled = true;
+    status.textContent = 'Salvando…';
+    const { error } = await db.from('school_home_summary_settings').upsert({ school_id:schoolId(), metric_keys:keys, updated_by:user.id, updated_at:new Date().toISOString() }, { onConflict:'school_id' });
+    button.disabled = false;
+    status.textContent = error ? 'Não foi possível salvar a seleção.' : 'Seleção salva.';
+    if (!error) applyMetricKeys(keys);
+  };
   for (const id of ['homeCommunicationStart', 'homeCommunicationStartTime', 'homeCommunicationEnd', 'homeCommunicationEndTime']) by(id).addEventListener('change', updatePreview);
   modal.querySelectorAll('[data-home-communication-close]').forEach(button => button.onclick = () => modal.classList.add('hidden'));
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };

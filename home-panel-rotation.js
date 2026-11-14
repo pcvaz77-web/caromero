@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
     active = index;
     const item = items[active];
     heading.textContent = item.heading;
+    card.classList.toggle('home-overview-notice', item.heading === 'Lembrete da semana');
     const content = document.createElement(item.open ? 'button' : 'div');
     content.className = 'home-reference-slide-content';
     if (item.open) { content.type = 'button'; content.onclick = item.open; }
@@ -71,16 +72,18 @@ document.addEventListener('DOMContentLoaded', () => {
       };
     });
     const week = document.getElementById('homeOverviewWeekLabel')?.textContent || 'Resumo da semana';
-    const rows = [...highlights.querySelectorAll(':scope > div')];
+    const defaultKeys = ['student_occurrences', 'class_occurrences', 'praise_student', 'siap_student_absences', 'school_data'];
+    const selectedKeys = new Set(window.carometroHomeSummaryKeys || defaultKeys);
+    const rows = [...highlights.querySelectorAll(':scope > div[data-metric-key]')].filter(row => selectedKeys.has(row.dataset.metricKey));
     const system = rows.map((row, index) => {
       const button = row.querySelector('.home-highlight-link');
       const value = button?.textContent || '';
       const occurrence = value.match(/^(.*?)\s*·\s*(\d+ ocorrências?)$/i);
       return {
         key:`system:${index}:${week}`, heading:'Resumo da semana', title:row.querySelector('span')?.textContent || '',
-        detail:occurrence ? occurrence[1] : value, secondary:occurrence?.[2] || '', meta:week, seconds:15,
+        detail:occurrence ? occurrence[1] : value, secondary:row.dataset.secondary || occurrence?.[2] || '', meta:week, seconds:15,
         open:button && !button.disabled ? () => button.click() : null,
-        ready:button && !button.disabled || index === rows.length - 1
+        ready:row.dataset.ready === 'true'
       };
     }).filter(item => item.ready && item.detail && item.detail !== 'Carregando…');
     const combined = [];
@@ -90,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (system[index]) combined.push(system[index]);
     }
     items = combined;
-    if (!items.length) items = [{ key:'empty', heading:'Resumo da semana', title:'Informações da escola', detail:'Carregando resumo…', meta:'', seconds:15 }];
+    if (!items.length) items = [{ key:'empty', heading:'Resumo da semana', title:'Informações da escola', detail:selectedKeys.size ? (highlights.dataset.loaded === 'true' ? 'Nenhum dado para esta semana.' : 'Carregando resumo…') : 'Nenhuma informação automática selecionada.', meta:'', seconds:15 }];
     const found = items.findIndex(item => item.key === selected);
     show(found >= 0 ? found : 0);
   }
@@ -99,7 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     queued = true;
     queueMicrotask(() => { queued = false; rebuild(); });
   }
-  for (const source of [notices, highlights]) new MutationObserver(queueRebuild).observe(source, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['disabled'] });
+  for (const source of [notices, highlights]) new MutationObserver(queueRebuild).observe(source, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['disabled', 'data-ready', 'data-secondary', 'data-loaded'] });
+  document.addEventListener('carometro:home-summary-preferences', queueRebuild);
   document.addEventListener('visibilitychange', next);
   rebuild();
 });
