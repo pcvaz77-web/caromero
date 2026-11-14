@@ -218,6 +218,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   document.addEventListener('carometro:data-loaded', refresh);
   document.addEventListener('carometro:school-context-ready', refresh);
+  new MutationObserver(() => {
+    if (!by('app').classList.contains('hidden')) refresh();
+  }).observe(by('app'), { attributes:true, attributeFilter:['class'] });
   document.addEventListener('carometro:occurrences-changed', refresh);
   document.addEventListener('carometro:siap-absences-imported', refresh);
   window.addEventListener('focus', refresh);
