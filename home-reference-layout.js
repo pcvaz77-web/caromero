@@ -76,10 +76,16 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('scroll', positionPanel, true);
     }
     const assistant = document.getElementById('openSiapAssistant');
-    if (assistant && assistant.parentElement !== toolbarRight) toolbarRight.append(assistant);
+    const mobileTopbar = window.innerWidth <= 800 ? document.querySelector('.mobile-topbar') : null;
+    const assistantTarget = mobileTopbar || toolbarRight;
+    if (assistant && assistant.parentElement !== assistantTarget) {
+      if (mobileTopbar) mobileTopbar.insertBefore(assistant, mobileTopbar.querySelector('.mobile-brand'));
+      else toolbarRight.append(assistant);
+    }
   };
   moveToolbarActions();
   if (greetingRow) new MutationObserver(moveToolbarActions).observe(greetingRow, { childList:true });
+  window.addEventListener('resize', moveToolbarActions);
 
   const addStudent = document.getElementById('newStudent');
   if (addStudent) addStudent.textContent = 'Adicionar aluno';

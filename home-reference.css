@@ -121,7 +121,7 @@ body #app .home-reference-hero #newBulk::after { content:'Colar lista'; }
 body #app .home-reference-hero #newStudent:not(.hidden) { background:linear-gradient(145deg,#1556e6,#00a8f5)!important;border-color:#1297f2!important; }
 body #app .home-reference-hero #newStudent::before { content:'+';font-size:27px!important; }
 body #app .home-reference-hero #newStudent::after { content:'Adicionar aluno'; }
-body #app .home-reference-hero .top-actions .btn:not(#enableCarometroPush):not(#installCarometro):not(#newBulk):not(#newStudent) { font-size:10px!important; }
+body #app .home-reference-hero .top-actions .btn:not(#enableCarometroPush):not(#installCarometro):not(#newBulk):not(#newStudent):not(#classPanelButton) { font-size:10px!important; }
 body #app .home-reference-hero .stats { display:grid!important;grid-template-columns:1.1fr 1fr!important;gap:10px!important;margin:0!important; }
 body #app .home-reference-hero .stats > .stat {
   min-width:0;min-height:94px!important;height:94px!important;
@@ -502,4 +502,10 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:bri
   body #app .home-reference-hero .top-actions { grid-column:1!important;grid-row:3!important;width:100%!important;max-width:none!important; }
   body #app .home-reference-hero .top-actions .btn:not(.hidden) { min-height:84px!important;padding:9px 5px!important;font-size:12.5px!important; }
   body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) { min-height:52px!important;font-size:15px!important; }
+  body .mobile-topbar #openSiapAssistant:not(.hidden) {
+    display:inline-flex!important;align-items:center;justify-content:center;flex:none;
+    min-height:34px!important;padding:6px 9px!important;margin:0!important;
+    border-radius:9px!important;background:linear-gradient(135deg,#4b6fce,#7351d3)!important;
+    color:#fff!important;font-size:10px!important;font-weight:750!important;white-space:nowrap;
+  }
 }
