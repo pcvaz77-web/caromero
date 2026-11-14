@@ -11,11 +11,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const toolbar = document.createElement('div');
   toolbar.className = 'home-reference-toolbar';
-  toolbar.innerHTML = `<button type="button" class="home-reference-school" aria-label="Escola ativa"><span class="home-reference-school-icon" aria-hidden="true">♧</span><span class="home-reference-school-name">Escola ativa</span><span aria-hidden="true">⌄</span></button>
+  toolbar.innerHTML = `<div class="home-reference-school"><span class="home-reference-school-icon" aria-hidden="true">♧</span><span class="home-reference-school-name">Escola ativa</span></div>
     <div class="home-reference-toolbar-right"></div>`;
   top.prepend(toolbar);
   const schoolName = toolbar.querySelector('.home-reference-school-name');
-  const schoolButton = toolbar.querySelector('.home-reference-school');
+  const schoolDisplay = toolbar.querySelector('.home-reference-school');
   const toolbarRight = toolbar.querySelector('.home-reference-toolbar-right');
   const search = document.getElementById('search');
   const listHead = main.querySelector('.panel .head');
@@ -30,11 +30,10 @@ document.addEventListener('DOMContentLoaded', () => {
     search.placeholder = 'Buscar aluno, turma ou ocorrência...';
     searchField.append(search);
   }
-  schoolButton.onclick = () => document.getElementById('schoolSwitchNav')?.click();
   const updateSchool = () => {
     const label = document.getElementById('activeSchoolGreeting')?.textContent.trim() || '';
     schoolName.textContent = label.replace(/^Escola ativa:\s*/i, '') || 'Selecione uma escola';
-    schoolButton.title = schoolName.textContent;
+    schoolDisplay.title = schoolName.textContent;
   };
   updateSchool();
   const schoolLabel = document.getElementById('activeSchoolGreeting');
@@ -52,22 +51,6 @@ document.addEventListener('DOMContentLoaded', () => {
   caption.textContent = 'Acompanhe as informações da escola e gerencie os registros do Carômetro.';
   userContext?.append(caption);
   heading?.classList.add('home-reference-old-heading');
-
-  const avatar = document.createElement('button');
-  avatar.className = 'home-reference-avatar';
-  avatar.type = 'button';
-  avatar.setAttribute('aria-label', 'Meu perfil');
-  avatar.textContent = 'PF';
-  avatar.onclick = () => document.getElementById('profileNav')?.click();
-  toolbarRight.append(avatar);
-  const greeting = document.getElementById('welcomeGreeting');
-  const syncAvatar = () => {
-    const name = greeting?.querySelector('.welcome-person')?.textContent.replace(/[!\s]+$/g, '').trim() || '';
-    const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase();
-    if (initials) avatar.textContent = initials;
-  };
-  syncAvatar();
-  if (greeting) new MutationObserver(syncAvatar).observe(greeting, { childList:true, characterData:true, subtree:true });
 
   const moveToolbarActions = () => {
     const bell = document.getElementById('notificationBell');
@@ -93,12 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('scroll', positionPanel, true);
     }
     const assistant = document.getElementById('openSiapAssistant');
-    if (assistant && assistant.parentElement !== toolbarRight) toolbarRight.insertBefore(assistant, avatar);
+    if (assistant && assistant.parentElement !== toolbarRight) toolbarRight.append(assistant);
   };
   moveToolbarActions();
   if (greetingRow) new MutationObserver(moveToolbarActions).observe(greetingRow, { childList:true });
 
-  for (const [id, icon] of [['enableCarometroPush', '♧'], ['installCarometro', '⇩'], ['newBulk', '▤'], ['newStudent', '+']]) {
+  const addStudent = document.getElementById('newStudent');
+  if (addStudent) addStudent.textContent = 'Adicionar aluno';
+  for (const [id, icon] of [['enableCarometroPush', '♧'], ['installCarometro', '⇩'], ['newBulk', '▤'], ['newStudent', '+'], ['classPanelButton', '▦']]) {
     const button = document.getElementById(id);
     if (button) button.dataset.homeIcon = icon;
   }
