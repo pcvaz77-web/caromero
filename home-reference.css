@@ -463,7 +463,7 @@ body #app .home-reference-school-name { white-space:normal;overflow:visible;text
 body #app .home-reference-hero .top-actions {
   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));
   align-items:stretch!important;justify-content:stretch!important;
-  gap:9px!important;width:min(100%,420px)!important;max-width:420px!important;
+  gap:9px!important;width:420px!important;max-width:100%!important;
 }
 body #app .home-reference-hero .top-actions .btn:not(.hidden) {
   display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
@@ -477,9 +477,9 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden)::before {
   order:2;display:block!important;margin:7px 0 0!important;color:#fff!important;
   font-size:23px!important;line-height:1!important;filter:none!important;
 }
-body #app .home-reference-hero .top-actions #enableCarometroPush:not(.hidden) { grid-column:1;grid-row:1; }
-body #app .home-reference-hero .top-actions #newBulk:not(.hidden) { grid-column:2;grid-row:1; }
-body #app .home-reference-hero .top-actions #newStudent:not(.hidden) { grid-column:3;grid-row:1;background:#416fc5!important;border-color:#3f68b8!important; }
+body #app .home-reference-hero .top-actions #enableCarometroPush:not(.hidden) { grid-column:1!important;grid-row:1!important; }
+body #app .home-reference-hero .top-actions #newBulk:not(.hidden) { grid-column:2!important;grid-row:1!important; }
+body #app .home-reference-hero .top-actions #newStudent:not(.hidden) { grid-column:3!important;grid-row:1!important;background:#416fc5!important;border-color:#3f68b8!important; }
 body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) {
   grid-column:1/-1!important;grid-row:2!important;justify-self:stretch!important;
   width:100%!important;max-width:none!important;min-width:0!important;min-height:52px!important;
@@ -487,7 +487,7 @@ body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) {
   font-size:16px!important;box-shadow:0 5px 14px #19724b24!important;
 }
 body #app .home-reference-hero .top-actions #classPanelButton::before { display:none!important; }
-body #app .home-reference-hero .top-actions #installCarometro:not(.hidden) { grid-column:1/-1;grid-row:3;min-height:44px!important; }
+body #app .home-reference-hero .top-actions #installCarometro:not(.hidden) { grid-column:1/-1!important;grid-row:3!important;min-height:44px!important; }
 body #app .home-reference-hero .top-actions #installCarometro::before { display:none!important; }
 body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:brightness(.94); }
 @media(max-width:1100px) {
