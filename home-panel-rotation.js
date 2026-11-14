@@ -18,7 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
   let active = 0;
   let timer;
   let queued = false;
-  const formatDate = value => value ? new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR', { weekday:'long', day:'2-digit', month:'2-digit' }) : '';
   const stop = () => { clearTimeout(timer); timer = null; };
   function next() {
     stop();
@@ -43,9 +42,11 @@ document.addEventListener('DOMContentLoaded', () => {
       secondary.textContent = item.secondary;
       content.append(name, detail, secondary);
     } else content.append(name, detail);
-    const date = document.createElement('small');
-    date.textContent = item.meta;
-    content.append(date);
+    if (item.meta) {
+      const date = document.createElement('small');
+      date.textContent = item.meta;
+      content.append(date);
+    }
     slide.replaceChildren(content);
     slide.classList.remove('home-reference-slide-enter');
     void slide.offsetWidth;
@@ -57,17 +58,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const school = [...notices.querySelectorAll('.home-communication-row')].map(row => {
       const title = row.querySelector('.home-communication-title');
       const button = row.querySelector('[data-home-notice-open]');
-      const start = row.dataset.startsOn;
-      const end = row.dataset.endsOn;
-      const startTime = row.dataset.startTime?.slice(0, 5);
-      const endTime = row.dataset.endTime?.slice(0, 5);
-      const startLabel = `${formatDate(start)}${startTime ? ` às ${startTime}` : ''}`;
-      const endLabel = `${formatDate(end)}${endTime ? ` às ${endTime}` : ''}`;
       return {
         key:`notice:${button?.dataset.homeNoticeOpen || title?.textContent}`,
         heading:'Lembrete da semana', title:title?.textContent.replace(/\s*↗\s*$/, '').trim() || '',
-        detail:'Aviso da escola', meta:end ? `${startLabel} até ${endLabel}` : startLabel,
-        seconds:Math.max(8, Math.min(45, Number(row.dataset.displaySeconds) || 15)),
+        detail:'Aviso da escola', meta:'',
+        seconds:Math.max(5, Math.min(45, Number(row.dataset.displaySeconds) || 15)),
         open:button ? () => button.click() : null
       };
     });
@@ -75,7 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultKeys = ['student_occurrences', 'class_occurrences', 'praise_student', 'siap_student_absences', 'school_data'];
     const selectedKeys = new Set(window.carometroHomeSummaryKeys || defaultKeys);
     const rows = [...highlights.querySelectorAll(':scope > div[data-metric-key]')].filter(row => selectedKeys.has(row.dataset.metricKey));
-    const automaticSeconds = Math.max(8, Math.min(45, Number(window.carometroHomeSummarySeconds) || 15));
+    const automaticSeconds = Math.max(5, Math.min(45, Number(window.carometroHomeSummarySeconds) || 15));
     const system = rows.map((row, index) => {
       const button = row.querySelector('.home-highlight-link');
       const value = button?.textContent || '';

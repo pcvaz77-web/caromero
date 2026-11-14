@@ -463,32 +463,32 @@ body #app .home-reference-school-name { white-space:normal;overflow:visible;text
 body #app .home-reference-hero .top-actions {
   display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;
   align-items:stretch!important;justify-content:stretch!important;
-  gap:9px!important;width:420px!important;max-width:100%!important;
+  gap:8px!important;width:420px!important;max-width:100%!important;
 }
 body #app .home-reference-hero .top-actions .btn:not(.hidden) {
   display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
-  width:100%!important;max-width:none!important;min-width:0!important;min-height:88px!important;height:auto!important;
-  padding:11px 8px!important;border:1px solid #3f68b8!important;border-radius:11px!important;
-  background:#416fc5!important;color:#fff!important;box-shadow:0 5px 14px #2e59a125!important;
+  width:100%!important;max-width:none!important;min-width:0!important;min-height:66px!important;height:auto!important;
+  padding:7px 8px!important;border:1px solid #5260df!important;border-radius:10px!important;
+  background:var(--premium-gradient)!important;color:#fff!important;box-shadow:0 5px 14px #4b56c52b!important;
   text-align:center!important;white-space:normal!important;font-size:14px!important;font-weight:800!important;line-height:1.16!important;
 }
 body #app .home-reference-hero .top-actions .btn:not(.hidden)::after { display:none!important;content:none!important; }
 body #app .home-reference-hero .top-actions .btn:not(.hidden)::before {
-  order:2;display:block!important;margin:7px 0 0!important;color:#fff!important;
-  font-size:23px!important;line-height:1!important;filter:none!important;
+  order:2;display:block!important;margin:4px 0 0!important;color:#fff!important;
+  font-size:19px!important;line-height:1!important;filter:none!important;
 }
 body #app .home-reference-hero .top-actions #newBulk::before { filter:brightness(0) invert(1)!important; }
 body #app .home-reference-hero .top-actions #enableCarometroPush:not(.hidden) { grid-column:1!important;grid-row:1!important; }
 body #app .home-reference-hero .top-actions #newBulk:not(.hidden) { grid-column:2!important;grid-row:1!important; }
-body #app .home-reference-hero .top-actions #newStudent:not(.hidden) { grid-column:3!important;grid-row:1!important;background:#416fc5!important;border-color:#3f68b8!important; }
+body #app .home-reference-hero .top-actions #newStudent:not(.hidden) { grid-column:3!important;grid-row:1!important;background:var(--premium-gradient)!important;border-color:#5260df!important; }
 body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) {
   grid-column:1/-1!important;grid-row:2!important;justify-self:stretch!important;
-  width:100%!important;max-width:none!important;min-width:0!important;min-height:52px!important;
-  background:#228454!important;border-color:#1b754a!important;color:#fff!important;
+  width:100%!important;max-width:none!important;min-width:0!important;min-height:43px!important;
+  background:linear-gradient(110deg,#17805e 0%,#229d69 60%,#31b277 100%)!important;border-color:#19845c!important;color:#fff!important;
   font-size:16px!important;box-shadow:0 5px 14px #19724b24!important;
 }
 body #app .home-reference-hero .top-actions #classPanelButton::before { display:none!important; }
-body #app .home-reference-hero .top-actions #installCarometro:not(.hidden) { grid-column:1/-1!important;grid-row:3!important;min-height:44px!important; }
+body #app .home-reference-hero .top-actions #installCarometro:not(.hidden) { grid-column:1/-1!important;grid-row:3!important;min-height:40px!important; }
 body #app .home-reference-hero .top-actions #installCarometro::before { display:none!important; }
 body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:brightness(.94); }
 @media(max-width:1100px) {
@@ -506,6 +506,7 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:bri
   body #app .home-reference-school { max-width:100%;font-size:15px; }
   body #app .home-reference-hero .welcome-notification-row { grid-column:1!important;grid-row:2!important;padding:2px 0 8px!important; }
   body #app .home-reference-hero .top-actions { grid-column:1!important;grid-row:3!important;width:100%!important;max-width:none!important; }
-  body #app .home-reference-hero .top-actions .btn:not(.hidden) { min-height:84px!important;padding:9px 5px!important;font-size:12.5px!important; }
-  body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) { min-height:52px!important;font-size:15px!important; }
+  body #app .home-reference-hero .top-actions .btn:not(.hidden) { min-height:64px!important;padding:7px 5px!important;font-size:12.5px!important; }
+  body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) { min-height:43px!important;font-size:15px!important; }
 }
+body #app .home-reference-hero .home-class-count .home-selected-class-name { font-size:clamp(17px,2vw,23px)!important;line-height:1.12!important;white-space:normal;overflow-wrap:anywhere; }
