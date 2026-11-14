@@ -218,3 +218,22 @@ body #app .home-reference-hero .stats > .home-overview::before {
 body #app .home-reference-hero .stats > .home-overview::after {
   content:'';background:#5724b5 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 3 12 12M7 10l7 7M11 4l-6 6 9 9 6-6M7 17l-4 4'/%3E%3C/svg%3E") center/17px 17px no-repeat;
 }
+/* O tema global desenha ícones nos cartões pela posição na grade. */
+body #app .home-reference-hero .stats > .home-overview::before {
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='7' width='22' height='21' rx='2'/%3E%3Cpath d='M10 4v6M22 4v6M5 13h22M10 18h3M18 18h3M10 23h3M18 23h3'/%3E%3C/svg%3E"),linear-gradient(155deg,#7d32fc,#501fd9)!important;
+  left:16px!important;width:44px!important;height:44px!important;
+  border:0!important;box-shadow:0 5px 13px #1e0a5e!important;
+  background-size:27px 27px,cover!important;
+}
+body #app .home-reference-hero .home-counts strong::before,
+body #app .home-reference-hero .home-counts strong::after,
+body #app .home-reference-hero .home-reference-slide-content strong::before,
+body #app .home-reference-hero .home-reference-slide-content strong::after {
+  content:none!important;display:none!important;
+}
+body #app .home-reference-hero .top-actions .btn:not(.hidden)::before,
+body #app .home-reference-hero .top-actions .btn:not(.hidden)::after {
+  position:static!important;inset:auto!important;flex:none!important;
+  width:auto!important;height:auto!important;min-height:0!important;
+  box-shadow:none!important;text-shadow:none!important;
+}
