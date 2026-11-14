@@ -202,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-  if (!window.matchMedia('(max-width:800px)').matches) return;
+  if (!window.matchMedia('(max-width:1100px)').matches) return;
 
   const side = document.querySelector('.side');
   const nav = document.querySelector('.side .nav');
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const drawerStyle = document.createElement('style');
   drawerStyle.textContent = `
-    @media (max-width:800px) {
+    @media (max-width:1100px) {
       body.mobile-menu-open { overflow:hidden; }
       .side {
         position:relative !important;

@@ -76,7 +76,7 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('scroll', positionPanel, true);
     }
     const assistant = document.getElementById('openSiapAssistant');
-    const mobileTopbar = window.innerWidth <= 800 ? document.querySelector('.mobile-topbar') : null;
+    const mobileTopbar = window.innerWidth <= 1100 ? document.querySelector('.mobile-topbar') : null;
     const assistantTarget = mobileTopbar || toolbarRight;
     if (assistant && assistant.parentElement !== assistantTarget) {
       if (mobileTopbar) mobileTopbar.insertBefore(assistant, mobileTopbar.querySelector('.mobile-brand'));
