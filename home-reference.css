@@ -509,4 +509,7 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:bri
   body #app .home-reference-hero .top-actions .btn:not(.hidden) { min-height:64px!important;padding:7px 5px!important;font-size:12.5px!important; }
   body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) { min-height:43px!important;font-size:15px!important; }
 }
+@media(max-width:800px) {
+  body #app:has(.home-reference-hero) > .side { position:relative!important;inset:auto!important; }
+}
 body #app .home-reference-hero .home-class-count .home-selected-class-name { font-size:clamp(17px,2vw,23px)!important;line-height:1.12!important;white-space:normal;overflow-wrap:anywhere; }
