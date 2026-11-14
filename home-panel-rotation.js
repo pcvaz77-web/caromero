@@ -36,9 +36,15 @@ document.addEventListener('DOMContentLoaded', () => {
     name.textContent = item.title;
     const detail = document.createElement('span');
     detail.textContent = item.detail;
+    if (item.secondary) {
+      const secondary = document.createElement('span');
+      secondary.className = 'home-reference-slide-secondary';
+      secondary.textContent = item.secondary;
+      content.append(name, detail, secondary);
+    } else content.append(name, detail);
     const date = document.createElement('small');
     date.textContent = item.meta;
-    content.append(name, detail, date);
+    content.append(date);
     slide.replaceChildren(content);
     slide.classList.remove('home-reference-slide-enter');
     void slide.offsetWidth;
@@ -48,24 +54,31 @@ document.addEventListener('DOMContentLoaded', () => {
   function rebuild() {
     const selected = items[active]?.key;
     const school = [...notices.querySelectorAll('.home-communication-row')].map(row => {
+      const title = row.querySelector('.home-communication-title');
       const button = row.querySelector('[data-home-notice-open]');
       const start = row.dataset.startsOn;
       const end = row.dataset.endsOn;
+      const startTime = row.dataset.startTime?.slice(0, 5);
+      const endTime = row.dataset.endTime?.slice(0, 5);
+      const startLabel = `${formatDate(start)}${startTime ? ` às ${startTime}` : ''}`;
+      const endLabel = `${formatDate(end)}${endTime ? ` às ${endTime}` : ''}`;
       return {
-        key:`notice:${button?.dataset.homeNoticeOpen}`,
-        heading:'Lembrete da semana', title:button?.textContent.replace(/\s*↗\s*$/, '').trim() || '',
-        detail:'Aviso da escola', meta:end ? `${formatDate(start)} até ${formatDate(end)}` : formatDate(start),
+        key:`notice:${button?.dataset.homeNoticeOpen || title?.textContent}`,
+        heading:'Lembrete da semana', title:title?.textContent.replace(/\s*↗\s*$/, '').trim() || '',
+        detail:'Aviso da escola', meta:end ? `${startLabel} até ${endLabel}` : startLabel,
         seconds:Math.max(8, Math.min(45, Number(row.dataset.displaySeconds) || 15)),
-        open:() => button?.click()
+        open:button ? () => button.click() : null
       };
     });
     const week = document.getElementById('homeOverviewWeekLabel')?.textContent || 'Resumo da semana';
     const rows = [...highlights.querySelectorAll(':scope > div')];
     const system = rows.map((row, index) => {
       const button = row.querySelector('.home-highlight-link');
+      const value = button?.textContent || '';
+      const occurrence = value.match(/^(.*?)\s*·\s*(\d+ ocorrências?)$/i);
       return {
         key:`system:${index}:${week}`, heading:'Resumo da semana', title:row.querySelector('span')?.textContent || '',
-        detail:button?.textContent || '', meta:week, seconds:15,
+        detail:occurrence ? occurrence[1] : value, secondary:occurrence?.[2] || '', meta:week, seconds:15,
         open:button && !button.disabled ? () => button.click() : null,
         ready:button && !button.disabled || index === rows.length - 1
       };

@@ -348,6 +348,37 @@ body #app .home-reference-hero .home-reference-slide-content span {
 body #app .home-reference-hero .home-reference-slide-content small {
   color:#856d58!important;font-size:12px!important;
 }
+body #app .home-reference-hero .stats > .home-overview {
+  height:174px!important;min-height:174px!important;
+  background:linear-gradient(135deg,#fffaf0 0%,#fff0d9 65%,#ffe5bd 100%)!important;
+}
+body #app .home-reference-hero .home-overview-head > span { color:#25344d!important; }
+body #app .home-reference-hero .home-reference-slide-content {
+  gap:5px;color:#25344d!important;
+}
+body #app .home-reference-hero .home-reference-slide-content strong {
+  color:#25344d!important;font-size:17px!important;
+  white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+}
+body #app .home-reference-hero .home-reference-slide-content span {
+  color:#27354d!important;font-size:15px!important;font-weight:740!important;
+  white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+  overflow-wrap:anywhere;line-height:1.2;
+}
+body #app .home-reference-hero .home-reference-slide-content .home-reference-slide-secondary {
+  color:#516077!important;font-size:13.5px!important;font-weight:650!important;
+}
+body #app .home-reference-hero .home-reference-slide-content small {
+  color:#59687d!important;font-size:11.5px!important;
+  white-space:normal;line-height:1.2;
+}
+body .home-communication-schedule {
+  padding:12px 14px;border:1px solid #e2e8f2;border-radius:12px;background:#f8faff;
+}
+body .home-communication-schedule > strong { color:#26395e;font-size:14px; }
+body .home-communication-schedule > p { margin:4px 0 10px;color:#667085;font-size:12px; }
+body .home-communication-schedule .grid + .grid { margin-top:8px; }
+body .home-communication-preview #homeCommunicationPreviewSchedule { display:block;margin-top:5px; }
 body #app .panel .head { gap:18px; }
 body #app .home-reference-list-tools { display:flex;align-items:center;gap:10px;width:min(440px,60%);margin-left:auto; }
 body #app .home-reference-list-tools .home-reference-search {
