@@ -493,6 +493,12 @@ body #app .home-reference-hero .top-actions #installCarometro::before { display:
 body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:brightness(.94); }
 @media(max-width:1100px) {
   body #app .home-reference-hero .top-actions { width:min(100%,520px)!important;max-width:520px!important; }
+  body .mobile-topbar #openSiapAssistant:not(.hidden) {
+    display:inline-flex!important;align-items:center;justify-content:center;flex:none;
+    min-height:34px!important;padding:6px 9px!important;margin:0!important;
+    border-radius:9px!important;background:linear-gradient(135deg,#4b6fce,#7351d3)!important;
+    color:#fff!important;font-size:10px!important;font-weight:750!important;white-space:nowrap;
+  }
 }
 @media(max-width:800px) {
   body #app .home-reference-hero .top { gap:8px!important; }
@@ -502,10 +508,4 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:bri
   body #app .home-reference-hero .top-actions { grid-column:1!important;grid-row:3!important;width:100%!important;max-width:none!important; }
   body #app .home-reference-hero .top-actions .btn:not(.hidden) { min-height:84px!important;padding:9px 5px!important;font-size:12.5px!important; }
   body #app .home-reference-hero .top-actions #classPanelButton:not(.hidden) { min-height:52px!important;font-size:15px!important; }
-  body .mobile-topbar #openSiapAssistant:not(.hidden) {
-    display:inline-flex!important;align-items:center;justify-content:center;flex:none;
-    min-height:34px!important;padding:6px 9px!important;margin:0!important;
-    border-radius:9px!important;background:linear-gradient(135deg,#4b6fce,#7351d3)!important;
-    color:#fff!important;font-size:10px!important;font-weight:750!important;white-space:nowrap;
-  }
 }
