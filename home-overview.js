@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaders = [...counts].filter(([id]) => names.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 3);
     occurrenceLeaderId = leaders[0]?.[0] || null;
     by('homeOccurrenceLeaders').disabled = !occurrenceLeaderId;
-    by('homeOccurrenceLeaders').textContent = leaders.length ? leaders.map(([id, count]) => `${names.get(id)} (${count})`).join(' · ') : 'Nenhuma ocorrência nesta semana.';
+    by('homeOccurrenceLeaders').textContent = leaders.length ? leaders.map(([id, count]) => `${names.get(id)} (${count})`).join(' · ') : 'Nenhuma ocorrência na semana do resumo.';
   }
   async function loadAbsences(scope, cutoff) {
     const latestResult = await db.from('siap_bimester_absences')
