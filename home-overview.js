@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="homeReminderList" class="home-overview-list"></div>
     <div class="home-overview-highlights">
       <span id="homeOverviewWeekLabel">Atualizações automáticas do Carômetro</span>
-      <div><span>Mais ocorrências nesta semana</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Mais ocorrências na semana do resumo</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
       <div><span>Mais faltas da última extração do SIAP até segunda-feira</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>
     </div>`;
   stats.append(overview);

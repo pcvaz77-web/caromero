@@ -37,7 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const by = id => document.getElementById(id);
   const safe = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
   const schoolId = () => window.getActiveSchoolId?.();
-  const canPublish = () => ['school_admin', 'coordinator', 'secretary'].includes(window.getActiveSchoolRole?.());
+  let platformOwnerUserId = null;
+  const canPublish = () => ['school_admin', 'coordinator', 'secretary'].includes(window.getActiveSchoolRole?.())
+    || (platformOwnerUserId !== null && platformOwnerUserId === user?.id);
   const localDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   let generation = 0;
   let notices = [];
@@ -72,6 +74,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, generation:++generation };
+    if (scope.user && platformOwnerUserId !== scope.user) {
+      const { data:isOwner, error:ownerError } = await db.rpc('is_platform_owner');
+      if (scope.generation !== generation || scope.user !== user?.id) return;
+      platformOwnerUserId = !ownerError && isOwner === true ? scope.user : null;
+    }
     syncAccess();
     if (!scope.school || !scope.user || by('app').classList.contains('hidden')) { notices = []; render(); return; }
     const { data, error } = await db.from('school_home_communications')
