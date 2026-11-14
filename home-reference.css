@@ -237,3 +237,7 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden)::after {
   width:auto!important;height:auto!important;min-height:0!important;
   box-shadow:none!important;text-shadow:none!important;
 }
+body #app .home-reference-hero .top-actions .btn:not(.hidden)::before {
+  width:22px!important;height:22px!important;min-height:22px!important;
+  background-size:20px 20px!important;
+}
