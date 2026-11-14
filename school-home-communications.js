@@ -7,9 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const editor = document.createElement('button');
   editor.id = 'homeCommunicationButton';
   editor.type = 'button';
-  editor.className = 'btn secondary hidden';
-  editor.textContent = 'Comunicação';
-  header.insertBefore(editor, document.getElementById('homeAddReminder'));
+  editor.className = 'hidden';
+  editor.innerHTML = '▤ &nbsp; Comunicação';
+  const sideNav = document.querySelector('#app .side .nav');
+  sideNav?.insertBefore(editor, document.getElementById('profileNav') || null);
 
   const list = document.createElement('div');
   list.id = 'homeCommunicationList';
@@ -19,27 +20,25 @@ document.addEventListener('DOMContentLoaded', () => {
   const modal = document.createElement('div');
   modal.id = 'homeCommunicationModal';
   modal.className = 'modal-bg home-communication-modal hidden';
-  modal.innerHTML = `<section class="modal small" role="dialog" aria-modal="true" aria-labelledby="homeCommunicationTitle">
-    <div class="modal-head"><h3 id="homeCommunicationTitle">Comunicação da escola</h3><button type="button" class="close" data-home-communication-close aria-label="Fechar">×</button></div>
+  modal.innerHTML = `<section class="modal" role="dialog" aria-modal="true" aria-labelledby="homeCommunicationTitle">
+    <div class="modal-head"><h3 id="homeCommunicationTitle">Comunicação</h3><button type="button" class="close" data-home-communication-close aria-label="Fechar">×</button></div>
     <form id="homeCommunicationForm" class="form">
-      <p class="meta">O aviso aparece para todos os usuários da escola ativa.</p>
-      <div class="field"><label for="homeCommunicationText">Aviso</label><input id="homeCommunicationText" required maxlength="160" autocomplete="off"></div>
+      <p class="meta">Publique um lembrete para todos os usuários da escola ativa. Ele aparecerá no painel da página inicial.</p>
+      <div class="field"><label for="homeCommunicationText">Lembrete</label><input id="homeCommunicationText" required maxlength="160" autocomplete="off"></div>
       <div class="field"><label for="homeCommunicationDestination">Ao clicar, abrir</label><select id="homeCommunicationDestination"><option value="occurrences">Ocorrências</option><option value="students">Lista de alunos</option><option value="external">Link externo</option></select></div>
       <div class="field hidden" id="homeCommunicationUrlField"><label for="homeCommunicationUrl">Link HTTPS</label><input id="homeCommunicationUrl" type="url" placeholder="https://exemplo.com"></div>
       <div class="grid"><div class="field"><label for="homeCommunicationStart">Exibir a partir de</label><input id="homeCommunicationStart" type="date" required></div><div class="field"><label for="homeCommunicationEnd">Exibir até (opcional)</label><input id="homeCommunicationEnd" type="date"></div></div>
       <div class="field"><label for="homeCommunicationSeconds">Tempo de cada exibição</label><select id="homeCommunicationSeconds"><option value="8">8 segundos</option><option value="12">12 segundos</option><option value="15" selected>15 segundos (padrão)</option><option value="20">20 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option></select></div>
       <div class="home-communication-preview" aria-live="polite"><small>Prévia no painel</small><strong id="homeCommunicationPreviewText">Seu aviso aparecerá aqui</strong><span id="homeCommunicationPreviewDestination">Destino: Ocorrências · 15 segundos</span></div>
       <p id="homeCommunicationError" class="error hidden" role="alert"></p>
-      <div class="actions"><button type="button" class="btn secondary" data-home-communication-close>Cancelar</button><button type="submit" class="btn primary">Publicar aviso</button></div>
-    </form></section>`;
+      <div class="actions"><button type="button" class="btn secondary" data-home-communication-close>Cancelar</button><button type="submit" class="btn primary">Publicar lembrete</button></div>
+    </form><section class="home-communication-management"><h4>Lembretes publicados</h4><div id="homeCommunicationManagementList"></div></section></section>`;
   document.body.append(modal);
 
   const by = id => document.getElementById(id);
   const safe = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
   const schoolId = () => window.getActiveSchoolId?.();
-  let platformAdminUserId = null;
-  const canPublish = () => ['school_admin', 'coordinator', 'secretary'].includes(window.getActiveSchoolRole?.())
-    || (platformAdminUserId !== null && platformAdminUserId === user?.id);
+  const canPublish = () => ['school_admin', 'coordinator'].includes(window.getActiveSchoolRole?.());
   const localDate = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   let generation = 0;
   let notices = [];
@@ -69,23 +68,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const today = localDate(new Date());
     const visible = notices.filter(item => item.starts_on <= today && (!item.ends_on || item.ends_on >= today));
     list.innerHTML = visible.length ? `<div class="home-communication-label">Avisos da escola</div>${visible.map(item => `
-      <div class="home-communication-row" data-display-seconds="${Number(item.display_seconds) || 15}"><button type="button" data-home-notice-open="${safe(item.id)}">${safe(item.title)} <span aria-hidden="true">↗</span></button>
-      ${canPublish() && (item.created_by === user?.id || window.getActiveSchoolRole?.() === 'school_admin') ? `<button type="button" class="home-communication-delete" data-home-notice-delete="${safe(item.id)}" aria-label="Excluir aviso">×</button>` : ''}</div>`).join('')}` : '';
+      <div class="home-communication-row" data-starts-on="${safe(item.starts_on)}" data-ends-on="${safe(item.ends_on || '')}" data-display-seconds="${Number(item.display_seconds) || 15}"><button type="button" data-home-notice-open="${safe(item.id)}">${safe(item.title)} <span aria-hidden="true">↗</span></button></div>`).join('')}` : '';
+    by('homeCommunicationManagementList').innerHTML = notices.length ? notices.map(item => `<div class="home-communication-managed-item"><div><strong>${safe(item.title)}</strong><small>${safe(item.starts_on)}${item.ends_on ? ` até ${safe(item.ends_on)}` : ''} · ${Number(item.display_seconds) || 15}s</small></div>${canPublish() && (item.created_by === user?.id || window.getActiveSchoolRole?.() === 'school_admin') ? `<button type="button" data-home-notice-delete="${safe(item.id)}" aria-label="Excluir lembrete">Excluir</button>` : ''}</div>`).join('') : '<p class="meta">Nenhum lembrete publicado.</p>';
   }
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, generation:++generation };
-    if (scope.user && platformAdminUserId !== scope.user) {
-      const { data:isAdmin, error:adminError } = await db.rpc('is_platform_admin');
-      if (scope.generation !== generation || scope.user !== user?.id) return;
-      platformAdminUserId = !adminError && isAdmin === true ? scope.user : null;
-    }
     syncAccess();
     if (!scope.school || !scope.user || by('app').classList.contains('hidden')) { notices = []; render(); return; }
     const { data, error } = await db.from('school_home_communications')
       .select('id,title,destination_type,destination_url,starts_on,ends_on,created_by,display_seconds')
       .eq('school_id', scope.school).order('created_at', { ascending:false }).limit(100);
     if (scope.generation !== generation || scope.school !== schoolId() || scope.user !== user?.id) return;
-    if (error) { list.innerHTML = '<p class="meta">Avisos da escola indisponíveis.</p>'; return; }
+    if (error) { list.innerHTML = ''; by('homeCommunicationManagementList').textContent = 'Lembretes indisponíveis.'; return; }
     notices = data || [];
     render();
   }
@@ -141,9 +135,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (error) { errorBox.textContent = 'Não foi possível publicar o aviso.'; errorBox.classList.remove('hidden'); return; }
     modal.classList.add('hidden'); refresh();
   };
-  list.onclick = async event => {
+  list.onclick = event => {
     const open = event.target.closest('[data-home-notice-open]');
     if (open) { const notice = notices.find(item => item.id === open.dataset.homeNoticeOpen); if (notice) navigate(notice); return; }
+  };
+  by('homeCommunicationManagementList').onclick = async event => {
     const remove = event.target.closest('[data-home-notice-delete]');
     if (!remove || !syncAccess()) return;
     if (!window.confirm('Excluir este aviso da escola?')) return;
