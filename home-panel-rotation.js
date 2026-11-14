@@ -75,13 +75,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const defaultKeys = ['student_occurrences', 'class_occurrences', 'praise_student', 'siap_student_absences', 'school_data'];
     const selectedKeys = new Set(window.carometroHomeSummaryKeys || defaultKeys);
     const rows = [...highlights.querySelectorAll(':scope > div[data-metric-key]')].filter(row => selectedKeys.has(row.dataset.metricKey));
+    const automaticSeconds = Math.max(8, Math.min(45, Number(window.carometroHomeSummarySeconds) || 15));
     const system = rows.map((row, index) => {
       const button = row.querySelector('.home-highlight-link');
       const value = button?.textContent || '';
       const occurrence = value.match(/^(.*?)\s*·\s*(\d+ ocorrências?)$/i);
       return {
         key:`system:${index}:${week}`, heading:'Resumo da semana', title:row.querySelector('span')?.textContent || '',
-        detail:occurrence ? occurrence[1] : value, secondary:row.dataset.secondary || occurrence?.[2] || '', meta:week, seconds:15,
+        detail:occurrence ? occurrence[1] : value, secondary:row.dataset.secondary || occurrence?.[2] || '', meta:week, seconds:automaticSeconds,
         open:button && !button.disabled ? () => button.click() : null,
         ready:row.dataset.ready === 'true'
       };
@@ -93,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (system[index]) combined.push(system[index]);
     }
     items = combined;
-    if (!items.length) items = [{ key:'empty', heading:'Resumo da semana', title:'Informações da escola', detail:selectedKeys.size ? (highlights.dataset.loaded === 'true' ? 'Nenhum dado para esta semana.' : 'Carregando resumo…') : 'Nenhuma informação automática selecionada.', meta:'', seconds:15 }];
+    if (!items.length) items = [{ key:'empty', heading:'Resumo da semana', title:'Informações da escola', detail:selectedKeys.size ? (highlights.dataset.loaded === 'true' ? 'Nenhum dado para esta semana.' : 'Carregando resumo…') : 'Nenhuma informação automática selecionada.', meta:'', seconds:automaticSeconds }];
     const found = items.findIndex(item => item.key === selected);
     show(found >= 0 ? found : 0);
   }
