@@ -156,6 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('carometro:data-loaded', refresh);
   document.addEventListener('carometro:school-context-ready', refresh);
   document.addEventListener('carometro:permission-refresh', refresh);
+  new MutationObserver(() => { if (!by('app').classList.contains('hidden')) refresh(); })
+    .observe(by('app'), { attributes:true, attributeFilter:['class'] });
   window.addEventListener('focus', refresh);
   window.setInterval(() => { if (!document.hidden) refresh(); }, 5 * 60 * 1000);
   refresh();
