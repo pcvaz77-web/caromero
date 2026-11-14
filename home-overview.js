@@ -19,11 +19,30 @@ document.addEventListener('DOMContentLoaded', () => {
   classCountItem.className = 'home-class-count';
   classCountItem.innerHTML = '<span>Turmas</span>';
   classCountItem.append(classCount);
+  const className = document.createElement('strong');
+  className.className = 'home-selected-class-name hidden';
+  classCountItem.append(className);
   const classCaption = document.createElement('small');
   classCaption.textContent = 'Total de turmas cadastradas';
   classCountItem.append(classCaption);
   studentCard.append(classCountItem);
   classCard.remove();
+
+  const classTitle = document.getElementById('listTitle');
+  const ordinals = ['','Primeiro','Segundo','Terceiro','Quarto','Quinto','Sexto','Sétimo','Oitavo','Nono','Décimo'];
+  function updateSelectedClass() {
+    const selected = classTitle?.textContent.match(/^Alunos\s*[—–-]\s*(.+)$/)?.[1]?.trim();
+    const shorthand = selected?.match(/^(\d{1,2})\s*[º°ª]?\s*([A-Z])$/i);
+    const displayName = shorthand && ordinals[Number(shorthand[1])]
+      ? `${ordinals[Number(shorthand[1])]} ${shorthand[2].toUpperCase()}` : selected;
+    classCountItem.querySelector('span').textContent = selected ? 'Turma' : 'Turmas';
+    classCount.classList.toggle('hidden', !!selected);
+    className.classList.toggle('hidden', !selected);
+    className.textContent = displayName || '';
+    classCaption.textContent = selected ? 'Turma selecionada' : 'Total de turmas cadastradas';
+  }
+  if (classTitle) new MutationObserver(updateSelectedClass).observe(classTitle, { childList:true, characterData:true, subtree:true });
+  updateSelectedClass();
 
   const overview = document.createElement('section');
   overview.className = 'stat home-overview';
