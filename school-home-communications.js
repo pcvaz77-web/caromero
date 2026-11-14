@@ -51,8 +51,8 @@ document.addEventListener('DOMContentLoaded', () => {
     ['new_students', 'Alunos cadastrados na semana'],
     ['classes_without_occurrences', 'Turmas sem ocorrências na semana'],
     ['class_fewest_occurrences', 'Turma com menos ocorrências entre as que registraram'],
-    ['siap_class_low_absences', 'Turma com menor média de faltas no SIAP'],
-    ['siap_class_high_absences', 'Turma com maior média de faltas no SIAP']
+    ['siap_class_low_absences', 'Turma mais frequente (menor média de faltas no SIAP)'],
+    ['siap_class_high_absences', 'Turma mais faltosa (maior média de faltas no SIAP)']
   ];
   const defaultMetricKeys = metricOptions.slice(0, 5).map(([key]) => key);
   let selectedMetricKeys = [...defaultMetricKeys];

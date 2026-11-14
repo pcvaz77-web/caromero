@@ -41,8 +41,8 @@ document.addEventListener('DOMContentLoaded', () => {
       <div data-metric-key="new_students"><span>Alunos cadastrados na semana</span><button type="button" id="homeNewStudents" class="home-highlight-link" disabled>Carregando…</button></div>
       <div data-metric-key="classes_without_occurrences"><span>Turmas sem ocorrências na semana</span><button type="button" id="homeClassesWithoutOccurrences" class="home-highlight-link" disabled>Carregando…</button></div>
       <div data-metric-key="class_fewest_occurrences"><span>Turma com menos ocorrências registradas</span><button type="button" id="homeClassFewestOccurrences" class="home-highlight-link" disabled>Carregando…</button></div>
-      <div data-metric-key="siap_class_low_absences"><span>Turma com menor média de faltas no SIAP</span><button type="button" id="homeClassLowAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
-      <div data-metric-key="siap_class_high_absences"><span>Turma com maior média de faltas no SIAP</span><button type="button" id="homeClassHighAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="siap_class_low_absences"><span>Turma mais frequente no SIAP</span><button type="button" id="homeClassLowAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
+      <div data-metric-key="siap_class_high_absences"><span>Turma mais faltosa no SIAP</span><button type="button" id="homeClassHighAbsences" class="home-highlight-link" disabled>Carregando…</button></div>
     </div>`;
   stats.append(overview);
 
