@@ -29,12 +29,15 @@ document.addEventListener('DOMContentLoaded', () => {
   overview.className = 'stat home-overview';
   overview.setAttribute('aria-label', 'Lembretes e destaques da escola');
   overview.innerHTML = `
-    <div class="home-overview-head"><span>Lembretes da semana</span><button type="button" id="homeAddReminder" class="btn secondary" aria-label="Adicionar lembrete">＋ Adicionar</button></div>
+    <div class="home-overview-head"><span>Lembrete da semana</span></div>
     <div id="homeReminderList" class="home-overview-list"></div>
     <div class="home-overview-highlights">
       <span id="homeOverviewWeekLabel">Atualizações automáticas do Carômetro</span>
-      <div><span>Mais ocorrências na semana do resumo</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
-      <div><span>Mais faltas da última extração do SIAP até segunda-feira</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Aluno com mais ocorrências na semana</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Turma com mais ocorrências na semana</span><button type="button" id="homeClassOccurrenceLeader" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Aluno que recebeu elogio</span><button type="button" id="homePraiseStudent" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Mais faltas da última extração do SIAP</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div><span>Dados da escola</span><button type="button" id="homeSchoolSummary" class="home-highlight-link" disabled>Carregando…</button></div>
     </div>`;
   stats.append(overview);
 
@@ -55,6 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let request = 0;
   let reminders = [];
   let occurrenceLeaderId = null;
+  let classOccurrenceLeaderId = null;
+  let praiseStudentId = null;
   let absenceLeaderId = null;
 
   function weekBounds() {
@@ -90,11 +95,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   async function loadOccurrences(scope, start, end) {
     const counts = new Map();
+    const classCounts = new Map();
+    let praise = null;
     for (let offset = 0; offset < 5000; offset += 1000) {
-      const { data, error } = await db.from('student_occurrences').select('student_id')
+      const { data, error } = await db.from('student_occurrences').select('student_id,class_id,occurrence_text')
         .eq('school_id', scope.school).gte('occurred_on', start).lte('occurred_on', end).range(offset, offset + 999);
       if (error) { if (current(scope)) by('homeOccurrenceLeaders').textContent = 'Sem acesso às ocorrências.'; return; }
-      (data || []).forEach(row => counts.set(row.student_id, (counts.get(row.student_id) || 0) + 1));
+      (data || []).forEach(row => {
+        counts.set(row.student_id, (counts.get(row.student_id) || 0) + 1);
+        if (row.class_id) classCounts.set(row.class_id, (classCounts.get(row.class_id) || 0) + 1);
+        if (!praise && /\belogi(?:o|ado|ada|ar)\b/i.test(row.occurrence_text || '')) praise = row.student_id;
+      });
       if ((data || []).length < 1000) break;
     }
     if (!current(scope)) return;
@@ -102,7 +113,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const leaders = [...counts].filter(([id]) => names.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 3);
     occurrenceLeaderId = leaders[0]?.[0] || null;
     by('homeOccurrenceLeaders').disabled = !occurrenceLeaderId;
-    by('homeOccurrenceLeaders').textContent = leaders.length ? leaders.map(([id, count]) => `${names.get(id)} (${count})`).join(' · ') : 'Nenhuma ocorrência na semana do resumo.';
+    by('homeOccurrenceLeaders').textContent = leaders.length ? `${names.get(leaders[0][0])} · ${leaders[0][1]} ocorrência${leaders[0][1] === 1 ? '' : 's'}` : 'Nenhuma ocorrência na semana do resumo.';
+    const classNames = new Map(classes.map(item => [item.id, item.name]));
+    const classLeader = [...classCounts].filter(([id]) => classNames.has(id)).sort((a, b) => b[1] - a[1])[0];
+    classOccurrenceLeaderId = classLeader?.[0] || null;
+    by('homeClassOccurrenceLeader').disabled = !classLeader;
+    by('homeClassOccurrenceLeader').textContent = classLeader ? `${classNames.get(classLeader[0])} · ${classLeader[1]} ocorrência${classLeader[1] === 1 ? '' : 's'}` : 'Nenhuma turma com ocorrência na semana.';
+    praiseStudentId = praise && names.has(praise) ? praise : null;
+    by('homePraiseStudent').disabled = !praiseStudentId;
+    by('homePraiseStudent').textContent = praiseStudentId ? names.get(praiseStudentId) : 'Nenhum elogio registrado na semana.';
   }
   async function loadAbsences(scope, cutoff) {
     const latestResult = await db.from('siap_bimester_absences')
@@ -136,7 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, request:++request };
     occurrenceLeaderId = null; absenceLeaderId = null;
+    classOccurrenceLeaderId = null; praiseStudentId = null;
     by('homeOccurrenceLeaders').disabled = true;
+    by('homeClassOccurrenceLeader').disabled = true;
+    by('homePraiseStudent').disabled = true;
     by('homeAbsenceLeaders').disabled = true;
     if (!scope.school || !scope.user || by('app').classList.contains('hidden')) {
       reminders = []; renderReminders();
@@ -146,10 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     const week = completedWeek();
     by('homeOverviewWeekLabel').textContent = `Carômetro · semana de ${week.label}`;
+    by('homeSchoolSummary').textContent = `${students.length} alunos · ${classes.length} turmas cadastradas`;
     await Promise.allSettled([loadReminders(scope), loadOccurrences(scope, week.start, week.end), loadAbsences(scope, week.cutoff)]);
   }
 
-  by('homeAddReminder').onclick = () => { by('homeReminderForm').reset(); modal.classList.remove('hidden'); by('homeReminderText').focus(); };
+  // Lembretes novos são publicados em Comunicação, no menu da escola.
   modal.querySelectorAll('[data-home-close]').forEach(button => button.onclick = () => modal.classList.add('hidden'));
   modal.onclick = event => { if (event.target === modal) modal.classList.add('hidden'); };
   by('homeReminderForm').onsubmit = async event => {
@@ -178,6 +201,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const student = students.find(item => item.id === occurrenceLeaderId);
       window.openOccurrenceRecord({ studentId:occurrenceLeaderId, classId:student?.classId });
     } else by('occurrenceNav')?.click();
+  };
+  by('homeClassOccurrenceLeader').onclick = () => {
+    if (classOccurrenceLeaderId) window.selectClass?.(classOccurrenceLeaderId);
+  };
+  by('homePraiseStudent').onclick = () => {
+    if (!praiseStudentId) return;
+    const student = students.find(item => item.id === praiseStudentId);
+    if (typeof window.openOccurrenceRecord === 'function') window.openOccurrenceRecord({ studentId:praiseStudentId, classId:student?.classId });
   };
   by('homeAbsenceLeaders').onclick = () => {
     if (absenceLeaderId) {

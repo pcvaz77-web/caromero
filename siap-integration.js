@@ -158,7 +158,7 @@ document.addEventListener('DOMContentLoaded', () => {
       button.type = 'button';
       button.className = 'btn primary';
       button.textContent = 'Assistente SIAP';
-      greetingRow.insertBefore(button, bell);
+      greetingRow.insertBefore(button, bell.parentElement === greetingRow ? bell : null);
     }
     button.classList.toggle('hidden', !onMainPage);
     button.onclick = () => {
