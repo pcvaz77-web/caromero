@@ -560,6 +560,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // navegação do celular ao atualizar a página.
 document.addEventListener('DOMContentLoaded', () => {
   if (!window.matchMedia('(min-width:801px) and (max-width:1100px)').matches) return;
+  if (document.querySelector('.mobile-topbar')) return;
 
   const side = document.querySelector('.side');
   const logo = side?.querySelector('.logo');
