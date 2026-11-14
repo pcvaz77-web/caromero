@@ -139,6 +139,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (open) { const notice = notices.find(item => item.id === open.dataset.homeNoticeOpen); if (notice) navigate(notice); return; }
     const remove = event.target.closest('[data-home-notice-delete]');
     if (!remove || !syncAccess()) return;
+    if (!window.confirm('Excluir este aviso da escola?')) return;
     remove.disabled = true;
     const { error } = await db.from('school_home_communications').delete()
       .eq('id', remove.dataset.homeNoticeDelete).eq('school_id', schoolId());

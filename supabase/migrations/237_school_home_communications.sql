@@ -3,7 +3,7 @@ begin;
 create table public.school_home_communications (
   id uuid primary key default gen_random_uuid(),
   school_id uuid not null references public.schools(id) on delete cascade,
-  created_by uuid not null references auth.users(id),
+  created_by uuid references auth.users(id) on delete set null,
   title text not null check (length(btrim(title)) between 1 and 160),
   destination_type text not null check (destination_type in ('occurrences', 'students', 'external')),
   destination_url text check (destination_url is null or length(destination_url) <= 2048),
