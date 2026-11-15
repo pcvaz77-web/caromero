@@ -103,7 +103,7 @@
 .platform-announcement-banner[data-theme=image_only][data-has-image=true],.platform-announcement-preview[data-theme=image_only][data-has-image=true]{background-color:transparent;background-image:none;color:#12213a}
 .platform-announcement-banner[data-theme=image_only][data-has-image=true]::before,.platform-announcement-preview[data-theme=image_only][data-has-image=true]::before{content:"";position:absolute;inset:0;z-index:0;background-image:var(--announcement-image);background-position:center;background-size:cover;opacity:1;pointer-events:none}
 .platform-announcement-banner[data-theme=image_only]>*,.platform-announcement-preview[data-theme=image_only]>*{position:relative;z-index:1}
-.platform-announcement-banner[data-theme=image_only][data-has-copy=true] .platform-announcement-banner-copy,.platform-announcement-preview[data-theme=image_only][data-has-copy=true]>div{max-width:min(580px,calc(100% - 50px));padding:12px 16px;border-radius:10px;background:rgba(7,22,52,.78);color:#fff}
+.platform-announcement-banner[data-theme=image_only][data-has-copy=true] .platform-announcement-banner-copy{max-width:min(580px,calc(100% - 50px));background:transparent;color:#fff}
 .platform-announcement-banner[data-theme=image_only][data-has-copy=true] :is(small,strong),.platform-announcement-preview[data-theme=image_only][data-has-copy=true] :is(small,strong){color:#fff;text-shadow:0 1px 2px #0008}
 .platform-announcement-banner[data-theme=image_only] .platform-announcement-dismiss{background:#ffffffba;color:#12213a;border-color:#12213a80}
 .platform-announcement-banner[data-theme=image_only] .platform-announcement-action,.platform-announcement-preview[data-theme=image_only] .platform-announcement-action{background:#ffffffd9;color:#12213a;border-color:#12213a55}
