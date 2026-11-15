@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let notices = [];
   let editingSchoolId = null;
   let visibilitySignature = '';
-  const formatSchedule = (date, time) => `${date || ''}${time ? ` às ${String(time).slice(0, 5)}` : ''}`;
+  const formatSchedule = (date, time) => `${date ? String(date).split('-').reverse().join('/') : ''}${time ? ` às ${String(time).slice(0, 5)}` : ''}`;
   const startsLater = (item, today, time) => item.starts_on > today || (item.starts_on === today && !!item.start_time && item.start_time.slice(0, 5) > time);
   const isPast = (item, today, time) => !!item.ends_on && (item.ends_on < today || (item.ends_on === today && !!item.end_time && item.end_time.slice(0, 5) < time));
   function orderNotices(today, time) {
@@ -77,7 +77,9 @@ document.addEventListener('DOMContentLoaded', () => {
     return [...notices].sort((a, b) => {
       const category = group(a) - group(b);
       if (category) return category;
-      const date = group(a) === 1 ? a.starts_on.localeCompare(b.starts_on) : b.starts_on.localeCompare(a.starts_on);
+      const date = group(a) === 1 ? a.starts_on.localeCompare(b.starts_on)
+        : group(a) === 0 ? (a.ends_on || '9999-12-31').localeCompare(b.ends_on || '9999-12-31') || b.starts_on.localeCompare(a.starts_on)
+        : b.starts_on.localeCompare(a.starts_on);
       return date || (a.start_time || '').localeCompare(b.start_time || '') || a.title.localeCompare(b.title, 'pt-BR');
     });
   }
