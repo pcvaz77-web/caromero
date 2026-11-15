@@ -54,18 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const moveToolbarActions = () => {
     const bell = document.getElementById('notificationBell');
-    if (bell && bell.parentElement !== listTools) listTools.append(bell);
     if (bell && !bell.dataset.homePositioned) {
       bell.dataset.homePositioned = 'true';
       const positionPanel = () => {
         const panel = document.getElementById('notificationPanel');
         if (!panel) return;
-        if (window.innerWidth <= 800) {
-          panel.style.top = '';
-          panel.style.right = '';
-          panel.style.maxHeight = '';
-          return;
-        }
         const bounds = bell.getBoundingClientRect();
         panel.style.top = `${Math.round(bounds.bottom + 8)}px`;
         panel.style.right = `${Math.max(16, Math.round(window.innerWidth - bounds.right))}px`;
@@ -76,11 +69,19 @@ document.addEventListener('DOMContentLoaded', () => {
       window.addEventListener('scroll', positionPanel, true);
     }
     const assistant = document.getElementById('openSiapAssistant');
+    const activities = document.getElementById('teacherActivitySiteLink');
     const mobileTopbar = window.innerWidth <= 1100 ? document.querySelector('.mobile-topbar') : null;
-    const assistantTarget = mobileTopbar || toolbarRight;
-    if (assistant && assistant.parentElement !== assistantTarget) {
-      if (mobileTopbar) mobileTopbar.insertBefore(assistant, mobileTopbar.querySelector('.mobile-brand'));
-      else toolbarRight.append(assistant);
+    let target = toolbarRight;
+    if (mobileTopbar) {
+      target = mobileTopbar.querySelector('.home-reference-mobile-actions');
+      if (!target) {
+        target = document.createElement('div');
+        target.className = 'home-reference-mobile-actions';
+        mobileTopbar.append(target);
+      }
+    }
+    for (const action of [bell, activities, assistant]) {
+      if (action && action.parentElement !== target) target.append(action);
     }
   };
   moveToolbarActions();
