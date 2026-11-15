@@ -3,7 +3,7 @@
   const DISMISSALS = 'platform_in_app_announcement_dismissals';
   const VIDEO_BUCKET = 'platform-announcement-videos';
   const IMAGE_BUCKET = 'siap-announcement-media';
-  let selectedKind = 'notice';
+  let selectedKind = 'campaign';
   const THEMES = {classic:['#138052','#ffffff','#ffffff'],black_friday:['#080e1b','#fff5d4','#d7b65f'],
     teachers:['#123d6b','#ffffff','#e9c768'],public_servant:['#173654','#ffffff','#d9b86b'],
     black_awareness:['#231b12','#fff1cb','#bd8b45'],students:['#165a86','#ffffff','#f3ca66'],
@@ -365,7 +365,7 @@
   function updateOwnerAudience() {
     const label = audienceLabel(selectedOwnerRoles());
     byId('platformAnnouncementPreviewAudience').textContent = `Visível para: ${label}`;
-    byId('platformAnnouncementPublish').textContent = selectedKind === 'campaign' ? 'Publicar campanha' : 'Publicar novidade';
+    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
   }
 
   async function prepareVideo(input) {
@@ -481,14 +481,11 @@
     byId('platformAnnouncementNoticeFields').open = !campaign;
     byId('platformAnnouncementCampaignFields').open = campaign;
     byId('platformAnnouncementOwnerArea').dataset.kind = selectedKind;
-    for (const choice of ['notice','campaign']) {
-      byId(`platformAnnouncementKind-${choice}`).setAttribute('aria-selected',String(selectedKind === choice));
-    }
-    byId('platformAnnouncementEditorHeading').textContent = campaign ? 'Preparar campanha' : 'Preparar novidade';
+    byId('platformAnnouncementEditorHeading').textContent = 'Preparar aviso';
     byId('platformAnnouncementEditorHelp').textContent = campaign
-      ? 'Escolha o tema, a imagem de fundo e a chamada da campanha.'
-      : 'Escreva uma novidade e, se quiser, inclua imagem ou vídeo no comunicado.';
-    byId('platformAnnouncementPublish').textContent = campaign ? 'Publicar campanha' : 'Publicar novidade';
+      ? 'Escreva o aviso e escolha a aparência da faixa.'
+      : 'Rascunho antigo: edite a imagem ou o vídeo antes de publicar.';
+    byId('platformAnnouncementPublish').textContent = 'Publicar aviso';
     renderOwnerPreview();
   }
 
@@ -506,8 +503,7 @@
     byId('platformAnnouncementRemoveVideo').disabled = false;
     ownerStatus('Novo aviso. Salve um rascunho ou publique quando estiver pronto.');
     updateVideoChoice();
-    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).disabled = false;
-    setOwnerKind('notice');
+    setOwnerKind('campaign');
   }
 
   function selectOwnerRow(id) {
@@ -536,7 +532,6 @@
     byId('platformAnnouncementRoleAll').checked = !row.target_roles;
     Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = !!row.target_roles?.includes(role); });
     byId('platformAnnouncementForm').querySelectorAll('input,textarea,select').forEach(field => { field.disabled = row.status !== 'draft'; });
-    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).disabled = row.status !== 'draft';
     byId('platformAnnouncementRemoveThemeImage').disabled = row.status !== 'draft';
     byId('platformAnnouncementRemoveNoticeImage').disabled = row.status !== 'draft';
     byId('platformAnnouncementSave').disabled = row.status !== 'draft';
@@ -552,7 +547,7 @@
     if (!container) return;
     container.innerHTML = ownerRows.length ? ownerRows.map(row => `
       <div class="platform-announcement-row">
-        <div><strong>${escapeHtml(row.title || (row.notice_image_url || row.theme_image_url ? 'Aviso com imagem' : row.message_body || 'Aviso com vídeo'))}</strong><small>${row.communication_kind === 'campaign' ? 'Campanha' : 'Novidade'} · ${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
+        <div><strong>${escapeHtml(row.title || (row.notice_image_url || row.theme_image_url ? 'Aviso com imagem' : row.message_body || 'Aviso com vídeo'))}</strong><small>Aviso · ${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
         <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-delete="${row.id}">Excluir aviso</button>` : ''}</div>
       </div>`).join('') : '<p class="meta">Nenhum aviso criado.</p>';
   }
@@ -683,17 +678,16 @@
     shell.className = 'platform-announcement-shell';
     shell.innerHTML = `
       <div id="platformAnnouncementOwnerArea">
-        <div class="platform-communication-intro"><div><small>COMUNICAÇÃO NO CARÔMETRO</small><h4>Prepare o comunicado para a plataforma</h4><p>Escolha uma novidade ou campanha, confira a prévia e publique. Um comunicado fica no ar por vez.</p></div><span class="platform-communication-intro-mark" aria-hidden="true">✦</span></div>
-        <div class="platform-communication-switch platform-inapp-kind-switch" role="tablist" aria-label="Tipo de comunicação do Carômetro"><button type="button" role="tab" id="platformAnnouncementKind-notice" aria-selected="true"><span aria-hidden="true">✦</span><strong>Novidade</strong><small>Texto, imagem ou vídeo do comunicado</small></button><button type="button" role="tab" id="platformAnnouncementKind-campaign" aria-selected="false"><span aria-hidden="true">◈</span><strong>Campanha</strong><small>Tema, cores e imagem de fundo</small></button></div>
-        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4 id="platformAnnouncementEditorHeading">Preparar novidade</h4><p id="platformAnnouncementEditorHelp">Escreva uma novidade e, se quiser, inclua imagem ou vídeo no comunicado.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
+        <div class="platform-communication-intro"><div><small>COMUNICAÇÃO NO CARÔMETRO</small><h4>Prepare o comunicado para a plataforma</h4><p>Escreva o aviso, confira a prévia e publique. Um comunicado fica no ar por vez.</p></div><span class="platform-communication-intro-mark" aria-hidden="true">✦</span></div>
+        <div class="platform-announcement-owner-grid"><section class="platform-panel"><div class="platform-panel-head"><div><h4 id="platformAnnouncementEditorHeading">Preparar aviso</h4><p id="platformAnnouncementEditorHelp">Escreva o aviso e escolha a aparência da faixa.</p></div><button type="button" id="platformAnnouncementNew" class="btn secondary">Novo aviso</button></div>
           <form id="platformAnnouncementForm" class="platform-announcement-form">
             <div class="platform-compose-step"><span>01</span><div><strong>Mensagem</strong><small>O conteúdo principal que as pessoas verão.</small></div></div>
             <div class="field"><label for="platformAnnouncementTitle">Título (opcional)</label><input id="platformAnnouncementTitle" maxlength="120" placeholder="Ex.: Novidade no Carômetro"></div>
             <div class="field"><label for="platformAnnouncementMessage">Mensagem (opcional)</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
-            <div class="field platform-announcement-ticker-field"><label for="platformAnnouncementTickerText">Letreiro na base da faixa (opcional)</label><input id="platformAnnouncementTickerText" maxlength="180" placeholder="Ex.: Inscrições abertas para o ENEM 2026"><small>O texto passa em linha contínua da direita para a esquerda. Funciona em Novidade e Campanha.</small><div class="platform-announcement-ticker-colors"><div><label for="platformAnnouncementTickerColor">Cor da letra</label><input id="platformAnnouncementTickerColor" type="color" value="#ffffff"></div><div><label for="platformAnnouncementTickerBackground">Cor do fundo</label><input id="platformAnnouncementTickerBackground" type="color" value="#071a36"></div></div></div>
+            <div class="field platform-announcement-ticker-field"><label for="platformAnnouncementTickerText">Letreiro na base da faixa (opcional)</label><input id="platformAnnouncementTickerText" maxlength="180" placeholder="Ex.: Inscrições abertas para o ENEM 2026"><small>O texto passa em linha contínua da direita para a esquerda.</small><div class="platform-announcement-ticker-colors"><div><label for="platformAnnouncementTickerColor">Cor da letra</label><input id="platformAnnouncementTickerColor" type="color" value="#ffffff"></div><div><label for="platformAnnouncementTickerBackground">Cor do fundo</label><input id="platformAnnouncementTickerBackground" type="color" value="#071a36"></div></div></div>
             <div class="platform-compose-step"><span>02</span><div><strong>Público</strong><small>Escolha quem receberá este aviso.</small></div></div>
             <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
-            <details id="platformAnnouncementCampaignFields" class="platform-communication-details hidden"><summary><span><strong>Tema da campanha</strong><small>Data comemorativa e imagem de fundo da faixa.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
+            <details id="platformAnnouncementCampaignFields" class="platform-communication-details hidden"><summary><span><strong>Aparência da faixa</strong><small>Tema e imagem de fundo do aviso.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
               <div class="field"><label for="platformAnnouncementTheme">Aparência da faixa</label><select id="platformAnnouncementTheme"><option value="classic">Padrão</option><option value="image_only">Somente imagem (sem cor)</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></div>
               <div class="field"><label for="platformAnnouncementThemeImage">Imagem de fundo (link HTTPS, opcional)</label><input id="platformAnnouncementThemeImage" type="url" maxlength="2048" placeholder="https://..."></div>
               <div class="field"><label for="platformAnnouncementThemeFile">Ou enviar imagem de fundo</label><input id="platformAnnouncementThemeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG ou WebP até 10 MB. O texto permanece por cima da imagem.</small><button type="button" id="platformAnnouncementRemoveThemeImage" class="link hidden">Remover imagem de fundo</button></div>
@@ -732,7 +726,6 @@
         if (width && width !== previousWidth) { previousWidth = width; syncOwnerPreviewSize(); }
       }).observe(byId('platformAnnouncementPreviewFrame'));
     }
-    for (const choice of ['notice','campaign']) byId(`platformAnnouncementKind-${choice}`).onclick = () => setOwnerKind(choice);
     byId('platformAnnouncementTheme').addEventListener('change', () => {
       const [background,foreground,button] = THEMES[byId('platformAnnouncementTheme').value] || THEMES.classic;
       byId('platformAnnouncementThemeColor').value = background;
@@ -792,7 +785,7 @@
       if (preview) selectOwnerRow(preview.dataset.preview);
       if (remove) deletePublished(remove.dataset.delete);
     };
-    setOwnerKind('notice');
+    setOwnerKind('campaign');
   }
 
   window.openPlatformCommunications = async () => {
