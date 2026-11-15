@@ -519,9 +519,9 @@ body #app .home-reference-hero .home-overview-notice { cursor:pointer; }
 body #app .home-reference-hero .home-overview-notice:focus-visible { outline:3px solid #416fc5;outline-offset:3px; }
 body #app .home-reference-hero .home-overview-student::before { opacity:0!important; }
 body #app .home-reference-hero .home-overview-student-photo {
-  position:absolute;left:21px;top:50%;z-index:2;transform:translateY(-50%);
-  display:grid;place-items:center;width:50px;height:50px;overflow:hidden;
-  border-radius:12px;background:#4c79bc;color:#fff;font-size:17px;font-weight:800;
+  position:absolute;left:19px;top:50%;z-index:2;transform:translateY(-50%);
+  display:grid;place-items:center;width:60px;height:60px;overflow:hidden;
+  border-radius:13px;background:#4c79bc;color:#fff;font-size:18px;font-weight:800;
   box-shadow:0 5px 12px #355d9c30;
 }
 body #app .home-reference-hero .home-overview-student-photo img { width:100%;height:100%;object-fit:cover; }
@@ -585,4 +585,25 @@ body #app .home-reference-toolbar-right #notificationBell:not(.hidden),
 body #app .home-reference-mobile-actions #notificationBell:not(.hidden) {
   position:absolute!important;top:0!important;right:0!important;bottom:auto!important;left:auto!important;
   margin:0!important;
+}
+/* Identidade do painel semanal: texto claro à esquerda, ilustração discreta à direita. */
+body #app .home-reference-hero .stats > .home-overview.home-overview-notice {
+  border-color:#e5c366!important;
+  background:url("media/panels/reminder-warning-watermark.svg") right 15px center/128px 128px no-repeat,
+    linear-gradient(90deg,#fff8de 0%,#ffecab 58%,#f8d456 82%,#ecb614 100%)!important;
+}
+body #app .home-reference-hero .stats > .home-overview.home-overview-notice::before {
+  border:2px solid #fff7dc;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='5' y='7' width='22' height='21' rx='2'/%3E%3Cpath d='M10 4v6M22 4v6M5 13h22M10 18h3M18 18h3M10 23h3M18 23h3'/%3E%3C/svg%3E"),linear-gradient(150deg,#d99800,#a96d00)!important;
+  box-shadow:0 5px 12px #92600830!important;
+}
+body #app .home-reference-hero .stats > .home-overview:not(.home-overview-notice) {
+  background:url("media/panels/weekly-report-watermark.svg") right 17px center/126px 132px no-repeat,
+    linear-gradient(90deg,#f2f7fe 0%,#e4eefb 58%,#aac7eb 81%,#416fae 100%)!important;
+}
+body #app .home-reference-hero .home-overview-student .home-reference-slide-secondary {
+  font-weight:800!important;
+}
+body #app .home-reference-hero .home-overview-student .home-reference-slide-content small {
+  color:#405b80!important;font-size:12px!important;font-weight:750!important;
 }
