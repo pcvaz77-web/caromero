@@ -479,7 +479,7 @@
     byId('platformAnnouncementNoticeFields').classList.toggle('hidden', campaign);
     byId('platformAnnouncementCampaignFields').classList.toggle('hidden', !campaign);
     byId('platformAnnouncementNoticeFields').open = !campaign;
-    byId('platformAnnouncementCampaignFields').open = campaign;
+    if (!campaign) byId('platformAnnouncementCampaignFields').open = false;
     byId('platformAnnouncementOwnerArea').dataset.kind = selectedKind;
     byId('platformAnnouncementEditorHeading').textContent = 'Preparar aviso';
     byId('platformAnnouncementEditorHelp').textContent = campaign
@@ -494,7 +494,9 @@
     selectedVideoPath = null;
     videoChoiceVersion++;
     byId('platformAnnouncementForm').reset();
-    byId('platformAnnouncementForm').querySelectorAll('input,textarea').forEach(field => { field.disabled = false; });
+    byId('platformAnnouncementForm').querySelectorAll('input,textarea,select').forEach(field => { field.disabled = false; });
+    byId('platformAnnouncementCampaignFields').open = false;
+    byId('platformAnnouncementColorDetails').open = false;
     byId('platformAnnouncementRemoveThemeImage').disabled = false;
     byId('platformAnnouncementRemoveNoticeImage').disabled = false;
     byId('platformAnnouncementSave').disabled = false;
@@ -509,8 +511,10 @@
   function selectOwnerRow(id) {
     const row = ownerRows.find(item => item.id === id);
     if (!row) return;
+    const publishedCopy = row.status === 'published' && row.communication_kind === 'campaign';
+    const editable = row.status === 'draft' || publishedCopy;
     selectedId = row.status === 'draft' ? id : null;
-    selectedVideoPath = row.video_storage_path || null;
+    selectedVideoPath = publishedCopy ? null : row.video_storage_path || null;
     videoChoiceVersion++;
     byId('platformAnnouncementTitle').value = row.title;
     byId('platformAnnouncementMessage').value = row.message_body;
@@ -531,14 +535,21 @@
     byId('platformAnnouncementVideoFile').value = '';
     byId('platformAnnouncementRoleAll').checked = !row.target_roles;
     Object.keys(ROLE_LABELS).forEach(role => { byId(`platformAnnouncementRole-${role}`).checked = !!row.target_roles?.includes(role); });
-    byId('platformAnnouncementForm').querySelectorAll('input,textarea,select').forEach(field => { field.disabled = row.status !== 'draft'; });
-    byId('platformAnnouncementRemoveThemeImage').disabled = row.status !== 'draft';
-    byId('platformAnnouncementRemoveNoticeImage').disabled = row.status !== 'draft';
-    byId('platformAnnouncementSave').disabled = row.status !== 'draft';
-    byId('platformAnnouncementPublish').disabled = row.status !== 'draft';
+    byId('platformAnnouncementForm').querySelectorAll('input,textarea,select').forEach(field => { field.disabled = !editable; });
+    byId('platformAnnouncementRemoveThemeImage').disabled = !editable;
+    byId('platformAnnouncementRemoveNoticeImage').disabled = !editable;
+    byId('platformAnnouncementSave').disabled = !editable;
+    byId('platformAnnouncementPublish').disabled = !editable;
     setOwnerKind(row.communication_kind || (row.theme_image_url ? 'campaign' : 'notice'));
-    ownerStatus(row.status === 'draft' ? 'Rascunho carregado para edição.' : 'Prévia do aviso. Clique em Novo aviso para escrever outro.');
-    byId('platformAnnouncementRemoveVideo').disabled = row.status !== 'draft';
+    if (publishedCopy) {
+      byId('platformAnnouncementEditorHeading').textContent = 'Editar a partir do aviso atual';
+      byId('platformAnnouncementEditorHelp').textContent = 'O aviso publicado permanece até você publicar a nova versão.';
+    } else if (row.status !== 'draft') {
+      byId('platformAnnouncementEditorHeading').textContent = 'Visualizando aviso publicado';
+      byId('platformAnnouncementEditorHelp').textContent = 'Para criar outro aviso, clique em Novo aviso.';
+    }
+    ownerStatus(row.status === 'draft' ? 'Rascunho carregado para edição.' : publishedCopy ? 'Ajuste esta cópia. O aviso atual só será substituído quando você publicar.' : 'Prévia do aviso. Clique em Novo aviso para escrever outro.');
+    byId('platformAnnouncementRemoveVideo').disabled = !editable;
     updateVideoChoice();
   }
 
@@ -548,7 +559,7 @@
     container.innerHTML = ownerRows.length ? ownerRows.map(row => `
       <div class="platform-announcement-row">
         <div><strong>${escapeHtml(row.title || (row.notice_image_url || row.theme_image_url ? 'Aviso com imagem' : row.message_body || 'Aviso com vídeo'))}</strong><small>Aviso · ${row.status === 'published' ? 'Publicado' : 'Rascunho'} · ${escapeHtml(audienceLabel(row.target_roles))} · ${new Date(row.published_at || row.created_at).toLocaleString('pt-BR')}</small></div>
-        <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-delete="${row.id}">Excluir aviso</button>` : ''}</div>
+        <div class="platform-announcement-row-actions"><button type="button" class="btn secondary" data-preview="${row.id}">${row.status === 'draft' ? 'Editar' : row.communication_kind === 'campaign' ? 'Editar cópia' : 'Ver'}</button>${row.status === 'published' ? `<button type="button" class="btn secondary" data-delete="${row.id}">Excluir aviso</button>` : ''}</div>
       </div>`).join('') : '<p class="meta">Nenhum aviso criado.</p>';
   }
 
@@ -684,11 +695,8 @@
             <div class="platform-compose-step"><span>01</span><div><strong>Mensagem</strong><small>O conteúdo principal que as pessoas verão.</small></div></div>
             <div class="field"><label for="platformAnnouncementTitle">Título (opcional)</label><input id="platformAnnouncementTitle" maxlength="120" placeholder="Ex.: Novidade no Carômetro"></div>
             <div class="field"><label for="platformAnnouncementMessage">Mensagem (opcional)</label><textarea id="platformAnnouncementMessage" maxlength="2000" rows="5" placeholder="Escreva a informação que aparecerá para os perfis escolhidos."></textarea></div>
-            <div class="field platform-announcement-ticker-field"><label for="platformAnnouncementTickerText">Letreiro na base da faixa (opcional)</label><input id="platformAnnouncementTickerText" maxlength="180" placeholder="Ex.: Inscrições abertas para o ENEM 2026"><small>O texto passa em linha contínua da direita para a esquerda.</small><div class="platform-announcement-ticker-colors"><div><label for="platformAnnouncementTickerColor">Cor da letra</label><input id="platformAnnouncementTickerColor" type="color" value="#ffffff"></div><div><label for="platformAnnouncementTickerBackground">Cor do fundo</label><input id="platformAnnouncementTickerBackground" type="color" value="#071a36"></div></div></div>
-            <div class="platform-compose-step"><span>02</span><div><strong>Público</strong><small>Escolha quem receberá este aviso.</small></div></div>
-            <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
             <details id="platformAnnouncementCampaignFields" class="platform-communication-details hidden"><summary><span><strong>Aparência da faixa</strong><small>Tema e imagem de fundo do aviso.</small></span></summary><div class="platform-communication-details-body platform-announcement-theme-fields">
-              <div class="field"><label for="platformAnnouncementTheme">Aparência da faixa</label><select id="platformAnnouncementTheme"><option value="classic">Padrão</option><option value="image_only">Somente imagem (sem cor)</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></div>
+              <div class="field"><label for="platformAnnouncementTheme">Tema</label><select id="platformAnnouncementTheme"><option value="classic">Padrão</option><option value="image_only">Somente imagem (sem cor)</option><option value="black_friday">Black Friday</option><option value="teachers">Dia dos Professores</option><option value="public_servant">Dia do Servidor Público</option><option value="black_awareness">Consciência Negra</option><option value="students">Dia do Estudante</option><option value="september_yellow">Setembro Amarelo</option><option value="christmas">Natal</option><option value="new_year">Ano Novo</option><option value="custom">Personalizado</option></select></div>
               <div class="field"><label for="platformAnnouncementThemeImage">Imagem de fundo (link HTTPS, opcional)</label><input id="platformAnnouncementThemeImage" type="url" maxlength="2048" placeholder="https://..."></div>
               <div class="field"><label for="platformAnnouncementThemeFile">Ou enviar imagem de fundo</label><input id="platformAnnouncementThemeFile" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG ou WebP até 10 MB. O texto permanece por cima da imagem.</small><button type="button" id="platformAnnouncementRemoveThemeImage" class="link hidden">Remover imagem de fundo</button></div>
             </div></details>
@@ -707,6 +715,11 @@
             <div class="field"><label for="platformAnnouncementLinkLabel">Nome do botão (opcional)</label><input id="platformAnnouncementLinkLabel" maxlength="60" placeholder="Ex.: Ver planos"></div>
             <div class="field"><label for="platformAnnouncementLinkUrl">Link do botão (opcional)</label><input id="platformAnnouncementLinkUrl" type="url" maxlength="2048" placeholder="https://..."></div>
             </div></details>
+            <details class="platform-communication-details"><summary><span><strong>Letreiro opcional</strong><small>Uma frase que passa na base da faixa.</small></span></summary><div class="platform-communication-details-body">
+            <div class="field platform-announcement-ticker-field"><label for="platformAnnouncementTickerText">Texto do letreiro</label><input id="platformAnnouncementTickerText" maxlength="180" placeholder="Ex.: Inscrições abertas para o ENEM 2026"><small>O texto passa em linha contínua da direita para a esquerda.</small><div class="platform-announcement-ticker-colors"><div><label for="platformAnnouncementTickerColor">Cor da letra</label><input id="platformAnnouncementTickerColor" type="color" value="#ffffff"></div><div><label for="platformAnnouncementTickerBackground">Cor do fundo</label><input id="platformAnnouncementTickerBackground" type="color" value="#071a36"></div></div></div>
+            </div></details>
+            <div class="platform-compose-step"><span>02</span><div><strong>Público</strong><small>Escolha quem receberá este aviso.</small></div></div>
+            <fieldset class="platform-announcement-roles"><legend>Quem verá a mensagem?</legend><div class="platform-announcement-role-options"><label><input type="checkbox" id="platformAnnouncementRoleAll" checked> Todos</label>${Object.entries(ROLE_LABELS).map(([role, label]) => `<label><input type="checkbox" id="platformAnnouncementRole-${role}" value="${role}"> ${label}</label>`).join('')}</div><small>Você pode escolher mais de um perfil. A seleção considera os vínculos ativos da pessoa nas escolas.</small></fieldset>
             <div class="platform-compose-step"><span>03</span><div><strong>Revise e publique</strong><small>Veja a prévia ao lado antes de publicar.</small></div></div>
             <div class="platform-announcement-actions"><button type="submit" id="platformAnnouncementSave" class="btn secondary">Salvar rascunho</button><button type="button" id="platformAnnouncementPublish" class="btn primary">Publicar aviso</button></div>
             <p id="platformAnnouncementStatus" class="meta" role="status">Prepare seu aviso.</p>
