@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const items = {
     platformNav: ['home', 'Plataforma'],
     reportsNav: ['chart', 'Relatórios'],
+    schoolCalendar2027Nav: ['calendar', 'Calendário Escolar'],
     permissionsNav: ['lock', 'Permissões'],
     inviteNav: ['mail', 'Convites'],
     schoolInvitationsNav: ['mail', 'Convites'],
