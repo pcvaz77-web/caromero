@@ -539,11 +539,12 @@ body .home-reminder-viewer-item button { justify-self:start;margin-top:3px;paddi
   body #app .home-reference-toolbar { transform:translateY(-5px); }
   body #app .home-reference-hero .welcome-notification-row { align-items:flex-start!important;padding-top:0!important; }
 }
-/* Sino, Atividades e Assistente na mesma linha, sobre as ações principais. */
+/* Atividades e Assistente juntos à esquerda; notificações no canto direito. */
 @media(min-width:1101px) {
   body #app .home-reference-toolbar-right {
-    flex:0 0 420px;width:420px;justify-content:space-between;
+    flex:0 0 420px;width:420px;justify-content:flex-start;gap:10px;
   }
+  body #app .home-reference-toolbar-right #notificationBell:not(.hidden) { margin-left:auto!important; }
 }
 body #app .home-reference-toolbar #openSiapAssistant:not(.hidden),
 body #app .home-reference-toolbar #teacherActivitySiteLink:not(.hidden),
@@ -575,4 +576,5 @@ body #app .mobile-topbar #notificationUnreadCount { position:absolute;top:-5px;r
     display:flex;align-items:center;justify-content:flex-end;gap:8px;
     flex:1 0 100%;width:100%;min-width:0;
   }
+  body #app .home-reference-mobile-actions #notificationBell:not(.hidden) { margin-left:clamp(16px,5vw,36px)!important; }
 }
