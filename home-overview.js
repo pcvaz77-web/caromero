@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     <div id="homeReminderList" class="home-overview-list"></div>
     <div class="home-overview-highlights">
       <span id="homeOverviewWeekLabel">Atualizações automáticas do Carômetro</span>
-      <div data-metric-key="student_occurrences"><span>Aluno com mais ocorrências na semana</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
+      <div data-metric-key="student_occurrences"><span>Aluno com mais ocorrências</span><button type="button" id="homeOccurrenceLeaders" class="home-highlight-link">Carregando…</button></div>
       <div data-metric-key="class_occurrences"><span>Turma com mais ocorrências na semana</span><button type="button" id="homeClassOccurrenceLeader" class="home-highlight-link">Carregando…</button></div>
       <div data-metric-key="praise_student"><span>Aluno que recebeu elogio</span><button type="button" id="homePraiseStudent" class="home-highlight-link">Carregando…</button></div>
       <div data-metric-key="siap_student_absences"><span>Mais faltas da última extração do SIAP</span><button type="button" id="homeAbsenceLeaders" class="home-highlight-link">Carregando…</button></div>

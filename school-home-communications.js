@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const schoolId = () => window.getActiveSchoolId?.();
   const canPublish = () => ['school_admin', 'coordinator'].includes(window.getActiveSchoolRole?.());
   const metricOptions = [
-    ['student_occurrences', 'Aluno com mais ocorrências na semana'],
+    ['student_occurrences', 'Aluno com mais ocorrências'],
     ['class_occurrences', 'Turma com mais ocorrências na semana'],
     ['praise_student', 'Aluno elogiado na semana'],
     ['siap_student_absences', 'Aluno com mais faltas na última extração do SIAP'],
