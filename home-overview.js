@@ -84,6 +84,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let absenceLeaderId = null;
   let classLowAbsenceId = null;
   let classHighAbsenceId = null;
+  const leaderPhotoCache = new Map();
+  async function showLeaderPhoto(scope, student, row) {
+    if (!student?.photoPath || student.photoUrl) return;
+    const cached = leaderPhotoCache.get(student.photoPath);
+    if (cached?.expiresAt > Date.now()) { row.dataset.photoUrl = cached.url; return; }
+    const { data } = await db.storage.from('student-photos').createSignedUrl(student.photoPath, 3600);
+    if (!current(scope) || occurrenceLeaderId !== student.id || !data?.signedUrl) return;
+    student.photoUrl = data.signedUrl;
+    leaderPhotoCache.set(student.photoPath, { url:data.signedUrl, expiresAt:Date.now() + 55 * 60 * 1000 });
+    row.dataset.photoUrl = data.signedUrl;
+  }
   const markReady = (id, ready, secondary = '') => {
     const row = by(id).closest('[data-metric-key]');
     row.dataset.ready = ready ? 'true' : 'false';
@@ -144,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const occurrenceRow = by('homeOccurrenceLeaders').closest('[data-metric-key]');
     occurrenceRow.dataset.photoUrl = occurrenceLeader?.photoUrl || '';
     occurrenceRow.dataset.className = occurrenceLeader?.className || '';
+    void showLeaderPhoto(scope, occurrenceLeader, occurrenceRow);
     by('homeOccurrenceLeaders').disabled = !occurrenceLeaderId;
     markReady('homeOccurrenceLeaders', !!occurrenceLeaderId);
     by('homeOccurrenceLeaders').textContent = leaders.length ? `${names.get(leaders[0][0])} · ${leaders[0][1]} ocorrência${leaders[0][1] === 1 ? '' : 's'}` : 'Nenhuma ocorrência na semana do resumo.';
