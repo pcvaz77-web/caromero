@@ -1,6 +1,14 @@
 // Ajuda contextual: o menu reproduz somente as opções visíveis ao usuário.
 (() => {
   const help = {
+    classPanelButton: ['Painel da turma', 'Escolha uma turma no menu lateral e abra o Painel da turma. Selecione uma das ferramentas ao lado para ver como usá-la. As ferramentas disponíveis dependem do seu perfil.'],
+    classroomMapAction: ['Mapeamento', 'Abra o Painel da turma e escolha Editar mapeamento ou Ver mapeamento. Quem pode editar organiza os alunos nas carteiras, salva um rascunho e publica a versão para os professores. A versão publicada pode ser consultada e, quando permitido, impressa.'],
+    openSiapGrades: ['Extrair notas do SIAP', 'No Painel da turma, abra Extrair notas do SIAP. Na página autenticada do SIAP, selecione a turma, a disciplina e o bimestre. Capture os dados, confira a prévia e confirme a importação para os cards dos alunos.'],
+    openSiapAbsences: ['Extrair faltas do SIAP', 'No Painel da turma, abra Extrair faltas do SIAP. Capture a tela de notas da turma no SIAP, confira os nomes e as faltas na prévia e marque somente os alunos corretos antes de importar.'],
+    classExamAction: ['Provas da turma', 'Abra Provas da turma para criar provas mensais ou bimestrais. Escolha o tipo, a disciplina e as questões; revise antes de finalizar. Depois, você pode imprimir a prova e o gabarito.'],
+    openAttendanceSettings: ['Configurar frequência', 'Defina os limites percentuais usados para classificar os alunos como frequentes, faltosos ou em busca ativa. Confira os valores antes de salvar para a escola.'],
+    openSiapImportManager: ['Gerenciar capturas do SIAP', 'Consulte as importações da turma por disciplina e bimestre. Ao limpar uma captura, os dados importados saem dos cards e das etiquetas; confira a seleção antes de confirmar.'],
+    classroomInstallAction: ['Instalar extensão de frequência', 'Use o link no Painel da turma para instalar ou atualizar a extensão de leitura de frequência. Depois, abra o SIAP e siga o fluxo de captura da turma.'],
     regularExamNav: ['Correção de provas', 'Abra a avaliação no SIAP e escolha a turma e a disciplina. Na extensão, conecte o celular pelo QR Code, leia o gabarito e fotografe os cartões. Confira nomes e respostas antes de enviar os resultados e salvar no SIAP. As provas de bloco do CEPI ficam em Meu CEPI.'],
     cepiNav: ['Meu CEPI', 'Acesse os recursos do CEPI disponíveis para sua escola, como provas, acompanhamento e registros pedagógicos. As opções exibidas dependem das suas permissões.'],
     schoolCalendar2027Nav: ['Calendário Escolar', 'Consulte os meses do calendário escolar e passe o mouse ou toque em uma data para ver a indicação daquele dia.'],
@@ -21,9 +29,17 @@
     contactNav: ['Suporte', 'Abra os canais de contato para pedir ajuda sobre o Carômetro.'],
     communicationPreferencesNav: ['Notificações', 'Escolha quais comunicações e notificações deseja receber.'],
     bulkSchoolImportNav: ['Importação de escolas', 'Importe os dados usando o formato solicitado na tela e confira a prévia antes de confirmar.'],
-    familySchoolNav: ['Portal da Família', 'Consulte as opções do Portal da Família disponíveis para sua escola, como convites e registros de entrada.'],
-    platformNav: ['Plataforma', 'Acesse o painel do proprietário para administrar escolas, planos, comunicações e tutoriais.']
+    familySchoolNav: ['Portal da Família', 'Consulte as opções do Portal da Família disponíveis para sua escola, como convites e registros de entrada.']
   };
+  const panelTopics = [
+    ['classroomMapAction', () => true],
+    ['openSiapGrades', context => !!window.getSiapGradePanelAction?.(context)],
+    ['openSiapAbsences', context => !!window.getSiapAbsencePanelAction?.(context)],
+    ['classExamAction', context => !!window.getClassExamPanelAction?.(context)],
+    ['openAttendanceSettings', context => !!window.getAssistedAttendancePanelAction?.(context)],
+    ['openSiapImportManager', context => !!window.getSiapImportManagerAction?.(context)],
+    ['classroomInstallAction', context => !!window.getAttendanceCaptureInstallPanelAction?.(context)]
+  ];
   window.carometroHowToCatalog = help;
   const validUrl = url => /^https:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//i.test(url || '');
   const validColor = color => /^#[0-9a-f]{6}$/i.test(color || '');
@@ -38,20 +54,20 @@
   }
 
   function visibleEntries() {
-    return [...document.querySelectorAll('#app .side .nav > button')]
+    const entries = [...document.querySelectorAll('#app .side .nav > button')]
       .filter(button => button.id !== 'howToNav' && help[button.id] && !button.hidden && !button.classList.contains('hidden') && button.getAttribute('aria-hidden') !== 'true' && getComputedStyle(button).display !== 'none')
       .map(button => [button.id, help[button.id]]);
+    const panelButton = document.getElementById('classPanelButton');
+    const role = window.getActiveSchoolRole?.();
+    const canSeePanel = panelButton && (!panelButton.classList.contains('hidden') || permission?.role === 'admin' || permission?.is_coordinator || permission?.can_view_class_summary || role === 'teacher' || role === 'school_admin');
+    if (canSeePanel) entries.unshift(['classPanelButton', help.classPanelButton]);
+    return entries;
   }
 
-  function choose(key) {
+  function showTopic(key) {
     const modal = document.getElementById('howToModal');
     const entry = help[key];
     if (!modal || !entry) return;
-    modal.querySelectorAll('[data-how-to-key]').forEach(button => {
-      const selected = button.dataset.howToKey === key;
-      button.classList.toggle('active', selected);
-      button.setAttribute('aria-current', selected ? 'page' : 'false');
-    });
     modal.querySelector('#howToTitle').textContent = entry[0];
     modal.querySelector('#howToText').textContent = entry[1];
     const link = modal.querySelector('#howToVideo');
@@ -66,6 +82,47 @@
       link.hidden = true;
     }
     modal.querySelector('#howToVideoPending').hidden = !link.hidden;
+  }
+
+  function panelContext() {
+    return { classId:selectedClassId || classes?.[0]?.id, permission };
+  }
+
+  function choosePanelTopic(key) {
+    const modal = document.getElementById('howToModal');
+    modal.querySelectorAll('[data-how-to-topic]').forEach(button => {
+      const selected = button.dataset.howToTopic === key;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-current', selected ? 'page' : 'false');
+    });
+    showTopic(key);
+  }
+
+  function choose(key) {
+    const modal = document.getElementById('howToModal');
+    if (!modal || !help[key]) return;
+    modal.querySelectorAll('[data-how-to-key]').forEach(button => {
+      const selected = button.dataset.howToKey === key;
+      button.classList.toggle('active', selected);
+      button.setAttribute('aria-current', selected ? 'page' : 'false');
+    });
+    const panel = modal.querySelector('#howToPanelTopics');
+    const panelMode = key === 'classPanelButton';
+    modal.querySelector('.how-to-content').classList.toggle('panel-mode', panelMode);
+    panel.hidden = !panelMode;
+    panel.replaceChildren();
+    if (panelMode) {
+      const context = panelContext();
+      panelTopics.filter(([, available]) => available(context)).forEach(([topic]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.dataset.howToTopic = topic;
+        button.textContent = help[topic][0];
+        button.onclick = () => choosePanelTopic(topic);
+        panel.append(button);
+      });
+    }
+    showTopic(key);
   }
 
   function close() {
@@ -93,7 +150,11 @@
     list.querySelector('button')?.focus();
     await loadTutorials();
     const selected = list.querySelector('.active')?.dataset.howToKey;
-    if (!modal.classList.contains('hidden') && selected) choose(selected);
+    const selectedTopic = modal.querySelector('#howToPanelTopics .active')?.dataset.howToTopic;
+    if (!modal.classList.contains('hidden') && selected) {
+      choose(selected);
+      if (selectedTopic) choosePanelTopic(selectedTopic);
+    }
   }
 
   async function openOwner() {
@@ -169,7 +230,7 @@
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'howToHeading');
-    modal.innerHTML = '<div class="how-to-dialog"><header class="how-to-head"><div><h2 id="howToHeading">Como Usar</h2><p>Escolha uma função para ler as orientações.</p></div><button id="howToClose" type="button" aria-label="Fechar">×</button></header><div class="how-to-body"><nav id="howToList" aria-label="Funções disponíveis"></nav><article class="how-to-content"><h3 id="howToTitle"></h3><p id="howToText"></p><a id="howToVideo" target="_blank" rel="noopener noreferrer" hidden>Ver tutorial</a><p id="howToVideoPending" class="how-to-pending">O vídeo desta função ainda não foi cadastrado.</p></article></div></div>';
+    modal.innerHTML = '<div class="how-to-dialog"><header class="how-to-head"><div><h2 id="howToHeading">Como Usar</h2><p>Escolha uma função para ler as orientações.</p></div><button id="howToClose" type="button" aria-label="Fechar">×</button></header><div class="how-to-body"><nav id="howToList" aria-label="Funções disponíveis"></nav><article class="how-to-content"><nav id="howToPanelTopics" aria-label="Ferramentas do Painel da turma" hidden></nav><div class="how-to-detail"><h3 id="howToTitle"></h3><p id="howToText"></p><a id="howToVideo" target="_blank" rel="noopener noreferrer" hidden>Ver tutorial</a><p id="howToVideoPending" class="how-to-pending">O vídeo desta função ainda não foi cadastrado.</p></div></article></div></div>';
     document.body.append(modal);
     modal.querySelector('#howToClose').onclick = close;
     modal.onclick = event => { if (event.target === modal) close(); };
