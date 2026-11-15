@@ -78,6 +78,7 @@
             <button type="button" data-platform-page="subscriptions"><span class="platform-nav-icon">▣</span>Assinaturas</button>
             <button type="button" data-platform-page="siap"><span class="platform-nav-icon">✦</span>Assistente SIAP</button>
             <button type="button" data-platform-page="communications"><span class="platform-nav-icon">✉</span>Comunicações</button>
+            <button type="button" data-platform-page="tutorials"><span class="platform-nav-icon">▶</span>Tutoriais</button>
             <button type="button" data-platform-page="plans"><span class="platform-nav-icon">☆</span>Planos</button>
             <button type="button" data-platform-page="contacts"><span class="platform-nav-icon">♧</span>Responsáveis</button>
             <button type="button" data-platform-page="audit"><span class="platform-nav-icon">◷</span>Auditoria</button>
@@ -166,6 +167,7 @@
             <section class="platform-page" data-platform-section="communications">
               <div id="platformCommunicationsRoot"></div>
             </section>
+            <section class="platform-page" data-platform-section="tutorials"><div id="platformTutorialsRoot"></div></section>
             <section class="platform-page" data-platform-section="plans"><div class="platform-page-heading"><div><h3>Planos</h3><p>Catálogo comercial configurado no banco.</p></div><div class="platform-sales-actions"><button id="platformPreviewPublicPlans" class="btn primary platform-sales-preview-button" type="button"><span aria-hidden="true">↗</span>Visualizar página de vendas</button><button id="platformCopyPublicPlansLink" class="btn secondary platform-copy-sales-link" type="button"><span aria-hidden="true">⧉</span>Copiar link</button></div></div><div id="platformPlansList" class="platform-plans-list"></div></section>
             <section class="platform-page" data-platform-section="contacts"><div class="platform-page-heading"><div><h3>Responsáveis pela assinatura</h3><p>Contatos comerciais independentes dos administradores escolares.</p></div></div><div id="platformBillingContactsList" class="platform-contacts-grid"></div></section>
             <section class="platform-page" data-platform-section="audit"><div class="platform-page-heading"><div><h3>Auditoria</h3><p>Operações administrativas registradas pela plataforma.</p></div></div>
@@ -292,6 +294,7 @@
     subscriptions: ['Assinaturas', 'Acompanhe planos e condições comerciais.'],
     siap: ['Assistente SIAP', 'Prepare e acompanhe o produto independente.'],
     communications: ['Comunicações', 'Escolha como deseja se comunicar com os usuários do Carômetro.'],
+    tutorials: ['Tutoriais', 'Configure os vídeos exibidos em Como Usar.'],
     plans: ['Planos', 'Configure o catálogo comercial da plataforma.'],
     contacts: ['Responsáveis pela assinatura', 'Gerencie os contatos comerciais das escolas.'],
     audit: ['Auditoria', 'Consulte as operações administrativas recentes.'],
@@ -325,6 +328,7 @@
     if (!window.matchMedia('(max-width: 800px)').matches) workspace?.classList.add('menu-collapsed');
     modal.querySelector('.platform-content')?.scrollTo({ top:0, behavior:'smooth' });
     if (page === 'communications') window.openPlatformCommunications?.();
+    if (page === 'tutorials') window.openPlatformTutorials?.();
     if (page === 'siap') { window.openPlatformSiapHeaderCampaign?.(); window.openPlatformSiapAnnouncement?.(); }
   }
 

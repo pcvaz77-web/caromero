@@ -4,6 +4,7 @@
     const nav = document.querySelector('.side .nav');
     if (!app || !nav || typeof db === 'undefined') return;
     const button = document.createElement('button');
+    button.id = 'familySchoolNav';
     button.type = 'button';
     button.textContent = '⌂  Portal da Família';
     button.hidden = true;
