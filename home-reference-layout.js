@@ -80,8 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
         mobileTopbar.append(target);
       }
     }
-    for (const action of [bell, activities, assistant]) {
-      if (action && action.parentElement !== target) target.append(action);
+    for (const action of [activities, assistant, bell]) {
+      if (action) target.append(action);
     }
   };
   moveToolbarActions();
