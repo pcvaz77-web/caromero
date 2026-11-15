@@ -36,6 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
       <p id="homeCommunicationError" class="error hidden" role="alert"></p>
     </form><section class="home-summary-selection"><h4>Tempos de exibição</h4><div class="grid"><div class="field"><label for="homeSummarySeconds">Cada informação automática</label><select id="homeSummarySeconds"><option value="5">5 segundos</option><option value="8">8 segundos</option><option value="12">12 segundos</option><option value="15">15 segundos</option><option value="20">20 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option></select></div><div class="field"><label for="homeNoticeAllSeconds">Todos os avisos da escola</label><select id="homeNoticeAllSeconds"><option value="keep">Manter tempos atuais</option><option value="5">5 segundos</option><option value="8">8 segundos</option><option value="12">12 segundos</option><option value="15">15 segundos</option><option value="20">20 segundos</option><option value="30">30 segundos</option><option value="45">45 segundos</option></select></div></div><p>Ao escolher um tempo para todos os avisos, ele também vira o padrão dos próximos lembretes.</p><details class="home-summary-options"><summary><span><strong>Informações automáticas do resumo</strong><small>Escolha os dados que vão passar no painel</small></span><span id="homeSummarySelectedCount" class="home-summary-selected-count"></span><span class="home-summary-chevron" aria-hidden="true">⌄</span></summary><div class="home-summary-options-content"><div id="homeSummaryMetricOptions" class="home-summary-metric-options"></div></div></details><div id="homeSummarySelectedLabels" class="home-summary-selected-labels"></div><p class="home-summary-options-footnote">Os avisos publicados continuam aparecendo.</p></section><section class="home-communication-management"><h4>Lembretes publicados</h4><div id="homeCommunicationManagementList"></div></section><div class="home-communication-savebar"><span id="homeCommunicationStatus" role="status"></span><button type="button" class="btn secondary" data-home-communication-close>Cancelar</button><button type="submit" form="homeCommunicationForm" id="homeCommunicationSave" class="btn primary">Salvar alterações</button></div></section>`;
   document.body.append(modal);
+  const viewer = document.createElement('div');
+  viewer.id = 'homeReminderViewer';
+  viewer.className = 'modal-bg home-reminder-viewer hidden';
+  viewer.innerHTML = `<section class="modal small" role="dialog" aria-modal="true" aria-labelledby="homeReminderViewerTitle"><div class="modal-head"><h3 id="homeReminderViewerTitle">Lembretes</h3><button type="button" class="close" data-reminder-viewer-close aria-label="Fechar">×</button></div><div id="homeReminderViewerList" class="home-reminder-viewer-list"></div></section>`;
+  document.body.append(viewer);
 
   const by = id => document.getElementById(id);
   const safe = value => { const node = document.createElement('span'); node.textContent = String(value ?? ''); return node.innerHTML; };
@@ -65,6 +70,24 @@ document.addEventListener('DOMContentLoaded', () => {
   let editingSchoolId = null;
   let visibilitySignature = '';
   const formatSchedule = (date, time) => `${date || ''}${time ? ` às ${String(time).slice(0, 5)}` : ''}`;
+  const startsLater = (item, today, time) => item.starts_on > today || (item.starts_on === today && !!item.start_time && item.start_time.slice(0, 5) > time);
+  const isPast = (item, today, time) => !!item.ends_on && (item.ends_on < today || (item.ends_on === today && !!item.end_time && item.end_time.slice(0, 5) < time));
+  function orderNotices(today, time) {
+    const group = item => isPast(item, today, time) ? 2 : startsLater(item, today, time) ? 1 : 0;
+    return [...notices].sort((a, b) => {
+      const category = group(a) - group(b);
+      if (category) return category;
+      const date = group(a) === 1 ? a.starts_on.localeCompare(b.starts_on) : b.starts_on.localeCompare(a.starts_on);
+      return date || (a.start_time || '').localeCompare(b.start_time || '') || a.title.localeCompare(b.title, 'pt-BR');
+    });
+  }
+  function renderViewer(ordered, today, time) {
+    const available = ordered.filter(item => !isPast(item, today, time) && !pendingDeleteIds.has(item.id));
+    by('homeReminderViewerList').innerHTML = available.length ? available.map(item => {
+      const future = startsLater(item, today, time);
+      return `<article class="home-reminder-viewer-item"><span class="home-reminder-viewer-status">${future ? 'Agendado' : 'Em exibição'}</span><strong>${safe(item.title)}</strong><small>Início: ${safe(formatSchedule(item.starts_on, item.start_time))}${item.ends_on ? ` · Até ${safe(formatSchedule(item.ends_on, item.end_time))}` : ''}</small>${!future && item.destination_type !== 'none' ? `<button type="button" data-home-reminder-open="${safe(item.id)}">Abrir informação ↗</button>` : ''}</article>`;
+    }).join('') : '<p class="meta">Nenhum lembrete ativo ou agendado.</p>';
+  }
   function renderMetricOptions() {
     by('homeSummaryMetricOptions').innerHTML = metricOptions.map(([key, label]) => `<label><input type="checkbox" value="${key}" ${selectedMetricKeys.includes(key) ? 'checked' : ''}><span>${label}</span></label>`).join('');
     updateSelectedMetricLabels();
@@ -112,17 +135,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const now = new Date();
     const today = localDate(now);
     const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-    const visible = notices.filter(item =>
+    const ordered = orderNotices(today, currentTime);
+    const visible = ordered.filter(item =>
       item.starts_on <= today && (!item.ends_on || item.ends_on >= today)
       && (item.starts_on !== today || !item.start_time || currentTime >= item.start_time.slice(0, 5))
       && (item.ends_on !== today || !item.end_time || currentTime <= item.end_time.slice(0, 5))
     );
-    const signature = visible.map(item => item.id).join(',');
+    const signature = `${today}:${visible.map(item => item.id).join(',')}`;
     if (onlyIfChanged && signature === visibilitySignature) return;
     visibilitySignature = signature;
     list.innerHTML = visible.length ? `<div class="home-communication-label">Avisos da escola</div>${visible.map(item => `
-      <div class="home-communication-row" data-starts-on="${safe(item.starts_on)}" data-start-time="${safe(item.start_time || '')}" data-ends-on="${safe(item.ends_on || '')}" data-end-time="${safe(item.end_time || '')}" data-display-seconds="${Number(item.display_seconds) || 15}" data-clickable="${item.destination_type !== 'none'}">${item.destination_type === 'none' ? `<span class="home-communication-title">${safe(item.title)}</span>` : `<button type="button" class="home-communication-title" data-home-notice-open="${safe(item.id)}">${safe(item.title)} <span aria-hidden="true">↗</span></button>`}</div>`).join('')}` : '';
-    by('homeCommunicationManagementList').innerHTML = notices.length ? notices.map(item => `<div class="home-communication-managed-item"><div><strong>${safe(item.title)}</strong><small>${item.starts_on > today || item.starts_on === today && item.start_time?.slice(0, 5) > currentTime ? 'Agendado · ' : ''}${safe(formatSchedule(item.starts_on, item.start_time))}${item.ends_on ? ` até ${safe(formatSchedule(item.ends_on, item.end_time))}` : ''} · ${Number(item.display_seconds) || 15}s</small></div><div class="home-communication-managed-actions"><button type="button" data-home-notice-edit="${safe(item.id)}">Editar</button>${canPublish() && (item.created_by === user?.id || window.getActiveSchoolRole?.() === 'school_admin') ? `<button type="button" data-home-notice-delete="${safe(item.id)}" aria-label="${pendingDeleteIds.has(item.id) ? 'Desfazer exclusão' : 'Excluir lembrete'}">${pendingDeleteIds.has(item.id) ? 'Desfazer' : 'Excluir'}</button>` : ''}</div></div>`).join('') : '<p class="meta">Nenhum lembrete publicado.</p>';
+      <div class="home-communication-row" data-notice-id="${safe(item.id)}" data-starts-on="${safe(item.starts_on)}" data-start-time="${safe(item.start_time || '')}" data-ends-on="${safe(item.ends_on || '')}" data-end-time="${safe(item.end_time || '')}" data-display-seconds="${Number(item.display_seconds) || 15}" data-clickable="${item.destination_type !== 'none'}">${item.destination_type === 'none' ? `<span class="home-communication-title">${safe(item.title)}</span>` : `<button type="button" class="home-communication-title" data-home-notice-open="${safe(item.id)}">${safe(item.title)} <span aria-hidden="true">↗</span></button>`}</div>`).join('')}` : '';
+    by('homeCommunicationManagementList').innerHTML = ordered.length ? ordered.map(item => `<div class="home-communication-managed-item"><div><strong>${safe(item.title)}</strong><small>${startsLater(item, today, currentTime) ? 'Agendado · ' : isPast(item, today, currentTime) ? 'Encerrado · ' : ''}${safe(formatSchedule(item.starts_on, item.start_time))}${item.ends_on ? ` até ${safe(formatSchedule(item.ends_on, item.end_time))}` : ''} · ${Number(item.display_seconds) || 15}s</small></div><div class="home-communication-managed-actions"><button type="button" data-home-notice-edit="${safe(item.id)}">Editar</button>${canPublish() && (item.created_by === user?.id || window.getActiveSchoolRole?.() === 'school_admin') ? `<button type="button" data-home-notice-delete="${safe(item.id)}" aria-label="${pendingDeleteIds.has(item.id) ? 'Desfazer exclusão' : 'Excluir lembrete'}">${pendingDeleteIds.has(item.id) ? 'Desfazer' : 'Excluir'}</button>` : ''}</div></div>`).join('') : '<p class="meta">Nenhum lembrete publicado.</p>';
+    renderViewer(ordered, today, currentTime);
   }
   async function refresh() {
     const scope = { school:schoolId(), user:user?.id, generation:++generation };
@@ -131,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const [noticeResult, settingsResult] = await Promise.all([
       db.from('school_home_communications')
         .select('id,title,destination_type,destination_url,starts_on,start_time,ends_on,end_time,created_by,display_seconds')
-        .eq('school_id', scope.school).order('created_at', { ascending:false }).limit(100),
+        .eq('school_id', scope.school).order('created_at', { ascending:false }).limit(1000),
       db.from('school_home_summary_settings').select('metric_keys,system_seconds,notice_default_seconds').eq('school_id', scope.school).maybeSingle()
     ]);
     if (scope.generation !== generation || scope.school !== schoolId() || scope.user !== user?.id) return;
@@ -241,6 +266,20 @@ document.addEventListener('DOMContentLoaded', () => {
   list.onclick = event => {
     const open = event.target.closest('[data-home-notice-open]');
     if (open) { const notice = notices.find(item => item.id === open.dataset.homeNoticeOpen); if (notice) navigate(notice); return; }
+  };
+  document.addEventListener('carometro:open-home-reminders', () => {
+    if (!schoolId() || by('app').classList.contains('hidden')) return;
+    render();
+    viewer.classList.remove('hidden');
+    viewer.querySelector('[data-reminder-viewer-close]').focus();
+  });
+  viewer.querySelector('[data-reminder-viewer-close]').onclick = () => viewer.classList.add('hidden');
+  viewer.onclick = event => {
+    if (event.target === viewer) { viewer.classList.add('hidden'); return; }
+    const open = event.target.closest('[data-home-reminder-open]');
+    if (!open) return;
+    const notice = notices.find(item => item.id === open.dataset.homeReminderOpen);
+    if (notice) { viewer.classList.add('hidden'); navigate(notice); }
   };
   by('homeCommunicationManagementList').onclick = async event => {
     const edit = event.target.closest('[data-home-notice-edit]');

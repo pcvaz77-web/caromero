@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
   overview.className = 'stat home-overview';
   overview.setAttribute('aria-label', 'Lembretes e destaques da escola');
   overview.innerHTML = `
-    <div class="home-overview-head"><span>Lembrete da semana</span></div>
+    <div class="home-overview-head"><span>Lembretes</span></div>
     <div id="homeReminderList" class="home-overview-list"></div>
     <div class="home-overview-highlights">
       <span id="homeOverviewWeekLabel">Atualizações automáticas do Carômetro</span>
@@ -140,6 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const names = new Map(students.map(item => [item.id, item.name]));
     const leaders = [...counts].filter(([id]) => names.has(id)).sort((a, b) => b[1] - a[1]).slice(0, 3);
     occurrenceLeaderId = leaders[0]?.[0] || null;
+    const occurrenceLeader = students.find(item => item.id === occurrenceLeaderId);
+    const occurrenceRow = by('homeOccurrenceLeaders').closest('[data-metric-key]');
+    occurrenceRow.dataset.photoUrl = occurrenceLeader?.photoUrl || '';
+    occurrenceRow.dataset.className = occurrenceLeader?.className || '';
     by('homeOccurrenceLeaders').disabled = !occurrenceLeaderId;
     markReady('homeOccurrenceLeaders', !!occurrenceLeaderId);
     by('homeOccurrenceLeaders').textContent = leaders.length ? `${names.get(leaders[0][0])} · ${leaders[0][1]} ocorrência${leaders[0][1] === 1 ? '' : 's'}` : 'Nenhuma ocorrência na semana do resumo.';

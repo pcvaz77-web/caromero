@@ -513,3 +513,24 @@ body #app .home-reference-hero .top-actions .btn:not(.hidden):hover { filter:bri
   body #app:has(.home-reference-hero) > .side { position:relative!important;inset:auto!important; }
 }
 body #app .home-reference-hero .home-class-count .home-selected-class-name { font-size:clamp(17px,2vw,23px)!important;line-height:1.12!important;white-space:normal;overflow-wrap:anywhere; }
+body #app .home-reference-hero .stats > .home-overview { justify-content:flex-start!important;padding-top:20px!important; }
+body #app .home-reference-hero .home-reference-slide { margin-top:15px!important; }
+body #app .home-reference-hero .home-overview-notice { cursor:pointer; }
+body #app .home-reference-hero .home-overview-notice:focus-visible { outline:3px solid #416fc5;outline-offset:3px; }
+body #app .home-reference-hero .home-overview-student::before { opacity:0!important; }
+body #app .home-reference-hero .home-overview-student-photo {
+  position:absolute;left:21px;top:50%;z-index:2;transform:translateY(-50%);
+  display:grid;place-items:center;width:50px;height:50px;overflow:hidden;
+  border-radius:12px;background:#4c79bc;color:#fff;font-size:17px;font-weight:800;
+  box-shadow:0 5px 12px #355d9c30;
+}
+body #app .home-reference-hero .home-overview-student-photo img { width:100%;height:100%;object-fit:cover; }
+body .home-reminder-viewer .modal { width:min(520px,100%);border-radius:17px; }
+body .home-reminder-viewer .modal-head { position:sticky;top:0;z-index:2;background:#fff; }
+body .home-reminder-viewer-list { display:grid;gap:9px;max-height:70vh;overflow-y:auto;padding:17px 20px 22px; }
+body .home-reminder-viewer-list > p { margin:8px 0; }
+body .home-reminder-viewer-item { display:grid;gap:5px;padding:14px;border:1px solid #e0e7f0;border-radius:12px;background:#fafcff; }
+body .home-reminder-viewer-status { color:#4268a2;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em; }
+body .home-reminder-viewer-item strong { color:#263b5e;font-size:14px;line-height:1.3; }
+body .home-reminder-viewer-item small { color:#60718b;font-size:12px;line-height:1.3; }
+body .home-reminder-viewer-item button { justify-self:start;margin-top:3px;padding:6px 0;background:transparent;color:#3c64b2;font-size:12px;font-weight:800; }

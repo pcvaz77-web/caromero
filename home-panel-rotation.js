@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   slide.className = 'home-reference-slide';
   slide.setAttribute('aria-live', 'polite');
   card.querySelector('.home-overview-head').after(slide);
+  const portrait = document.createElement('div');
+  portrait.className = 'home-overview-student-photo hidden';
+  portrait.setAttribute('aria-hidden', 'true');
+  card.append(portrait);
 
   let items = [];
   let active = 0;
@@ -28,7 +32,21 @@ document.addEventListener('DOMContentLoaded', () => {
     active = index;
     const item = items[active];
     heading.textContent = item.heading;
-    card.classList.toggle('home-overview-notice', item.heading === 'Lembrete da semana');
+    const isNotice = item.heading === 'Lembretes';
+    card.classList.toggle('home-overview-notice', isNotice);
+    card.classList.toggle('home-overview-student', !!item.studentLeader);
+    if (isNotice) { card.setAttribute('role', 'button'); card.tabIndex = 0; card.setAttribute('aria-label', 'Ver todos os lembretes'); }
+    else { card.removeAttribute('role'); card.removeAttribute('aria-label'); card.removeAttribute('tabindex'); }
+    portrait.classList.toggle('hidden', !item.studentLeader);
+    portrait.replaceChildren();
+    if (item.studentLeader) {
+      if (item.photoUrl) {
+        const image = document.createElement('img');
+        image.src = item.photoUrl;
+        image.alt = '';
+        portrait.append(image);
+      } else portrait.textContent = item.detail.replace(/^\d+\.\s*/, '').split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase();
+    }
     const content = document.createElement(item.open ? 'button' : 'div');
     content.className = 'home-reference-slide-content';
     if (item.open) { content.type = 'button'; content.onclick = item.open; }
@@ -57,13 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected = items[active]?.key;
     const school = [...notices.querySelectorAll('.home-communication-row')].map(row => {
       const title = row.querySelector('.home-communication-title');
-      const button = row.querySelector('[data-home-notice-open]');
       return {
-        key:`notice:${button?.dataset.homeNoticeOpen || title?.textContent}`,
-        heading:'Lembrete da semana', title:title?.textContent.replace(/\s*↗\s*$/, '').trim() || '',
+        key:`notice:${row.dataset.noticeId || title?.textContent}`,
+        heading:'Lembretes', title:title?.textContent.replace(/\s*↗\s*$/, '').trim() || '',
         detail:'Aviso da escola', meta:'',
         seconds:Math.max(5, Math.min(45, Number(row.dataset.displaySeconds) || 15)),
-        open:button ? () => button.click() : null
+        open:null
       };
     });
     const week = document.getElementById('homeOverviewWeekLabel')?.textContent || 'Resumo da semana';
@@ -77,7 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const occurrence = value.match(/^(.*?)\s*·\s*(\d+ ocorrências?)$/i);
       return {
         key:`system:${index}:${week}`, heading:'Resumo da semana', title:row.querySelector('span')?.textContent || '',
-        detail:occurrence ? occurrence[1] : value, secondary:row.dataset.secondary || occurrence?.[2] || '', meta:week, seconds:automaticSeconds,
+        detail:occurrence ? occurrence[1] : value,
+        secondary:row.dataset.metricKey === 'student_occurrences' && occurrence
+          ? `${occurrence[2]}${row.dataset.className ? ` · Turma ${row.dataset.className}` : ''}`
+          : row.dataset.secondary || occurrence?.[2] || '',
+        studentLeader:row.dataset.metricKey === 'student_occurrences', photoUrl:row.dataset.photoUrl || '',
+        meta:week, seconds:automaticSeconds,
         open:button && !button.disabled ? () => button.click() : null,
         ready:row.dataset.ready === 'true'
       };
@@ -98,7 +120,9 @@ document.addEventListener('DOMContentLoaded', () => {
     queued = true;
     queueMicrotask(() => { queued = false; rebuild(); });
   }
-  for (const source of [notices, highlights]) new MutationObserver(queueRebuild).observe(source, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['disabled', 'data-ready', 'data-secondary', 'data-loaded'] });
+  for (const source of [notices, highlights]) new MutationObserver(queueRebuild).observe(source, { childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['disabled', 'data-ready', 'data-secondary', 'data-loaded', 'data-photo-url', 'data-class-name'] });
+  card.addEventListener('click', () => { if (card.classList.contains('home-overview-notice')) document.dispatchEvent(new CustomEvent('carometro:open-home-reminders')); });
+  card.addEventListener('keydown', event => { if (card.classList.contains('home-overview-notice') && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); document.dispatchEvent(new CustomEvent('carometro:open-home-reminders')); } });
   document.addEventListener('carometro:home-summary-preferences', queueRebuild);
   document.addEventListener('visibilitychange', next);
   rebuild();
