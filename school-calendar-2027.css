@@ -1,0 +1,82 @@
+.school-calendar-2027-modal { z-index:310!important; padding:18px!important; align-items:center!important; }
+.school-calendar-2027-dialog {
+  width:min(1160px,100%)!important;max-height:min(92dvh,940px)!important;
+  display:flex;flex-direction:column;overflow:hidden;border-radius:20px!important;
+  background:#f6f8fc;color:#1e3154;box-shadow:0 28px 80px #14244940;
+}
+.school-calendar-2027-head {
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  flex:none;padding:21px 26px 18px;border-bottom:1px solid #e0e7f2;background:#fff;
+}
+.school-calendar-2027-eyebrow { color:#5275b5;font-size:11px;font-weight:850;letter-spacing:.09em; }
+.school-calendar-2027-head h2 { margin:3px 0 4px;font-size:clamp(22px,3vw,31px);line-height:1.15; }
+.school-calendar-2027-head p { margin:0;color:#62738d;font-size:13px;line-height:1.45; }
+.school-calendar-2027-close {
+  flex:none;width:38px;height:38px;border:1px solid #dce5f2;border-radius:10px;
+  background:#f6f8fc;color:#263c63;font-size:25px;line-height:1;
+}
+.school-calendar-2027-scroll { min-height:0;overflow:auto;padding:20px 26px 28px; }
+.school-calendar-2027-summary { display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin-bottom:12px; }
+.school-calendar-2027-summary > div {
+  display:flex;align-items:baseline;gap:7px;padding:11px 15px;border:1px solid #dce6f5;
+  border-radius:12px;background:#fff;
+}
+.school-calendar-2027-summary strong { color:#3565b4;font-size:22px;line-height:1; }
+.school-calendar-2027-summary span { color:#64758e;font-size:12px;font-weight:700; }
+.school-calendar-2027-summary p {
+  flex:1 1 260px;align-self:center;margin:0;padding:9px 12px;border-radius:10px;
+  background:#fff5df;color:#765326;font-size:12px;line-height:1.35;
+}
+.school-calendar-2027-selected {
+  min-height:38px;margin-bottom:15px;padding:10px 14px;border:1px solid #d9e6fa;
+  border-radius:10px;background:#eef5ff;color:#315785;font-size:13px;font-weight:750;
+}
+.school-calendar-2027-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px; }
+.school-calendar-2027-month { min-width:0;padding:14px 15px 16px;border:1px solid #dce5f2;border-radius:15px;background:#fff;box-shadow:0 4px 14px #193b7509; }
+.school-calendar-2027-month-head { display:flex;align-items:baseline;justify-content:space-between;gap:5px;margin-bottom:11px; }
+.school-calendar-2027-month h3 { margin:0;color:#243c65;font-size:17px; }
+.school-calendar-2027-month-head span { color:#70829a;font-size:11px;white-space:nowrap; }
+.school-calendar-2027-days { display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px; }
+.school-calendar-2027-weekday { text-align:center;color:#72839c;font-size:11px;font-weight:850;padding:4px 0 6px; }
+.school-calendar-2027-day {
+  position:relative;display:grid;place-items:center;aspect-ratio:1;min-width:0;padding:0;
+  border:1px solid transparent;border-radius:8px;background:#f6f8fc;
+  color:#3d506d;font-size:12px;font-weight:750;
+}
+.school-calendar-2027-day.school-day { color:#2d5eac;text-decoration:underline;text-underline-offset:3px; }
+.school-calendar-2027-day.event {
+  border-color:color-mix(in srgb,var(--source-color) 48%,white);
+  background:color-mix(in srgb,var(--source-color) 29%,white);color:#193251;
+}
+.school-calendar-2027-day:hover,.school-calendar-2027-day:focus-visible,.school-calendar-2027-day[aria-pressed="true"] { outline:2px solid #4274cb;outline-offset:1px;z-index:2; }
+.school-calendar-2027-day:hover::after,.school-calendar-2027-day:focus-visible::after {
+  content:attr(data-tip);position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);
+  width:max-content;max-width:min(220px,70vw);padding:7px 9px;border-radius:7px;
+  background:#1e3154;color:#fff;box-shadow:0 8px 18px #17284430;
+  font-size:11px;font-weight:700;line-height:1.3;white-space:normal;pointer-events:none;z-index:5;
+}
+.school-calendar-2027-legend { margin-top:18px;border:1px solid #dce5f2;border-radius:13px;background:#fff; }
+.school-calendar-2027-legend summary { cursor:pointer;padding:14px 17px;color:#263e68;font-size:14px;font-weight:850; }
+.school-calendar-2027-legend summary span { margin-left:7px;color:#7a8ba2;font-size:11px;font-weight:650; }
+.school-calendar-2027-legend-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px 14px;padding:0 17px 12px; }
+.school-calendar-2027-legend-grid > div { display:flex;align-items:center;gap:8px;min-width:0;color:#3e506d;font-size:12px;line-height:1.3; }
+.school-calendar-2027-legend-grid i { flex:none;width:15px;height:15px;border:1px solid color-mix(in srgb,var(--source-color) 55%,white);border-radius:4px;background:color-mix(in srgb,var(--source-color) 40%,white); }
+.school-calendar-2027-legend-grid i.school-calendar-2027-plain { border-color:#d5dfed;background:#f6f8fc; }
+.school-calendar-2027-legend p { margin:0;padding:0 17px 17px;color:#6b7c93;font-size:11px;line-height:1.4; }
+@media(max-width:900px) {
+  .school-calendar-2027-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .school-calendar-2027-legend-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:600px) {
+  .school-calendar-2027-modal { padding:0!important;align-items:stretch!important; }
+  .school-calendar-2027-dialog { width:100%!important;max-height:100dvh!important;height:100dvh!important;border-radius:0!important; }
+  .school-calendar-2027-head { padding:18px 16px 14px; }
+  .school-calendar-2027-scroll { padding:15px 12px 24px; }
+  .school-calendar-2027-summary > div { flex:1 1 90px;justify-content:center;padding:10px 7px; }
+  .school-calendar-2027-summary strong { font-size:19px; }
+  .school-calendar-2027-summary span { font-size:10px; }
+  .school-calendar-2027-summary p { flex-basis:100%; }
+  .school-calendar-2027-grid,.school-calendar-2027-legend-grid { grid-template-columns:1fr; }
+  .school-calendar-2027-month { padding:14px 16px 17px; }
+  .school-calendar-2027-day { font-size:14px; }
+}
