@@ -116,6 +116,28 @@
 .platform-announcement-banner[data-theme=image_only]>.platform-announcement-ticker{position:absolute;z-index:3}
 .platform-announcement-ticker-line{flex:none;display:inline-block;white-space:nowrap;padding:0 14px;font-size:14px;font-weight:800;letter-spacing:.015em;line-height:36px;text-shadow:0 1px 3px #0008;animation:platform-announcement-ticker-scroll 24s linear infinite}
 @keyframes platform-announcement-ticker-scroll{from{transform:translateX(var(--ticker-start,100vw))}to{transform:translateX(-100%)}}
+.platform-announcement-shell .platform-communication-intro{margin-bottom:12px;padding:16px 20px;border-color:#d7e3f5;border-radius:15px;background:linear-gradient(110deg,#edf4ff,#f9fbff);color:#17345d;box-shadow:0 5px 16px #17345d0c}
+.platform-announcement-shell .platform-communication-intro small{color:#456bb5;letter-spacing:.09em}
+.platform-announcement-shell .platform-communication-intro h4{margin:4px 0;font-size:20px;color:#17345d}
+.platform-announcement-shell .platform-communication-intro p{color:#526985;font-size:12px}
+.platform-announcement-shell .platform-communication-intro-mark{font-size:32px;color:#6e8ed5}
+.platform-announcement-shell .platform-panel{box-shadow:0 5px 18px #17345d0a}
+.platform-announcement-shell .platform-panel-head{padding:14px 18px;background:#f8faff}
+.platform-announcement-shell .platform-announcement-form{gap:10px;padding:16px 18px}
+.platform-announcement-shell .platform-announcement-form textarea{min-height:90px}
+.platform-announcement-shell .platform-communication-details{border-color:#d5e1f2;transition:border-color .18s,box-shadow .18s}
+.platform-announcement-shell .platform-communication-details:hover{border-color:#9bb8e9;box-shadow:0 3px 12px #244b9110}
+.platform-announcement-shell .platform-communication-details[open]{border-color:#a9c3ed;background:#fbfdff;box-shadow:0 4px 14px #244b9112}
+.platform-announcement-shell .platform-communication-details>summary{min-height:54px;padding:10px 14px}
+.platform-announcement-shell .platform-communication-details>summary:focus-visible{outline:3px solid #87a8eb;outline-offset:-3px}
+.platform-announcement-shell .platform-communication-details>summary strong{font-size:14px}
+.platform-announcement-shell .platform-communication-details>summary::after{background:#e9f0fb;color:#3159a1}
+.platform-announcement-shell .platform-announcement-theme-fields{gap:10px}
+.platform-announcement-shell .platform-communication-details-body{padding:12px 14px}
+.platform-announcement-shell .platform-compose-step{margin-top:6px;padding-top:10px}
+.platform-announcement-shell #platformAnnouncementTheme{cursor:pointer}
+.platform-announcement-shell #platformAnnouncementTheme:disabled{cursor:not-allowed}
+@media(max-width:700px){.platform-announcement-shell .platform-communication-intro{padding:14px 16px}.platform-announcement-shell .platform-panel-head{padding:12px 14px}.platform-announcement-shell .platform-announcement-form{padding:14px;gap:9px}}
 .platform-announcement-ticker:is(:hover,:focus-within) .platform-announcement-ticker-line{animation-play-state:paused}
 .platform-announcement-ticker:focus-visible{outline:2px solid #fff;outline-offset:-3px}
 .platform-announcement-ticker-field{padding:12px;border:1px solid #dce5f1;border-radius:10px;background:#f7faff}
