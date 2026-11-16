@@ -188,12 +188,17 @@
     const intro = document.createElement('p');
     intro.textContent = 'Cadastre o vídeo de cada função. Sem link, a explicação escrita continua disponível e o botão de vídeo fica oculto.';
     root.append(intro);
-    const cepiGroup = document.createElement('details');
-    cepiGroup.className = 'how-to-owner-group';
-    cepiGroup.open = true;
-    const cepiSummary = document.createElement('summary');
-    cepiSummary.textContent = 'Meu CEPI e suas funções';
-    cepiGroup.append(cepiSummary);
+    const makeGroup = (title, count) => {
+      const group = document.createElement('details');
+      group.className = 'how-to-owner-group';
+      const summary = document.createElement('summary');
+      summary.textContent = `${title} · ${count} funções`;
+      group.append(summary);
+      return group;
+    };
+    const panelGroup = makeGroup('Painel da turma', panelTopics.length);
+    const cepiGroup = makeGroup('Meu CEPI', cepiTopics.length);
+    const panelKeys = new Set(['classPanelButton', ...panelTopics]);
     Object.entries(help).forEach(([key, [title]]) => {
       const row = tutorials[key] || {};
       const card = document.createElement('form');
@@ -231,8 +236,9 @@
         save.disabled = false;
         if (!result.error) tutorials[key] = {youtube_url:youtubeUrl || null};
       };
+      if (key === 'classPanelButton') root.append(panelGroup);
       if (key === 'cepiNav') root.append(cepiGroup);
-      (key === 'cepiNav' || key.startsWith('cepi') ? cepiGroup : root).append(card);
+      (panelKeys.has(key) ? panelGroup : key === 'cepiNav' || key.startsWith('cepi') ? cepiGroup : root).append(card);
     });
   }
   window.openPlatformTutorials = openOwner;
