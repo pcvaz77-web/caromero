@@ -138,9 +138,12 @@
       button.disabled=true;
       const result=await db.from('class_exam_question_bank').delete().eq('id',item.id).eq('school_id',schoolId);
       if(result.error){body.querySelector('#cxeBankStatus').textContent=message(result.error);button.disabled=false;return;}
+      const scrollTop=body.scrollTop;
+      button.closest('.cxe-question').remove();
+      body.querySelector('.cxe-bank-filters').nextElementSibling.textContent=`${body.querySelectorAll('.cxe-question').length} questão(ões). Questões antigas sem turma aparecem nas turmas da mesma etapa.`;
+      body.scrollTop=scrollTop;
       const paths=[...String(item.statement||'').matchAll(/data-cepi-path="([^"]+)"/g)].map(match=>match[1]);
       if(paths.length)await db.storage.from(imageBucket).remove(paths);
-      renderQuestionBank(exam,{kind,classId,subject});
     });
   }
   async function renderBankQuestionForm(exam,options) {
@@ -185,7 +188,7 @@
       }catch(reason){if(pendingUploads.length){await richControl.rollback(pendingUploads).catch(()=>{});pendingUploads=[];}status.textContent=message(reason);button.disabled=false;}
     };
   }
-  function renderList(type=viewType) {
+  function renderList(type=viewType,position=null) {
     dispose();viewType=type;current=null;
     const matchesType = exam => type==='regular'?exam.exam_type!=='enem':exam.exam_type==='enem';
     const rows=exams.filter(exam=>!exam.deleted_at&&matchesType(exam));
@@ -219,7 +222,13 @@
       body.querySelector('#cxeCleanMedia').onclick=()=>cleanupPurgedMedia();
     }
     body.insertAdjacentHTML('beforeend','<p id="cxeListStatus" class="cxe-note" role="status"></p>');
+    if(position){
+      const archive=body.querySelector('details.cxe-deleted');
+      if(archive)archive.open=position.archiveOpen;
+      body.scrollTop=position.scrollTop;
+    }
   }
+  function listPosition(){return {scrollTop:body.scrollTop,archiveOpen:!!body.querySelector('details.cxe-deleted')?.open};}
   async function setExamDeleted(exam,restore,button){
     if(!canManageExam(exam)||Boolean(exam.deleted_at)!==restore||window.getActiveSchoolId?.()!==schoolId)return;
     if(!restore&&!window.confirm(exam.exam_type==='enem'
@@ -227,11 +236,12 @@
       : `Excluir a prova “${displayTitle(exam.title)}” desta turma? As questões e correções serão preservadas, e a prova poderá ser restaurada.`))return;
     button.disabled=true;
     const status=body.querySelector('#cxeListStatus');
+    const position=listPosition();
     try{
       const {data,error}=await db.rpc('set_class_exam_deleted',{p_school_id:schoolId,p_class_id:exam.class_id,p_exam_id:exam.id,p_restore:restore});
       if(error||data!==true)throw error||new Error('A prova mudou. Atualize a lista e tente novamente.');
       if(window.getActiveSchoolId?.()!==schoolId)return;
-      await load();renderList(viewType);
+      await load();renderList(viewType,position);
       body.querySelector('#cxeListStatus').textContent=restore?'Prova restaurada.':'Prova excluída das listas. Ela pode ser restaurada.';
     }catch(reason){if(status?.isConnected){status.className='cxe-error';status.textContent=message(reason);}}
     finally{if(button.isConnected)button.disabled=false;}
@@ -242,10 +252,11 @@
     if(answer!=='EXCLUIR')return;
     button.disabled=true;
     const status=body.querySelector('#cxeListStatus');
+    const position=listPosition();
     try{
       const {data,error}=await db.rpc('purge_class_exam',{p_school_id:schoolId,p_class_id:exam.class_id,p_exam_id:exam.id});
       if(error||!data)throw error||new Error('Não foi possível excluir a prova.');
-      await load();renderList(viewType);
+      await load();renderList(viewType,position);
       const next=body.querySelector('#cxeListStatus');
       next.textContent=`Prova excluída definitivamente. ${data.results_deleted||0} correção(ões) apagada(s).`;
       if(pendingMedia.length)await cleanupPurgedMedia();
@@ -255,6 +266,7 @@
   async function cleanupPurgedMedia(){
     if(!roles.has(role())||window.getActiveSchoolId?.()!==schoolId)return;
     const status=body.querySelector('#cxeListStatus');
+    const position=listPosition();
     try{
       for(let offset=0;offset<pendingMedia.length;offset+=100){
         const paths=pendingMedia.slice(offset,offset+100);
@@ -263,7 +275,7 @@
         const acknowledged=await db.rpc('class_exam_purge_media_ack',{p_school_id:schoolId,p_paths:paths});
         if(acknowledged.error||acknowledged.data!==paths.length)throw acknowledged.error||new Error('A limpeza das imagens ainda está pendente.');
       }
-      await load();renderList(viewType);
+      await load();renderList(viewType,position);
       body.querySelector('#cxeListStatus').textContent='Imagens da prova removidas. A exclusão definitiva foi concluída.';
     }catch(reason){
       if(status?.isConnected){status.className='cxe-error';status.textContent=`A prova foi excluída, mas a limpeza das imagens ficou pendente: ${message(reason)} Use “Concluir limpeza de imagens” para tentar novamente.`;}

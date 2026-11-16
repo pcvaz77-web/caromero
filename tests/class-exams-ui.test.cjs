@@ -183,9 +183,11 @@ test('banco cadastra por turma e disciplina, usa na questão 1 e exclui sem arqu
     assert.equal(rows[0].questions[0].correct_answer,'B');
     window.document.querySelector('#cxeBack').click();
     window.document.querySelector('#cxeOpenBank').click();await tick();
+    window.document.querySelector('#classExamBody').scrollTop=420;
     window.document.querySelector('[data-bank-delete]').click();await tick();
     assert.equal(bankRows.length,0);
     assert.equal(rows[0].questions.length,1);
+    assert.equal(window.document.querySelector('#classExamBody').scrollTop,420);
   }finally{env.dom.window.close();}
 });
 
@@ -338,13 +340,30 @@ test('botão exclui prova finalizada na linha e permite restaurar',async()=>{
     const item=window.document.querySelector('.cxe-item');
     assert.deepEqual([...item.querySelectorAll('button')].map(button=>button.textContent),
       ['Abrir prova','Imprimir prova','Imprimir gabarito','Excluir prova']);
+    window.document.querySelector('#classExamBody').scrollTop=340;
     item.querySelector('.cxe-delete').click();await tick();
     assert.ok(exam.deleted_at);
+    assert.equal(window.document.querySelector('#classExamBody').scrollTop,340);
     assert.equal(window.document.querySelector('[data-open]'),null);
     assert.match(window.document.querySelector('.cxe-deleted').textContent,/Restaurar prova/);
     window.document.querySelector('[data-restore]').click();await tick();
     assert.equal(exam.deleted_at,null);
     assert.ok(window.document.querySelector('[data-open]'));
+  }finally{env.dom.window.close();}
+});
+
+test('exclusão definitiva mantém a seção de provas excluídas aberta e a rolagem',async()=>{
+  const base={school_id:'school-1',class_id:'class-1',created_by:'teacher-1',exam_type:'mensal',subject:'Arte',academic_year:2026,questions:[],deleted_at:'2026-10-27T11:00:00Z'};
+  const env=setup({seed:[{...base,id:'exam-one',title:'PROVA UM'},{...base,id:'exam-two',title:'PROVA DOIS'}]});
+  try{
+    await tick();env.window.document.querySelector('[data-type="regular"]').click();
+    const archive=env.window.document.querySelector('details.cxe-deleted');archive.open=true;
+    env.window.document.querySelector('#classExamBody').scrollTop=510;
+    env.window.document.querySelector('[data-purge="exam-one"]').click();await tick();
+    assert.equal(env.rows.length,1);
+    assert.equal(env.window.document.querySelector('details.cxe-deleted').open,true);
+    assert.equal(env.window.document.querySelector('#classExamBody').scrollTop,510);
+    assert.ok(env.window.document.querySelector('[data-purge="exam-two"]'));
   }finally{env.dom.window.close();}
 });
 
