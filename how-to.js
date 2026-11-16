@@ -2,7 +2,8 @@
 (() => {
   const help = {
     classPanelButton: ['Painel da turma', 'Escolha uma turma no menu lateral e abra o Painel da turma. Selecione uma das ferramentas ao lado para ver como usá-la. As ferramentas disponíveis dependem do seu perfil.'],
-    classroomMapAction: ['Mapeamento', 'Abra o Painel da turma e escolha Editar mapeamento ou Ver mapeamento. Quem pode editar organiza os alunos nas carteiras, salva um rascunho e publica a versão para os professores. A versão publicada pode ser consultada e, quando permitido, impressa.'],
+    classroomMapAction: ['Editar mapeamento', 'Abra Editar mapeamento no Painel da turma. Organize os alunos nas carteiras, ajuste as fileiras se necessário e salve um rascunho. Quando estiver pronto, publique o mapeamento para os professores.'],
+    viewPublishedClassroomMap: ['Ver mapeamento', 'Escolha uma turma e abra Ver mapeamento no Painel da turma para consultar as posições publicadas. Se não houver mapeamento publicado, peça a quem gerencia a turma que o prepare.'],
     openSiapGrades: ['Extrair notas do SIAP', 'No Painel da turma, abra Extrair notas do SIAP. Na página autenticada do SIAP, selecione a turma, a disciplina e o bimestre. Capture os dados, confira a prévia e confirme a importação para os cards dos alunos.'],
     openSiapAbsences: ['Extrair faltas do SIAP', 'No Painel da turma, abra Extrair faltas do SIAP. Capture a tela de notas da turma no SIAP, confira os nomes e as faltas na prévia e marque somente os alunos corretos antes de importar.'],
     classExamAction: ['Provas da turma', 'Abra Provas da turma para criar provas mensais ou bimestrais. Escolha o tipo, a disciplina e as questões; revise antes de finalizar. Depois, você pode imprimir a prova e o gabarito.'],
@@ -32,13 +33,14 @@
     familySchoolNav: ['Portal da Família', 'Consulte as opções do Portal da Família disponíveis para sua escola, como convites e registros de entrada.']
   };
   const panelTopics = [
-    ['classroomMapAction', () => true],
-    ['openSiapGrades', context => !!window.getSiapGradePanelAction?.(context)],
-    ['openSiapAbsences', context => !!window.getSiapAbsencePanelAction?.(context)],
-    ['classExamAction', context => !!window.getClassExamPanelAction?.(context)],
-    ['openAttendanceSettings', context => !!window.getAssistedAttendancePanelAction?.(context)],
-    ['openSiapImportManager', context => !!window.getSiapImportManagerAction?.(context)],
-    ['classroomInstallAction', context => !!window.getAttendanceCaptureInstallPanelAction?.(context)]
+    ['classroomMapAction', 'editClassroomMap', context => permission?.role === 'admin' || permission?.is_coordinator],
+    ['viewPublishedClassroomMap', 'viewPublishedClassroomMap', context => !(permission?.role === 'admin' || permission?.is_coordinator)],
+    ['openSiapAbsences', 'openSiapAbsences', context => !!window.getSiapAbsencePanelAction?.(context)],
+    ['openSiapGrades', 'openSiapGrades', context => !!window.getSiapGradePanelAction?.(context)],
+    ['openSiapImportManager', 'openSiapImportManager', context => !!window.getSiapImportManagerAction?.(context)],
+    ['classExamAction', 'classExamAction', context => !!window.getClassExamPanelAction?.(context)],
+    ['openAttendanceSettings', 'openAttendanceSettings', context => !!window.getAssistedAttendancePanelAction?.(context)],
+    ['classroomInstallAction', 'classroomInstallAction', context => !!window.getAttendanceCaptureInstallPanelAction?.(context)]
   ];
   window.carometroHowToCatalog = help;
   const validUrl = url => /^https:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//i.test(url || '');
@@ -88,6 +90,20 @@
     return { classId:selectedClassId || classes?.[0]?.id, permission };
   }
 
+  function availablePanelTopics() {
+    const classroomModal = document.getElementById('classroomMapModal');
+    const sameContext = classroomModal?.dataset.helpUserId === user?.id && classroomModal?.dataset.helpClassId === String(selectedClassId);
+    const actualPanel = sameContext && classroomModal.classList.contains('classroom-panel-mode')
+      ? classroomModal.querySelector('#classroomMapContent .classroom-panel-actions') : null;
+    if (actualPanel) {
+      const actual = new Set([...actualPanel.querySelectorAll('button[id]')].map(button => button.id));
+      if (document.querySelector('#classroomInstallAction a')) actual.add('classroomInstallAction');
+      return panelTopics.filter(([, buttonId]) => actual.has(buttonId)).map(([key]) => key);
+    }
+    const context = panelContext();
+    return panelTopics.filter(([, , available]) => available(context)).map(([key]) => key);
+  }
+
   function choosePanelTopic(key) {
     const modal = document.getElementById('howToModal');
     modal.querySelectorAll('[data-how-to-topic]').forEach(button => {
@@ -112,8 +128,7 @@
     panel.hidden = !panelMode;
     panel.replaceChildren();
     if (panelMode) {
-      const context = panelContext();
-      panelTopics.filter(([, available]) => available(context)).forEach(([topic]) => {
+      availablePanelTopics().forEach(topic => {
         const button = document.createElement('button');
         button.type = 'button';
         button.dataset.howToTopic = topic;
