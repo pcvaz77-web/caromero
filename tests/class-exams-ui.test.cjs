@@ -18,18 +18,19 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
       maybeSingle:async()=>({data:header,error:null}),
       single:async()=>{
         if(table==='class_exam_headers'){header={...payload};return {data:{school_id:'school-1'},error:null};}
-        if(operation==='insert'){const row={...payload,id:`exam-${rows.length+1}`,questions:[],finalized_at:null};rows.push(row);return {data:{id:row.id},error:null};}
+        if(operation==='insert'){const row={questions:[],finalized_at:null,...payload,id:`exam-${rows.length+1}`};rows.push(row);return {data:{id:row.id},error:null};}
         if(operation==='update'){const row=rows.find(item=>item.id===currentId);Object.assign(row,payload);return {data:{id:row.id},error:null};}
         return {data:null,error:null};
       },
-      then(resolve){resolve({data:table==='class_exams'?rows.filter(row=>filters.every(([column,value])=>row[column]===value)):students,error:null});}
+      then(resolve){resolve({data:table==='class_exams'?rows.filter(row=>filters.every(([column,value])=>row[column]===value)):table==='classes'?[{id:classId,name:className}]:students,error:null});}
     };
     return q;
   };
   let currentId=null;
   const from=table=>table==='class_exam_question_bank'?{
     select:()=>{const filters=[];const q={eq:(column,value)=>{filters.push([column,value]);return q;},range:async()=>({data:bankRows.filter(row=>filters.every(([column,value])=>row[column]===value)),error:null}),order:async()=>({data:bankRows,error:null})};return q;},
-    insert:async payload=>{bankRows.push({...payload,id:`bank-${bankRows.length+1}`,active:true});return {data:null,error:null};}
+    insert:async payload=>{bankRows.push({...payload,id:`bank-${bankRows.length+1}`,active:true});return {data:null,error:null};},
+    delete:()=>{const filters=[];const q={eq(column,value){filters.push([column,value]);return q;},then(resolve){const index=bankRows.findIndex(row=>filters.every(([column,value])=>row[column]===value));if(index>=0)bankRows.splice(index,1);resolve({error:index<0?new Error('Questão não encontrada'):null});}};return q;}
   }:({
     select:()=>query(table,'read'),
     insert:payload=>query(table,'insert',payload),
@@ -103,7 +104,7 @@ test('professor cria prova mensal com editor rico, finaliza e imprime nominal',a
     assert.match(rows[0].questions[0].statement,/B\) Outra/);
     assert.equal(Object.keys(rows[0].questions[0].alternatives).length,0);
     assert.equal(env.bankRows.length,1);
-    assert.equal(env.bankRows[0].subject,'Ciências');
+    assert.equal(env.bankRows[0].subject,'CIÊNCIAS');
     assert.equal(env.bankRows[0].correct_answer,'B');
     assert.equal(rows[0].questions[0].bank_saved,true);
     assert.match(window.document.querySelector('#cxeQuestionForm h4').textContent,/questão 2/);
@@ -157,6 +158,76 @@ test('banco da escola reutiliza questão compatível na prova da turma',async()=
   }finally{env.dom.window.close();}
 });
 
+test('banco cadastra por turma e disciplina, usa na questão 1 e exclui sem arquivar',async()=>{
+  const env=setup({className:'8E'}),{window,rows,bankRows}=env;
+  try{
+    await tick();window.document.querySelector('#cxeBank').click();await tick();
+    window.document.querySelector('#cxeBankCreate').click();await tick();
+    const form=window.document.querySelector('#cxeBankForm');
+    form.elements.subject.value='matemática';
+    form.elements.subject.dispatchEvent(new window.Event('input',{bubbles:true}));
+    assert.equal(form.elements.subject.value,'MATEMÁTICA');
+    window.document.querySelector('#cxeEditor').innerHTML='<p>Quanto é 2 + 2?</p><p>A) 3</p><p>B) 4</p>';
+    form.elements.correct_answer.value='B';
+    form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(bankRows.length,1);
+    assert.equal(bankRows[0].class_id,'class-1');
+    assert.equal(bankRows[0].subject,'MATEMÁTICA');
+    assert.equal(bankRows[0].exam_kind,'regular');
+    window.document.querySelector('[data-bank-question]').click();await tick();
+    const proof=window.document.querySelector('#cxeForm');
+    assert.equal(proof.elements.subject.value,'MATEMÁTICA');
+    proof.elements.title.value='Prova mensal de Matemática';
+    proof.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(rows[0].questions.length,1);
+    assert.equal(rows[0].questions[0].correct_answer,'B');
+    window.document.querySelector('#cxeBack').click();
+    window.document.querySelector('#cxeOpenBank').click();await tick();
+    window.document.querySelector('[data-bank-delete]').click();await tick();
+    assert.equal(bankRows.length,0);
+    assert.equal(rows[0].questions.length,1);
+  }finally{env.dom.window.close();}
+});
+
+test('banco ENEM identifica caderno pela disciplina e cria simulado com questão inicial',async()=>{
+  const env=setup({className:'3A'}),{window,rows,bankRows}=env;
+  try{
+    await tick();window.document.querySelector('[data-type="enem"]').click();
+    window.document.querySelector('#cxeOpenBank').click();await tick();
+    window.document.querySelector('#cxeBankCreate').click();await tick();
+    const form=window.document.querySelector('#cxeBankForm');
+    form.elements.subject.value='Química';
+    form.elements.subject.dispatchEvent(new window.Event('input',{bubbles:true}));
+    assert.match(window.document.querySelector('#cxeDetectedModel').textContent,/Caderno 1/);
+    window.document.querySelector('#cxeEditor').innerHTML='<p>Questão de Química?</p><p>A) Sim</p>';
+    form.elements.correct_answer.value='A';
+    form.dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(bankRows[0].enem_model,'caderno_1');
+    assert.equal(bankRows[0].subject,'QUÍMICA');
+    window.document.querySelector('[data-bank-question]').click();await tick();
+    assert.equal(window.document.querySelector('#cxeForm').elements.enem_model.value,'caderno_1');
+    window.document.querySelector('#cxeForm').dispatchEvent(new window.Event('submit',{bubbles:true,cancelable:true}));await tick();
+    assert.equal(rows[0].questions.length,1);
+    assert.equal(rows[0].questions[0].subject,'Química');
+  }finally{env.dom.window.close();}
+});
+
+test('banco filtra por disciplina e mostra exclusão somente ao autor',async()=>{
+  const base={school_id:'school-1',class_id:'class-1',exam_kind:'regular',stage:'medio',answer_format:'ABCDE',statement:'Questão de teste',correct_answer:'A',model_answer:'',active:true};
+  const env=setup({bankSeed:[{...base,id:'one',subject:'HISTÓRIA',created_by:'teacher-1'},{...base,id:'two',subject:'MATEMÁTICA',created_by:'teacher-2'}]});
+  try{
+    await tick();env.window.document.querySelector('#cxeBank').click();await tick();
+    const subject=env.window.document.querySelector('#cxeBankSubject');
+    subject.value='HISTÓRIA';subject.dispatchEvent(new env.window.Event('change',{bubbles:true}));await tick();
+    assert.equal(env.window.document.querySelectorAll('.cxe-question').length,1);
+    assert.match(env.window.document.querySelector('.cxe-question strong').textContent,/HISTÓRIA/);
+    assert.equal(env.window.document.querySelectorAll('[data-bank-delete]').length,1);
+    const all=env.window.document.querySelector('#cxeBankSubject');all.value='';all.dispatchEvent(new env.window.Event('change',{bubbles:true}));await tick();
+    assert.equal(env.window.document.querySelectorAll('.cxe-question').length,2);
+    assert.equal(env.window.document.querySelectorAll('[data-bank-delete]').length,1);
+  }finally{env.dom.window.close();}
+});
+
 test('professor de outra turma da 3ª série contribui no mesmo simulado por disciplina',async()=>{
   const exam={id:'enem-shared',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',
     exam_type:'enem',enem_model:'caderno_1',subject:'Simulado do ENEM',title:'SIMULA - ENEM - CADERNO 1 - 4º BIM',
@@ -182,7 +253,7 @@ test('professor de outra turma da 3ª série contribui no mesmo simulado por dis
     window.document.querySelector('[name="correct_answer"]').value='A';
     window.document.querySelector('#cxeContributionForm').dispatchEvent(new window.Event('submit',{cancelable:true}));await tick();
     assert.equal(exam.questions.length,0,'salvar no banco não altera a prova antes do envio');
-    assert.equal(env.bankRows[0].subject,'Química');
+    assert.equal(env.bankRows[0].subject,'QUÍMICA');
     assert.equal(env.bankRows[0].correct_answer,'A');
     window.document.querySelector('#cxeSendSubject').click();await tick();
     assert.equal(calls.length,1);
