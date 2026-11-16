@@ -12,6 +12,18 @@
     classroomInstallAction: ['Instalar extensão de frequência', 'Use o link no Painel da turma para instalar ou atualizar a extensão de leitura de frequência. Depois, abra o SIAP e siga o fluxo de captura da turma.'],
     regularExamNav: ['Correção de provas', 'Abra a avaliação no SIAP e escolha a turma e a disciplina. Na extensão, conecte o celular pelo QR Code, leia o gabarito e fotografe os cartões. Confira nomes e respostas antes de enviar os resultados e salvar no SIAP. As provas de bloco do CEPI ficam em Meu CEPI.'],
     cepiNav: ['Meu CEPI', 'Acesse os recursos do CEPI disponíveis para sua escola, como provas, acompanhamento e registros pedagógicos. As opções exibidas dependem das suas permissões.'],
+    cepiTutoring: ['Tutoria', 'Abra Tutoria no Meu CEPI para consultar os tutores e seus alunos tutorandos. Se o seu perfil permite gerenciar, use as ações disponíveis para cadastrar tutores e distribuir alunos.'],
+    cepiTutoringReport: ['Relatório', 'Abra Relatório no Meu CEPI, selecione os dados do atendimento e gere a ficha individual em PDF. Confira as informações antes de imprimir ou compartilhar.'],
+    cepiProvas: ['Provas', 'Abra Provas no Meu CEPI para consultar ou preparar Provas de Bloco, Provas Bimestrais e Simulados. Escolha o tipo, a turma, a disciplina e o bimestre; revise os dados antes de salvar ou imprimir.'],
+    cepiCorrecao: ['Correção de provas', 'Abra Correção de provas no Meu CEPI, escolha a prova e confira a turma, os cartões e os resultados antes de confirmar a correção.'],
+    cepiRanking: ['Ranking de médias', 'Abra Ranking de médias para comparar os resultados das provas por disciplina, turma e bimestre. Ajuste os filtros para consultar o recorte desejado.'],
+    cepiBanco: ['Banco de questões', 'Abra Banco de questões para consultar as questões compartilhadas. Use os filtros para encontrar questões e, se autorizado, cadastre ou edite as questões usadas nas provas.'],
+    cepiCabecalho: ['Cabeçalho das provas', 'Abra Cabeçalho das provas para conferir a identificação da escola e do estado usada na impressão. Se tiver permissão, ajuste os dados e salve antes de gerar novas provas.'],
+    cepiEletiva: ['Eletivas', 'Abra Eletivas para consultar propostas, turmas, vagas e participantes. Se tiver permissão, cadastre ou atualize as informações da eletiva.'],
+    cepiClube: ['Clubes', 'Abra Clubes para consultar os clubes, seus líderes e estudantes participantes. Se tiver permissão, cadastre ou atualize os registros.'],
+    cepiOficina: ['Oficinas', 'Abra Oficinas para consultar as atividades e seus participantes. Se tiver permissão, cadastre ou atualize os registros.'],
+    cepiListas: ['Imprimir listas', 'Abra Imprimir listas para gerar a relação de alunos por turma, com as informações de eletiva, clube e tutor. Confira a turma antes de imprimir.'],
+    cepiLideres: ['Líderes', 'Abra Líderes para consultar ou gerenciar a identificação dos estudantes líderes, conforme as permissões do seu perfil. Confira os alunos selecionados antes de salvar.'],
     schoolCalendar2027Nav: ['Calendário Escolar', 'Consulte os meses do calendário escolar e passe o mouse ou toque em uma data para ver a indicação daquele dia.'],
     schoolDailyAttendanceNav: ['Frequência da Secretaria', 'Consulte os registros de frequência disponíveis para a secretaria. Selecione o período e a turma para acompanhar as informações.'],
     reportsNav: ['Relatórios', 'Abra os relatórios disponíveis, escolha os filtros necessários e confira os dados antes de imprimir ou exportar.'],
@@ -30,6 +42,19 @@
     'classroomMapAction', 'viewPublishedClassroomMap', 'openSiapAbsences',
     'openSiapGrades', 'openSiapImportManager', 'classExamAction',
     'openAttendanceSettings', 'classroomInstallAction'
+  ];
+  const cepiTopics = [
+    ['cepiTutoring', '#openTutoring'], ['cepiTutoringReport', '#openTutoringReport'],
+    ['cepiProvas', '[data-cepi-workspace="provas"]'],
+    ['cepiCorrecao', '[data-cepi-workspace="correcao"]'],
+    ['cepiRanking', '[data-cepi-workspace="ranking"]'],
+    ['cepiBanco', '[data-cepi-workspace="banco"]'],
+    ['cepiCabecalho', '[data-cepi-workspace="cabecalho"]'],
+    ['cepiEletiva', '[data-cepi-workspace="eletiva"]'],
+    ['cepiClube', '[data-cepi-workspace="clube"]'],
+    ['cepiOficina', '[data-cepi-workspace="oficina"]'],
+    ['cepiListas', '[data-cepi-workspace="listas"]'],
+    ['cepiLideres', '[data-cepi-workspace="lideres"]']
   ];
   window.carometroHowToCatalog = help;
   const validUrl = url => /^https:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//i.test(url || '');
@@ -77,6 +102,13 @@
     return panelTopics;
   }
 
+  function availableCepiTopics() {
+    return cepiTopics.filter(([, selector]) => {
+      const button = document.querySelector(`#cepiHome ${selector}`);
+      return button && !button.hidden && !button.classList.contains('hidden') && button.getAttribute('aria-hidden') !== 'true' && getComputedStyle(button).display !== 'none';
+    }).map(([key]) => key);
+  }
+
   function choosePanelTopic(key) {
     const modal = document.getElementById('howToModal');
     modal.querySelectorAll('[data-how-to-topic]').forEach(button => {
@@ -96,12 +128,13 @@
       button.setAttribute('aria-current', selected ? 'page' : 'false');
     });
     const panel = modal.querySelector('#howToPanelTopics');
-    const panelMode = key === 'classPanelButton';
+    const panelMode = key === 'classPanelButton' || key === 'cepiNav';
     modal.querySelector('.how-to-content').classList.toggle('panel-mode', panelMode);
     panel.hidden = !panelMode;
     panel.replaceChildren();
     if (panelMode) {
-      availablePanelTopics().forEach(topic => {
+      panel.setAttribute('aria-label', key === 'cepiNav' ? 'Funções do Meu CEPI' : 'Ferramentas do Painel da turma');
+      (key === 'cepiNav' ? availableCepiTopics() : availablePanelTopics()).forEach(topic => {
         const button = document.createElement('button');
         button.type = 'button';
         button.dataset.howToTopic = topic;
@@ -155,6 +188,12 @@
     const intro = document.createElement('p');
     intro.textContent = 'Cadastre o vídeo de cada função. Sem link, a explicação escrita continua disponível e o botão de vídeo fica oculto.';
     root.append(intro);
+    const cepiGroup = document.createElement('details');
+    cepiGroup.className = 'how-to-owner-group';
+    cepiGroup.open = true;
+    const cepiSummary = document.createElement('summary');
+    cepiSummary.textContent = 'Meu CEPI e suas funções';
+    cepiGroup.append(cepiSummary);
     Object.entries(help).forEach(([key, [title]]) => {
       const row = tutorials[key] || {};
       const card = document.createElement('form');
@@ -192,7 +231,8 @@
         save.disabled = false;
         if (!result.error) tutorials[key] = {youtube_url:youtubeUrl || null};
       };
-      root.append(card);
+      if (key === 'cepiNav') root.append(cepiGroup);
+      (key === 'cepiNav' || key.startsWith('cepi') ? cepiGroup : root).append(card);
     });
   }
   window.openPlatformTutorials = openOwner;
