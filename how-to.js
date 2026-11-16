@@ -21,15 +21,9 @@
     observationsNav: ['Gerenciar observações', 'Organize as observações usadas nos perfis dos estudantes e confira o efeito das alterações antes de salvar.'],
     permissionsNav: ['Permissões', 'Consulte os usuários da escola e defina os acessos de cada perfil. Revise as permissões antes de salvar, pois elas controlam as funções disponíveis.'],
     schoolInvitationsNav: ['Convites', 'Gere e acompanhe convites para usuários da escola. Confira o destinatário e o perfil antes de compartilhar o convite.'],
-    inviteNav: ['Convites', 'Convide usuários para a escola e acompanhe os acessos gerados.'],
     homeCommunicationButton: ['Comunicação', 'Publique lembretes para a escola e escolha quais informações automáticas aparecem no painel da página inicial.'],
     schoolYearNav: ['Preparar novo ano letivo', 'Use as etapas de preparação do novo ano letivo para revisar turmas e estudantes antes de concluir a transição.'],
-    settingsNav: ['Configurações', 'Ajuste as opções da escola disponíveis para seu perfil e revise cada alteração antes de salvar.'],
     profileNav: ['Meu Perfil', 'Atualize seus dados pessoais e sua senha. Para trocar a senha, informe a senha atual.'],
-    schoolSwitchNav: ['Escola ativa', 'Selecione a escola em que deseja trabalhar. Os registros mostrados passam a ser os dessa escola.'],
-    contactNav: ['Suporte', 'Abra os canais de contato para pedir ajuda sobre o Carômetro.'],
-    communicationPreferencesNav: ['Notificações', 'Escolha quais comunicações e notificações deseja receber.'],
-    bulkSchoolImportNav: ['Importação de escolas', 'Importe os dados usando o formato solicitado na tela e confira a prévia antes de confirmar.'],
     familySchoolNav: ['Portal da Família', 'Consulte as opções do Portal da Família disponíveis para sua escola, como convites e registros de entrada.']
   };
   const panelTopics = [
@@ -44,12 +38,11 @@
   ];
   window.carometroHowToCatalog = help;
   const validUrl = url => /^https:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//i.test(url || '');
-  const validColor = color => /^#[0-9a-f]{6}$/i.test(color || '');
   let tutorials = {};
   let lastFocus = null;
 
   async function loadTutorials() {
-    const result = await db.from('platform_tutorials').select('function_key,youtube_url,button_label,button_color');
+    const result = await db.from('platform_tutorials').select('function_key,youtube_url');
     if (result.error) return result.error;
     tutorials = Object.fromEntries((result.data || []).map(row => [row.function_key, row]));
     return null;
@@ -76,8 +69,7 @@
     const configured = tutorials[key];
     if (validUrl(configured?.youtube_url)) {
       link.href = configured.youtube_url;
-      link.textContent = configured.button_label || 'Ver tutorial';
-      link.style.backgroundColor = validColor(configured.button_color) ? configured.button_color : '#4169d6';
+      link.textContent = 'Ver tutorial';
       link.hidden = false;
     } else {
       link.removeAttribute('href');
@@ -202,9 +194,6 @@
       };
       const url = makeField('Link do YouTube', 'url', row.youtube_url || '');
       url.placeholder = 'https://www.youtube.com/watch?v=...';
-      const label = makeField('Texto do botão', 'text', row.button_label || 'Ver tutorial');
-      label.maxLength = 40;
-      const color = makeField('Cor do botão', 'color', validColor(row.button_color) ? row.button_color : '#4169d6');
       const save = document.createElement('button');
       save.type = 'submit';
       save.className = 'btn primary';
@@ -216,13 +205,11 @@
         event.preventDefault();
         const youtubeUrl = url.value.trim();
         if (youtubeUrl && !validUrl(youtubeUrl)) { status.textContent = 'Use um link do YouTube.'; return; }
-        const buttonLabel = label.value.trim() || 'Ver tutorial';
-        if (buttonLabel.length > 40) { status.textContent = 'Máximo de 40 caracteres.'; return; }
         save.disabled = true;
-        const result = await db.from('platform_tutorials').upsert({function_key:key, youtube_url:youtubeUrl || null, button_label:buttonLabel, button_color:color.value, updated_at:new Date().toISOString()});
+        const result = await db.from('platform_tutorials').upsert({function_key:key, youtube_url:youtubeUrl || null, button_label:'Ver tutorial', button_color:'#356ae6', updated_at:new Date().toISOString()});
         status.textContent = result.error ? result.error.message : 'Tutorial salvo.';
         save.disabled = false;
-        if (!result.error) tutorials[key] = {youtube_url:youtubeUrl || null, button_label:buttonLabel, button_color:color.value};
+        if (!result.error) tutorials[key] = {youtube_url:youtubeUrl || null};
       };
       root.append(card);
     });
