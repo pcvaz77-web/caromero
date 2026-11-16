@@ -249,7 +249,7 @@
     const opener = document.createElement('button');
     opener.id = 'howToNav';
     opener.type = 'button';
-    opener.innerHTML = '<span class="navigation-vector navigation-vector-user" aria-hidden="true"></span><span class="navigation-label">Como Usar</span>';
+    opener.innerHTML = '<span class="navigation-vector navigation-vector-laptop-user" aria-hidden="true"></span><span class="navigation-label">Como Usar</span>';
     opener.setAttribute('aria-label', 'Como Usar');
     nav.insertBefore(opener, document.getElementById('profileNav') || null);
     opener.onclick = open;
