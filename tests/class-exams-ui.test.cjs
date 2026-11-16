@@ -212,7 +212,7 @@ test('banco ENEM identifica caderno pela disciplina e cria simulado com questão
   }finally{env.dom.window.close();}
 });
 
-test('banco filtra por disciplina e mostra exclusão somente ao autor',async()=>{
+test('banco filtra por disciplina e mostra exclusão de questões de toda a escola',async()=>{
   const base={school_id:'school-1',class_id:'class-1',exam_kind:'regular',stage:'medio',answer_format:'ABCDE',statement:'Questão de teste',correct_answer:'A',model_answer:'',active:true};
   const env=setup({bankSeed:[{...base,id:'one',subject:'HISTÓRIA',created_by:'teacher-1'},{...base,id:'two',subject:'MATEMÁTICA',created_by:'teacher-2'}]});
   try{
@@ -224,7 +224,9 @@ test('banco filtra por disciplina e mostra exclusão somente ao autor',async()=>
     assert.equal(env.window.document.querySelectorAll('[data-bank-delete]').length,1);
     const all=env.window.document.querySelector('#cxeBankSubject');all.value='';all.dispatchEvent(new env.window.Event('change',{bubbles:true}));await tick();
     assert.equal(env.window.document.querySelectorAll('.cxe-question').length,2);
-    assert.equal(env.window.document.querySelectorAll('[data-bank-delete]').length,1);
+    assert.equal(env.window.document.querySelectorAll('[data-bank-delete]').length,2);
+    env.window.document.querySelector('[data-bank-delete="two"]').click();await tick();
+    assert.equal(env.bankRows.length,1);
   }finally{env.dom.window.close();}
 });
 
