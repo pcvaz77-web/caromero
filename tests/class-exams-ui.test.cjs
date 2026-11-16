@@ -38,16 +38,17 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
   });
   window.db={auth:{getUser:async()=>({data:{user:{id:userId}},error:null})},from,rpc:async(name,args)=>{
     if(name==='get_cepi_access_context')return {data:{enabled:false},error:null};
-    if(name==='class_exam_purge_media_pending')return {data:[...pendingMedia],error:null};
+    if(name==='class_exam_purge_media_pending')return {data:pendingMedia.filter(path=>role!=='teacher'||path.split('/')[1]===userId),error:null};
     if(name==='class_exam_add_enem_questions')return addEnemQuestions?.(args,rows) || {data:null,error:new Error('RPC não simulada')};
     if(name==='class_exam_purge_media_ack'){
       pendingMedia.splice(0,pendingMedia.length,...pendingMedia.filter(path=>!args.p_paths.includes(path)));
       return {data:args.p_paths.length,error:null};
     }
     if(name==='purge_class_exam'){
-      if(role!=='school_admin')return {data:null,error:new Error('Sem permissão')};
       const index=rows.findIndex(row=>row.id===args.p_exam_id&&row.deleted_at);
       if(index<0)return {data:null,error:new Error('Prova não excluída')};
+      if(!['school_admin','coordinator'].includes(role)&&!(role==='teacher'&&rows[index].created_by===userId))
+        return {data:null,error:new Error('Sem permissão')};
       const exam=rows.splice(index,1)[0];
       for(const question of exam.questions||[]){
         for(const match of String(question.statement).matchAll(/data-cepi-path="([^"]+)"/g))pendingMedia.push(match[1]);
@@ -259,7 +260,7 @@ test('botão exclui prova finalizada na linha e permite restaurar',async()=>{
     await tick();window.document.querySelector('[data-type="regular"]').click();
     const item=window.document.querySelector('.cxe-item');
     assert.deepEqual([...item.querySelectorAll('button')].map(button=>button.textContent),
-      ['Abrir','Imprimir prova','Imprimir gabarito','Excluir prova']);
+      ['Abrir prova','Imprimir prova','Imprimir gabarito','Excluir prova']);
     item.querySelector('.cxe-delete').click();await tick();
     assert.ok(exam.deleted_at);
     assert.equal(window.document.querySelector('[data-open]'),null);
@@ -304,7 +305,7 @@ test('impressão sugere total da turma e aceita quantidade de cópias sem nome',
   }finally{env.dom.window.close();}
 });
 
-test('somente administrador pode excluir definitivamente e imagens entram na limpeza',async()=>{
+test('administrador e coordenador podem excluir definitivamente e limpar imagens',async()=>{
   const imagePath='school-1/teacher-2/image-1.png';
   const exam={id:'exam-4',school_id:'school-1',class_id:'class-1',created_by:'teacher-2',
     exam_type:'bimestral',title:'TESTE',subject:'Biologia',academic_year:2026,
@@ -312,7 +313,10 @@ test('somente administrador pode excluir definitivamente e imagens entram na lim
     finalized_at:'2026-10-27T10:00:00Z',deleted_at:'2026-10-27T11:00:00Z'};
   const coordinator=setup({role:'coordinator',seed:[exam]});
   try{await tick();coordinator.window.document.querySelector('[data-type="regular"]').click();
-    assert.equal(coordinator.window.document.querySelector('[data-purge]'),null);
+    assert.ok(coordinator.window.document.querySelector('[data-purge]'));
+    coordinator.window.document.querySelector('[data-purge]').click();await tick();
+    assert.equal(coordinator.rows.length,0);
+    assert.deepEqual(coordinator.removedPaths,[imagePath]);
   }finally{coordinator.dom.window.close();}
   const admin=setup({role:'school_admin',seed:[exam]});const {window}=admin;
   try{
@@ -325,6 +329,20 @@ test('somente administrador pode excluir definitivamente e imagens entram na lim
     assert.deepEqual(admin.removedPaths,[imagePath]);
     assert.equal(admin.pendingMedia.length,0);
   }finally{admin.dom.window.close();}
+});
+
+test('professor só exclui definitivamente provas próprias',async()=>{
+  const own={id:'exam-own',school_id:'school-1',class_id:'class-1',created_by:'teacher-1',
+    exam_type:'mensal',title:'MINHA PROVA',subject:'Arte',academic_year:2026,
+    questions:[],deleted_at:'2026-10-27T11:00:00Z'};
+  const other={...own,id:'exam-other',created_by:'teacher-2',title:'OUTRA PROVA'};
+  const env=setup({role:'teacher',seed:[own,other]});
+  try{
+    await tick();env.window.document.querySelector('[data-type="regular"]').click();
+    assert.equal(env.window.document.querySelectorAll('[data-purge]').length,1);
+    env.window.document.querySelector('[data-purge]').click();await tick();
+    assert.deepEqual(env.rows.map(exam=>exam.id),['exam-other']);
+  }finally{env.dom.window.close();}
 });
 
 test('falha ao limpar imagem mantém pendência para nova tentativa',async()=>{
