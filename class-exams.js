@@ -18,6 +18,7 @@
   style.textContent += `.cxe-delete{color:#b42318;border-color:#f1c0c0}.cxe-deleted{margin-top:18px;padding:10px 14px;border:1px solid #dce4f3;border-radius:10px}.cxe-deleted summary{cursor:pointer;font-weight:700}.cxe-print-count{max-width:440px}.cxe-print-count input{max-width:160px}.cxe-model-answer{width:100%;min-height:140px;white-space:pre-wrap}.cxe-subjects{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:16px 0}.cxe-subjects .btn{text-align:left}.cxe-subjects .btn:disabled{opacity:.55;cursor:not-allowed}`;
   style.textContent += `#classExamModal{padding:0}#classExamModal .modal{width:100vw;max-width:none;height:100vh;height:100dvh;max-height:none;border-radius:0;display:flex;flex-direction:column;overflow:hidden}#classExamModal .modal-head{flex:none;background:linear-gradient(115deg,#142541,#205da8 58%,#5547c8);color:#fff}#classExamModal .modal-head .meta,#classExamModal .modal-head .close{color:#eaf2ff}#classExamModal .form{flex:1;min-height:0;max-height:none;overflow:auto;padding:clamp(12px,2vw,28px)}#classExamModal .cxe-rich-editor{min-height:clamp(300px,46vh,640px)}#classExamModal .cxe-answer-panel{padding:15px;border:1px solid #b9cdee;border-radius:12px;background:linear-gradient(120deg,#e5f0ff,#f0eaff)}#classExamModal .cxe-answer-panel label{color:#153c70}#classExamModal .actions .primary{background:linear-gradient(125deg,#2163aa,#5d3bd3);box-shadow:inset 1px 1px 0 #ffffff50,0 5px 14px #345cc030}@media(max-width:700px){#classExamModal .cxe-rich-editor{min-height:42vh}#classExamModal .actions{flex-wrap:wrap}#classExamModal .actions .btn{flex:1}}`;
   style.textContent += '#classExamModal .modal-head h3{color:#fff}';
+  style.textContent += `#classExamModal .cxe-open,#classExamModal .cxe-finish,#classExamModal .cxe-restore{background:linear-gradient(125deg,#15925e,#087249);border-color:#087249;color:#fff}#classExamModal .cxe-edit,#classExamModal .cxe-print{background:linear-gradient(125deg,#f9d977,#e9b94b);border-color:#e1ae3c;color:#352a16}#classExamModal .cxe-bank{background:linear-gradient(125deg,#505c6d,#30394b);border-color:#30394b;color:#fff}#classExamModal .cxe-delete{background:linear-gradient(125deg,#dc4b4b,#b42335);border-color:#b42335;color:#fff}#classExamModal .cxe-deleted{background:#f1f3f7;border-color:#cbd3df}#classExamModal .cxe-deleted summary{padding:10px 12px;border-radius:8px;background:linear-gradient(125deg,#e3e7ef,#cfd6e2);color:#26384f}#classExamModal .cxe-deleted[open] summary{margin-bottom:10px}#classExamModal .cxe-deleted .cxe-item{background:#fff}`;
   document.head.appendChild(style);
 
   const rich = () => window.CepiRichText;
@@ -119,10 +120,13 @@
       item.querySelector('.cxe-toolbar').append(button);
       button.onclick=()=>setExamDeleted(exam,false,button);
     });
+    body.querySelectorAll('[data-open]').forEach(button=>{button.classList.add('cxe-open');button.textContent='Abrir prova';});
+    body.querySelectorAll('[data-print],[data-key]').forEach(button=>button.classList.add('cxe-print'));
     if(deleted.length){
       const box=document.createElement('details');box.className='cxe-deleted';
       box.innerHTML=`<summary>Provas excluídas (${deleted.length})</summary>${deleted.map(exam=>`<div class="cxe-item"><div><strong>${esc(displayTitle(exam.title))}</strong><p>${esc(labels[exam.exam_type]||'Prova')} · ${esc(exam.subject)} · questões e correções preservadas</p></div><div class="cxe-toolbar"><button type="button" class="btn secondary" data-restore="${esc(exam.id)}">Restaurar prova</button>${canPurgeExam(exam)?`<button type="button" class="btn secondary cxe-delete" data-purge="${esc(exam.id)}">Excluir definitivamente</button>`:''}</div></div>`).join('')}`;
       body.append(box);
+      box.querySelectorAll('[data-restore]').forEach(button=>button.classList.add('cxe-restore'));
       box.querySelectorAll('[data-restore]').forEach(button=>button.onclick=()=>setExamDeleted(deleted.find(exam=>exam.id===button.dataset.restore),true,button));
       box.querySelectorAll('[data-purge]').forEach(button=>button.onclick=()=>purgeExam(deleted.find(exam=>exam.id===button.dataset.purge),button));
     }
@@ -238,7 +242,18 @@
     if(exam.exam_type!=='enem'){
       const bankButton=document.createElement('button');bankButton.type='button';bankButton.className='btn secondary';bankButton.textContent='Usar banco de questões';
       body.querySelector('.cxe-toolbar').append(bankButton);bankButton.onclick=()=>renderQuestionBank(exam);
+      bankButton.classList.add('cxe-bank');
     }
+    const examToolbar=body.querySelector('.cxe-toolbar');
+    body.querySelector('#cxeEdit')?.classList.add('cxe-edit');
+    body.querySelectorAll('#cxePrint,#cxeKey').forEach(button=>button.classList.add('cxe-print'));
+    const addQuestion=body.querySelector('#cxeAdd');
+    const finalizeExam=body.querySelector('#cxeFinalize');
+    const lowerToolbar=finalizeExam?.closest('.cxe-toolbar');
+    if(addQuestion)examToolbar.append(addQuestion);
+    if(finalizeExam){finalizeExam.classList.add('cxe-finish');examToolbar.append(finalizeExam);}
+    if(lowerToolbar&&lowerToolbar!==examToolbar)lowerToolbar.remove();
+    examToolbar.after(body.querySelector('#cxeStatus'));
     body.querySelector('#cxeBack').onclick=()=>renderList(exam.exam_type==='enem'?'enem':'regular');
     body.querySelector('#cxeEdit')?.addEventListener('click',()=>renderExamForm(exam,exam.exam_type==='enem'?'enem':'regular'));
     body.querySelector('#cxePrint')?.addEventListener('click',()=>printProof(exam));body.querySelector('#cxeKey')?.addEventListener('click',()=>printKey(exam));
