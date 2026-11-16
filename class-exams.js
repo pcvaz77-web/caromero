@@ -31,7 +31,7 @@
     && (exam.exam_type!=='enem'||!cepiEnabled);
   const canContribute = exam => exam?.exam_type === 'enem' && !cepiEnabled && !exam.finalized_at && !exam.deleted_at && roles.has(role());
   const canManageExam = exam => !!exam && (managers.has(role()) || exam.created_by === userId);
-  const canPurgeExam = exam => !!exam?.deleted_at && role()==='school_admin';
+  const canPurgeExam = exam => !!exam?.deleted_at && canManageExam(exam);
   const plan = model => window.CepiBlocks?.enemPlan(model) || [];
   const total = model => plan(model).reduce((sum,item)=>sum+item.count,0);
   function subjectAt(model,index) { let end=0; for(const item of plan(model)){end+=item.count;if(index<end)return item.subject;}return ''; }
@@ -58,7 +58,7 @@
       db.from('class_exams').select('*').eq('school_id',schoolId).eq('class_id',context.classId).order('updated_at',{ascending:false}),
       !cepiEnabled&&isThirdClass()?db.from('class_exams').select('*').eq('school_id',schoolId).eq('exam_type','enem').order('updated_at',{ascending:false}):Promise.resolve({data:[],error:null}),
       db.from('class_exam_headers').select('*').eq('school_id',schoolId).maybeSingle(),
-      role()==='school_admin'?db.rpc('class_exam_purge_media_pending',{p_school_id:schoolId}):Promise.resolve({data:[],error:null})
+      roles.has(role())?db.rpc('class_exam_purge_media_pending',{p_school_id:schoolId}):Promise.resolve({data:[],error:null})
     ]);
     if(proofs.error)throw proofs.error;if(sharedEnem.error)throw sharedEnem.error;if(heading.error)throw heading.error;if(media.error)throw media.error;
     exams=[...new Map([...(proofs.data||[]),...(sharedEnem.data||[])].map(exam=>[exam.id,exam])).values()];header=heading.data||null;pendingMedia=media.data||[];
@@ -167,7 +167,7 @@
     finally{if(button.isConnected)button.disabled=false;}
   }
   async function cleanupPurgedMedia(){
-    if(role()!=='school_admin'||window.getActiveSchoolId?.()!==schoolId)return;
+    if(!roles.has(role())||window.getActiveSchoolId?.()!==schoolId)return;
     const status=body.querySelector('#cxeListStatus');
     try{
       for(let offset=0;offset<pendingMedia.length;offset+=100){
