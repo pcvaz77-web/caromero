@@ -1,11 +1,11 @@
 // Ajuda contextual: o menu reproduz somente as opções visíveis ao usuário.
 (() => {
   const help = {
-    classPanelButton: ['Painel da turma', 'Escolha uma turma no menu lateral e abra o Painel da turma. Selecione uma das ferramentas ao lado para ver como usá-la. As ferramentas disponíveis dependem do seu perfil.'],
+    classPanelButton: ['Painel da turma', 'Escolha uma turma no menu lateral e abra o Painel da turma. Selecione uma das ferramentas ao lado para ler a explicação e assistir ao tutorial. Alguns botões do painel são exclusivos de perfis autorizados.'],
     classroomMapAction: ['Editar mapeamento', 'Abra Editar mapeamento no Painel da turma. Organize os alunos nas carteiras, ajuste as fileiras se necessário e salve um rascunho. Quando estiver pronto, publique o mapeamento para os professores.'],
     viewPublishedClassroomMap: ['Ver mapeamento', 'Escolha uma turma e abra Ver mapeamento no Painel da turma para consultar as posições publicadas. Se não houver mapeamento publicado, peça a quem gerencia a turma que o prepare.'],
-    openSiapGrades: ['Extrair notas do SIAP', 'No Painel da turma, abra Extrair notas do SIAP. Na página autenticada do SIAP, selecione a turma, a disciplina e o bimestre. Capture os dados, confira a prévia e confirme a importação para os cards dos alunos.'],
-    openSiapAbsences: ['Extrair faltas do SIAP', 'No Painel da turma, abra Extrair faltas do SIAP. Capture a tela de notas da turma no SIAP, confira os nomes e as faltas na prévia e marque somente os alunos corretos antes de importar.'],
+    openSiapGrades: ['Extrair notas do SIAP', 'No Painel da turma, abra Extrair notas do SIAP. Na página autenticada do SIAP, selecione a turma, a disciplina e o bimestre. Capture os dados, confira a prévia e confirme a importação para os cards dos alunos. A extração fica disponível para professores autorizados.'],
+    openSiapAbsences: ['Extrair faltas do SIAP', 'No Painel da turma, abra Extrair faltas do SIAP. Capture a tela de notas da turma no SIAP, confira os nomes e as faltas na prévia e marque somente os alunos corretos antes de importar. A extração fica disponível para professores autorizados.'],
     classExamAction: ['Provas da turma', 'Abra Provas da turma para criar provas mensais ou bimestrais. Escolha o tipo, a disciplina e as questões; revise antes de finalizar. Depois, você pode imprimir a prova e o gabarito.'],
     openAttendanceSettings: ['Configurar frequência', 'Defina os limites percentuais usados para classificar os alunos como frequentes, faltosos ou em busca ativa. Confira os valores antes de salvar para a escola.'],
     openSiapImportManager: ['Gerenciar capturas do SIAP', 'Consulte as importações da turma por disciplina e bimestre. Ao limpar uma captura, os dados importados saem dos cards e das etiquetas; confira a seleção antes de confirmar.'],
@@ -27,14 +27,9 @@
     familySchoolNav: ['Portal da Família', 'Consulte as opções do Portal da Família disponíveis para sua escola, como convites e registros de entrada.']
   };
   const panelTopics = [
-    ['classroomMapAction', 'editClassroomMap', context => permission?.role === 'admin' || permission?.is_coordinator],
-    ['viewPublishedClassroomMap', 'viewPublishedClassroomMap', context => !(permission?.role === 'admin' || permission?.is_coordinator)],
-    ['openSiapAbsences', 'openSiapAbsences', context => !!window.getSiapAbsencePanelAction?.(context)],
-    ['openSiapGrades', 'openSiapGrades', context => !!window.getSiapGradePanelAction?.(context)],
-    ['openSiapImportManager', 'openSiapImportManager', context => !!window.getSiapImportManagerAction?.(context)],
-    ['classExamAction', 'classExamAction', context => !!window.getClassExamPanelAction?.(context)],
-    ['openAttendanceSettings', 'openAttendanceSettings', context => !!window.getAssistedAttendancePanelAction?.(context)],
-    ['classroomInstallAction', 'classroomInstallAction', context => !!window.getAttendanceCaptureInstallPanelAction?.(context)]
+    'classroomMapAction', 'viewPublishedClassroomMap', 'openSiapAbsences',
+    'openSiapGrades', 'openSiapImportManager', 'classExamAction',
+    'openAttendanceSettings', 'classroomInstallAction'
   ];
   window.carometroHowToCatalog = help;
   const validUrl = url => /^https:\/\/(?:www\.|m\.)?(?:youtube\.com|youtu\.be)\//i.test(url || '');
@@ -78,22 +73,8 @@
     modal.querySelector('#howToVideoPending').hidden = !link.hidden;
   }
 
-  function panelContext() {
-    return { classId:selectedClassId || classes?.[0]?.id, permission };
-  }
-
   function availablePanelTopics() {
-    const classroomModal = document.getElementById('classroomMapModal');
-    const sameContext = classroomModal?.dataset.helpUserId === user?.id && classroomModal?.dataset.helpClassId === String(selectedClassId);
-    const actualPanel = sameContext && classroomModal.classList.contains('classroom-panel-mode')
-      ? classroomModal.querySelector('#classroomMapContent .classroom-panel-actions') : null;
-    if (actualPanel) {
-      const actual = new Set([...actualPanel.querySelectorAll('button[id]')].map(button => button.id));
-      if (document.querySelector('#classroomInstallAction a')) actual.add('classroomInstallAction');
-      return panelTopics.filter(([, buttonId]) => actual.has(buttonId)).map(([key]) => key);
-    }
-    const context = panelContext();
-    return panelTopics.filter(([, , available]) => available(context)).map(([key]) => key);
+    return panelTopics;
   }
 
   function choosePanelTopic(key) {
