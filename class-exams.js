@@ -30,7 +30,8 @@
     && (exam.questions||[]).every(question=>exam.answer_format.includes(question.correct_answer))
     && (exam.exam_type!=='enem'||!cepiEnabled);
   const canContribute = exam => exam?.exam_type === 'enem' && !cepiEnabled && !exam.finalized_at && !exam.deleted_at && roles.has(role());
-  const canManageExam = exam => !!exam && (managers.has(role()) || exam.created_by === userId);
+  const canManageExam = exam => !!exam && (managers.has(role()) || exam.created_by === userId ||
+    (role()==='teacher' && exam.exam_type==='enem' && !cepiEnabled && isThirdClass()));
   const canPurgeExam = exam => !!exam?.deleted_at && canManageExam(exam);
   const plan = model => window.CepiBlocks?.enemPlan(model) || [];
   const total = model => plan(model).reduce((sum,item)=>sum+item.count,0);
@@ -138,7 +139,9 @@
   }
   async function setExamDeleted(exam,restore,button){
     if(!canManageExam(exam)||Boolean(exam.deleted_at)!==restore||window.getActiveSchoolId?.()!==schoolId)return;
-    if(!restore&&!window.confirm(`Excluir a prova “${displayTitle(exam.title)}” desta turma? As questões e correções serão preservadas, e a prova poderá ser restaurada.`))return;
+    if(!restore&&!window.confirm(exam.exam_type==='enem'
+      ? `Excluir o simulado compartilhado “${displayTitle(exam.title)}” de todas as turmas de 3ª série da escola? As questões e correções serão preservadas, e o simulado poderá ser restaurado.`
+      : `Excluir a prova “${displayTitle(exam.title)}” desta turma? As questões e correções serão preservadas, e a prova poderá ser restaurada.`))return;
     button.disabled=true;
     const status=body.querySelector('#cxeListStatus');
     try{

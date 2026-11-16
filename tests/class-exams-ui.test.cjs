@@ -9,7 +9,7 @@ const tick = () => new Promise(resolve => setTimeout(resolve,20));
 
 function setup({role='teacher',className='1A',classId='class-1',userId='teacher-1',seed=[],bankSeed=[],studentSeed=[{id:'student-1',full_name:'Aluno Exemplo'}],addEnemQuestions}={}) {
   const dom = new JSDOM('<!doctype html><html><head></head><body></body></html>',{runScripts:'dangerously'});
-  const {window} = dom, rows=[...seed], bankRows=[...bankSeed], students=studentSeed, pendingMedia=[], removedPaths=[];
+  const {window} = dom, rows=[...seed], bankRows=[...bankSeed], students=studentSeed, pendingMedia=[], sharedPendingMedia=new Set(), removedPaths=[];
   let header=null,printed='',removeError=false;
   const query=(table,operation,payload)=>{
     const filters=[];
@@ -38,27 +38,33 @@ function setup({role='teacher',className='1A',classId='class-1',userId='teacher-
   });
   window.db={auth:{getUser:async()=>({data:{user:{id:userId}},error:null})},from,rpc:async(name,args)=>{
     if(name==='get_cepi_access_context')return {data:{enabled:false},error:null};
-    if(name==='class_exam_purge_media_pending')return {data:pendingMedia.filter(path=>role!=='teacher'||path.split('/')[1]===userId),error:null};
+    if(name==='class_exam_purge_media_pending')return {data:pendingMedia.filter(path=>role!=='teacher'||path.split('/')[1]===userId||sharedPendingMedia.has(path)),error:null};
     if(name==='class_exam_add_enem_questions')return addEnemQuestions?.(args,rows) || {data:null,error:new Error('RPC não simulada')};
     if(name==='class_exam_purge_media_ack'){
       pendingMedia.splice(0,pendingMedia.length,...pendingMedia.filter(path=>!args.p_paths.includes(path)));
+      args.p_paths.forEach(path=>sharedPendingMedia.delete(path));
       return {data:args.p_paths.length,error:null};
     }
     if(name==='purge_class_exam'){
       const index=rows.findIndex(row=>row.id===args.p_exam_id&&row.deleted_at);
       if(index<0)return {data:null,error:new Error('Prova não excluída')};
-      if(!['school_admin','coordinator'].includes(role)&&!(role==='teacher'&&rows[index].created_by===userId))
+      if(!['school_admin','coordinator'].includes(role)&&!(role==='teacher'&&
+        (rows[index].created_by===userId||(rows[index].exam_type==='enem'&&/^3/.test(className)))))
         return {data:null,error:new Error('Sem permissão')};
       const exam=rows.splice(index,1)[0];
       for(const question of exam.questions||[]){
-        for(const match of String(question.statement).matchAll(/data-cepi-path="([^"]+)"/g))pendingMedia.push(match[1]);
+        for(const match of String(question.statement).matchAll(/data-cepi-path="([^"]+)"/g)){
+          pendingMedia.push(match[1]);
+          if(exam.exam_type==='enem')sharedPendingMedia.add(match[1]);
+        }
       }
       return {data:{results_deleted:0,images_queued:pendingMedia.length},error:null};
     }
     if(name==='set_class_exam_deleted'){
       const exam=rows.find(row=>row.id===args.p_exam_id);
       if(!exam||exam.school_id!==args.p_school_id||exam.class_id!==args.p_class_id||
-        (role==='teacher'&&exam.created_by!=='teacher-1'))return {data:null,error:new Error('Sem permissão')};
+        (role==='teacher'&&exam.created_by!==userId&&!(exam.exam_type==='enem'&&/^3/.test(className))))
+        return {data:null,error:new Error('Sem permissão')};
       exam.deleted_at=args.p_restore?null:new Date().toISOString();
       return {data:true,error:null};
     }
@@ -342,6 +348,23 @@ test('professor só exclui definitivamente provas próprias',async()=>{
     assert.equal(env.window.document.querySelectorAll('[data-purge]').length,1);
     env.window.document.querySelector('[data-purge]').click();await tick();
     assert.deepEqual(env.rows.map(exam=>exam.id),['exam-other']);
+  }finally{env.dom.window.close();}
+});
+
+test('professor da 3ª série arquiva e exclui simulado ENEM compartilhado',async()=>{
+  const exam={id:'exam-enem',school_id:'school-1',class_id:'class-2',created_by:'teacher-2',
+    exam_type:'enem',title:'SIMULADO ENEM',subject:'Simulado do ENEM',academic_year:2026,
+    questions:[{statement:'<img data-cepi-path="school-1/teacher-2/image.png">'}],deleted_at:null,finalized_at:null};
+  const env=setup({role:'teacher',className:'3A',seed:[exam]});
+  try{
+    await tick();env.window.document.querySelector('[data-type="enem"]').click();
+    const remove=env.window.document.querySelector('.cxe-item .cxe-delete');
+    assert.ok(remove);
+    remove.click();await tick();
+    assert.ok(env.window.document.querySelector('[data-purge]'));
+    env.window.document.querySelector('[data-purge]').click();await tick();
+    assert.equal(env.rows.length,0);
+    assert.deepEqual(env.removedPaths,['school-1/teacher-2/image.png']);
   }finally{env.dom.window.close();}
 });
 
