@@ -447,6 +447,8 @@ document.addEventListener('DOMContentLoaded', () => {
   async function openClassPanel() {
     if (!selectedClassId) return;
     modal.classList.add('classroom-panel-mode');
+    modal.dataset.helpUserId = user?.id || '';
+    modal.dataset.helpClassId = String(selectedClassId);
     activeClassId = selectedClassId;
     const selected = classes.find(item => item.id === activeClassId);
     document.getElementById('classroomMapTitle').textContent = `Painel da turma - ${selected?.name || 'Turma'}`;
