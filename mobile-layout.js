@@ -262,6 +262,33 @@ document.addEventListener('DOMContentLoaded', () => {
         white-space:nowrap;
       }
       .mobile-brand .mark { width:31px; height:31px; margin-right:7px; }
+      @media (max-width:800px) {
+        body #app .mobile-topbar {
+          min-height:0 !important;
+          flex-wrap:wrap !important;
+          align-items:center !important;
+          gap:8px !important;
+          padding:8px 14px !important;
+        }
+        body #app .mobile-menu-toggle { order:1; width:42px !important; height:42px !important; }
+        body #app .mobile-brand {
+          order:2;
+          flex:1 1 0;
+          justify-content:center;
+          min-width:0;
+          font-size:17px !important;
+        }
+        body #app .mobile-brand .mark { width:31px !important; height:31px !important; margin-right:7px !important; }
+        body #app .home-reference-mobile-actions { display:contents !important; }
+        body #app .mobile-topbar #notificationBell:not(.hidden) {
+          order:3;
+          position:relative !important;
+          inset:auto !important;
+          flex:0 0 42px;
+        }
+        body #app .mobile-topbar #teacherActivitySiteLink:not(.hidden) { order:4; }
+        body #app .mobile-topbar #openSiapAssistant:not(.hidden) { order:5; }
+      }
       .mobile-menu-backdrop {
         position:fixed;
         inset:0;
@@ -402,7 +429,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const topbar = document.createElement('div');
   topbar.className = 'mobile-topbar';
   topbar.innerHTML = `<button type="button" class="mobile-menu-toggle" aria-label="Abrir menu" aria-expanded="false">☰</button><button type="button" class="mobile-brand" aria-label="Voltar para a tela inicial">${side.querySelector('.logo')?.innerHTML || 'CARÔMETRO'}</button>`;
-  side.insertBefore(topbar, side.firstChild);
+  // No celular, os atalhos de turma vêm antes da barra de menu e notificações.
+  side.insertBefore(topbar, window.matchMedia('(max-width:800px)').matches ? classSidebar.nextSibling : side.firstChild);
 
   const backdrop = document.createElement('div');
   backdrop.className = 'mobile-menu-backdrop';
