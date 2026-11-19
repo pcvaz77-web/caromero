@@ -4,6 +4,19 @@ document.addEventListener('DOMContentLoaded', () => {
   const classList = document.getElementById('classList');
   const classForm = document.getElementById('classForm');
   const classModal = document.getElementById('classModal');
+  const classHeading = classModal.querySelector('.modal-head h3');
+  const classDescription = classForm.querySelector('.sub');
+  const classNameInput = document.getElementById('newClassName');
+  const deleteClassButton = document.getElementById('deleteClass');
+  const editClassButton = document.createElement('button');
+  editClassButton.type = 'button';
+  editClassButton.id = 'editClass';
+  editClassButton.className = 'class-edit hidden';
+  editClassButton.title = 'Editar nome da turma selecionada';
+  editClassButton.setAttribute('aria-label', editClassButton.title);
+  editClassButton.textContent = '✎';
+  deleteClassButton.after(editClassButton);
+  let editingClassId = null;
   let drawing = false;
   let observer;
 
@@ -20,6 +33,10 @@ document.addEventListener('DOMContentLoaded', () => {
     .shift-classes[hidden] { display:none; }
     .shift-empty { color:#8fa1c2; font-size:12px; padding:8px 12px; }
     .class-shift { margin-bottom:17px; }
+    .class-edit { width:28px;height:28px;border-radius:8px;background:#395d9d;color:#fff;font-size:18px;font-weight:700; }
+    .class-edit:hover { background:#4b70b6; }
+    .class-edit-choice { margin:0 0 18px;padding:0;background:none;color:#315fb5;font-size:13px;font-weight:750;text-decoration:underline; }
+    @media (max-width:800px) { .class-edit { width:22px;height:22px;font-size:15px; } }
     @media (max-width:800px) {
       .shift-group { margin:0; display:flex; }
       .shift-tab { width:auto; padding:10px 12px; }
@@ -34,6 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
     drawing = true;
     observer?.disconnect();
     const selected = selectedClassId;
+    editClassButton.classList.toggle('hidden', !selected || permission.role !== 'admin');
     const allStudentsButton = `<button type="button" class="shift-tab all-students-tab ${!selected && !selectedShift ? 'active' : ''}" data-all-students>Todos os alunos</button>`;
     classList.innerHTML = allStudentsButton + shifts.map(shift => {
       const items = classes.filter(item => (item.shift || 'Matutino') === shift);
@@ -104,39 +122,84 @@ document.addEventListener('DOMContentLoaded', () => {
   shiftField.innerHTML = `<label for="classShift">Turno</label><select id="classShift" required>${shifts.map(shift => `<option value="${shift}">${shift}</option>`).join('')}</select>`;
   classForm.querySelector('.actions').before(shiftField);
 
+  const editChoice = document.createElement('button');
+  editChoice.type = 'button';
+  editChoice.className = 'class-edit-choice';
+  editChoice.textContent = 'Editar uma turma já cadastrada';
+  classDescription.after(editChoice);
+  const editPicker = document.createElement('div');
+  editPicker.className = 'field hidden';
+  editPicker.innerHTML = '<label for="editClassPicker">Turma a editar</label><select id="editClassPicker"></select>';
+  editChoice.after(editPicker);
+  const picker = editPicker.querySelector('select');
+  const submit = classForm.querySelector('button:not([type="button"])');
+
+  function openClassForm(classId = null) {
+    classForm.reset();
+    picker.innerHTML = classes.map(item => `<option value="${item.id}">${esc(item.name)} · ${esc(item.shift || 'Matutino')}</option>`).join('');
+    editingClassId = classId && classes.some(item => item.id === classId) ? classId : null;
+    const editing = !!editingClassId;
+    classHeading.textContent = editing ? 'Editar nome da turma' : 'Cadastrar turma';
+    classDescription.textContent = editing
+      ? 'Corrija o nome para corresponder ao cadastro da turma no SIAP.'
+      : 'Exemplo: 6º A. Depois, escolha essa turma ao cadastrar cada aluno.';
+    editPicker.classList.toggle('hidden', !editing);
+    shiftField.classList.toggle('hidden', editing);
+    editChoice.textContent = editing ? 'Cadastrar nova turma' : 'Editar uma turma já cadastrada';
+    editChoice.classList.toggle('hidden', permission.role !== 'admin' || (!editing && !classes.length));
+    submit.textContent = editing ? 'Salvar nome' : 'Cadastrar turma';
+    if (editing) picker.value = editingClassId;
+    classNameInput.value = editing ? classes.find(item => item.id === editingClassId).name : '';
+    document.getElementById('classShift').value = editing
+      ? (classes.find(item => item.id === editingClassId).shift || 'Matutino') : 'Matutino';
+    classModal.classList.remove('hidden');
+    classNameInput.focus();
+  }
+
+  picker.onchange = () => openClassForm(picker.value);
+  editChoice.onclick = () => openClassForm(editingClassId ? null : selectedClassId || classes[0]?.id);
+  editClassButton.onclick = () => openClassForm(selectedClassId);
+
   let classSaving = false;
   classForm.onsubmit = async event => {
     event.preventDefault();
     if (classSaving) return;
-    const name = document.getElementById('newClassName').value.trim();
+    const name = classNameInput.value.trim();
     const shift = document.getElementById('classShift').value;
+    const currentClass = editingClassId ? classes.find(item => item.id === editingClassId) : null;
+    if (editingClassId && (!currentClass || permission.role !== 'admin')) {
+      toast('Selecione uma turma que você pode editar.');
+      return;
+    }
     const normalizedName = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR');
-    const alreadyExists = classes.some(item => String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR') === normalizedName && (item.shift || 'Matutino') === shift);
+    const alreadyExists = classes.some(item => item.id !== editingClassId && String(item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLocaleLowerCase('pt-BR') === normalizedName && (item.shift || 'Matutino') === shift);
     if (alreadyExists) {
       toast(`A turma ${name} já está cadastrada no turno ${shift}.`);
       return;
     }
-    const submit = classForm.querySelector('button[type="submit"]');
     classSaving = true;
-    if (submit) { submit.disabled = true; submit.textContent = 'Cadastrando…'; }
+    submit.disabled = true;
+    submit.textContent = editingClassId ? 'Salvando…' : 'Cadastrando…';
     try {
       const schoolId = window.getActiveSchoolId?.() || null;
-      if (!schoolId) { toast('Selecione uma escola antes de cadastrar a turma.'); return; }
-      const row = { name, shift, school_id:schoolId };
-      const { error } = await db.from('classes').insert(row);
+      if (!schoolId) { toast('Selecione uma escola antes de salvar a turma.'); return; }
+      const { error } = editingClassId
+        ? await db.rpc('rename_school_class', { p_school_id:schoolId, p_class_id:editingClassId, p_name:name })
+        : await db.from('classes').insert({ name, shift, school_id:schoolId });
       if (error) { toast(error.code === '23505' || error.message.includes('já está cadastrada') ? 'Essa turma já está cadastrada.' : error.message); return; }
       classModal.classList.add('hidden');
-      toast('Turma cadastrada.');
+      toast(editingClassId ? 'Nome da turma atualizado.' : 'Turma cadastrada.');
       await load();
+    } catch (error) {
+      toast(error.message || 'Não foi possível salvar a turma.');
     } finally {
       classSaving = false;
-      if (submit) { submit.disabled = false; submit.textContent = 'Cadastrar turma'; }
+      submit.disabled = false;
+      submit.textContent = editingClassId ? 'Salvar nome' : 'Cadastrar turma';
     }
   };
 
   document.getElementById('newClass').onclick = () => {
-    classForm.reset();
-    document.getElementById('classShift').value = 'Matutino';
-    classModal.classList.remove('hidden');
+    openClassForm();
   };
 });
