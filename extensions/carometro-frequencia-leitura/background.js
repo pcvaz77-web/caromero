@@ -181,9 +181,16 @@ async function openPathWithRetries(tabId, actionMethod, path, description) {
 }
 
 const comparable = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+const classCodes = value => [...String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[ºª°ᵒᵃ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+  .matchAll(/(?:^| )(\d+)\s*([A-Z])(?= |$)/g)].map(match => `${Number(match[1])}${match[2]}`);
+const sameClass = (siapName, localName) => {
+  const siapCodes = classCodes(siapName);
+  return siapCodes.length === 1 && classCodes(localName).includes(siapCodes[0]);
+};
 const sameText = (actual, expected) => comparable(actual).includes(comparable(expected));
 const diaryRowMatches = (row, request) =>
-  comparable(row.className) === comparable(request.className) &&
+  sameClass(row.className, request.className) &&
   sameText(row.grade, request.grade) &&
   sameText(row.shift, request.shift) &&
   sameText(row.subject, request.subject) &&

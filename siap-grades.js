@@ -5,7 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const normalizeStudentName = value => String(value || '').replace(/^\s*\d+\s*[.\-)–—:]\s*/, '')
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, ' ')
     .replace(/\s+/g, ' ').trim().toLowerCase();
-  const normalizeClass = value => normalize(value).replace(/\s+/g, '');
+  const classCodes = value => [...String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[ºª°ᵒᵃ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+    .matchAll(/(?:^| )(\d+)\s*([A-Z])(?= |$)/g)].map(match => `${Number(match[1])}${match[2]}`);
+  const sameClass = (siapName, localName) => {
+    const siapCodes = classCodes(siapName);
+    return siapCodes.length === 1 && classCodes(localName).includes(siapCodes[0]);
+  };
   const normalizeSchool = value => normalize(value).replace(/\bcol\b/g, 'colegio').replace(/\best\b/g, 'estadual');
   const escape = value => {
     const element = document.createElement('div');
@@ -179,7 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!snapshot.schoolName || !activeSchoolName ||
           normalizeSchool(snapshot.schoolName) !== normalizeSchool(activeSchoolName))
         throw new Error(`A escola aberta no SIAP (${snapshot.schoolName || 'não identificada'}) não corresponde à escola ativa no Carômetro (${activeSchoolName || 'não identificada'}).`);
-      if (normalizeClass(snapshot.context?.className) !== normalizeClass(className))
+      if (!sameClass(snapshot.context?.className, className))
         throw new Error(`A tela do SIAP não pertence à turma ${className}.`);
       const targetClass = classes.find(item => item.id === dialog.dataset.classId);
       if (!targetClass || (targetClass.shift && normalize(snapshot.context?.shift) !== normalize(targetClass.shift)))

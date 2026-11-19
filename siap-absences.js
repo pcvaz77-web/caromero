@@ -3,7 +3,13 @@ document.addEventListener('DOMContentLoaded', () => {
   'use strict';
   const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
   const studentKey = value => normalize(value).replace(/^\d+\s*[.\-)–—:]\s*/, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
-  const classKey = value => normalize(value).replace(/[^a-z0-9]/g, '');
+  const classCodes = value => [...String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[ºª°ᵒᵃ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+    .matchAll(/(?:^| )(\d+)\s*([A-Z])(?= |$)/g)].map(match => `${Number(match[1])}${match[2]}`);
+  const sameClass = (siapName, localName) => {
+    const siapCodes = classCodes(siapName);
+    return siapCodes.length === 1 && classCodes(localName).includes(siapCodes[0]);
+  };
   const schoolKey = value => normalize(value).replace(/\bcol\b/g, 'colegio').replace(/\best\b/g, 'estadual');
   const escape = value => { const node=document.createElement('span');node.textContent=String(value ?? '');return node.innerHTML; };
   const escapeAttribute = value => escape(value).replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -205,7 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const activeSchoolName=membership?.schools?.name||membership?.name||'';
       if(!result.schoolName||!activeSchoolName||schoolKey(result.schoolName)!==schoolKey(activeSchoolName))
         throw new Error('A escola aberta no SIAP não corresponde à escola ativa no Carômetro.');
-      if(classKey(result.context?.className)!==classKey(targetClassName))
+      if(!sameClass(result.context?.className,targetClassName))
         throw new Error(`A tela do SIAP não pertence à turma ${targetClassName}.`);
       const target=classes.find(item=>item.id===targetClassId);
       if(!target||(target.shift&&normalize(result.context?.shift)!==normalize(target.shift)))

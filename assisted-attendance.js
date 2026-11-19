@@ -1,7 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
   'use strict';
   const normalizeName = value => String(value || '').replace(/^\s*\d+\s*[.\-)–—:]\s*/, '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
-  const normalizeClass = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const classCodes = value => [...String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[ºª°ᵒᵃ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+    .matchAll(/(?:^| )(\d+)\s*([A-Z])(?= |$)/g)].map(match => `${Number(match[1])}${match[2]}`);
+  const sameClass = (siapName, localName) => {
+    const siapCodes = classCodes(siapName);
+    return siapCodes.length === 1 && classCodes(localName).includes(siapCodes[0]);
+  };
   const capturedTerms = snapshots => [...new Set(snapshots.map(item=>String(item.context?.term||'').trim()))].sort((a,b)=>a.localeCompare(b,'pt-BR',{numeric:true,sensitivity:'base'}));
   const escapeHtml = value => { const node=document.createElement('span'); node.textContent=String(value || ''); return node.innerHTML; };
   const extensionStoreUrl = window.CAROMETRO_RUNTIME_CONFIG?.attendanceCaptureStoreUrl || 'https://chromewebstore.google.com/detail/carometro-frequencia-leitura/knidplehphfpgaeeogjpfldhgbfkogbc';
@@ -231,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const response=await requestCapture();
     if(!response?.ok){by('[data-aa-status]').textContent=response?.message||'Não foi possível capturar.';return;}
     const snapshot=response.result;
-    if(normalizeClass(snapshot.context?.className)!==normalizeClass(captureClassName)){by('[data-aa-status]').textContent=`A chamada aberta no SIAP não pertence à turma ${captureClassName}.`;return;}
+    if(!sameClass(snapshot.context?.className,captureClassName)){by('[data-aa-status]').textContent=`A chamada aberta no SIAP não pertence à turma ${captureClassName}.`;return;}
     if(!selectedMonths.has(snapshot.month)){by('[data-aa-status]').textContent=`O mês aberto no SIAP é ${snapshot.month}. Ele não foi escolhido no Carômetro.`;return;}
     const openedDay=Number.parseInt(snapshot.selectedDate.slice(0,2),10);
     if(!eligibleRegisteredDays(snapshot).includes(openedDay)){by('[data-aa-status]').textContent=`A chamada de ${snapshot.selectedDate} ainda não pode entrar no relatório. Somente datas verdes já vencidas e, no dia atual, turnos encerrados são considerados.`;return;}
