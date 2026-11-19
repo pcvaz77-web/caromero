@@ -36,10 +36,10 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
         </fieldset>
         <fieldset class="reports-option-card">
-          <legend>Frequência</legend>
+          <legend>Faltas e frequência</legend>
           <div class="reports-choice-list">
-            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher"> Professor/disciplina</label>
-            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Secretaria</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceTeacher" value="teacher"> Faltas por disciplina</label>
+            <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceSecretary" value="secretary"> Frequência da secretaria</label>
             <label class="check reports-choice"><input type="radio" name="reportAttendanceSource" id="reportAttendanceNone" value="none" checked> Não incluir</label>
           </div>
         </fieldset>
@@ -163,15 +163,13 @@ document.addEventListener('DOMContentLoaded', () => {
   let transferredStudents = [];
   let uniformItemsSignature = '';
   let uniformItemsError = false;
-  let attendanceEventsByStudent = new Map();
-  let attendanceCurrentByStudent = new Map();
-  let attendanceEventsSignature = '';
-  let attendanceEventsError = false;
+  let absencesByStudent = new Map();
+  let absencesSignature = '';
+  let absencesError = false;
   let gradesByStudent = new Map();
   let gradesSignature = '';
   let gradesError = false;
   let schoolDailyCurrentByStudent = new Map();
-  let schoolDailyHistoryByStudent = new Map();
   let schoolDailyAttendanceSignature = '';
   let schoolDailyAttendanceError = false;
   const livroRevisaTermFor = (year, bimester) => livroRevisaTerms?.get(`${year}_${bimester}`) || null;
@@ -254,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       withOccurrences: get('reportContentOccurrences').checked,
       withObservations: get('reportContentObservations').checked,
       attendanceSource,
-      withAttendanceHistory: attendanceSource === 'teacher',
+      withAbsences: attendanceSource === 'teacher',
       withSchoolDailyAttendance: attendanceSource === 'secretary',
       withGrades: get('reportContentGrades').checked,
       gradesYear: Number(get('reportGradesYear').value) || new Date().getFullYear(),
@@ -276,7 +274,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const hasSelectedContent = filters => filters.withOccurrences || filters.withObservations ||
-    filters.withAttendanceHistory || filters.withSchoolDailyAttendance || filters.withGrades ||
+    filters.withAbsences || filters.withSchoolDailyAttendance || filters.withGrades ||
     filters.withPhoto || filters.withLivroRevisa || filters.withUniformItems;
 
   function syncLivroRevisaYearField() {
@@ -446,51 +444,38 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformItemsError = false;
   }
 
-  async function fetchAttendanceEvents(filters) {
-    if (!filters.withAttendanceHistory || !filters.schoolId) {
-      attendanceEventsByStudent = new Map();
-      attendanceCurrentByStudent = new Map();
-      attendanceEventsError = false;
-      attendanceEventsSignature = '';
+  async function fetchAbsences(filters) {
+    if (!filters.withAbsences || !filters.schoolId) {
+      absencesByStudent = new Map();
+      absencesSignature = '';
+      absencesError = false;
       return;
     }
-    const signature = filters.schoolId;
-    if (signature === attendanceEventsSignature) return;
+    if (filters.schoolId === absencesSignature) return;
     const token = ++fetchToken;
-    const currentRows = [];
-    let currentOffset = 0;
-    while (true) {
-      const { data, error } = await db.rpc('report_siap_attendance_current', { p_school_id:filters.schoolId })
-        .range(currentOffset, currentOffset + REPORT_PAGE_SIZE - 1);
-      if (token !== fetchToken) return;
-      if (error) { attendanceCurrentByStudent=new Map();attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
-      const batch=data||[];currentRows.push(...batch);
-      if(batch.length<REPORT_PAGE_SIZE)break;
-      currentOffset+=REPORT_PAGE_SIZE;
-    }
     const rows = [];
-    let offset = 0;
-    while (true) {
-      const { data, error } = await db.rpc('report_siap_attendance_events', { p_school_id:filters.schoolId })
+    for (let offset = 0; ; offset += REPORT_PAGE_SIZE) {
+      const { data, error } = await db.from('siap_bimester_absences')
+        .select('student_id,academic_year,bimester,subject,absences,imported_at')
+        .eq('school_id', filters.schoolId)
         .range(offset, offset + REPORT_PAGE_SIZE - 1);
       if (token !== fetchToken) return;
-      if (error) { attendanceCurrentByStudent=new Map();attendanceEventsByStudent=new Map();attendanceEventsSignature='';attendanceEventsError=true;return; }
-      const batch=data||[];rows.push(...batch);
-      if(batch.length<REPORT_PAGE_SIZE)break;
-      offset+=REPORT_PAGE_SIZE;
+      if (error) { absencesByStudent = new Map(); absencesSignature = ''; absencesError = true; return; }
+      rows.push(...(data || []));
+      if ((data || []).length < REPORT_PAGE_SIZE) break;
     }
-    attendanceEventsByStudent=new Map();
-    attendanceCurrentByStudent=new Map();
-    currentRows.forEach(item=>{if(!attendanceCurrentByStudent.has(item.student_id))attendanceCurrentByStudent.set(item.student_id,[]);attendanceCurrentByStudent.get(item.student_id).push(item);});
-    rows.forEach(item=>{if(!attendanceEventsByStudent.has(item.student_id))attendanceEventsByStudent.set(item.student_id,[]);attendanceEventsByStudent.get(item.student_id).push(item);});
-    attendanceEventsSignature=signature;
-    attendanceEventsError=false;
+    absencesByStudent = new Map();
+    rows.forEach(item => {
+      if (!absencesByStudent.has(item.student_id)) absencesByStudent.set(item.student_id, []);
+      absencesByStudent.get(item.student_id).push(item);
+    });
+    absencesSignature = filters.schoolId;
+    absencesError = false;
   }
 
   async function fetchSchoolDailyAttendance(filters) {
     if (!filters.withSchoolDailyAttendance || !filters.schoolId) {
       schoolDailyCurrentByStudent = new Map();
-      schoolDailyHistoryByStudent = new Map();
       schoolDailyAttendanceError = false;
       schoolDailyAttendanceSignature = '';
       return;
@@ -521,32 +506,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentResult.stale || token !== fetchToken) return;
     if (currentResult.error) {
       schoolDailyCurrentByStudent = new Map();
-      schoolDailyHistoryByStudent = new Map();
-      schoolDailyAttendanceSignature = '';
-      schoolDailyAttendanceError = true;
-      return;
-    }
-    const historyResult = await fetchTable(
-      'siap_school_daily_attendance_history',
-      'student_id,academic_year,term,months,school_day_count,presences,absences,percentage,status,period_key,source_dates,imported_at'
-    );
-    if (historyResult.stale || token !== fetchToken) return;
-    if (historyResult.error) {
-      schoolDailyCurrentByStudent = new Map();
-      schoolDailyHistoryByStudent = new Map();
       schoolDailyAttendanceSignature = '';
       schoolDailyAttendanceError = true;
       return;
     }
     schoolDailyCurrentByStudent = new Map();
-    schoolDailyHistoryByStudent = new Map();
     currentResult.data.forEach(item => {
       if (!schoolDailyCurrentByStudent.has(item.student_id)) schoolDailyCurrentByStudent.set(item.student_id, []);
       schoolDailyCurrentByStudent.get(item.student_id).push(item);
-    });
-    historyResult.data.forEach(item => {
-      if (!schoolDailyHistoryByStudent.has(item.student_id)) schoolDailyHistoryByStudent.set(item.student_id, []);
-      schoolDailyHistoryByStudent.get(item.student_id).push(item);
     });
     schoolDailyAttendanceSignature = signature;
     schoolDailyAttendanceError = false;
@@ -584,8 +551,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let matched = false;
     if (filters.withOccurrences) matched = matched || (occurrencesByStudent.get(student.student_id)?.length > 0);
     if (filters.withObservations) matched = matched || (window.decodeObservationValues?.(student.has_report) || []).length > 0;
-    if (filters.withAttendanceHistory) matched = matched || (attendanceCurrentByStudent.get(student.student_id)?.length > 0) || (attendanceEventsByStudent.get(student.student_id)?.length > 0);
-    if (filters.withSchoolDailyAttendance) matched = matched || (schoolDailyCurrentByStudent.get(student.student_id)?.length > 0) || (schoolDailyHistoryByStudent.get(student.student_id)?.length > 0);
+    if (filters.withAbsences) matched = matched || (absencesByStudent.get(student.student_id)?.length > 0);
+    if (filters.withSchoolDailyAttendance) matched = matched || (schoolDailyCurrentByStudent.get(student.student_id)?.length > 0);
     if (filters.withGrades) matched = matched || (gradesByStudent.get(student.student_id)?.length > 0);
     // Registro de Livro/Revisa = qualquer linha (recebido OU não_recebido) no
     // ANO LETIVO selecionado — nunca em outro ano, mesmo que o aluno tenha
@@ -646,9 +613,9 @@ document.addEventListener('DOMContentLoaded', () => {
       previewEl.textContent = 'Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.';
       return;
     }
-    await fetchAttendanceEvents(filters);
-    if (attendanceEventsError) {
-      previewEl.textContent = 'Não foi possível carregar o histórico de frequência. Tente novamente.';
+    await fetchAbsences(filters);
+    if (absencesError) {
+      previewEl.textContent = 'Não foi possível carregar as faltas por disciplina. Tente novamente.';
       return;
     }
     await fetchSchoolDailyAttendance(filters);
@@ -816,7 +783,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (filters.withSchoolDailyAttendance) {
-      const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
       y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
       doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
       doc.text('FREQUÊNCIA DIÁRIA GERAL — SECRETARIA', MARGIN_X, y);y += 8;
@@ -825,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
       else currentAttendance.forEach(item=>{
         y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
+        const heading=`${(item.months||[]).join(', ')} · ${item.academic_year} — ${item.percentage}% de frequência`;
         y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
         doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
         const totals=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
@@ -835,58 +801,24 @@ document.addEventListener('DOMContentLoaded', () => {
         y=printLines(doc,doc.splitTextToSize(months,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
       });
       y+=4;
-      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
-      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
-      doc.text('HISTÓRICO DA FREQUÊNCIA DA SECRETARIA', MARGIN_X, y);y += 8;
-      const history=schoolDailyHistoryByStudent.get(student.student_id)||[];
-      if(!history.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma importação anterior registrada.',MARGIN_X,y);y+=9;}
-      else history.forEach(item=>{
-        y=ensureSpace(doc,y,14,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${formatDateTime(item.imported_at)} — ${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
-        y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        const detail=`Dias letivos: ${item.school_day_count} · Presenças: ${item.presences} · Faltas: ${item.absences} · Meses: ${(item.months||[]).join(', ')}`;
-        y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
-      });
-      y+=4;
     }
 
-    if (filters.withAttendanceHistory) {
-      const labels={frequent:'Frequente',absent:'Faltoso',active_search:'Necessita de Busca Ativa'};
+    if (filters.withAbsences) {
       y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
       doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
-      doc.text('FREQUÊNCIA POR PROFESSOR E DISCIPLINA', MARGIN_X, y);y += 8;
-      const currentAttendance=attendanceCurrentByStudent.get(student.student_id)||[];
-      if(!currentAttendance.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Sem captura do professor para o período.',MARGIN_X,y);y+=9;}
-      else currentAttendance.forEach(item=>{
-        y=ensureSpace(doc,y,18,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        const heading=`${item.subject} · ${(item.months||[]).join(', ')} · ${item.academic_year} — ${labels[item.status]||item.status} (${item.percentage}%)`;
-        y=printLines(doc,doc.splitTextToSize(heading,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,5,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(66,76,96);
-        const teacher=`Professor: ${item.teacher_name} · Aulas: ${item.lesson_count} · Presenças: ${item.presences} · Faltas: ${item.absences}`;
-        y=printLines(doc,doc.splitTextToSize(teacher,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.8,`Continuação — ${student.full_name}`);
-        doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        const months=`Meses analisados: ${(item.months||[]).join(', ')}`;
-        y=printLines(doc,doc.splitTextToSize(months,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
-      });
-      y+=4;
-      y = ensureSpace(doc, y, 14, `Continuação — ${student.full_name}`);
-      doc.setFont('helvetica', 'bold');doc.setFontSize(12);doc.setTextColor(20,32,58);
-      doc.text('HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA', MARGIN_X, y);y += 8;
-      const events=attendanceEventsByStudent.get(student.student_id)||[];
-      if(!events.length){doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);doc.text('Nenhuma mudança de classificação registrada.',MARGIN_X,y);y+=9;}
-      else events.forEach(event=>{
-        const from=labels[event.from_status]||null,to=labels[event.to_status]||event.to_status;
-        let description=from?`Mudou de ${from} para ${to}`:`Classificação inicial: ${to}`;
-        if(event.to_status==='frequent'&&event.from_status)description=`Voltou a Frequente; etiqueta removida dos cards`;
-        y=ensureSpace(doc,y,12,`Continuação — ${student.full_name}`);
-        doc.setFont('helvetica','bold');doc.setFontSize(10);doc.setTextColor(20,32,58);
-        doc.text(`${formatDateTime(event.changed_at)} — ${description} (${event.percentage}%)`,MARGIN_X,y);y+=5;
-        doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(102,112,133);
-        const detail=`Importação por ${event.teacher_name} · ${event.subject} · meses: ${(event.months||[]).join(', ')}`;
-        y=printLines(doc,doc.splitTextToSize(detail,A4_WIDTH-MARGIN_X*2),MARGIN_X,y,4.7,`Continuação — ${student.full_name}`);y+=4;
+      doc.text('FALTAS POR DISCIPLINA', MARGIN_X, y);y += 8;
+      const rows = (absencesByStudent.get(student.student_id) || [])
+        .slice().sort((a, b) => b.academic_year - a.academic_year || b.bimester - a.bimester || a.subject.localeCompare(b.subject, 'pt-BR'));
+      if (!rows.length) {
+        doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(102,112,133);
+        doc.text('Nenhuma falta por disciplina importada do SIAP.', MARGIN_X, y);y += 9;
+      } else rows.forEach(item => {
+        y = ensureSpace(doc, y, 9, `Continuação — ${student.full_name}`);
+        doc.setFont('helvetica','normal');doc.setFontSize(10.5);doc.setTextColor(20,32,58);
+        const subject = String(item.subject || '').replace(/^\d+\s*-\s*/, '');
+        const line = `${subject} · ${item.bimester}º bimestre/${item.academic_year}: ${item.absences} falta${item.absences === 1 ? '' : 's'}`;
+        y = printLines(doc, doc.splitTextToSize(line, A4_WIDTH - MARGIN_X * 2), MARGIN_X, y, 5.2, `Continuação — ${student.full_name}`);
+        y += 2;
       });
       y+=4;
     }
@@ -1162,9 +1094,9 @@ document.addEventListener('DOMContentLoaded', () => {
     uniformItemsSignature = '';
     await fetchUniformItemsDataset(filters);
     if (uniformItemsError) { toast('Não foi possível carregar os dados de Uniforme/Tênis/Material. Tente novamente.'); return; }
-    attendanceEventsSignature = '';
-    await fetchAttendanceEvents(filters);
-    if (attendanceEventsError) { toast('Não foi possível carregar o histórico de frequência. Tente novamente.'); return; }
+    absencesSignature = '';
+    await fetchAbsences(filters);
+    if (absencesError) { toast('Não foi possível carregar as faltas por disciplina. Tente novamente.'); return; }
     schoolDailyAttendanceSignature = '';
     await fetchSchoolDailyAttendance(filters);
     if (schoolDailyAttendanceError) { toast('Não foi possível carregar a Frequência da Secretaria. Tente novamente.'); return; }
@@ -1231,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', () => {
         p_scope_type: scopeType,
         p_scope_id: scopeId,
         p_scope_label: scopeLabel,
-        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_source:filters.attendanceSource, attendance_history: filters.withAttendanceHistory, school_daily_attendance: filters.withSchoolDailyAttendance, grades:filters.withGrades, grades_year:filters.withGrades ? filters.gradesYear : null, grades_bimester:filters.withGrades ? filters.gradesBimester : null, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
+        p_contents: { occurrences: filters.withOccurrences, observations: filters.withObservations, attendance_source:filters.attendanceSource, absences_by_subject: filters.withAbsences, school_daily_attendance: filters.withSchoolDailyAttendance, grades:filters.withGrades, grades_year:filters.withGrades ? filters.gradesYear : null, grades_bimester:filters.withGrades ? filters.gradesBimester : null, photo: filters.withPhoto, livro_revisa: filters.withLivroRevisa, uniform_items: filters.withUniformItems },
         p_period_start: filters.withOccurrences ? filters.start : null,
         p_period_end: filters.withOccurrences ? filters.end : null,
         p_student_count: reportTargets.length,

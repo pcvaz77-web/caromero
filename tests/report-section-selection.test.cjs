@@ -37,8 +37,8 @@ async function render(selected) {
       return y + values.length * 5;
     },
     formatDateTime() { return ''; }, formatDate() { return ''; }, formatTime() { return ''; },
-    occurrencesByStudent: empty, attendanceCurrentByStudent: empty, attendanceEventsByStudent: empty,
-    schoolDailyCurrentByStudent: empty, schoolDailyHistoryByStudent: empty, gradesByStudent: empty,
+    occurrencesByStudent: empty, absencesByStudent: new Map([['aluno-ficticio', [{ academic_year:2026, bimester:3, subject:'ARTE', absences:2 }]]]),
+    schoolDailyCurrentByStudent: new Map([['aluno-ficticio', [{ months:['Novembro'], academic_year:2026, percentage:91, school_day_count:20, presences:18, absences:2 }]]]), gradesByStudent: empty,
     livroRevisaByStudent: empty, uniformItemsByStudent: empty,
     livroRevisaTermFor() { return null; },
     window: { decodeObservationValues() { return ['Observação fictícia']; } }
@@ -47,7 +47,7 @@ async function render(selected) {
   const filters = {
     schoolName: 'Escola Fictícia', emittedAtLabel: '01/01/2026',
     gradesBimester: 3, gradesYear: 2026,
-    withObservations: false, withSchoolDailyAttendance: false, withAttendanceHistory: false,
+    withObservations: false, withSchoolDailyAttendance: false, withAbsences: false,
     withGrades: false, withOccurrences: false, withLivroRevisa: false,
     withUniformItems: false, withPhoto: false, ...selected
   };
@@ -56,7 +56,7 @@ async function render(selected) {
 }
 
 (async () => {
-  const titles = /OBSERVAÇÕES|FREQUÊNCIA|NOTAS FINAIS DO SIAP|HISTÓRICO DE OCORRÊNCIAS/;
+  const titles = /OBSERVAÇÕES|FREQUÊNCIA|FALTAS POR DISCIPLINA|NOTAS FINAIS DO SIAP|HISTÓRICO DE OCORRÊNCIAS/;
   const none = await render({});
   assert.doesNotMatch(none.text, titles);
   assert.equal(none.images, 0);
@@ -65,15 +65,17 @@ async function render(selected) {
   assert.match(occurrences.text, /HISTÓRICO DE OCORRÊNCIAS/);
   assert.doesNotMatch(occurrences.text, /OBSERVAÇÕES|FREQUÊNCIA|NOTAS FINAIS DO SIAP/);
 
-  const teacher = await render({ withAttendanceHistory: true });
-  assert.match(teacher.text, /FREQUÊNCIA POR PROFESSOR E DISCIPLINA/);
-  assert.match(teacher.text, /HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA/);
+  const teacher = await render({ withAbsences: true });
+  assert.match(teacher.text, /FALTAS POR DISCIPLINA/);
+  assert.match(teacher.text, /ARTE.*2 faltas/);
+  assert.doesNotMatch(teacher.text, /HISTÓRICO DE CLASSIFICAÇÃO DA FREQUÊNCIA/);
   assert.doesNotMatch(teacher.text, /FREQUÊNCIA DA SECRETARIA|HISTÓRICO DE OCORRÊNCIAS/);
 
   const secretary = await render({ withSchoolDailyAttendance: true });
   assert.match(secretary.text, /FREQUÊNCIA DIÁRIA GERAL — SECRETARIA/);
-  assert.match(secretary.text, /HISTÓRICO DA FREQUÊNCIA DA SECRETARIA/);
-  assert.doesNotMatch(secretary.text, /FREQUÊNCIA POR PROFESSOR E DISCIPLINA|HISTÓRICO DE OCORRÊNCIAS/);
+  assert.match(secretary.text, /91% de frequência/);
+  assert.doesNotMatch(secretary.text, /HISTÓRICO DA FREQUÊNCIA DA SECRETARIA/);
+  assert.doesNotMatch(secretary.text, /FALTAS POR DISCIPLINA|HISTÓRICO DE OCORRÊNCIAS/);
 
   const grades = await render({ withGrades: true });
   assert.match(grades.text, /NOTAS FINAIS DO SIAP/);
