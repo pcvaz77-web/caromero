@@ -37,11 +37,6 @@
   }
 
   const normalizedComparable = value => normalize(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-  const isFinalGradeHeading = value => {
-    const heading = normalizedComparable(value);
-    return /\b(?:media|nota|notas|resultado)\b/.test(heading) && /\b(?:final|finais)\b/.test(heading);
-  };
-
   function contextMatches(request, context) {
     const fields = ['className', 'shift', 'subject', 'term'];
     return fields.every(field => !request[field] || normalizedComparable(context[field]).includes(normalizedComparable(request[field])));
@@ -381,7 +376,9 @@
       const rows = [...table.rows];
       const headerIndex = rows.findIndex(row => {
         const labels = [...row.cells].map(cell => normalizedComparable(cell.textContent));
-        return labels.includes('alunos') && isFinalGradeHeading(labels.at(-1));
+        return labels.includes('alunos')
+          && labels.some(label => /\b(?:media|nota|notas|avaliacao|trabalho)\b/.test(label))
+          && labels.at(-1) !== 'faltas';
       });
       if (headerIndex < 0) return null;
       const header = rows[headerIndex];
@@ -410,7 +407,7 @@
   }
 
   // A posição determina a nota: somente a última coluna de totais é lida.
-  // O título deve indicar nota/média final, ainda que varie entre telas do SIAP.
+  // O título varia entre os modelos do SIAP, inclusive "Média Bimestral".
   globalThis.__carometroGradesSnapshot = () => {
     if (!isGradesPage()) throw new Error('Abra no SIAP a tela Notas da turma e disciplina desejadas.');
     const context = readContext();
@@ -421,8 +418,8 @@
     const students = [...document.querySelectorAll('.listaDeAlunos .itens > .item[data-matricula]')];
     const totalLists = [...document.querySelectorAll('.listaDeTotais.totalDeNotas')];
     const finalList = totalLists.at(-1);
-    if (!isFinalGradeHeading(finalList?.querySelector('.cabecalho .titulo')?.textContent))
-      throw new Error('A última coluna do SIAP não identifica uma média ou nota final. Nenhuma nota foi lida.');
+    if (!finalList)
+      throw new Error('A última coluna de notas do SIAP não foi encontrada. Nenhuma nota foi lida.');
     const cells = [...(finalList?.querySelectorAll('.itens > .item[data-matricula]') || [])];
     if (!students.length || students.length !== cells.length) throw new Error('A lista de alunos e a coluna final não estão completas.');
     const seen = new Set();

@@ -68,12 +68,11 @@ test('lê somente a média final e preserva zero separado de campo vazio', () =>
   assert.equal(result.entries[2].blocked, true);
 });
 
-test('aceita variações de título apenas na última coluna e rejeita a média intermediária', () => {
-  for (const finalTitle of ['Média Final do Bimestre', 'Nota Final', 'Notas Finais', 'Resultado Final']) {
+test('lê a última coluna de notas mesmo quando o título varia', () => {
+  for (const finalTitle of ['Média Bimestral', 'Média Final do Bimestre', 'Nota Final', 'Notas Finais', 'Resultado Final', 'Resultado do bimestre']) {
     assert.equal(snapshot({ finalTitle })().entries[0].score, 8.1);
   }
-  assert.throws(() => snapshot({ finalTitle:'Média Bimestral' })(), /última coluna.*nota final/);
-  assert.throws(() => snapshot({ finalNotLast:true })(), /última coluna.*nota final/);
+  assert.equal(snapshot({ finalNotLast:true })().entries[0].score, 3);
 });
 
 test('interrompe se matrícula e nota não estiverem alinhadas', () => {
@@ -91,9 +90,9 @@ test('lê somente Notas Finais na tela clássica, sem confundir avaliações e f
   assert.deepEqual(Array.from(result.entries, item => item.score), [8.1, 0, null]);
 });
 
-test('interrompe se a nota final clássica for desconhecida ou a tabela ambígua', () => {
+test('lê a última coluna clássica e interrompe dados incompletos ou ambíguos', () => {
+  assert.equal(snapshot({ classic:true, classicFinalNotLast:true })().entries[0].score, 2);
   assert.throws(() => snapshot({ classic:true, malformed:true })(), /formato desconhecido/);
   assert.throws(() => snapshot({ classic:true, duplicateTable:true })(), /com segurança/);
   assert.throws(() => snapshot({ classic:true, missingFinalCell:true })(), /não contém a coluna Notas Finais/);
-  assert.throws(() => snapshot({ classic:true, classicFinalNotLast:true })(), /não foi identificada com segurança/);
 });
