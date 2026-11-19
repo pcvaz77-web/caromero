@@ -25,7 +25,7 @@ const matchingRow = {
   year:'2026', term:'3º Bimestre', composition:'199 - Ensino Fundamental de 6º ao 9º Ano',
   grade:'6º Ano', shift:'Vespertino', subject:'55 - EDUCAÇÃO FÍSICA', className:'6D'
 };
-const serialized = value => [{ result:JSON.stringify({ value }) }];
+const serialized = value => [{ result:JSON.stringify({ ok:true, value }) }];
 
 const chrome = {
   runtime:{ onMessage:{ addListener(callback) { listener = callback; } } },

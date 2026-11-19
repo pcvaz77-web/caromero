@@ -37,9 +37,21 @@
   }
 
   const normalizedComparable = value => normalize(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const isFinalGradeHeading = value => {
+    const heading = normalizedComparable(value);
+    return /\b(?:media|nota|notas|resultado)\b/.test(heading) && /\b(?:final|finais)\b/.test(heading);
+  };
+  const classCodes = value => [...String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[ºª°ᵒᵃ]/g, '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ')
+    .matchAll(/(?:^| )(\d+)\s*([A-Z])(?= |$)/g)].map(match => `${Number(match[1])}${match[2]}`);
+  const sameClass = (siapName, localName) => {
+    const siapCodes = classCodes(siapName);
+    return siapCodes.length === 1 && classCodes(localName).includes(siapCodes[0]);
+  };
   function contextMatches(request, context) {
-    const fields = ['className', 'shift', 'subject', 'term'];
-    return fields.every(field => !request[field] || normalizedComparable(context[field]).includes(normalizedComparable(request[field])));
+    const fields = ['shift', 'subject', 'term'];
+    return (!request.className || sameClass(context.className, request.className))
+      && fields.every(field => !request[field] || normalizedComparable(context[field]).includes(normalizedComparable(request[field])));
   }
 
   function selectByText(id, wanted) {
@@ -128,10 +140,10 @@
   };
 
   globalThis.__carometroSelectDiaryRow = className => {
-    const expected = normalizedComparable(className);
     const rows = diaryRows();
-    const match = rows.find(row => normalizedComparable(row.className) === expected);
-    if (!match) throw new Error(`A turma "${className}" não apareceu na listagem do SIAP.`);
+    const matches = rows.filter(row => sameClass(row.className, className));
+    if (matches.length !== 1) throw new Error(`A turma "${className}" não foi identificada de forma única na listagem do SIAP.`);
+    const match = matches[0];
     document.querySelectorAll('#cphFuncionalidade_gdvListagem tr')[match.index + 1].click();
     return true;
   };

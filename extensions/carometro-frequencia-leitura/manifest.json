@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Carômetro Frequência — Leitura",
-  "version": "0.7.8",
+  "version": "0.7.9",
   "description": "Consulta chamadas, faltas bimestrais e notas finais no SIAP, mediante ação do professor.",
   "homepage_url": "https://sistemacarometro.com.br/",
   "background": { "service_worker": "background.js" },
