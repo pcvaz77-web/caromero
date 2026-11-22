@@ -158,6 +158,7 @@
               </div>
               <div class="platform-siap-section-kicker"><span>Gestão de acessos</span><p>Concessões manuais por escola e por pessoa.</p></div>
               <section class="platform-panel platform-siap-school-access"><div class="platform-panel-head platform-siap-access-head"><div><h4>Concessões por escola</h4><p>Libere o Assistente SIAP por usuário. A Correção de Provas já acompanha o acesso ativo ao Carômetro.</p></div><label class="platform-siap-search"><span>Buscar professor</span><input id="platformSiapSchoolSearch" type="search" autocomplete="off" placeholder="Nome ou e-mail"></label></div><div id="platformSiapSchoolAccess" class="platform-siap-school-list"><div class="meta">Carregando escolas e usuários…</div></div></section>
+              <section class="platform-panel platform-siap-manual-license"><div class="platform-panel-head"><div><h4>Conceder licença por e-mail</h4><p>Libere o Assistente SIAP para qualquer pessoa, mesmo sem vínculo com uma escola ou conta no Carômetro. Enviaremos um link para ela entrar com esse e-mail.</p></div></div><form id="platformSiapManualLicenseForm" class="platform-siap-manual-license-form"><label><span>E-mail da pessoa</span><input id="platformSiapManualLicenseEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="pessoa@email.com" required></label><label><span>Prazo da licença</span><select id="platformSiapManualLicensePeriod" name="period"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select></label><label id="platformSiapManualLicenseDateWrap" class="hidden"><span>Data final</span><input id="platformSiapManualLicenseDate" name="expiresOn" type="date"></label><button class="btn primary" type="submit">Conceder licença</button></form><p id="platformSiapManualLicenseStatus" class="platform-siap-manual-license-status" role="status" aria-live="polite"></p></section>
               <div class="platform-siap-section-kicker"><span>Comercial</span><p>Clientes, vencimentos e planos disponíveis para contratação.</p></div>
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
@@ -538,6 +539,55 @@
     captureSiapSchoolAccessState();
     const members = await db.rpc('platform_list_siap_school_users');
     renderSiapSchoolAccess(members.data || [], members.error);
+  }
+
+  function setupSiapManualLicenseForm() {
+    const form = document.getElementById('platformSiapManualLicenseForm');
+    if (!form || form.dataset.bound === 'true') return;
+    form.dataset.bound = 'true';
+    const period = document.getElementById('platformSiapManualLicensePeriod');
+    const dateWrap = document.getElementById('platformSiapManualLicenseDateWrap');
+    const dateInput = document.getElementById('platformSiapManualLicenseDate');
+    const status = document.getElementById('platformSiapManualLicenseStatus');
+    period.onchange = () => {
+      const custom = period.value === 'custom';
+      dateWrap.classList.toggle('hidden', !custom);
+      dateInput.required = custom;
+    };
+    form.onsubmit = async event => {
+      event.preventDefault();
+      const email = document.getElementById('platformSiapManualLicenseEmail').value.trim().toLowerCase();
+      let expiresAt = null;
+      if (period.value === 'custom') {
+        if (!dateInput.value) { toast('Escolha a data final da licença.'); return; }
+        expiresAt = new Date(`${dateInput.value}T23:59:59-03:00`).toISOString();
+        if (new Date(expiresAt).getTime() <= Date.now()) { toast('A data final deve estar no futuro.'); return; }
+      } else if (period.value !== 'permanent') {
+        expiresAt = new Date(Date.now() + Number(period.value) * 86400000).toISOString();
+      }
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      status.textContent = 'Concedendo licença e enviando link de acesso…';
+      status.classList.remove('error');
+      try {
+        const { data, error } = await db.functions.invoke('platform-grant-siap-assistant-license', { body:{ email, expiresAt } });
+        if (error) throw error;
+        if (!data?.ok) throw new Error(data?.code === 'invalid_email' ? 'Informe um e-mail válido.' : 'Não foi possível conceder a licença.');
+        status.textContent = data.notificationSent
+          ? `Licença concedida para ${email}. Enviamos um link para entrar nessa conta.`
+          : `Licença concedida para ${email}, mas o link não pôde ser enviado. A pessoa pode solicitar um link de acesso na página Minha assinatura.`;
+        form.reset();
+        dateWrap.classList.add('hidden');
+        dateInput.required = false;
+        const result = await db.rpc('platform_list_siap_assistant_customers');
+        renderSiapCustomers(result.data || [], result.error);
+      } catch (error) {
+        status.textContent = error.message || 'Não foi possível conceder a licença.';
+        status.classList.add('error');
+      } finally {
+        submit.disabled = false;
+      }
+    };
   }
 
   async function grantSiapAssistantAccess(userId, button) {
@@ -2131,6 +2181,7 @@
     renderSiapBlackFriday(siapCampaignResult.data, siapPlansResult.data || [], siapCampaignResult.error);
     renderSiapCustomers(siapCustomersResult.data || [], siapCustomersResult.error);
     renderSiapSchoolAccess(siapSchoolUsersResult.data || [], siapSchoolUsersResult.error);
+    setupSiapManualLicenseForm();
     refreshShowSubscriptionToggle(describeSubscriptionVisibility(settingsResult));
     refreshShowActivitySiteToggle(activitySettingsResult);
 

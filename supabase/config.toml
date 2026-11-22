@@ -69,3 +69,6 @@ verify_jwt = false
 
 [functions.family-cpf-access]
 verify_jwt = false
+
+[functions.platform-grant-siap-assistant-license]
+verify_jwt = true
