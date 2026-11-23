@@ -442,15 +442,59 @@ document.addEventListener('DOMContentLoaded', () => {
     }, true);
     const blockField = $('cepiBlockField');
     const enemField = $('cepiEnemModelField');
+    let selectedClassIds = new Set((values.class_ids || []).map(String));
+    let classSelectionGroups = [];
+    let groupedClassSelection = false;
+    const readClassSelection = () => {
+      if (groupedClassSelection) {
+        const next = new Set();
+        classSelectionGroups.forEach((group, index) => {
+          const input = $('cepiClassOptions').querySelector(`[data-class-group="${index}"]`);
+          if (input?.checked) group.classIds.forEach(id => next.add(id));
+          else if (input?.indeterminate) group.classIds.filter(id => selectedClassIds.has(id)).forEach(id => next.add(id));
+        });
+        selectedClassIds = next;
+      } else {
+        selectedClassIds = new Set([...$('cepiClassOptions').querySelectorAll('input[name="classes"]:checked')].map(input => input.value));
+      }
+      return [...selectedClassIds];
+    };
     const syncClasses = (preserveSelection = false) => {
-      const selected = preserveSelection ? new Set(values.class_ids || []) : new Set();
-      const isEnem=testFormElement.elements.kind.value==='enem'&&!!testFormElement.elements.enem_model.value;
+      const kind = testFormElement.elements.kind.value;
+      const isBlock = kind === 'bloco';
+      const isEnem=kind==='enem'&&!!testFormElement.elements.enem_model.value;
       const eligible = classes.filter(item => !item.archived_at && window.CepiBlocks.stageForClassName(item.name) === testFormElement.elements.stage.value && (!isEnem || /^(?:ENSINO\s+MEDIO\s+)?3(?=\D|$)/.test(String(item.name).normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toUpperCase())));
-      $('cepiClassOptions').innerHTML = eligible.length
-        ? eligible.map(item => `<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${(!test || !preserveSelection || selected.has(item.id))?'checked':''}>${esc(item.name)}</label>`).join('')
-        : '<span class="cepi-test-empty">Nenhuma turma desta etapa foi encontrada na escola.</span>';
+      if (!preserveSelection || (!test && selectedClassIds.size === 0)) selectedClassIds = new Set(eligible.map(item => String(item.id)));
+      groupedClassSelection = isBlock;
+      if (isBlock) {
+        const grouped = new Map();
+        eligible.forEach(item => {
+          const grade = gradeForClass(item);
+          const key = grade || `class:${item.id}`;
+          if (!grouped.has(key)) grouped.set(key, { key, label: gradeLabels[grade] || item.name, classIds: [] });
+          grouped.get(key).classIds.push(String(item.id));
+        });
+        const order = key => key.startsWith('medio_') ? 10 + Number(key.slice(6)) : /^\d+$/.test(key) ? Number(key) : 99;
+        classSelectionGroups = [...grouped.values()].sort((a,b) => order(a.key) - order(b.key) || a.label.localeCompare(b.label, 'pt-BR', {numeric:true}));
+        $('cepiClassOptions').innerHTML = classSelectionGroups.length
+          ? classSelectionGroups.map((group,index) => {
+            const count = group.classIds.filter(id => selectedClassIds.has(id)).length;
+            return `<label><input type="checkbox" data-class-group="${index}" ${count === group.classIds.length ? 'checked' : ''} ${count > 0 && count < group.classIds.length ? 'aria-checked="mixed"' : ''}>${esc(group.label)}</label>`;
+          }).join('')
+          : '<span class="cepi-test-empty">Nenhuma turma desta etapa foi encontrada na escola.</span>';
+        classSelectionGroups.forEach((group,index) => {
+          const input = $('cepiClassOptions').querySelector(`[data-class-group="${index}"]`);
+          const count = group.classIds.filter(id => selectedClassIds.has(id)).length;
+          input.indeterminate = count > 0 && count < group.classIds.length;
+        });
+      } else {
+        classSelectionGroups = [];
+        $('cepiClassOptions').innerHTML = eligible.length
+          ? eligible.map(item => `<label><input type="checkbox" name="classes" value="${esc(item.id)}" ${selectedClassIds.has(String(item.id))?'checked':''}>${esc(item.name)}</label>`).join('')
+          : '<span class="cepi-test-empty">Nenhuma turma desta etapa foi encontrada na escola.</span>';
+      }
       $('cepiClassHelp').textContent = eligible.length
-        ? `${eligible.length} turma${eligible.length===1?'':'s'} da etapa. Desmarque as que não farão a prova.`
+        ? isBlock ? 'Cada opção inclui todas as turmas daquele ano ou série.' : `${eligible.length} turma${eligible.length===1?'':'s'} da etapa. Desmarque as que não farão a prova.`
         : 'Confira se o nome da turma começa pelo ano ou série (ex.: 6A ou 1A).';
     };
     syncClasses(true);
@@ -487,8 +531,10 @@ document.addEventListener('DOMContentLoaded', () => {
       $('cepiTestIdentity').textContent=generatedTitle?`Teste: ${generatedTitle}`:'Escolha um teste válido.';
     };
     testFormElement.elements.kind.onchange=()=>{
+      readClassSelection();
       if(testFormElement.elements.kind.value!=='bloco')testFormElement.elements.subjects.value='';
       if(testFormElement.elements.kind.value!=='enem')testFormElement.elements.enem_model.value='';
+      syncClasses(true);
       syncBlock();
     };
     testFormElement.elements.enem_model.onchange=()=>{if(testFormElement.elements.enem_model.value){testFormElement.elements.bimester.value='4';testFormElement.elements.stage.value='medio';syncClasses();}syncBlock();};
@@ -503,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
       event.preventDefault(); if (!ensureContext() || !manager() || (test && !canEditTest(test))) return;
       const data = Object.fromEntries(new FormData(event.currentTarget));
       const plan = data.kind === 'bloco' ? window.CepiBlocks.plan(data.stage,Number(data.block_number)) : [];
-      const classIds=[...testFormElement.querySelectorAll('input[name="classes"]:checked')].map(input=>input.value);
+      const classIds=readClassSelection();
       if(!classIds.length){showSaveStatus('Selecione ao menos uma turma ativa para a prova.');return;}
       const teacherIds=selectedTeacherIds(testFormElement);
       if(!validTeacherSelection(teacherIds)){showSaveStatus('Escolha ao menos uma pessoa responsável pelas questões.');return;}
