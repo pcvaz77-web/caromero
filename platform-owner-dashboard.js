@@ -158,7 +158,7 @@
               </div>
               <div class="platform-siap-section-kicker"><span>Gestão de acessos</span><p>Concessões manuais por escola e por pessoa.</p></div>
               <section class="platform-panel platform-siap-school-access"><div class="platform-panel-head platform-siap-access-head"><div><h4>Concessões por escola</h4><p>Libere o Assistente SIAP por usuário. A Correção de Provas já acompanha o acesso ativo ao Carômetro.</p></div><label class="platform-siap-search"><span>Buscar professor</span><input id="platformSiapSchoolSearch" type="search" autocomplete="off" placeholder="Nome ou e-mail"></label></div><div id="platformSiapSchoolAccess" class="platform-siap-school-list"><div class="meta">Carregando escolas e usuários…</div></div></section>
-              <section class="platform-panel platform-siap-manual-license"><div class="platform-panel-head"><div><h4>Conceder licença por e-mail</h4><p>Libere o Assistente SIAP para qualquer pessoa, mesmo sem vínculo com uma escola ou conta no Carômetro. Enviaremos um link para ela entrar com esse e-mail.</p></div></div><form id="platformSiapManualLicenseForm" class="platform-siap-manual-license-form"><label><span>E-mail da pessoa</span><input id="platformSiapManualLicenseEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="pessoa@email.com" required></label><label><span>Prazo da licença</span><select id="platformSiapManualLicensePeriod" name="period"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select></label><label id="platformSiapManualLicenseDateWrap" class="hidden"><span>Data final</span><input id="platformSiapManualLicenseDate" name="expiresOn" type="date"></label><button class="btn primary" type="submit">Conceder licença</button></form><p id="platformSiapManualLicenseStatus" class="platform-siap-manual-license-status" role="status" aria-live="polite"></p></section>
+              <section class="platform-panel platform-siap-manual-license"><div class="platform-panel-head"><div><h4>Conceder acesso por e-mail</h4><p>Libere o Assistente SIAP para qualquer pessoa, mesmo sem vínculo com uma escola ou conta no Carômetro. Ela receberá um link para entrar com esse e-mail.</p></div></div><form id="platformSiapManualLicenseForm" class="platform-siap-manual-license-form"><label><span>Tipo de acesso</span><select id="platformSiapManualLicenseType" name="grantType"><option value="license">Licença por prazo</option><option value="free_trial">Teste grátis — 2 usos de cada função</option></select></label><label><span>E-mail da pessoa</span><input id="platformSiapManualLicenseEmail" name="email" type="email" autocomplete="email" maxlength="254" placeholder="pessoa@email.com" required></label><label id="platformSiapManualLicensePeriodWrap"><span>Prazo da licença</span><select id="platformSiapManualLicensePeriod" name="period"><option value="30">30 dias</option><option value="7">7 dias</option><option value="15">15 dias</option><option value="60">60 dias</option><option value="90">90 dias</option><option value="custom">Data final</option><option value="permanent">Permanente</option></select></label><label id="platformSiapManualLicenseDateWrap" class="hidden"><span>Data final</span><input id="platformSiapManualLicenseDate" name="expiresOn" type="date"></label><button class="btn primary" type="submit">Conceder acesso</button></form><p id="platformSiapManualLicenseHint" class="platform-siap-manual-license-hint">A licença libera o uso durante o prazo escolhido. O teste grátis libera 2 usos de planejamento, execução de conteúdo, frequência e PEI, uma vez por pessoa.</p><div class="platform-siap-extension-share"><label for="platformSiapExtensionLink">Link para baixar a extensão do Assistente SIAP</label><div><input id="platformSiapExtensionLink" type="url" readonly><button id="platformSiapExtensionCopy" class="btn secondary" type="button">Copiar link</button><a id="platformSiapExtensionOpen" class="btn secondary" target="_blank" rel="noopener noreferrer">Abrir loja</a></div></div><p id="platformSiapManualLicenseStatus" class="platform-siap-manual-license-status" role="status" aria-live="polite"></p></section>
               <div class="platform-siap-section-kicker"><span>Comercial</span><p>Clientes, vencimentos e planos disponíveis para contratação.</p></div>
               <section class="platform-panel platform-siap-customers"><div class="platform-panel-head"><div><h4>Clientes e vencimentos</h4><p>Acompanhe acessos gratuitos, assinaturas, novos clientes e dias restantes.</p></div></div><div id="platformSiapCustomerStats" class="platform-siap-customer-stats"><div class="meta">Carregando clientes…</div></div><div class="platform-table-wrap"><table class="platform-table platform-siap-customer-table"><thead><tr><th>Cliente</th><th>Acesso</th><th>Plano</th><th>Início</th><th>Vencimento</th><th>Dias restantes</th><th>Situação</th></tr></thead><tbody id="platformSiapCustomersBody"></tbody></table></div></section>
               <section class="platform-panel platform-siap-plans"><div class="platform-panel-head"><div><h4>Preços do Assistente</h4><p>Valores independentes dos planos das escolas.</p></div></div><div id="platformSiapPlans" class="platform-siap-plan-grid"><div class="meta">Carregando preços…</div></div></section>
@@ -464,7 +464,7 @@
       <td data-label="Acesso">${item.owner_granted ? 'Autorização manual' : (item.entitlement_type === 'subscription' ? 'Assinatura' : 'Teste')}</td>
       <td data-label="Plano">${esc(planLabel(item))}</td>
       <td data-label="Início">${item.customer_since ? esc(shortDate(item.customer_since)) : '—'}</td>
-      <td data-label="Vencimento">${item.access_ends_at ? esc(shortDate(item.access_ends_at)) : 'Ainda não iniciado'}</td>
+      <td data-label="Vencimento">${item.plan_name === 'Teste grátis manual' ? 'Por uso (2 por função)' : (item.access_ends_at ? esc(shortDate(item.access_ends_at)) : 'Ainda não iniciado')}</td>
       <td data-label="Dias restantes"><strong>${item.days_remaining === null ? '—' : esc(item.days_remaining)}</strong></td>
       <td data-label="Situação"><span class="platform-siap-customer-status ${esc(item.access_status)}">${esc(statusLabels[item.access_status] || item.access_status)}</span></td>
     </tr>`).join('');
@@ -545,38 +545,81 @@
     const form = document.getElementById('platformSiapManualLicenseForm');
     if (!form || form.dataset.bound === 'true') return;
     form.dataset.bound = 'true';
+    const grantType = document.getElementById('platformSiapManualLicenseType');
     const period = document.getElementById('platformSiapManualLicensePeriod');
+    const periodWrap = document.getElementById('platformSiapManualLicensePeriodWrap');
     const dateWrap = document.getElementById('platformSiapManualLicenseDateWrap');
     const dateInput = document.getElementById('platformSiapManualLicenseDate');
     const status = document.getElementById('platformSiapManualLicenseStatus');
+    const extensionLink = document.getElementById('platformSiapExtensionLink');
+    const storeUrl = window.CAROMETRO_RUNTIME_CONFIG?.siapAssistantStoreUrl || 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc';
+    extensionLink.value = storeUrl;
+    document.getElementById('platformSiapExtensionOpen').href = storeUrl;
+    grantType.onchange = () => {
+      const trial = grantType.value === 'free_trial';
+      periodWrap.hidden = trial;
+      dateWrap.classList.add('hidden');
+      dateInput.required = false;
+    };
     period.onchange = () => {
-      const custom = period.value === 'custom';
+      const custom = grantType.value === 'license' && period.value === 'custom';
       dateWrap.classList.toggle('hidden', !custom);
       dateInput.required = custom;
+    };
+    document.getElementById('platformSiapExtensionCopy').onclick = async () => {
+      try {
+        try { await navigator.clipboard.writeText(storeUrl); }
+        catch {
+          extensionLink.focus();
+          extensionLink.select();
+          if (!document.execCommand('copy')) throw new Error('clipboard_unavailable');
+        }
+        status.textContent = 'Link da extensão copiado. Você já pode enviá-lo pelo WhatsApp.';
+        status.classList.remove('error');
+      } catch {
+        extensionLink.focus();
+        extensionLink.select();
+        status.textContent = 'Selecione e copie o link exibido acima.';
+        status.classList.add('error');
+      }
     };
     form.onsubmit = async event => {
       event.preventDefault();
       const email = document.getElementById('platformSiapManualLicenseEmail').value.trim().toLowerCase();
+      const selectedGrantType = grantType.value;
       let expiresAt = null;
-      if (period.value === 'custom') {
+      if (selectedGrantType === 'license' && period.value === 'custom') {
         if (!dateInput.value) { toast('Escolha a data final da licença.'); return; }
         expiresAt = new Date(`${dateInput.value}T23:59:59-03:00`).toISOString();
         if (new Date(expiresAt).getTime() <= Date.now()) { toast('A data final deve estar no futuro.'); return; }
-      } else if (period.value !== 'permanent') {
+      } else if (selectedGrantType === 'license' && period.value !== 'permanent') {
         expiresAt = new Date(Date.now() + Number(period.value) * 86400000).toISOString();
       }
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
-      status.textContent = 'Concedendo licença e enviando link de acesso…';
+      status.textContent = selectedGrantType === 'free_trial'
+        ? 'Liberando os usos de teste e enviando o link de acesso…'
+        : 'Concedendo licença e enviando link de acesso…';
       status.classList.remove('error');
       try {
-        const { data, error } = await db.functions.invoke('platform-grant-siap-assistant-license', { body:{ email, expiresAt } });
-        if (error) throw error;
-        if (!data?.ok) throw new Error(data?.code === 'invalid_email' ? 'Informe um e-mail válido.' : 'Não foi possível conceder a licença.');
+        let { data, error } = await db.functions.invoke('platform-grant-siap-assistant-license', { body:{ email, expiresAt, grantType:selectedGrantType } });
+        if (!data && error?.context?.json) { try { data = await error.context.json(); } catch {} }
+        if (error || !data?.ok) {
+          const messages = {
+            invalid_email:'Informe um e-mail válido.',
+            trial_already_granted:'O teste grátis já foi concedido para este e-mail.',
+            active_access_exists:'Esta pessoa já tem acesso ativo ao Assistente SIAP.',
+            trial_grant_failed:'Não foi possível liberar o teste grátis.',
+            license_grant_failed:'Não foi possível conceder a licença.'
+          };
+          throw new Error(messages[data?.code] || error?.message || 'Não foi possível conceder o acesso.');
+        }
+        const accessLabel = selectedGrantType === 'free_trial' ? 'Teste grátis (2 usos por função)' : 'Licença';
         status.textContent = data.notificationSent
-          ? `Licença concedida para ${email}. Enviamos um link para entrar nessa conta.`
-          : `Licença concedida para ${email}, mas o link não pôde ser enviado. A pessoa pode solicitar um link de acesso na página Minha assinatura.`;
+          ? `${accessLabel} concedido para ${email}. Enviamos um link para entrar${selectedGrantType === 'free_trial' ? ' e iniciar o teste grátis' : ' nessa conta'}.`
+          : `${accessLabel} concedido para ${email}, mas o link não pôde ser enviado. A pessoa pode pedir um link na página Minha assinatura.`;
         form.reset();
+        grantType.onchange();
         dateWrap.classList.add('hidden');
         dateInput.required = false;
         const result = await db.rpc('platform_list_siap_assistant_customers');
