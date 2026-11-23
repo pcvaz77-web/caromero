@@ -8,7 +8,7 @@ const SIAP_HEADER_CAMPAIGN_URL = "https://ppkndfwmqdmomkjoemre.supabase.co/rest/
 let accountGeneration = 0;
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 
-async function callAssistantApi(session, payload) {
+async function callAssistantApi(session, payload, signal) {
   const accessToken = typeof session === "string" ? session : session?.accessToken;
   const deviceToken = typeof session === "object" ? session?.deviceToken : "";
   const response = await fetch(AI_ENDPOINT, {
@@ -19,7 +19,8 @@ async function callAssistantApi(session, payload) {
       "apikey":SUPABASE_ANON_KEY,
       "Content-Type":"application/json"
     },
-    body:JSON.stringify(payload)
+    body:JSON.stringify(payload),
+    ...(signal ? { signal } : {})
   });
   const data = await response.json().catch(() => ({}));
   return { response, data };
@@ -267,25 +268,50 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   }
 
   if (message?.type === "ASSISTENTE_SIAP_AI_DRAFT") {
-    readConnectedSession().then(async (session) => {
-      if (!session) {
-        respond({ ok:false, code:"ASSISTANT_SESSION_REQUIRED", message:"A sessão do Assistente SIAP não está disponível neste navegador. As prévias foram preservadas; reative o acesso à extensão e tente novamente." });
+    let replied = false;
+    const reply = (result) => {
+      if (replied) return;
+      replied = true;
+      try { respond(result); } catch { /* A aba pode ter sido fechada enquanto a solicitação terminava. */ }
+    };
+    (async () => {
+      let session;
+      try { session = await readConnectedSession(); }
+      catch {
+        reply({ ok:false, code:"ASSISTANT_SESSION_READ_FAILED", message:"Não foi possível ler a sessão da extensão. Reabra o Assistente SIAP e tente gerar a prévia novamente." });
         return;
       }
-      try {
-        const { response, data } = await callAssistantApi(session, message.payload || {});
-        if (response.status === 401 && session.deviceToken) await chrome.storage.local.remove("carometroAiDeviceSession");
-        if (response.ok) await renewLocalDeviceSession(session, data);
-        if (!response.ok || data?.ok !== true) {
-          respond({ ok:false, code:data?.code || "AI_REQUEST_FAILED", license:data?.license || null, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : data?.code === "license_expired" ? "Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." : data?.code === "guidance_not_followed" ? "O Assistente não conseguiu cumprir toda a orientação nesta tentativa. Nenhum campo foi preenchido nem houve consumo de uso. Você pode tentar gerar novamente sem alterar sua orientação." : "Não foi possível gerar o texto com IA agora." });
-          return;
-        }
-        if (data?.license) await broadcastLicense(data.license);
-        respond({ ok:true, fields:Array.isArray(data.fields) ? data.fields : [], license:data.license || null });
-      } catch {
-        respond({ ok:false, code:"AI_CONNECTION_FAILED", message:"O servidor de IA não respondeu. Tente novamente." });
+      if (!session) {
+        reply({ ok:false, code:"ASSISTANT_SESSION_REQUIRED", message:"A sessão do Assistente SIAP não está disponível neste navegador. As prévias foram preservadas; reative o acesso à extensão e tente novamente." });
+        return;
       }
-    });
+      let response, data;
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000);
+      try {
+        ({ response, data } = await callAssistantApi(session, message.payload || {}, controller.signal));
+      } catch (error) {
+        reply({ ok:false, code:controller.signal.aborted ? "AI_REQUEST_TIMEOUT" : "AI_CONNECTION_FAILED",
+          message:controller.signal.aborted ? "A geração da prévia demorou mais de 60 segundos. Tente novamente; nenhuma aula foi salva." : "Não foi possível conectar ao servidor de IA. Tente novamente." });
+        return;
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (response.status === 401 && session.deviceToken) {
+        try { await chrome.storage.local.remove("carometroAiDeviceSession"); } catch {}
+      }
+      if (!response.ok || data?.ok !== true) {
+        reply({ ok:false, code:data?.code || "AI_REQUEST_FAILED", license:data?.license || null, message:data?.code === "free_limit_reached" ? "O limite gratuito desta função terminou. Assine para continuar." : data?.code === "license_expired" ? "Seu acesso ao Assistente SIAP terminou. Assine para continuar utilizando o assistente." : data?.code === "guidance_not_followed" ? "O Assistente não conseguiu cumprir toda a orientação nesta tentativa. Nenhum campo foi preenchido nem houve consumo de uso. Você pode tentar gerar novamente sem alterar sua orientação." : "Não foi possível gerar o texto com IA agora." });
+        return;
+      }
+      if (response.ok) {
+        try { await renewLocalDeviceSession(session, data); } catch {}
+      }
+      if (data?.license) {
+        try { await broadcastLicense(data.license); } catch {}
+      }
+      reply({ ok:true, fields:Array.isArray(data.fields) ? data.fields : [], license:data.license || null });
+    })().catch(() => reply({ ok:false, code:"AI_CONNECTION_FAILED", message:"Ocorreu um erro inesperado na extensão. Tente gerar a prévia novamente." }));
     return true;
   }
 
