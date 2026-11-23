@@ -8,7 +8,7 @@
     supabaseProjectRef: 'ppkndfwmqdmomkjoemre',
     supabaseUrl: 'https://ppkndfwmqdmomkjoemre.supabase.co',
     supabasePublishableKey: 'sb_publishable_i9jmKG8G71dlwz_K-Eg3sA_StMOS1Jn',
-    siapAssistantStoreUrl: 'https://chromewebstore.google.com/detail/fgpjjlikinpcjpmmjehbgbfonnbfibnc',
+    siapAssistantStoreUrl: 'https://sistemacarometro.com.br/assistente-siap',
     attendanceCaptureStoreUrl: 'https://chromewebstore.google.com/detail/carometro-frequencia-leitura/knidplehphfpgaeeogjpfldhgbfkogbc',
     // A loja faz as atualizações comuns automaticamente. Altere o mínimo
     // somente quando uma versão antiga deixar de ser compatível ou segura.
