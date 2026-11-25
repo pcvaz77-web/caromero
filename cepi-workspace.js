@@ -75,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let results = [];
   let examHeader = null;
   let groups = [];
+  const deletingGroups = new Set();
   let groupClasses = [];
   let groupStudents = [];
   let groupTeachers = [];
@@ -1416,8 +1417,37 @@ document.addEventListener('DOMContentLoaded', () => {
     setWorkspaceBack();
     if(['clube','eletiva'].includes(section)&&manager()&&!groupTeachersLoaded){$('cepiWorkspaceContent').textContent='Carregando professores…';loadClubTeachers().then(renderGroups).catch(fail);return;}
     const subset = groups.filter(item=>item.kind===section);
-    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; const teacher=groupTeachers.find(item=>item.user_id===group.responsible_user_id); return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p>${['clube','eletiva'].includes(section)&&manager()?`<p>Professor responsável: <strong>${esc(teacher?.full_name||(group.responsible_user_id?'Usuário indisponível':'Não definido'))}</strong></p>`:''}<div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
-    bindActions({'members':id=>renderMembers(id),'edit-group':id=>groupForm(groups.find(g=>g.id===id))});
+    const deletable = ['clube','eletiva'].includes(section);
+    $('cepiWorkspaceContent').innerHTML = `<div class="cepi-workspace-list">${subset.map(group=>{ const classNames=groupClasses.filter(item=>item.group_id===group.id).map(item=>labelClass(item.class_id)); const count=groupStudents.filter(item=>item.group_id===group.id).length; const teacher=groupTeachers.find(item=>item.user_id===group.responsible_user_id); return `<article class="cepi-workspace-item"><h4>${esc(group.title)}</h4><p>${group.academic_year}${group.semester?` · ${group.semester}º semestre`:''} · ${group.active?'Ativo':'Encerrado'} · ${count}${group.seats?`/${group.seats}`:''} participantes${classNames.length?` · ${esc(classNames.join(', '))}`:''}</p>${['clube','eletiva'].includes(section)&&manager()?`<p>Professor responsável: <strong>${esc(teacher?.full_name||(group.responsible_user_id?'Usuário indisponível':'Não definido'))}</strong></p>`:''}<div class="cepi-workspace-actions">${actionButton('Ver participantes','members',group.id)}${manager()?actionButton('Editar','edit-group',group.id):''}${manager()&&deletable?actionButton(`Excluir ${section}`,'delete-group',group.id):''}</div></article>`;}).join('') || `<div class="cepi-empty">Nenhum registro em ${esc(groupLabel(section))}.</div>`}</div>`;
+    bindActions({
+      'members':id=>renderMembers(id),
+      'edit-group':id=>groupForm(groups.find(g=>g.id===id)),
+      'delete-group':async id=>{
+        const group=groups.find(item=>item.id===id);
+        if(!manager()||!ensureContext()||!group||!['eletiva','clube'].includes(group.kind)||deletingGroups.has(id))return;
+        if(!window.confirm(`Excluir a ${group.kind==='eletiva'?'eletiva':'clube'} “${group.title}” permanentemente? Os vínculos e o histórico relacionados também serão removidos.`))return;
+        deletingGroups.add(id);
+        try{
+          const result=await db.rpc('delete_cepi_group',{p_school_id:schoolId,p_group_id:id});
+          if(result.error)throw result.error;
+          try{
+            if(!ensureContext())throw new Error('A escola ativa mudou.');
+            await load();
+            renderGroups();
+            message(`${group.kind==='eletiva'?'Eletiva':'Clube'} excluído.`);
+          }catch(refreshError){
+            if(ensureContext()){
+              groups=groups.filter(item=>item.id!==id);
+              groupClasses=groupClasses.filter(item=>item.group_id!==id);
+              groupStudents=groupStudents.filter(item=>item.group_id!==id);
+              renderGroups();
+              message(`${group.kind==='eletiva'?'Eletiva':'Clube'} excluído. Houve uma falha ao atualizar a lista; reabra Meu CEPI para sincronizar.`);
+            }else message('Exclusão concluída. Selecione a escola novamente para atualizar os dados.');
+          }
+        }catch(error){fail(error);}
+        finally{deletingGroups.delete(id);}
+      }
+    });
   }
   async function renderUsefulLists() {
     if (!manager() || !ensureContext()) { message('Somente coordenação e administração podem imprimir estas listas.'); return; }
