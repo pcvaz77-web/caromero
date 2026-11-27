@@ -1325,7 +1325,8 @@ document.addEventListener('DOMContentLoaded', () => {
         popup.document.write(window.CarometroEnemPrint.cardsHtml(exam,examHeader||{},copies));popup.document.close();popup.focus();return;
       }catch(error){popup.close();fail(error);return;}
     }
-    const html = official ? window.CepiAnswerSheets.officialHtml(prepared,examHeader?.school_name) : window.CepiAnswerSheets.studentHtml(prepared,examHeader?.school_name,studentCards||quantity);
+    const selectedClassName=!official&&test.kind==='bloco'?(classes.find(item=>item.id===quantity.classId)?.name||''):'';
+    const html = official ? window.CepiAnswerSheets.officialHtml(prepared,examHeader?.school_name) : window.CepiAnswerSheets.studentHtml(prepared,examHeader?.school_name,studentCards||quantity,selectedClassName);
     popup.document.write(html); popup.document.close(); popup.focus();
   }
   async function printTest(id) {
